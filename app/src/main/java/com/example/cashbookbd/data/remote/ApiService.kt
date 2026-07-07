@@ -5,6 +5,7 @@ import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
+import com.example.cashbookbd.data.remote.dto.SettingsResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -37,6 +38,16 @@ interface ApiService {
      */
     @GET("branch/ddl/protected-branch")
     suspend fun getBranches(): Response<BranchListResponse>
+
+    /**
+     * POST {BASE_URL}/settings/get-settings — the current user's app settings,
+     * including the permission list that drives client-side gating. Requires
+     * `Authorization: Bearer <token>`; a 401 means the token expired.
+     *
+     * The backend expects a JSON body; an empty object (`{}`) is sufficient.
+     */
+    @POST("settings/get-settings")
+    suspend fun getSettings(@Body body: Map<String, String>): Response<SettingsResponse>
 
     /**
      * GET {BASE_URL}/reports/cashbook?branch_id=&start_date=&end_date=

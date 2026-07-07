@@ -1,0 +1,472 @@
+package com.example.cashbookbd.report
+
+import com.example.cashbookbd.session.Permission
+import com.example.cashbookbd.session.Permissions
+
+enum class ReportMethod { GET, POST }
+
+/** Date wire format expected by a report's API. */
+enum class ReportDateStyle {
+    /** `yyyy-MM-dd` (newer endpoints). */
+    API,
+
+    /** `dd/MM/yyyy` (legacy endpoints). */
+    DISPLAY,
+}
+
+/**
+ * The filter UX a report needs. Only a subset is wired into the generic engine
+ * today (see [ReportConfig.isGenericSupported]); the rest are listed so the
+ * registry is complete and the menu renders correctly, and can be built out
+ * incrementally.
+ */
+enum class ReportFilterType {
+    BRANCH_DATE_RANGE,
+    BRANCH_END_DATE,
+    BRANCH_LEDGER_DATE_RANGE,
+    BRANCH_PRODUCT_DATE_RANGE,
+    BRANCH_PRODUCT_ONLY,
+    BRANCH_CATEGORY_DATE_RANGE,
+    BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
+    BRANCH_REPORT_TYPE_END_DATE,
+    BRANCH_DATE_RANGE_WITH_OPTIONAL_PRODUCT,
+    BRANCH_EMPLOYEE_INSTALLMENT,
+    BRANCH_CUSTOMER_INSTALLMENT,
+    COLLECTION_SHEET,
+    GROUP_REPORT,
+}
+
+/**
+ * One entry in the Reports menu, mirroring the web app's `REPORT_MENU`.
+ *
+ * The date/branch parameter names differ across the legacy PHP endpoints, so
+ * each report declares its own [branchParam], [startParam], [endParam],
+ * [dateStyle] and any [extraParams]. This lets a single generic repository build
+ * the correct request for every report in the date-range family without a
+ * per-report code path.
+ *
+ * [native] reports are handed to a hand-built screen instead of the generic
+ * engine (Cash Book, Ledger).
+ */
+data class ReportConfig(
+    val key: String,
+    val title: String,
+    val routeName: String,
+    val webPath: String,
+    val anyOf: List<String>,
+    val endpointKey: String,
+    val method: ReportMethod,
+    val filterType: ReportFilterType,
+    val native: Boolean = false,
+    val branchParam: String = "branch_id",
+    val startParam: String? = "start_date",
+    val endParam: String? = "end_date",
+    /** Optional second date-key pair some endpoints expect alongside the first. */
+    val altStartParam: String? = null,
+    val altEndParam: String? = null,
+    val dateStyle: ReportDateStyle = ReportDateStyle.API,
+    val extraParams: Map<String, String> = emptyMap(),
+    /**
+     * When set, the filter shows a searchable ledger/party picker and sends the
+     * chosen id under this key (e.g. "ledger_id", "party_id"). Enables the
+     * ledger/party report family in the generic engine.
+     */
+    val ledgerParam: String? = null,
+    /** False when the ledger picker is optional (report runs branch-wide without it). */
+    val ledgerRequired: Boolean = true,
+) {
+    /** True when the generic filter → result flow can run this report today. */
+    val isGenericSupported: Boolean
+        get() = !native && (filterType in GENERIC_FILTER_TYPES || ledgerParam != null)
+
+    /** True when this report needs the searchable ledger/party picker. */
+    val usesLedger: Boolean get() = ledgerParam != null
+
+    private companion object {
+        val GENERIC_FILTER_TYPES = setOf(
+            ReportFilterType.BRANCH_DATE_RANGE,
+            ReportFilterType.BRANCH_END_DATE,
+            ReportFilterType.GROUP_REPORT,
+        )
+    }
+}
+
+/**
+ * The Reports menu registry and its permission rules. Mirrors the web app's
+ * `reportMenu.ts` and `REPORTS_PARENT_PERMISSIONS`.
+ */
+object ReportMenu {
+
+    /** Any of these grants access to the Reports parent section. */
+    val PARENT_PERMISSIONS = listOf(
+        "date.wise.total",
+        "cashbook.view",
+        "profit.loss",
+        "balancesheet.view",
+        "trial.balance.l3",
+        "trial.balance.l4",
+        "bank.information",
+        "connected.member.view",
+        "productwise.profit",
+        "ledger.customer",
+        "installment.create",
+        "ledger.due.view",
+        "ledger.view",
+        "ledger.labour",
+        "purchase.ledger",
+        "sales.ledger",
+        "mitch.match",
+        "group.report",
+        "product.stock.view",
+        "product.in.out",
+    )
+
+    val all: List<ReportConfig> = listOf(
+        ReportConfig(
+            key = "dateWiseTotal",
+            title = "Date Wise Total",
+            routeName = "ReportDateWiseTotal",
+            webPath = "/reports/date-wise-total-data",
+            anyOf = listOf("date.wise.total"),
+            endpointKey = "dateWiseTotal",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "cashbook",
+            title = "Cashbook",
+            routeName = "ReportCashbook",
+            webPath = "/reports/cashbook",
+            anyOf = listOf("cashbook.view"),
+            endpointKey = "cashbook",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "profitLoss",
+            title = "Profit Loss",
+            routeName = "ReportProfitLoss",
+            webPath = "/reports/profit-loss",
+            anyOf = listOf("cashbook.view", "profit.loss"),
+            endpointKey = "profitLoss",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Rendered by the bespoke ProfitLossReportScreen (grouped sections), not the generic flow.
+            native = true,
+        ),
+        ReportConfig(
+            key = "balanceSheet",
+            title = "Balance Sheet",
+            routeName = "ReportBalanceSheet",
+            webPath = "/reports/balance-sheet",
+            anyOf = listOf("cashbook.view", "balancesheet.view"),
+            endpointKey = "balanceSheet",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            branchParam = "branchId",
+            startParam = "startDate",
+            endParam = "endDate",
+            // Rendered by the bespoke BalanceSheetReportScreen (structured sections).
+            native = true,
+        ),
+        ReportConfig(
+            key = "trialBalanceLevel3",
+            title = "Trial Balance Group",
+            routeName = "ReportTrialBalanceLevel3",
+            webPath = "/reports/trialbalance-level3",
+            anyOf = listOf("cashbook.view", "trial.balance.l3"),
+            endpointKey = "trialBalanceLevel3",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "trialBalanceLevel4",
+            title = "Trial Balance Details",
+            routeName = "ReportTrialBalanceLevel4",
+            webPath = "/reports/trialbalance-level4",
+            anyOf = listOf("cashbook.view", "trial.balance.l4"),
+            endpointKey = "trialBalanceLevel4",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Rendered by the bespoke TrialBalanceScreen (real table), not the generic flow.
+            native = true,
+        ),
+        ReportConfig(
+            key = "bankInformation",
+            title = "Bank Information",
+            routeName = "ReportBankInformation",
+            webPath = "/reports/bank-information",
+            anyOf = listOf("bank.information"),
+            endpointKey = "bankInformation",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_REPORT_TYPE_END_DATE,
+        ),
+        ReportConfig(
+            key = "connectedMember",
+            title = "Connected Member",
+            routeName = "ReportConnectedMember",
+            webPath = "/reports/connected-member",
+            anyOf = listOf("connected.member.view"),
+            endpointKey = "connectedMember",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+        ),
+        ReportConfig(
+            key = "productProfitLoss",
+            title = "Product Profit Loss",
+            routeName = "ReportProductProfitLoss",
+            webPath = "/reports/product-profit-loss",
+            anyOf = listOf("productwise.profit"),
+            endpointKey = "productProfitLoss",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "customerSupplierStatement",
+            title = "Customer Supplier Statement",
+            routeName = "ReportCustomerSupplierStatement",
+            webPath = "/reports/ledger-with-product",
+            anyOf = listOf("ledger.customer"),
+            endpointKey = "customerSupplierStatement",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            ledgerParam = "party_id",
+        ),
+        ReportConfig(
+            key = "dueInstallments",
+            title = "Due Installments",
+            routeName = "ReportDueInstallments",
+            webPath = "/reports/due-installments",
+            anyOf = listOf("installment.create"),
+            endpointKey = "dueInstallments",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_CUSTOMER_INSTALLMENT,
+        ),
+        ReportConfig(
+            key = "employeeInstallments",
+            title = "Employee Installments",
+            routeName = "ReportEmployeeInstallments",
+            webPath = "/reports/employee-installment",
+            anyOf = listOf("installment.create"),
+            endpointKey = "employeeInstallments",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_EMPLOYEE_INSTALLMENT,
+        ),
+        ReportConfig(
+            key = "dueList",
+            title = "Due List",
+            routeName = "ReportDueList",
+            webPath = "/reports/due-list",
+            anyOf = listOf("ledger.due.view"),
+            endpointKey = "dueList",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_END_DATE,
+            startParam = null,
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+            // Rendered by the bespoke DueListScreen (nested data.data.original parser).
+            native = true,
+        ),
+        ReportConfig(
+            key = "ledger",
+            title = "Ledger",
+            routeName = "ReportLedger",
+            webPath = "/reports/ledger",
+            anyOf = listOf("ledger.view", "ledger.customer"),
+            endpointKey = "ledger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "productInOut",
+            title = "Product In Out",
+            routeName = "ReportProductInOut",
+            webPath = "/reports/product-ledger-data",
+            anyOf = listOf("ledger.view", "ledger.customer", "product.in.out"),
+            endpointKey = "productLedgerData",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_PRODUCT_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            ledgerParam = "ledger_id",
+        ),
+        ReportConfig(
+            key = "labourLedger",
+            title = "Labour Ledger",
+            routeName = "ReportLabourLedger",
+            webPath = "/reports/labour/ledger",
+            anyOf = listOf("ledger.labour"),
+            endpointKey = "labourLedger",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_PRODUCT_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "purchaseLedger",
+            title = "Purchase Ledger",
+            routeName = "ReportPurchaseLedger",
+            webPath = "/reports/purchase-ledger",
+            anyOf = listOf("purchase.ledger"),
+            endpointKey = "purchaseLedger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            ledgerParam = "ledger_id",
+            extraParams = mapOf("delay" to "1"),
+        ),
+        ReportConfig(
+            key = "salesLedger",
+            title = "Sales Ledger",
+            routeName = "ReportSalesLedger",
+            webPath = "/reports/sales-ledger",
+            anyOf = listOf("sales.ledger"),
+            endpointKey = "salesLedger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            ledgerParam = "ledger_id",
+            extraParams = mapOf("delay" to "1"),
+        ),
+        ReportConfig(
+            key = "mitchMatch",
+            title = "Mitch Match",
+            routeName = "ReportMitchMatch",
+            webPath = "/reports/mitch-match",
+            anyOf = listOf("mitch.match"),
+            endpointKey = "mitchMatch",
+            method = ReportMethod.GET,
+            // Only branch_id + delay=1; no dates.
+            filterType = ReportFilterType.BRANCH_END_DATE,
+            startParam = null,
+            endParam = null,
+            extraParams = mapOf("delay" to "1"),
+        ),
+        ReportConfig(
+            key = "groupReport",
+            title = "Group Report",
+            routeName = "ReportGroup",
+            webPath = "/reports/group-report",
+            anyOf = listOf("group.report"),
+            endpointKey = "groupReport",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.GROUP_REPORT,
+            startParam = "startdate",
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+        ),
+        ReportConfig(
+            key = "collectionSheet",
+            title = "Collection Sheet",
+            routeName = "ReportCollectionSheet",
+            webPath = "/somity-report/collection-sheet",
+            anyOf = listOf("group.report", "ledger.due.view", "cashbook.view"),
+            endpointKey = "collectionSheet",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.COLLECTION_SHEET,
+        ),
+        ReportConfig(
+            key = "monthlyReport",
+            title = "Monthly Report",
+            routeName = "ReportMonthly",
+            webPath = "/somity-report/monthly-report",
+            anyOf = listOf("group.report", "ledger.due.view", "cashbook.view"),
+            endpointKey = "monthlyReport",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+        ),
+        ReportConfig(
+            key = "closingStock",
+            title = "Closing Stock",
+            routeName = "ReportClosingStock",
+            webPath = "/reports/closing-stock",
+            anyOf = listOf("product.stock.view"),
+            endpointKey = "closingStock",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // The web sends both the new and legacy date keys.
+            startParam = "start_date",
+            endParam = "end_date",
+            altStartParam = "startdate",
+            altEndParam = "enddate",
+        ),
+        ReportConfig(
+            key = "stockDetails",
+            title = "Stock Details",
+            routeName = "ReportStockDetails",
+            webPath = "/somity-report/stock-details",
+            anyOf = listOf("product.stock.view"),
+            endpointKey = "closingStock",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "start_date",
+            endParam = "end_date",
+            altStartParam = "startdate",
+            altEndParam = "enddate",
+        ),
+        ReportConfig(
+            key = "productStock",
+            title = "Product Stock",
+            routeName = "ReportProductStock",
+            webPath = "/reports/product/stock",
+            anyOf = listOf("product.stock.view"),
+            endpointKey = "productStock",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "imeiStock",
+            title = "IMEI Stock",
+            routeName = "ReportImeiStock",
+            webPath = "/reports/stock-imei",
+            anyOf = listOf("product.stock.view"),
+            endpointKey = "imeiStock",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_PRODUCT_ONLY,
+        ),
+        ReportConfig(
+            key = "categoryWiseInOut",
+            title = "Category Wise In Out",
+            routeName = "ReportCategoryWiseInOut",
+            webPath = "/reports/cat-wise/in-out",
+            anyOf = listOf("product.in.out"),
+            endpointKey = "categoryWiseInOut",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_CATEGORY_DATE_RANGE,
+        ),
+        ReportConfig(
+            key = "dateWiseInOut",
+            title = "Date Wise In Out",
+            routeName = "ReportDateWiseInOut",
+            webPath = "/reports/in-out/date-wise",
+            anyOf = listOf("product.in.out"),
+            endpointKey = "dateWiseInOut",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE_WITH_OPTIONAL_PRODUCT,
+            startParam = "startdate",
+            endParam = "enddate",
+            ledgerParam = "ledger_id",
+            ledgerRequired = false,
+        ),
+    )
+
+    private val byKey: Map<String, ReportConfig> = all.associateBy { it.key }
+
+    fun byKey(key: String?): ReportConfig? = key?.let { byKey[it] }
+
+    /** True when the user can see the Reports parent section at all. */
+    fun hasParentAccess(permissions: List<Permission>?): Boolean =
+        Permissions.hasAny(permissions, PARENT_PERMISSIONS)
+
+    /** Reports the user is allowed to open, in registry order. */
+    fun visible(permissions: List<Permission>?): List<ReportConfig> =
+        all.filter { Permissions.hasAny(permissions, it.anyOf) }
+}

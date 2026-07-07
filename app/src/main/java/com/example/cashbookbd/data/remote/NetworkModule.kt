@@ -1,6 +1,8 @@
 package com.example.cashbookbd.data.remote
 
 import com.example.cashbookbd.BuildConfig
+import com.example.cashbookbd.data.remote.dto.PermissionDto
+import com.example.cashbookbd.data.remote.dto.PermissionDtoDeserializer
 import com.google.gson.GsonBuilder
 import okhttp3.Dns
 import okhttp3.Interceptor
@@ -40,6 +42,8 @@ object NetworkModule {
     fun retrofit(tokenProvider: () -> String?): Retrofit {
         val gson = GsonBuilder()
             .registerTypeAdapterFactory(PhpEmptyArrayAsMapFactory())
+            // Permissions arrive as either strings or {id,name,group_name} objects.
+            .registerTypeAdapter(PermissionDto::class.java, PermissionDtoDeserializer())
             .create()
 
         return Retrofit.Builder()

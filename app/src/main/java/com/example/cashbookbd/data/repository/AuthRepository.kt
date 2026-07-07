@@ -6,6 +6,7 @@ import com.example.cashbookbd.data.local.TokenManager
 import com.example.cashbookbd.data.remote.ApiService
 import com.example.cashbookbd.data.remote.dto.LoginData
 import com.example.cashbookbd.data.remote.dto.LoginRequest
+import com.example.cashbookbd.session.SessionManager
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ class AuthRepository(
     private val api: ApiService,
     private val tokenManager: TokenManager,
     private val dashboardCache: DashboardCache,
+    private val sessionManager: SessionManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -30,6 +32,8 @@ class AuthRepository(
         tokenManager.clear()
         // Don't let the next user (or the login screen) see the previous session's data.
         dashboardCache.clear()
+        // Drop the previous user's permissions so nothing leaks across sessions.
+        sessionManager.clear()
     }
 
     suspend fun login(identifier: String, password: String): Resource<LoginData> =

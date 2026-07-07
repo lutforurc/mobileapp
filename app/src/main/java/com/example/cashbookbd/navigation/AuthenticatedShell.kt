@@ -1,6 +1,5 @@
 package com.example.cashbookbd.navigation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
@@ -32,14 +29,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.report.ReportMenu
 import kotlinx.coroutines.launch
 
 /**
@@ -61,12 +60,20 @@ fun AuthenticatedShell(
     val drawerState = androidx.compose.material3.rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    val context = LocalContext.current
+    val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+    val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+
+    // The single "Reports" section is shown when the user has any report permission.
+    val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
+
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
         drawerContent = {
             AppDrawerContent(
                 currentRoute = currentRoute,
+                canReports = canReports,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     if (route != currentRoute) {
@@ -118,11 +125,10 @@ fun AuthenticatedShell(
 @Composable
 private fun AppDrawerContent(
     currentRoute: String,
+    canReports: Boolean,
     onDestinationClick: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
-    var reportsExpanded by remember { mutableStateOf(true) }
-
     ModalDrawerSheet {
         Column(
             modifier = Modifier
@@ -143,50 +149,19 @@ private fun AppDrawerContent(
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
 
-            // Reports (expandable parent) -> Cash Book (child).
-            NavigationDrawerItem(
-                label = { Text("Reports") },
-                icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                badge = {
-                    Icon(
-                        imageVector = if (reportsExpanded) {
-                            Icons.Filled.KeyboardArrowUp
-                        } else {
-                            Icons.Filled.KeyboardArrowDown
-                        },
-                        contentDescription = if (reportsExpanded) "Collapse" else "Expand",
-                    )
-                },
-                selected = false,
-                onClick = { reportsExpanded = !reportsExpanded },
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
-
-            AnimatedVisibility(visible = reportsExpanded) {
-                Column {
-                    NavigationDrawerItem(
-                        label = { Text("Cash Book") },
-                        selected = currentRoute == Routes.CASHBOOK,
-                        onClick = { onDestinationClick(Routes.CASHBOOK) },
-                        modifier = Modifier.padding(
-                            start = 28.dp, // extra indent to show it nests under Reports
-                            top = 0.dp,
-                            end = 12.dp,
-                            bottom = 0.dp,
-                        ),
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("Ledger") },
-                        selected = currentRoute == Routes.LEDGER,
-                        onClick = { onDestinationClick(Routes.LEDGER) },
-                        modifier = Modifier.padding(
-                            start = 28.dp,
-                            top = 0.dp,
-                            end = 12.dp,
-                            bottom = 0.dp,
-                        ),
-                    )
-                }
+            // Single "Reports" section — its child reports are listed inside
+            // ReportsHomeScreen, filtered by permission. Shown only when the user
+            // has any report permission.
+            if (canReports) {
+                NavigationDrawerItem(
+                    label = { Text("Reports") },
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+                    selected = currentRoute == Routes.REPORTS ||
+                        currentRoute == Routes.CASHBOOK ||
+                        currentRoute == Routes.LEDGER,
+                    onClick = { onDestinationClick(Routes.REPORTS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
             }
 
             Spacer(Modifier.height(12.dp))

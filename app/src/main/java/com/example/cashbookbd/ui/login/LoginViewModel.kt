@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AuthRepository
+import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel(
     private val authRepository: AuthRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -46,8 +48,15 @@ class LoginViewModel(
 
         viewModelScope.launch {
             when (val result = authRepository.login(state.identifier, state.password)) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(isLoading = false, isLoginSuccessful = true)
+                is Resource.Success -> {
+                    // Load the user's permissions before entering the app so menus
+                    // and screens gate correctly. A settings failure here isn't fatal:
+                    // the token is valid, so continue with no permissions (the user
+                    // can still reach non-gated screens) and let boot/refresh retry.
+                    sessionRepository.refresh()
+                    _uiState.update {
+                        it.copy(isLoading = false, isLoginSuccessful = true)
+                    }
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -63,7 +72,11 @@ class LoginViewModel(
         /** Builds the ViewModel with its repository dependency resolved from the [ServiceLocator]. */
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
-                LoginViewModel(ServiceLocator.provideAuthRepository(context.applicationContext))
+                val appContext = context.applicationContext
+                LoginViewModel(
+                    authRepository = ServiceLocator.provideAuthRepository(appContext),
+                    sessionRepository = ServiceLocator.provideSessionRepository(appContext),
+                )
             }
         }
     }
