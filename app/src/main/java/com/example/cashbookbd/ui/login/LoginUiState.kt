@@ -5,10 +5,11 @@ package com.example.cashbookbd.ui.login
  * Held in the ViewModel so it survives configuration changes.
  */
 data class LoginUiState(
-    // Prefilled dev credentials for quick testing. Clear these before shipping.
-    val identifier: String = "lutforurc@gmail.com",
-    val password: String = "Lutfor01911282149#",
+    // Empty by default; debug builds seed dev credentials in LoginViewModel.
+    val identifier: String = "",
+    val password: String = "",
     val isPasswordVisible: Boolean = false,
+    val rememberMe: Boolean = true,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isLoginSuccessful: Boolean = false,

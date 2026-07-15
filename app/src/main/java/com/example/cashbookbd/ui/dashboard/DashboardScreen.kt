@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.dashboard
 
+import android.content.res.Configuration
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,39 +13,55 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
+import com.example.cashbookbd.ui.dashboard.model.ReceivedBranchGroup
 import com.example.cashbookbd.ui.dashboard.model.ReceivedFromHo
 import com.example.cashbookbd.ui.dashboard.model.TopPurchase
 import com.example.cashbookbd.ui.dashboard.model.previewDashboard
 import com.example.cashbookbd.ui.theme.CashBookbdTheme
+import com.example.cashbookbd.ui.theme.accents
 import java.text.DecimalFormat
 
 @Composable
@@ -64,6 +84,15 @@ fun DashboardScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.snackbar) {
+        val snackbar = uiState.snackbar
+        if (snackbar != null) {
+            snackbarHostState.showSnackbar(snackbar.message)
+            viewModel.onSnackbarShown()
+        }
+    }
+
     AuthenticatedShell(
         title = "Dashboard",
         currentRoute = Routes.HOME,
@@ -79,19 +108,28 @@ fun DashboardScreen(
             }
         },
     ) {
-        when {
-            // First load with nothing to show yet.
-            uiState.isLoading && uiState.dashboard == null -> LoadingState()
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                // First load with nothing to show yet.
+                uiState.isLoading && uiState.dashboard == null -> LoadingState()
 
-            // Hard error with no cached content.
-            uiState.dashboard == null && uiState.errorMessage != null ->
-                ErrorState(message = uiState.errorMessage!!, onRetry = viewModel::load)
+                // Hard error with no cached content.
+                uiState.dashboard == null && uiState.errorMessage != null ->
+                    ErrorState(message = uiState.errorMessage!!, onRetry = viewModel::load)
 
-            uiState.dashboard != null ->
-                DashboardContent(
-                    dashboard = uiState.dashboard!!,
-                    isRefreshing = uiState.isRefreshing,
-                )
+                uiState.dashboard != null ->
+                    DashboardContent(
+                        dashboard = uiState.dashboard!!,
+                        isRefreshing = uiState.isRefreshing,
+                        rowActions = uiState.rowActions,
+                        onReceive = viewModel::onReceive,
+                    )
+            }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
@@ -132,6 +170,8 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 private fun DashboardContent(
     dashboard: Dashboard,
     isRefreshing: Boolean,
+    rowActions: Map<Int, RowActionState>,
+    onReceive: (ReceivedFromHo) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -148,57 +188,16 @@ private fun DashboardContent(
 
         item { SummaryCard(dashboard) }
 
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatTile(
-                    label = "Today Received",
-                    value = formatAmount(dashboard.todayReceived),
-                    accent = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                StatTile(
-                    label = "Today Payment",
-                    value = formatAmount(dashboard.todayPayment),
-                    accent = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
+        item { TopPurchaseCard(dashboard) }
 
         item {
-            StatTile(
-                label = "Balance",
-                value = formatAmount(dashboard.balance),
-                accent = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.fillMaxWidth(),
+            ReceivedFromHoPanel(
+                title = dashboard.receiveDetailsTitle,
+                total = dashboard.receivedTotal,
+                groups = dashboard.receivedGroups,
+                rowActions = rowActions,
+                onReceive = onReceive,
             )
-        }
-
-        item {
-            SectionCard(title = "Top Purchases (${dashboard.topPurchaseDays} days)") {
-                if (dashboard.topPurchases.isEmpty()) {
-                    EmptyRow("No purchases in this period.")
-                } else {
-                    dashboard.topPurchases.forEachIndexed { index, product ->
-                        TopPurchaseRow(product)
-                        if (index != dashboard.topPurchases.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            SectionCard(title = dashboard.receiveDetailsTitle) {
-                if (dashboard.receivedFromHeadOffice.isEmpty()) {
-                    EmptyRow("No records for this month.")
-                }
-            }
-        }
-
-        items(dashboard.receivedFromHeadOffice) { row ->
-            ReceivedFromHoCard(row)
         }
     }
 }
@@ -214,137 +213,82 @@ private fun LinearRefreshHint() {
     )
 }
 
+/**
+ * Branch summary card: header with the branch name, then a stat row per metric
+ * (each with a tinted icon chip), and a "last updated" footer strip.
+ */
 @Composable
 private fun SummaryCard(dashboard: Dashboard) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = dashboard.branchName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.height(6.dp))
-            LabeledValue("Transaction date", dashboard.transactionDate)
-            Spacer(Modifier.height(2.dp))
-            LabeledValue("Last updated", dashboard.lastUpdate)
-        }
-    }
-}
-
-@Composable
-private fun LabeledValue(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "$label:",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        Spacer(Modifier.height(0.dp))
-        Text(
-            text = "  $value",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-    }
-}
-
-@Composable
-private fun StatTile(
-    label: String,
-    value: String,
-    accent: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier,
-) {
-    Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = accent,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
+    val accents = MaterialTheme.accents
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(8.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun TopPurchaseRow(product: TopPurchase) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = product.name,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = "Qty: ${formatAmount(product.quantity)}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun ReceivedFromHoCard(row: ReceivedFromHo) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = row.voucherNo.ifBlank { "Voucher —" },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = row.date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = formatAmount(row.amount),
+                    text = dashboard.branchName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
                 )
+                IconChip(icon = Icons.Filled.Place, tint = accents.blue)
             }
-            if (row.remarks.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            SummaryStatRow(
+                icon = Icons.Filled.DateRange,
+                tint = accents.blue,
+                label = "TRX DATE",
+                value = dashboard.transactionDate,
+                valueColor = MaterialTheme.colorScheme.onSurface,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SummaryStatRow(
+                icon = Icons.Filled.KeyboardArrowDown,
+                tint = accents.green,
+                label = "TODAY RECEIVED",
+                value = formatBdAmount(dashboard.todayReceived),
+                valueColor = MaterialTheme.colorScheme.onSurface,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SummaryStatRow(
+                icon = Icons.Filled.KeyboardArrowUp,
+                tint = accents.red,
+                label = "TODAY PAYMENT",
+                value = formatBdAmount(dashboard.todayPayment),
+                valueColor = accents.red,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SummaryStatRow(
+                icon = null,
+                glyph = "৳",
+                tint = accents.purple,
+                label = "BALANCE",
+                value = formatBdAmount(dashboard.balance),
+                valueColor = accents.blue,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(6.dp))
                 Text(
-                    text = row.remarks,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "Last updated: ${dashboard.lastUpdate}",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -352,24 +296,389 @@ private fun ReceivedFromHoCard(row: ReceivedFromHo) {
     }
 }
 
+/** A small tinted rounded-square icon badge. */
 @Composable
-private fun EmptyRow(message: String) {
-    Text(
-        text = message,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(vertical = 8.dp),
-    )
+private fun IconChip(icon: ImageVector, tint: Color) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .background(tint.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+    }
+}
+
+/**
+ * One metric row: a tinted icon chip (or [glyph] when no [icon]), an uppercase
+ * label and its value.
+ */
+@Composable
+private fun SummaryStatRow(
+    icon: ImageVector?,
+    tint: Color,
+    label: String,
+    value: String,
+    valueColor: Color,
+    glyph: String? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+            } else {
+                Text(
+                    text = glyph.orEmpty(),
+                    color = tint,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 0.5.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = valueColor,
+            )
+        }
+    }
+}
+
+/**
+ * Top Purchase card: header with a period badge, then a numbered row per product
+ * (blue serial, name, amber quantity).
+ */
+@Composable
+private fun TopPurchaseCard(dashboard: Dashboard) {
+    val accents = MaterialTheme.accents
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Top Purchase",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                val periodLabel =
+                    if (dashboard.topPurchaseDays <= 1) "Today" else "${dashboard.topPurchaseDays} Days"
+                Box(
+                    modifier = Modifier
+                        .background(accents.amber.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                ) {
+                    Text(
+                        text = periodLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accents.amber,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            if (dashboard.topPurchases.isEmpty()) {
+                Text(
+                    text = "No purchases in this period.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+            } else {
+                dashboard.topPurchases.forEachIndexed { index, product ->
+                    TopPurchaseRow(serial = index + 1, product = product)
+                    if (index != dashboard.topPurchases.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopPurchaseRow(serial: Int, product: TopPurchase) {
+    val accents = MaterialTheme.accents
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = serial.toString().padStart(2, '0'),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = accents.blue,
+            modifier = Modifier.width(32.dp),
+        )
+        Text(
+            text = product.name,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = formatAmount(product.quantity),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = accents.amber,
+        )
+    }
+}
+
+/**
+ * The "Received Details from H/O" panel: a single card with a total badge in the
+ * header, then each branch's rows under a subtotal strip, with a confirmation
+ * check per row. Mirrors the web `card-received-ho` panel.
+ */
+@Composable
+private fun ReceivedFromHoPanel(
+    title: String,
+    total: Double,
+    groups: List<ReceivedBranchGroup>,
+    rowActions: Map<Int, RowActionState>,
+    onReceive: (ReceivedFromHo) -> Unit,
+) {
+    val accents = MaterialTheme.accents
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accents.rose,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = accents.blue.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(50),
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        text = "Tk. ${formatBdAmount(total)}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = accents.blue,
+                    )
+                }
+            }
+
+            if (groups.isEmpty()) {
+                Text(
+                    text = "No records for this month.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+
+            groups.forEach { group ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = group.branchName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = formatBdAmount(group.subtotal),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                group.rows.forEachIndexed { index, row ->
+                    val action = rowActions[row.mtmId] ?: RowActionState()
+                    ReceivedRow(
+                        serial = index + 1,
+                        row = row,
+                        // Effective status = server's initial flag OR confirmed this session.
+                        processed = row.confirmed || action.processedLocally,
+                        inFlight = action.inFlight,
+                        onReceive = { onReceive(row) },
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceivedRow(
+    serial: Int,
+    row: ReceivedFromHo,
+    processed: Boolean,
+    inFlight: Boolean,
+    onReceive: () -> Unit,
+) {
+    val accents = MaterialTheme.accents
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = serial.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(24.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.voucherNo.ifBlank { "—" },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (row.date.isNotBlank()) {
+                Text(
+                    text = row.date,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Text(
+            text = formatBdAmount(row.amount),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(end = 12.dp),
+        )
+        // Trailing action slot: processed = check, in-flight = spinner, else = receive button.
+        Box(
+            modifier = Modifier.size(34.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                processed -> Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "Received",
+                    tint = accents.green,
+                    modifier = Modifier.size(22.dp),
+                )
+
+                inFlight -> CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = accents.red,
+                )
+
+                // Red framed arrow — the whole box is the tap target (mirrors the
+                // web's "receive remittance" submit action).
+                else -> Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .border(1.dp, accents.red, RoundedCornerShape(6.dp))
+                        .clickable(onClick = onReceive)
+                        .padding(horizontal = 7.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = "Receive this remittance",
+                        tint = accents.red,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 private val amountFormat = DecimalFormat("#,##0.##")
 
 private fun formatAmount(value: Double): String = amountFormat.format(value)
 
-@Preview(showBackground = true)
+/**
+ * Bangladeshi/Indian lakh grouping (e.g. 1540400 -> "15,40,400"): the rightmost
+ * three digits, then groups of two. Whole taka, to match the H/O panel design.
+ */
+private fun formatBdAmount(value: Double): String {
+    val whole = Math.round(Math.abs(value)).toString()
+    val grouped = groupLakh(whole)
+    return if (value < 0) "-$grouped" else grouped
+}
+
+private fun groupLakh(digits: String): String {
+    if (digits.length <= 3) return digits
+    val last3 = digits.substring(digits.length - 3)
+    var rest = digits.substring(0, digits.length - 3)
+    val sb = StringBuilder()
+    while (rest.length > 2) {
+        sb.insert(0, "," + rest.substring(rest.length - 2))
+        rest = rest.substring(0, rest.length - 2)
+    }
+    if (rest.isNotEmpty()) sb.insert(0, rest)
+    return "$sb,$last3"
+}
+
+@Preview(showBackground = true, name = "Dashboard · Light")
 @Composable
 private fun DashboardContentPreview() {
-    CashBookbdTheme {
-        DashboardContent(dashboard = previewDashboard, isRefreshing = false)
+    CashBookbdTheme(darkTheme = false, dynamicColor = false) {
+        DashboardContent(
+            dashboard = previewDashboard,
+            isRefreshing = false,
+            rowActions = emptyMap(),
+            onReceive = {},
+        )
+    }
+}
+
+@Preview(
+    showBackground = true,
+    name = "Dashboard · Dark",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun DashboardContentDarkPreview() {
+    CashBookbdTheme(darkTheme = true, dynamicColor = false) {
+        DashboardContent(
+            dashboard = previewDashboard,
+            isRefreshing = false,
+            rowActions = emptyMap(),
+            onReceive = {},
+        )
     }
 }

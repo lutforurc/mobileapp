@@ -5,6 +5,8 @@ import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
+import com.example.cashbookbd.data.remote.dto.ReceiveRequest
+import com.example.cashbookbd.data.remote.dto.ReceiveResponse
 import com.example.cashbookbd.data.remote.dto.SettingsResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -60,4 +62,16 @@ interface ApiService {
         @Query("start_date") startDate: String,
         @Query("end_date") endDate: String,
     ): Response<CashBookResponse>
+
+    /**
+     * POST {BASE_URL}/accounts/payment/specific-item — confirms ("receives") one
+     * head-office remittance, creating an accounting voucher server-side.
+     *
+     * ⚠️ NON-IDEMPOTENT with no server-side duplicate guard: posting the same
+     * `mtm_id` twice debits cash twice, silently. NEVER auto-retry this call
+     * (no OkHttp retry, no backoff, no WorkManager). Success is the body's
+     * `success` flag — a failure returns HTTP 201.
+     */
+    @POST("accounts/payment/specific-item")
+    suspend fun receiveSpecificItem(@Body request: ReceiveRequest): Response<ReceiveResponse>
 }

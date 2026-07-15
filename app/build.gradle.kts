@@ -1,6 +1,28 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Dev-only login prefill, sourced from local.properties (which is untracked) so
+// real credentials never live in source control or ship inside a release binary.
+// To enable prefill in your local debug builds, add to local.properties:
+//   dev.login.identifier=you@example.com
+//   dev.login.password=your-password
+val devLoginProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+/** Wraps a value as a valid Java string literal for buildConfigField. */
+fun javaStringLiteral(value: String): String {
+    val escaped = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    return "\"$escaped\""
 }
 
 android {
@@ -32,6 +54,11 @@ android {
         // MUST be empty ("") for any real/resolvable domain, otherwise the override
         // hijacks that domain to the IP above. Production uses real DNS => "".
         buildConfigField("String", "LOCAL_HOST_IP", "\"\"")
+
+        // Login prefill: empty by default (release stays empty); debug overrides
+        // these from local.properties below. Never hardcode real credentials here.
+        buildConfigField("String", "DEV_LOGIN_IDENTIFIER", "\"\"")
+        buildConfigField("String", "DEV_LOGIN_PASSWORD", "\"\"")
     }
 
     buildTypes {
@@ -46,6 +73,18 @@ android {
             // To point debug at production, restore the nibirnirman URL + empty IP.
             buildConfigField("String", "BASE_URL", "\"https://nibirnirman.cashbookbd.com/api/\"")
             buildConfigField("String", "LOCAL_HOST_IP", "\"\"")
+
+            // Prefill login ONLY in debug, and ONLY if the developer opted in via
+            // local.properties. Empty when unset, so a debug build still shows
+            // blank fields unless you explicitly add the keys.
+            buildConfigField(
+                "String", "DEV_LOGIN_IDENTIFIER",
+                javaStringLiteral(devLoginProps.getProperty("dev.login.identifier", "")),
+            )
+            buildConfigField(
+                "String", "DEV_LOGIN_PASSWORD",
+                javaStringLiteral(devLoginProps.getProperty("dev.login.password", "")),
+            )
         }
         release {
             isMinifyEnabled = false
@@ -56,6 +95,9 @@ android {
             buildConfigField("String", "BASE_URL", "\"https://nibirnirman.cashbookbd.com/api/\"")
             // Empty => use real DNS (no vhost override in production).
             buildConfigField("String", "LOCAL_HOST_IP", "\"\"")
+            // Never prefill credentials in a release build.
+            buildConfigField("String", "DEV_LOGIN_IDENTIFIER", "\"\"")
+            buildConfigField("String", "DEV_LOGIN_PASSWORD", "\"\"")
         }
     }
     compileOptions {

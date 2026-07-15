@@ -28,6 +28,18 @@ class AuthRepository(
 
     fun isLoggedIn(): Boolean = tokenManager.isLoggedIn()
 
+    /**
+     * Enforces the "Remember me" choice exactly once per process: if the last
+     * login opted out, the stored token is dropped so a cold start returns to
+     * the login screen. Guarded so it runs only at process start and never logs
+     * out a user who signed in during this session (e.g. after a config change).
+     */
+    fun enforceRememberMePolicy() {
+        if (policyApplied) return
+        policyApplied = true
+        tokenManager.clearTokenIfNotRemembered()
+    }
+
     fun logout() {
         tokenManager.clear()
         // Don't let the next user (or the login screen) see the previous session's data.
@@ -36,7 +48,11 @@ class AuthRepository(
         sessionManager.clear()
     }
 
-    suspend fun login(identifier: String, password: String): Resource<LoginData> =
+    suspend fun login(
+        identifier: String,
+        password: String,
+        rememberMe: Boolean,
+    ): Resource<LoginData> =
         withContext(ioDispatcher) {
             try {
                 val response = api.login(LoginRequest(login = identifier.trim(), password = password))
@@ -62,7 +78,7 @@ class AuthRepository(
                     )
 
                     else -> {
-                        tokenManager.saveToken(body.data!!.token!!)
+                        tokenManager.saveToken(body.data!!.token!!, rememberMe)
                         // Fresh session — drop any dashboard cached for a prior user.
                         dashboardCache.clear()
                         Resource.Success(body.data)
@@ -77,4 +93,11 @@ class AuthRepository(
                 Resource.Error("Something went wrong. Please try again.")
             }
         }
+
+    private companion object {
+        // Process-wide latch so the remember-me policy is applied only at cold
+        // start, not on every Activity re-creation.
+        @Volatile
+        private var policyApplied = false
+    }
 }

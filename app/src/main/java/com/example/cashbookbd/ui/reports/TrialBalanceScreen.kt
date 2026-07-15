@@ -8,12 +8,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,7 +166,7 @@ private fun FilterCard(
             ) {
                 if (state.isReportLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
@@ -213,34 +216,6 @@ private fun BranchDropdown(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    onClick: () -> Unit,
-) {
-    Box(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            trailingIcon = { Icon(trailingIcon, contentDescription = null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(onClick = onClick),
-        )
     }
 }
 
@@ -421,16 +396,23 @@ private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
 private fun TableHeader() {
     Row(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(vertical = 8.dp),
+            .background(MaterialTheme.colorScheme.primary)
+            .height(IntrinsicSize.Min),
     ) {
         HeaderCell("SL. NO", COL_SL, TextAlign.Start)
+        GridVDivider(onHeader = true)
         HeaderCell("DESCRIPTION", COL_DESC, TextAlign.Start)
+        GridVDivider(onHeader = true)
         HeaderCell("OPENING DR", COL_NUM, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("OPENING CR", COL_NUM, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("MOVEMENT DR", COL_NUM, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("MOVEMENT CR", COL_NUM, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("CLOSING DR", COL_NUM, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("CLOSING CR", COL_NUM, TextAlign.End)
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -439,32 +421,51 @@ private fun TableHeader() {
 @Composable
 private fun TableRow(index: Int, row: TrialBalanceRow) {
     Row(
-        modifier = Modifier.padding(vertical = 6.dp),
+        modifier = Modifier.height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BodyCell(index.toString(), COL_SL, TextAlign.Start)
+        GridVDivider()
         BodyCell(row.description, COL_DESC, TextAlign.Start, maxLines = 2)
+        GridVDivider()
         BodyCell(formatCell(row.openingDebit), COL_NUM, TextAlign.End)
+        GridVDivider()
         BodyCell(formatCell(row.openingCredit), COL_NUM, TextAlign.End)
+        GridVDivider()
         BodyCell(formatCell(row.movementDebit), COL_NUM, TextAlign.End)
+        GridVDivider()
         BodyCell(formatCell(row.movementCredit), COL_NUM, TextAlign.End)
+        GridVDivider()
         BodyCell(formatCell(row.closingDebit), COL_NUM, TextAlign.End)
+        GridVDivider()
         BodyCell(formatCell(row.closingCredit), COL_NUM, TextAlign.End)
     }
+}
+
+/** Vertical grid line spanning the full height of a table row. */
+@Composable
+private fun GridVDivider(onHeader: Boolean = false) {
+    VerticalDivider(
+        color = if (onHeader) {
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        },
+    )
 }
 
 @Composable
 private fun HeaderCell(text: String, width: Dp, align: TextAlign) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onPrimary,
         textAlign = align,
         maxLines = 2,
         modifier = Modifier
             .width(width)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     )
 }
 
@@ -483,7 +484,7 @@ private fun BodyCell(
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .width(width)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     )
 }
 

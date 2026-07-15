@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -105,6 +108,7 @@ fun GenericReportScreen(
                 onBranchSelected = viewModel::onBranchSelected,
                 onLedgerSelected = viewModel::onLedgerSelected,
                 searchLedgers = viewModel::searchLedgers,
+                onChoiceSelected = viewModel::onChoiceSelected,
                 onStartDate = viewModel::onStartDateSelected,
                 onEndDate = viewModel::onEndDateSelected,
                 onApply = viewModel::apply,
@@ -122,6 +126,7 @@ private fun FilterCard(
     onBranchSelected: (BranchOption) -> Unit,
     onLedgerSelected: (LedgerDropdownItem) -> Unit,
     searchLedgers: suspend (String) -> Resource<List<LedgerDropdownItem>>,
+    onChoiceSelected: (com.example.cashbookbd.report.ReportChoice) -> Unit,
     onStartDate: (SimpleDate) -> Unit,
     onEndDate: (SimpleDate) -> Unit,
     onApply: () -> Unit,
@@ -142,6 +147,16 @@ private fun FilterCard(
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+
+        if (state.showChoice) {
+            Spacer(Modifier.height(12.dp))
+            ChoiceDropdown(
+                label = state.choiceLabel,
+                options = state.choiceOptions,
+                selected = state.selectedChoice,
+                onSelected = onChoiceSelected,
+            )
         }
 
         if (state.showLedger) {
@@ -189,7 +204,7 @@ private fun FilterCard(
         ) {
             if (state.isReportLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.height(22.dp),
+                    modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -233,30 +248,34 @@ private fun BranchDropdown(
 }
 
 @Composable
-private fun PickerField(
+private fun ChoiceDropdown(
     label: String,
-    value: String,
-    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    onClick: () -> Unit,
+    options: List<com.example.cashbookbd.report.ReportChoice>,
+    selected: com.example.cashbookbd.report.ReportChoice?,
+    onSelected: (com.example.cashbookbd.report.ReportChoice) -> Unit,
 ) {
-    Box(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            trailingIcon = { Icon(trailingIcon, contentDescription = null) },
-            singleLine = true,
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        PickerField(
+            label = label,
+            value = selected?.label ?: "",
+            placeholder = label,
+            trailingIcon = Icons.Filled.ArrowDropDown,
             modifier = Modifier.fillMaxWidth(),
+            onClick = { if (options.isNotEmpty()) expanded = true },
         )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(onClick = onClick),
-        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -373,11 +392,12 @@ private fun ReportTable(table: TableModel) {
     ) {
         Row(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(vertical = 8.dp),
+                .background(MaterialTheme.colorScheme.primary)
+                .height(IntrinsicSize.Min),
         ) {
             TableCell(text = "Sl. No.", width = COL_SL, align = TextAlign.Start, header = true)
             table.columns.forEachIndexed { i, label ->
+                GridVDivider(onHeader = true)
                 TableCell(
                     text = label,
                     width = columnWidth(table.numeric[i]),
@@ -395,7 +415,7 @@ private fun ReportTable(table: TableModel) {
         ) {
             table.rows.forEachIndexed { rowIndex, cells ->
                 Row(
-                    modifier = Modifier.padding(vertical = 6.dp),
+                    modifier = Modifier.height(IntrinsicSize.Min),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TableCell(
@@ -405,6 +425,7 @@ private fun ReportTable(table: TableModel) {
                         header = false,
                     )
                     cells.forEachIndexed { i, value ->
+                        GridVDivider()
                         TableCell(
                             text = value,
                             width = columnWidth(table.numeric[i]),
@@ -427,10 +448,10 @@ private fun ReportTable(table: TableModel) {
 private fun TableCell(text: String, width: Dp, align: TextAlign, header: Boolean) {
     Text(
         text = text,
-        style = if (header) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-        fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+        style = if (header) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
+        fontWeight = if (header) FontWeight.Bold else FontWeight.Normal,
         color = if (header) {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            MaterialTheme.colorScheme.onPrimary
         } else {
             MaterialTheme.colorScheme.onSurface
         },
@@ -439,7 +460,19 @@ private fun TableCell(text: String, width: Dp, align: TextAlign, header: Boolean
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .width(width)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+    )
+}
+
+/** Vertical grid line spanning the full height of a table row. */
+@Composable
+private fun GridVDivider(onHeader: Boolean = false) {
+    VerticalDivider(
+        color = if (onHeader) {
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        },
     )
 }
 

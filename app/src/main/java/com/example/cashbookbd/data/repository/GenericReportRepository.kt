@@ -48,11 +48,12 @@ class GenericReportRepository(
         startDate: SimpleDate?,
         endDate: SimpleDate?,
         ledgerId: Long? = null,
+        choiceValue: String? = null,
     ): Resource<ReportResult> = withContext(ioDispatcher) {
         val path = ReportEndpoints.path(config.endpointKey)
             ?: return@withContext Resource.Error("This report is not available.")
 
-        val params = buildParams(config, branchId, startDate, endDate, ledgerId)
+        val params = buildParams(config, branchId, startDate, endDate, ledgerId, choiceValue)
 
         try {
             val response = when (config.method) {
@@ -98,12 +99,14 @@ class GenericReportRepository(
         startDate: SimpleDate?,
         endDate: SimpleDate?,
         ledgerId: Long?,
+        choiceValue: String?,
     ): Map<String, String> {
         fun fmt(date: SimpleDate): String =
             if (config.dateStyle == ReportDateStyle.DISPLAY) date.toDisplay() else date.toApi()
 
         val params = LinkedHashMap<String, String>()
         params[config.branchParam] = branchId.toString()
+        config.choiceParam?.let { choice -> choiceValue?.let { params[choice.paramKey] = it } }
         config.ledgerParam?.let { key -> ledgerId?.let { params[key] = it.toString() } }
         config.startParam?.let { key -> startDate?.let { params[key] = fmt(it) } }
         config.endParam?.let { key -> endDate?.let { params[key] = fmt(it) } }

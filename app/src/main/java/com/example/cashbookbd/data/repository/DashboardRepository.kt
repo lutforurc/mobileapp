@@ -3,6 +3,7 @@ package com.example.cashbookbd.data.repository
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.local.DashboardCache
 import com.example.cashbookbd.data.remote.ApiService
+import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
 import com.example.cashbookbd.ui.dashboard.model.toDashboard
 import kotlinx.coroutines.CoroutineDispatcher
@@ -77,4 +78,58 @@ class DashboardRepository(
             Resource.Error("Something went wrong. Please try again.")
         }
     }
+
+    /**
+     * Confirms ("receives") one head-office remittance. Returns the success
+     * message (the new voucher no) on success.
+     *
+     * ⚠️ NON-IDEMPOTENT: there is deliberately NO retry here and callers must not
+     * add one. Success is decided by [ReceiveResponse.success], NOT the HTTP
+     * status (a business failure returns HTTP 201). On an ambiguous failure
+     * (timeout / lost connection) the error is flagged
+     * [Resource.Error.isAmbiguous] so the caller re-fetches the dashboard to
+     * learn the true state instead of re-posting.
+     */
+    suspend fun receiveSpecificItem(request: ReceiveRequest): Resource<String> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.receiveSpecificItem(request)
+
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.",
+                        isUnauthorized = true,
+                    )
+                }
+
+                // Do NOT branch on response.isSuccessful — a failure is HTTP 201 (2xx).
+                val body = response.body()
+                    ?: return@withContext Resource.Error(
+                        "No response from server — refreshing to check.",
+                        isAmbiguous = true,
+                    )
+
+                if (body.success) {
+                    Resource.Success(body.message?.ifBlank { null } ?: "Received successfully.")
+                } else {
+                    Resource.Error(body.message?.ifBlank { null } ?: "Couldn't confirm receipt.")
+                }
+            } catch (e: IOException) {
+                // Timeout / connection lost: the POST MAY have reached the server.
+                // Ambiguous — must not be retried; caller re-fetches to reconcile.
+                Resource.Error(
+                    "Connection lost before we got a reply — refreshing to check.",
+                    isAmbiguous = true,
+                )
+            } catch (e: HttpException) {
+                if (e.code() == HTTP_UNAUTHORIZED) {
+                    Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+                } else {
+                    // A thrown HTTP error is also ambiguous for a non-idempotent POST.
+                    Resource.Error("Couldn't confirm receipt (${e.code()}) — refreshing to check.", isAmbiguous = true)
+                }
+            } catch (e: Exception) {
+                Resource.Error("Couldn't confirm receipt. Please try again.")
+            }
+        }
 }

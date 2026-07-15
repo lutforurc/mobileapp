@@ -8,12 +8,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -167,7 +170,7 @@ private fun LedgerFilterForm(
         ) {
             if (state.isReportLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.height(22.dp),
+                    modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -214,34 +217,6 @@ private fun BranchDropdown(
 }
 
 /** A read-only text field whose taps are forwarded to [onClick]. */
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    trailingIcon: ImageVector,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    onClick: () -> Unit,
-) {
-    Box(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            trailingIcon = { Icon(trailingIcon, contentDescription = null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(onClick = onClick),
-        )
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Results (ledger statement from /reports/api-ledger)
 // ---------------------------------------------------------------------------
@@ -335,6 +310,7 @@ private fun LedgerTable(statement: LedgerStatement) {
             .horizontalScroll(hScroll),
     ) {
         TableHeader()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -381,14 +357,19 @@ private fun SummaryRow(label: String, debit: String, credit: String) {
         Row(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(vertical = 12.dp),
+                .height(IntrinsicSize.Min),
         ) {
             // Blank SL / VR DATE / VR NO; the label sits under DESCRIPTION.
             Spacer(Modifier.width(COL_SL))
+            GridVDivider()
             Spacer(Modifier.width(COL_DATE))
+            GridVDivider()
             Spacer(Modifier.width(COL_VR))
+            GridVDivider()
             BodyCell(label, COL_DESCRIPTION, fontWeight = FontWeight.Bold)
+            GridVDivider()
             BodyCell(debit, COL_DEBIT, TextAlign.End, FontWeight.Bold)
+            GridVDivider()
             BodyCell(credit, COL_CREDIT, TextAlign.End, FontWeight.Bold)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -400,13 +381,18 @@ private fun TableHeader() {
     Row(
         modifier = Modifier
             .background(MaterialTheme.colorScheme.primary)
-            .padding(vertical = 10.dp),
+            .height(IntrinsicSize.Min),
     ) {
         HeaderCell("SL. NO", COL_SL)
+        GridVDivider(onHeader = true)
         HeaderCell("VR DATE", COL_DATE)
+        GridVDivider(onHeader = true)
         HeaderCell("VR NO", COL_VR)
+        GridVDivider(onHeader = true)
         HeaderCell("DESCRIPTION", COL_DESCRIPTION)
+        GridVDivider(onHeader = true)
         HeaderCell("DEBIT", COL_DEBIT, TextAlign.End)
+        GridVDivider(onHeader = true)
         HeaderCell("CREDIT", COL_CREDIT, TextAlign.End)
     }
 }
@@ -424,17 +410,34 @@ private fun TableRow(row: LedgerDisplayRow) {
         Row(
             modifier = Modifier
                 .background(bg)
-                .padding(vertical = 10.dp),
+                .height(IntrinsicSize.Min),
         ) {
             BodyCell(row.sl, COL_SL, fontWeight = weight)
+            GridVDivider()
             BodyCell(row.date, COL_DATE, fontWeight = weight)
+            GridVDivider()
             BodyCell(row.voucherNo, COL_VR, fontWeight = weight)
+            GridVDivider()
             BodyCell(row.description, COL_DESCRIPTION, fontWeight = weight, maxLines = 3)
+            GridVDivider()
             BodyCell(row.debit, COL_DEBIT, TextAlign.End, weight)
+            GridVDivider()
             BodyCell(row.credit, COL_CREDIT, TextAlign.End, weight)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
+}
+
+/** Vertical grid line spanning the full height of a table row. */
+@Composable
+private fun GridVDivider(onHeader: Boolean = false) {
+    VerticalDivider(
+        color = if (onHeader) {
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        },
+    )
 }
 
 @Composable
@@ -447,7 +450,7 @@ private fun HeaderCell(text: String, width: Dp, align: TextAlign = TextAlign.Sta
         textAlign = align,
         modifier = Modifier
             .width(width)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     )
 }
 
@@ -469,7 +472,7 @@ private fun BodyCell(
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .width(width)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     )
 }
 

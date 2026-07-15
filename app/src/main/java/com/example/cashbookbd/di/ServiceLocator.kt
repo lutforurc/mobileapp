@@ -19,6 +19,7 @@ import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.session.SessionManager
+import com.example.cashbookbd.ui.theme.ThemeManager
 import retrofit2.Retrofit
 
 /**
@@ -80,6 +81,9 @@ object ServiceLocator {
     private var sessionManager: SessionManager? = null
 
     @Volatile
+    private var themeManager: ThemeManager? = null
+
+    @Volatile
     private var settingsRepository: SettingsRepository? = null
 
     @Volatile
@@ -94,6 +98,12 @@ object ServiceLocator {
     fun provideSessionManager(context: Context): SessionManager =
         sessionManager ?: synchronized(this) {
             sessionManager ?: SessionManager().also { sessionManager = it }
+        }
+
+    /** Shared, app-wide holder of the user's light/dark theme preference. */
+    fun provideThemeManager(context: Context): ThemeManager =
+        themeManager ?: synchronized(this) {
+            themeManager ?: ThemeManager(context.applicationContext).also { themeManager = it }
         }
 
     private fun provideDashboardCache(context: Context): DashboardCache =

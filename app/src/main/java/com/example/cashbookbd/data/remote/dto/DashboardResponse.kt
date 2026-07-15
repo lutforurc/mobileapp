@@ -1,5 +1,6 @@
 package com.example.cashbookbd.data.remote.dto
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 /**
@@ -81,11 +82,48 @@ data class ReceiveDetailsDto(
 )
 
 data class ReceivedItemDto(
+    /** Id of the source head-office voucher; the key for the receive action. */
+    @SerializedName("mtm_id") val mtmId: Int? = null,
+    /** Head office's branch id (NOT the receiving branch) — sent back in the receive body. */
+    @SerializedName("branch_id") val branchId: Int? = null,
     @SerializedName("pay_branch") val payBranch: Long? = null,
     @SerializedName("branch") val branch: Long? = null,
     @SerializedName("vr_no") val vrNo: String? = null,
     @SerializedName("vr_date") val vrDate: String? = null,
     @SerializedName("remarks") val remarks: String? = null,
+    /**
+     * POLYMORPHIC (API contract RULE 3): boolean `false` when not yet received,
+     * but the string `"1"` when already processed. Typed as [String] because
+     * Gson's string adapter coerces a JSON boolean to `"false"`/`"true"` rather
+     * than crashing — the defensive handling the contract's custom serializer is
+     * for. Interpret via truthiness (non-blank, not "false"/"0").
+     */
     @SerializedName("remittance") val remittance: String? = null,
     @SerializedName("debit") val debit: String? = null,
+)
+
+/**
+ * POST /api/accounts/payment/specific-item body. All four fields come verbatim
+ * from the tapped row.
+ *
+ * ⚠️ NON-IDEMPOTENT: posting the same [mtmId] twice creates a second voucher and
+ * debits cash twice. The call must never be auto-retried (see [com.example.cashbookbd.data.repository.DashboardRepository]).
+ */
+data class ReceiveRequest(
+    @SerializedName("mtm_id") val mtmId: Int,
+    @SerializedName("branch_id") val branchId: Int,
+    @SerializedName("remarks") val remarks: String,
+    @SerializedName("amount") val amount: Double,
+)
+
+/**
+ * Receive-action response. Success is the [success] flag, NOT the HTTP status —
+ * a business failure returns HTTP 201 (2xx). The user-facing text is in
+ * [message] (on success it's the new voucher no, e.g. "Vr. No. 1-25070042").
+ */
+data class ReceiveResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: JsonElement? = null,
+    @SerializedName("error") val error: ApiError? = null,
 )

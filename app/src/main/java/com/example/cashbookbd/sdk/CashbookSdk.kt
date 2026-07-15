@@ -72,9 +72,15 @@ class CashbookSdk internal constructor(
      * on failure the [Resource.Error.message] is a user-facing string.
      *
      * @param identifier email or phone — the backend resolves either.
+     * @param rememberMe when false, the stored token is dropped at the next cold
+     *   start so the session doesn't survive an app restart.
      */
-    suspend fun login(identifier: String, password: String): Resource<LoginData> =
-        authRepository.login(identifier, password)
+    suspend fun login(
+        identifier: String,
+        password: String,
+        rememberMe: Boolean = true,
+    ): Resource<LoginData> =
+        authRepository.login(identifier, password, rememberMe)
 
     /**
      * `GET /dashboard/data`. A 401 comes back as

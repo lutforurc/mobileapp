@@ -26,13 +26,36 @@ class TokenManager(context: Context) {
         )
     }
 
-    fun saveToken(token: String) {
-        prefs.edit().putString(KEY_TOKEN, token).apply()
+    /**
+     * Persists the token and records whether the user asked to stay signed in.
+     * When [rememberMe] is false the token is dropped at the next cold start
+     * (see [clearTokenIfNotRemembered]), so the session doesn't survive an app
+     * restart.
+     */
+    fun saveToken(token: String, rememberMe: Boolean) {
+        prefs.edit()
+            .putString(KEY_TOKEN, token)
+            .putBoolean(KEY_REMEMBER_ME, rememberMe)
+            .apply()
     }
 
     fun getToken(): String? = prefs.getString(KEY_TOKEN, null)
 
     fun isLoggedIn(): Boolean = !getToken().isNullOrBlank()
+
+    /**
+     * True when the last login opted to be remembered. Defaults to true so a
+     * token stored before this flag existed keeps the user signed in.
+     */
+    fun isRememberMeEnabled(): Boolean = prefs.getBoolean(KEY_REMEMBER_ME, true)
+
+    /**
+     * Call once at process start: if the last login opted out of "Remember me",
+     * discard the stored token so the user must sign in again.
+     */
+    fun clearTokenIfNotRemembered() {
+        if (!isRememberMeEnabled()) clear()
+    }
 
     fun clear() {
         prefs.edit().clear().apply()
@@ -41,5 +64,6 @@ class TokenManager(context: Context) {
     private companion object {
         const val PREFS_FILE_NAME = "cashbook_secure_prefs"
         const val KEY_TOKEN = "auth_token"
+        const val KEY_REMEMBER_ME = "remember_me"
     }
 }

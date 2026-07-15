@@ -11,6 +11,7 @@ import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.report.ReportChoice
 import com.example.cashbookbd.report.ReportConfig
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -45,6 +46,11 @@ class GenericReportViewModel(
             showEndDate = config?.endParam != null,
             showLedger = config?.usesLedger == true,
             ledgerRequired = config?.usesLedger == true && config.ledgerRequired,
+            showChoice = config?.usesChoice == true,
+            choiceLabel = config?.choiceParam?.label.orEmpty(),
+            choiceOptions = config?.choiceParam?.options.orEmpty(),
+            // Default to the first option so Apply is usable immediately.
+            selectedChoice = config?.choiceParam?.options?.firstOrNull(),
         )
     )
     val uiState: StateFlow<GenericReportUiState> = _uiState.asStateFlow()
@@ -106,6 +112,10 @@ class GenericReportViewModel(
         _uiState.update { it.copy(selectedLedger = ledger) }
     }
 
+    fun onChoiceSelected(choice: ReportChoice) {
+        _uiState.update { it.copy(selectedChoice = choice) }
+    }
+
     /** Searchable ledger/party source, reused by the shared dropdown component. */
     suspend fun searchLedgers(query: String): Resource<List<LedgerDropdownItem>> =
         ledgerRepository.searchLedgers(query)
@@ -133,6 +143,7 @@ class GenericReportViewModel(
                 startDate = if (state.showStartDate) state.startDate else null,
                 endDate = if (state.showEndDate) state.endDate else null,
                 ledgerId = if (state.showLedger) state.selectedLedger?.id?.toLong() else null,
+                choiceValue = if (state.showChoice) state.selectedChoice?.value else null,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {

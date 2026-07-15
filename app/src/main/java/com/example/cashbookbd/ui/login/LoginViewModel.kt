@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AuthRepository
 import com.example.cashbookbd.data.repository.SessionRepository
@@ -20,7 +21,7 @@ class LoginViewModel(
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(LoginUiState())
+    private val _uiState = MutableStateFlow(initialState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun onIdentifierChange(value: String) {
@@ -35,6 +36,10 @@ class LoginViewModel(
         _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
     }
 
+    fun onRememberMeChange(value: Boolean) {
+        _uiState.update { it.copy(rememberMe = value) }
+    }
+
     /** Clears a shown error after the UI has consumed it (e.g. snackbar dismissed). */
     fun onErrorShown() {
         _uiState.update { it.copy(errorMessage = null) }
@@ -47,7 +52,7 @@ class LoginViewModel(
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
-            when (val result = authRepository.login(state.identifier, state.password)) {
+            when (val result = authRepository.login(state.identifier, state.password, state.rememberMe)) {
                 is Resource.Success -> {
                     // Load the user's permissions before entering the app so menus
                     // and screens gate correctly. A settings failure here isn't fatal:
@@ -69,6 +74,20 @@ class LoginViewModel(
     }
 
     companion object {
+        // Login prefill comes from BuildConfig, which is sourced from
+        // local.properties for debug and is always empty for release (see
+        // app/build.gradle.kts). No credentials are hardcoded here, so nothing
+        // sensitive ships in a built/installed app.
+        private fun initialState(): LoginUiState {
+            val identifier = BuildConfig.DEV_LOGIN_IDENTIFIER
+            val password = BuildConfig.DEV_LOGIN_PASSWORD
+            return if (identifier.isNotBlank() || password.isNotBlank()) {
+                LoginUiState(identifier = identifier, password = password)
+            } else {
+                LoginUiState()
+            }
+        }
+
         /** Builds the ViewModel with its repository dependency resolved from the [ServiceLocator]. */
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {

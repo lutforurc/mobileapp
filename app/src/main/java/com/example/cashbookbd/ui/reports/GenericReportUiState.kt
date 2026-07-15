@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.report.ReportChoice
 import com.example.cashbookbd.report.ReportResult
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -16,6 +17,12 @@ data class GenericReportUiState(
     /** True when a ledger/party must be selected before Apply is enabled. */
     val ledgerRequired: Boolean = false,
     val selectedLedger: LedgerDropdownItem? = null,
+
+    /** True when this report shows the single-select choice dropdown. */
+    val showChoice: Boolean = false,
+    val choiceLabel: String = "",
+    val choiceOptions: List<ReportChoice> = emptyList(),
+    val selectedChoice: ReportChoice? = null,
 
     // Filter form
     val branches: List<BranchOption> = emptyList(),
@@ -36,7 +43,8 @@ data class GenericReportUiState(
         get() = isSupported &&
             selectedBranch != null &&
             !isReportLoading &&
-            (!ledgerRequired || selectedLedger != null)
+            (!ledgerRequired || selectedLedger != null) &&
+            (!showChoice || selectedChoice != null)
 
     val isEmptyResult: Boolean
         get() = result != null && result.isEmpty

@@ -49,7 +49,9 @@ class DueListRepository(
             "coa4_name", "name", "customer_name", "party_name", "ledger_name", "account_name", "contact_name",
         )
         private val MOBILE_KEYS = listOf("mobile", "phone", "contact_no")
-        private val REFERENCE_KEYS = listOf("ledger_page", "manual_address", "address", "customer_address")
+        private val PAGE_KEYS = listOf("ledger_page", "page", "page_no")
+        private val ADDRESS_KEYS = listOf("manual_address", "address", "customer_address")
+        private val AREA_KEYS = listOf("area_code", "areacode", "area", "zone")
         private val DEBIT_KEYS = listOf("debit", "debit_bal", "due", "due_amount", "balance")
         private val CREDIT_KEYS = listOf("credit", "credit_bal")
 
@@ -135,7 +137,9 @@ class DueListRepository(
                 DueRow(
                     customer = it.string(NAME_KEYS).ifBlank { "—" },
                     mobile = it.stringOrNull(MOBILE_KEYS),
-                    reference = it.stringOrNull(REFERENCE_KEYS),
+                    page = it.stringOrNull(PAGE_KEYS),
+                    address = it.stringOrNull(ADDRESS_KEYS),
+                    areaCode = it.stringOrNull(AREA_KEYS),
                     debit = it.number(DEBIT_KEYS),
                     credit = it.number(CREDIT_KEYS),
                 )

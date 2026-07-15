@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,6 +28,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.report.ReportMenu
+import com.example.cashbookbd.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
 /**
@@ -67,6 +71,14 @@ fun AuthenticatedShell(
     // The single "Reports" section is shown when the user has any report permission.
     val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
 
+    val themeManager = remember { ServiceLocator.provideThemeManager(context) }
+    val themeMode by themeManager.mode.collectAsStateWithLifecycle()
+    val isDark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
@@ -74,6 +86,10 @@ fun AuthenticatedShell(
             AppDrawerContent(
                 currentRoute = currentRoute,
                 canReports = canReports,
+                isDark = isDark,
+                onThemeChange = { dark ->
+                    themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
+                },
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     if (route != currentRoute) {
@@ -126,6 +142,8 @@ fun AuthenticatedShell(
 private fun AppDrawerContent(
     currentRoute: String,
     canReports: Boolean,
+    isDark: Boolean,
+    onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -167,6 +185,15 @@ private fun AppDrawerContent(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
             Spacer(Modifier.height(12.dp))
+
+            NavigationDrawerItem(
+                label = { Text("Dark mode") },
+                icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                selected = false,
+                onClick = { onThemeChange(!isDark) },
+                badge = { Switch(checked = isDark, onCheckedChange = onThemeChange) },
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
 
             NavigationDrawerItem(
                 label = { Text("Log out") },

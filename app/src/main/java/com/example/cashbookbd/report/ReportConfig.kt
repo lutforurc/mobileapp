@@ -36,6 +36,22 @@ enum class ReportFilterType {
     GROUP_REPORT,
 }
 
+/** One selectable option in a report's single-select choice dropdown. */
+data class ReportChoice(
+    val label: String,
+    val value: String,
+)
+
+/**
+ * A single-select dropdown filter some reports need (e.g. Bank Information's
+ * balance/loan type). The chosen [ReportChoice.value] is sent under [paramKey].
+ */
+data class ReportChoiceParam(
+    val paramKey: String,
+    val label: String,
+    val options: List<ReportChoice>,
+)
+
 /**
  * One entry in the Reports menu, mirroring the web app's `REPORT_MENU`.
  *
@@ -74,6 +90,11 @@ data class ReportConfig(
     val ledgerParam: String? = null,
     /** False when the ledger picker is optional (report runs branch-wide without it). */
     val ledgerRequired: Boolean = true,
+    /**
+     * When set, the filter shows a single-select dropdown (e.g. report type) and
+     * sends the chosen value under [ReportChoiceParam.paramKey].
+     */
+    val choiceParam: ReportChoiceParam? = null,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -82,10 +103,14 @@ data class ReportConfig(
     /** True when this report needs the searchable ledger/party picker. */
     val usesLedger: Boolean get() = ledgerParam != null
 
+    /** True when this report needs the single-select choice dropdown. */
+    val usesChoice: Boolean get() = choiceParam != null
+
     private companion object {
         val GENERIC_FILTER_TYPES = setOf(
             ReportFilterType.BRANCH_DATE_RANGE,
             ReportFilterType.BRANCH_END_DATE,
+            ReportFilterType.BRANCH_REPORT_TYPE_END_DATE,
             ReportFilterType.GROUP_REPORT,
         )
     }
@@ -201,6 +226,18 @@ object ReportMenu {
             endpointKey = "bankInformation",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_REPORT_TYPE_END_DATE,
+            // End date only (no start), sent as dd/MM/yyyy under `enddate`.
+            startParam = null,
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+            choiceParam = ReportChoiceParam(
+                paramKey = "report_type_id",
+                label = "Report Type",
+                options = listOf(
+                    ReportChoice("Bank Balance", "1"),
+                    ReportChoice("Bank Loan", "2"),
+                ),
+            ),
         ),
         ReportConfig(
             key = "connectedMember",

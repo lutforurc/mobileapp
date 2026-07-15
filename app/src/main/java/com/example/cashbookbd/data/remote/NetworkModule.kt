@@ -66,6 +66,11 @@ object NetworkModule {
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // The receive action (POST accounts/payment/specific-item) is NOT
+            // idempotent — OkHttp must never silently re-send a request whose
+            // response was lost, or cash gets debited twice. Disabled globally;
+            // GETs recover via the app's explicit refresh instead.
+            .retryOnConnectionFailure(false)
             .dns(VhostDns(BASE_HOST, LOCAL_HOST_IP))
             .addInterceptor(AcceptJsonInterceptor)
             .addInterceptor(AuthInterceptor(tokenProvider))

@@ -8,12 +8,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,10 +26,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,12 +108,12 @@ private fun FilterCard(
 ) {
     val context = LocalContext.current
 
-    // No card background — the form sits directly on the screen. The outer
-    // padding preserves the previous spacing (12.dp margin + 16.dp inner).
+    // No card background — the form sits directly on the screen. Tight vertical
+    // padding keeps the gap above the branch field and below the Apply button small.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 28.dp, vertical = 28.dp),
+            .padding(horizontal = 28.dp, vertical = 10.dp),
     ) {
         BranchDropdown(
             branches = state.branches,
@@ -152,7 +156,7 @@ private fun FilterCard(
         ) {
             if (state.isReportLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.height(22.dp),
+                    modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -202,34 +206,6 @@ private fun BranchDropdown(
  * A read-only text field for the filter form. It's not directly editable — a
  * transparent overlay forwards taps to [onClick] (dropdown / date picker).
  */
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    onClick: () -> Unit,
-) {
-    Box(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            trailingIcon = { Icon(trailingIcon, contentDescription = null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(onClick = onClick),
-        )
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Results
 // ---------------------------------------------------------------------------
@@ -283,110 +259,33 @@ private fun CenterBox(content: @Composable () -> Unit) {
 
 // Column widths for the horizontally-scrollable table.
 // Order: Date | VR No | Description | Received (credit) | Payment (debit)
-private val COL_DATE = 96.dp
-private val COL_VR = 100.dp
-private val COL_DESCRIPTION = 210.dp
-private val COL_RECEIVED = 116.dp
-private val COL_PAYMENT = 116.dp
+// Column widths for the horizontally-scrollable table.
+// Order: Date | VR No | Description | Received (credit) | Payment (debit)
+private val cashBookColumns = listOf(
+    GridColumn("Date", GridColWidth.Fixed(96.dp)),
+    GridColumn("VR No", GridColWidth.Fixed(100.dp)),
+    GridColumn("Description", GridColWidth.Fixed(210.dp)),
+    GridColumn("Received", GridColWidth.Fixed(116.dp), TextAlign.End),
+    GridColumn("Payment", GridColWidth.Fixed(116.dp), TextAlign.End),
+)
 
 @Composable
 private fun CashBookTable(rows: List<CashBookRow>) {
-    val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalScroll(hScroll),
-    ) {
-        TableHeader()
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(vScroll),
-        ) {
-            rows.forEach { row -> TableRow(row) }
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun TableHeader() {
-    Row(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(vertical = 10.dp),
-    ) {
-        HeaderCell("Date", COL_DATE)
-        HeaderCell("VR No", COL_VR)
-        HeaderCell("Description", COL_DESCRIPTION)
-        HeaderCell("Received", COL_RECEIVED, TextAlign.End)
-        HeaderCell("Payment", COL_PAYMENT, TextAlign.End)
-    }
-}
-
-@Composable
-private fun TableRow(row: CashBookRow) {
-    val bg = if (row.isSummary) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val weight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal
-
-    Column {
-        Row(
-            modifier = Modifier
-                .background(bg)
-                .padding(vertical = 10.dp),
-        ) {
-            BodyCell(row.date, COL_DATE, fontWeight = weight)
-            BodyCell(row.voucherNo, COL_VR, fontWeight = weight)
-            BodyCell(row.particulars, COL_DESCRIPTION, fontWeight = weight, maxLines = 3)
-            BodyCell(amountOrBlank(row.credit), COL_RECEIVED, TextAlign.End, weight)
-            BodyCell(amountOrBlank(row.debit), COL_PAYMENT, TextAlign.End, weight)
-        }
-        androidx.compose.material3.HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant,
+    val summaryBg = MaterialTheme.colorScheme.secondaryContainer
+    val gridRows = rows.map { row ->
+        val bold = row.isSummary
+        GridRowSpec.Data(
+            cells = listOf(
+                GridCellSpec.Text(row.date, bold = bold),
+                GridCellSpec.Text(row.voucherNo, bold = bold),
+                GridCellSpec.Text(row.particulars, bold = bold, maxLines = 3),
+                GridCellSpec.Text(amountOrBlank(row.credit), align = TextAlign.End, bold = bold),
+                GridCellSpec.Text(amountOrBlank(row.debit), align = TextAlign.End, bold = bold),
+            ),
+            background = if (row.isSummary) summaryBg else null,
         )
     }
-}
-
-@Composable
-private fun HeaderCell(text: String, width: Dp, align: TextAlign = TextAlign.Start) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = align,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp),
-    )
-}
-
-@Composable
-private fun BodyCell(
-    text: String,
-    width: Dp,
-    align: TextAlign = TextAlign.Start,
-    fontWeight: FontWeight = FontWeight.Normal,
-    maxLines: Int = 1,
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = fontWeight,
-        textAlign = align,
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp),
-    )
+    ReportGridTable(columns = cashBookColumns, rows = gridRows)
 }
 
 private val amountFormat = DecimalFormat("#,##0")

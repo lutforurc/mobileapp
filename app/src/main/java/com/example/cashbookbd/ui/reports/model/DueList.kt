@@ -4,8 +4,12 @@ package com.example.cashbookbd.ui.reports.model
 data class DueRow(
     val customer: String,
     val mobile: String?,
-    /** Ledger page or address, shown as a reference line. */
-    val reference: String?,
+    /** Ledger page reference, e.g. "L#01, P#407". */
+    val page: String?,
+    /** Customer/supplier address line. */
+    val address: String?,
+    /** Area / zone code, when the backend provides one. */
+    val areaCode: String?,
     val debit: Double,
     val credit: Double,
 ) {

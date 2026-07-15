@@ -14,6 +14,12 @@ sealed interface Resource<out T> {
     data class Error(
         val message: String,
         val isUnauthorized: Boolean = false,
+        /**
+         * True when the outcome is ambiguous — a timeout or lost connection where
+         * the request may or may not have reached the server. A non-idempotent
+         * action must NOT be retried on this; re-fetch to reconcile instead.
+         */
+        val isAmbiguous: Boolean = false,
     ) : Resource<Nothing>
 
     data object Loading : Resource<Nothing>
