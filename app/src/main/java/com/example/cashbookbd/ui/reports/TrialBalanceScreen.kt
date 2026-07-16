@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -69,8 +70,12 @@ fun TrialBalanceScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "Trial Balance Details",
+    /** True for the Level-3 Group report: two-tier grouped header + Grand Total row. */
+    grouped: Boolean = false,
+    reportPath: String = TrialBalanceRepository.PATH_LEVEL4,
     viewModel: TrialBalanceViewModel = viewModel(
-        factory = TrialBalanceViewModel.provideFactory(LocalContext.current)
+        factory = TrialBalanceViewModel.provideFactory(LocalContext.current, reportPath)
     ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,7 +88,7 @@ fun TrialBalanceScreen(
     }
 
     AuthenticatedShell(
-        title = "Trial Balance Details",
+        title = title,
         currentRoute = Routes.REPORTS,
         navController = navController,
         onLogout = onLogout,
@@ -100,7 +105,7 @@ fun TrialBalanceScreen(
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Box(modifier = Modifier.weight(1f)) {
-                Results(state = uiState, onRetry = viewModel::apply)
+                Results(state = uiState, onRetry = viewModel::apply, grouped = grouped)
             }
         }
     }
@@ -224,7 +229,7 @@ private fun BranchDropdown(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
+private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit, grouped: Boolean) {
     when {
         state.isReportLoading -> CenterBox { CircularProgressIndicator() }
 
@@ -252,6 +257,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
             report = state.report,
             branchName = state.appliedBranchName,
             range = state.appliedRange,
+            grouped = grouped,
         )
     }
 }
@@ -261,6 +267,7 @@ private fun ReportContent(
     report: TrialBalanceReport,
     branchName: String?,
     range: String?,
+    grouped: Boolean,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Summary boxes
@@ -317,7 +324,7 @@ private fun ReportContent(
                 )
             }
         } else {
-            TrialBalanceTable(rows = report.rows)
+            TrialBalanceTable(rows = report.rows, grouped = grouped)
         }
     }
 }
@@ -364,6 +371,7 @@ private val COL_SL = 44.dp
 private val COL_DESC = 190.dp
 private val COL_NUM = 104.dp
 
+/** Flat 8-column layout used by Trial Balance Details (Level 4). */
 private val trialBalanceColumns = listOf(
     ReportColumn<TrialBalanceRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { _, i ->
         cellText((i + 1).toString())
@@ -391,10 +399,73 @@ private val trialBalanceColumns = listOf(
     },
 )
 
+/**
+ * Grouped layout used by Trial Balance Group (Level 3): a "#" serial (centered),
+ * Description, then Dr/Cr pairs whose group name (OPENING/MOVEMENT/CLOSING) sits
+ * in the [trialBalanceHeaderGroups] top row.
+ */
+private val trialBalanceGroupedColumns = listOf(
+    ReportColumn<TrialBalanceRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, i ->
+        cellText((i + 1).toString(), align = TextAlign.Center)
+    },
+    ReportColumn<TrialBalanceRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESC)) { r, _ ->
+        cellText(r.description, maxLines = 2)
+    },
+    ReportColumn<TrialBalanceRow>("DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.openingDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.openingCredit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.movementDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.movementCredit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.closingDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.closingCredit), align = TextAlign.End)
+    },
+)
+
+private val trialBalanceHeaderGroups = listOf(
+    ReportHeaderGroup("", 1),          // # (serial)
+    ReportHeaderGroup("", 1),          // Description
+    ReportHeaderGroup("OPENING", 2),
+    ReportHeaderGroup("MOVEMENT", 2),
+    ReportHeaderGroup("CLOSING", 2),
+)
+
 @Composable
-private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
-    ReportTable(columns = trialBalanceColumns, data = rows)
+private fun TrialBalanceTable(rows: List<TrialBalanceRow>, grouped: Boolean) {
+    if (!grouped) {
+        ReportTable(columns = trialBalanceColumns, data = rows)
+        return
+    }
+
+    // Grand Total footer: label across #/Description, then each column's sum.
+    val grandTotal = listOf(
+        ReportFooterCell(cellText("Grand Total", bold = true), colSpan = 2),
+        totalCell(rows.sumOf { it.openingDebit }),
+        totalCell(rows.sumOf { it.openingCredit }),
+        totalCell(rows.sumOf { it.movementDebit }),
+        totalCell(rows.sumOf { it.movementCredit }),
+        totalCell(rows.sumOf { it.closingDebit }),
+        totalCell(rows.sumOf { it.closingCredit }),
+    )
+    ReportTable(
+        columns = trialBalanceGroupedColumns,
+        data = rows,
+        headerGroups = trialBalanceHeaderGroups,
+        footerRows = listOf(grandTotal),
+    )
 }
+
+private fun totalCell(value: Double): ReportFooterCell =
+    ReportFooterCell(cellText(formatCell(value), align = TextAlign.End, bold = true))
 
 @Composable
 private fun CenterBox(content: @Composable () -> Unit) {

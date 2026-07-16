@@ -265,6 +265,9 @@ object ReportMenu {
             endpointKey = "trialBalanceLevel3",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Rendered by the bespoke TrialBalanceScreen (grouped OPENING/MOVEMENT/
+            // CLOSING header + Grand Total), sharing the Level-4 table.
+            native = true,
         ),
         ReportConfig(
             key = "trialBalanceLevel4",

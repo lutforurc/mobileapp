@@ -27,6 +27,7 @@ class TrialBalanceViewModel(
     private val reportRepository: ReportRepository,
     private val dashboardRepository: DashboardRepository,
     private val trialBalanceRepository: TrialBalanceRepository,
+    private val reportPath: String = TrialBalanceRepository.PATH_LEVEL4,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrialBalanceUiState())
@@ -123,6 +124,7 @@ class TrialBalanceViewModel(
                 branchId = branch.id,
                 startDate = state.startDate.toApi(),
                 endDate = state.endDate.toApi(),
+                path = reportPath,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -153,13 +155,17 @@ class TrialBalanceViewModel(
     }
 
     companion object {
-        fun provideFactory(context: Context) = viewModelFactory {
+        fun provideFactory(
+            context: Context,
+            reportPath: String = TrialBalanceRepository.PATH_LEVEL4,
+        ) = viewModelFactory {
             initializer {
                 val appContext = context.applicationContext
                 TrialBalanceViewModel(
                     reportRepository = ServiceLocator.provideReportRepository(appContext),
                     dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
                     trialBalanceRepository = ServiceLocator.provideTrialBalanceRepository(appContext),
+                    reportPath = reportPath,
                 )
             }
         }

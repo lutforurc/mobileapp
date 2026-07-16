@@ -39,6 +39,7 @@ object Routes {
     const val REPORTS = "reports/home"
     const val CASHBOOK = "reports/cash_book"
     const val LEDGER = "reports/ledger"
+    const val TRIAL_BALANCE_L3 = "reports/trial_balance_l3"
     const val TRIAL_BALANCE_L4 = "reports/trial_balance_l4"
     const val PROFIT_LOSS = "reports/profit_loss"
     const val BALANCE_SHEET = "reports/balance_sheet"
@@ -135,6 +136,18 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     reportKey = key,
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.TRIAL_BALANCE_L3) {
+            PermissionGate(anyOf = listOf("cashbook.view", "trial.balance.l3")) {
+                TrialBalanceScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    title = "Trial Balance Group",
+                    grouped = true,
+                    reportPath = com.example.cashbookbd.data.repository.TrialBalanceRepository.PATH_LEVEL3,
                 )
             }
         }

@@ -277,7 +277,12 @@ class GenericReportRepository(
         element.isJsonPrimitive -> {
             val text = element.asString
             val number = text.toDoubleOrNull()
-            if (number != null && text.isNotBlank()) amountFormat.format(number) else text
+            when {
+                // A numeric zero renders as "-" everywhere in report tables.
+                number != null && text.isNotBlank() && number == 0.0 -> "-"
+                number != null && text.isNotBlank() -> amountFormat.format(number)
+                else -> text
+            }
         }
         element.isJsonArray -> "${element.asJsonArray.size()} item(s)"
         else -> "…"

@@ -27,7 +27,8 @@ class TrialBalanceRepository(
 ) {
 
     companion object {
-        private const val PATH = "reports/trialbalance-level4"
+        const val PATH_LEVEL4 = "reports/trialbalance-level4"
+        const val PATH_LEVEL3 = "reports/trialbalance-level3"
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
 
@@ -36,9 +37,9 @@ class TrialBalanceRepository(
 
         // Candidate keys per column, matched case-insensitively. The Level-4
         // endpoint uses the `*_bal` names (first in each list); the others are
-        // kept as fallbacks for sibling report endpoints.
+        // kept as fallbacks for sibling report endpoints (Level-3 uses `coal3_name`).
         private val DESCRIPTION_KEYS = listOf(
-            "name", "description", "head", "account_name", "account", "particulars",
+            "name", "coal3_name", "description", "head", "account_name", "account", "particulars",
             "ledger_name", "title", "coa_name",
         )
         private val OPENING_DR_KEYS = listOf("opening_debit_bal", "opening_debit", "opening_dr", "op_debit")
@@ -55,6 +56,7 @@ class TrialBalanceRepository(
         branchId: Long,
         startDate: String,
         endDate: String,
+        path: String = PATH_LEVEL4,
     ): Resource<TrialBalanceReport> = withContext(ioDispatcher) {
         val params = mapOf(
             "branch_id" to branchId.toString(),
@@ -62,7 +64,7 @@ class TrialBalanceRepository(
             "end_date" to endDate,
         )
         try {
-            val response = api.get(PATH, params)
+            val response = api.get(path, params)
             when (response.code()) {
                 HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                     "Your session has expired. Please log in again.",

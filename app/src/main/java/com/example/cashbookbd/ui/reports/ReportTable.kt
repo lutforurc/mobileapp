@@ -98,6 +98,16 @@ data class ReportFooterCell(
     val colSpan: Int = 1,
 )
 
+/**
+ * A top-tier header cell for a two-row grouped header, spanning [span] columns
+ * (e.g. "OPENING" over its Dr/Cr pair). A blank [label] leaves the cell empty
+ * (used above the SL/Description columns). The spans must sum to the column count.
+ */
+data class ReportHeaderGroup(
+    val label: String,
+    val span: Int,
+)
+
 /** Convenience builder for a text cell. */
 fun cellText(
     text: String,
@@ -114,6 +124,8 @@ fun <T> ReportTable(
     data: List<T>,
     modifier: Modifier = Modifier,
     footerRows: List<List<ReportFooterCell>> = emptyList(),
+    /** Optional top-tier grouped header row (spans must sum to [columns].size). */
+    headerGroups: List<ReportHeaderGroup>? = null,
     noDataMessage: String = "No data found",
     /** Per-row background (e.g. summary/opening-balance rows). Null = default. */
     rowBackground: ((row: T, index: Int) -> Color?)? = null,
@@ -137,6 +149,23 @@ fun <T> ReportTable(
     }
 
     Column(modifier = root) {
+        // Optional top tier: grouped labels (e.g. OPENING/MOVEMENT/CLOSING).
+        if (headerGroups != null) {
+            Row(
+                modifier = rowWidth(fixed)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .height(IntrinsicSize.Min),
+            ) {
+                var start = 0
+                headerGroups.forEachIndexed { gi, group ->
+                    if (gi > 0) GridVDivider(onHeader = true)
+                    RenderHeaderGroup(columns, start, group, fixed)
+                    start += group.span
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f))
+        }
+
         // Header stays put; the body scrolls under it.
         Row(
             modifier = rowWidth(fixed)
@@ -245,6 +274,38 @@ private fun RowScope.RenderCell(
             ),
         )
     }
+}
+
+/** A grouped-header cell spanning [group] columns starting at [start], centered. */
+@Composable
+private fun <T> RowScope.RenderHeaderGroup(
+    columns: List<ReportColumn<T>>,
+    start: Int,
+    group: ReportHeaderGroup,
+    fixed: Boolean,
+) {
+    val spanned = columns.subList(start, start + group.span)
+    val base: Modifier = if (fixed) {
+        var total = 0.dp
+        spanned.forEach { total += (it.width as ReportColWidth.Fixed).dp }
+        total += GridLine * (group.span - 1)
+        Modifier.width(total)
+    } else {
+        var weight = 0f
+        spanned.forEach { weight += (it.width as ReportColWidth.Weight).weight }
+        Modifier.weight(weight)
+    }
+
+    Text(
+        text = group.label,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onPrimary,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = base.padding(horizontal = 8.dp, vertical = 8.dp),
+    )
 }
 
 /** A footer cell spans [ReportFooterCell.colSpan] columns starting at [start]. */
