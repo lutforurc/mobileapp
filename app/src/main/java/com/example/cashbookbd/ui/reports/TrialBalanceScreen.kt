@@ -71,8 +71,6 @@ fun TrialBalanceScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "Trial Balance Details",
-    /** True for the Level-3 Group report: two-tier grouped header + Grand Total row. */
-    grouped: Boolean = false,
     reportPath: String = TrialBalanceRepository.PATH_LEVEL4,
     viewModel: TrialBalanceViewModel = viewModel(
         factory = TrialBalanceViewModel.provideFactory(LocalContext.current, reportPath)
@@ -105,7 +103,7 @@ fun TrialBalanceScreen(
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Box(modifier = Modifier.weight(1f)) {
-                Results(state = uiState, onRetry = viewModel::apply, grouped = grouped)
+                Results(state = uiState, onRetry = viewModel::apply)
             }
         }
     }
@@ -229,7 +227,7 @@ private fun BranchDropdown(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit, grouped: Boolean) {
+private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
     when {
         state.isReportLoading -> CenterBox { CircularProgressIndicator() }
 
@@ -255,9 +253,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit, grouped: Bo
 
         else -> ReportContent(
             report = state.report,
-            branchName = state.appliedBranchName,
             range = state.appliedRange,
-            grouped = grouped,
         )
     }
 }
@@ -265,9 +261,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit, grouped: Bo
 @Composable
 private fun ReportContent(
     report: TrialBalanceReport,
-    branchName: String?,
     range: String?,
-    grouped: Boolean,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Summary boxes
@@ -297,23 +291,16 @@ private fun ReportContent(
             )
         }
 
-        // Section title + subtitle
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // Reporting date range (no section title / branch name).
+        if (!range.isNullOrBlank()) {
             Text(
-                text = "Trial Balance Rows",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                text = "Reporting date: $range",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
-            val subtitle = listOfNotNull(branchName, range).joinToString("  •  ")
-            if (subtitle.isNotBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
 
         if (report.isEmpty) {
             CenterBox {
@@ -324,7 +311,7 @@ private fun ReportContent(
                 )
             }
         } else {
-            TrialBalanceTable(rows = report.rows, grouped = grouped)
+            TrialBalanceTable(rows = report.rows)
         }
     }
 }
@@ -371,36 +358,8 @@ private val COL_SL = 44.dp
 private val COL_DESC = 190.dp
 private val COL_NUM = 104.dp
 
-/** Flat 8-column layout used by Trial Balance Details (Level 4). */
-private val trialBalanceColumns = listOf(
-    ReportColumn<TrialBalanceRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { _, i ->
-        cellText((i + 1).toString())
-    },
-    ReportColumn<TrialBalanceRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESC)) { r, _ ->
-        cellText(r.description, maxLines = 2)
-    },
-    ReportColumn<TrialBalanceRow>("OPENING DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.openingDebit), align = TextAlign.End)
-    },
-    ReportColumn<TrialBalanceRow>("OPENING CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.openingCredit), align = TextAlign.End)
-    },
-    ReportColumn<TrialBalanceRow>("MOVEMENT DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.movementDebit), align = TextAlign.End)
-    },
-    ReportColumn<TrialBalanceRow>("MOVEMENT CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.movementCredit), align = TextAlign.End)
-    },
-    ReportColumn<TrialBalanceRow>("CLOSING DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.closingDebit), align = TextAlign.End)
-    },
-    ReportColumn<TrialBalanceRow>("CLOSING CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.closingCredit), align = TextAlign.End)
-    },
-)
-
 /**
- * Grouped layout used by Trial Balance Group (Level 3): a "#" serial (centered),
+ * Grouped layout shared by both trial balance reports: a "#" serial (centered),
  * Description, then Dr/Cr pairs whose group name (OPENING/MOVEMENT/CLOSING) sits
  * in the [trialBalanceHeaderGroups] top row.
  */
@@ -440,12 +399,7 @@ private val trialBalanceHeaderGroups = listOf(
 )
 
 @Composable
-private fun TrialBalanceTable(rows: List<TrialBalanceRow>, grouped: Boolean) {
-    if (!grouped) {
-        ReportTable(columns = trialBalanceColumns, data = rows)
-        return
-    }
-
+private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
     // Grand Total footer: label across #/Description, then each column's sum.
     val grandTotal = listOf(
         ReportFooterCell(cellText("Grand Total", bold = true), colSpan = 2),

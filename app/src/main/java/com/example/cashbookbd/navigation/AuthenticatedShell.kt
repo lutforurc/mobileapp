@@ -92,7 +92,11 @@ fun AuthenticatedShell(
                 },
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
-                    if (route != currentRoute) {
+                    // Compare against the ACTUAL current destination, not the
+                    // drawer-highlight label: report detail screens report
+                    // currentRoute = REPORTS, so tapping "Reports" from one must
+                    // still navigate back to the Reports list (it wasn't, before).
+                    if (route != navController.currentDestination?.route) {
                         navController.navigate(route) {
                             // Keep the dashboard as the single base of the stack.
                             popUpTo(Routes.HOME) { inclusive = false }

@@ -142,6 +142,17 @@ fun <T> ReportTable(
     val hScroll = rememberScrollState()
     val vScroll = rememberScrollState()
 
+    // A HorizontalDivider fills its max width, but a horizontally-scrolling table
+    // gives its children an *unbounded* width — so the divider collapses to 0 and
+    // no row line is drawn. Size the dividers to the summed column width instead.
+    val dividerModifier: Modifier = if (fixed) {
+        val total = columns.fold(0.dp) { acc, c -> acc + (c.width as ReportColWidth.Fixed).dp } +
+            GridLine * (columns.size - 1)
+        Modifier.width(total)
+    } else {
+        Modifier
+    }
+
     val root = when {
         fixed && scrollable -> modifier.fillMaxSize().horizontalScroll(hScroll)
         fixed -> modifier.horizontalScroll(hScroll)
@@ -177,7 +188,7 @@ fun <T> ReportTable(
                 }
             }
         }
-        HorizontalDivider(color = gridLineColor())
+        HorizontalDivider(modifier = dividerModifier, color = gridLineColor())
 
         val bodyModifier = if (scrollable) {
             Modifier.weight(1f).verticalScroll(vScroll)
@@ -207,11 +218,15 @@ fun <T> ReportTable(
                             RenderCell(col.width, col.align, col.render(row, index))
                         }
                     }
-                    HorizontalDivider(color = gridLineColor())
+                    HorizontalDivider(modifier = dividerModifier, color = gridLineColor())
                 }
 
                 if (footerRows.isNotEmpty()) {
-                    HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
+                    HorizontalDivider(
+                        modifier = dividerModifier,
+                        thickness = 2.dp,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
                     val footerBg = MaterialTheme.colorScheme.surfaceVariant
                     footerRows.forEach { footer ->
                         Row(
@@ -226,7 +241,7 @@ fun <T> ReportTable(
                                 colIndex += fc.colSpan
                             }
                         }
-                        HorizontalDivider(color = gridLineColor())
+                        HorizontalDivider(modifier = dividerModifier, color = gridLineColor())
                     }
                 }
             }

@@ -146,7 +146,6 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                     title = "Trial Balance Group",
-                    grouped = true,
                     reportPath = com.example.cashbookbd.data.repository.TrialBalanceRepository.PATH_LEVEL3,
                 )
             }
