@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -149,45 +150,34 @@ fun <T> ReportTable(
     }
 
     Column(modifier = root) {
-        // Optional top tier: grouped labels (e.g. OPENING/MOVEMENT/CLOSING).
+        // Header: a two-tier grouped header when headerGroups is set — leading
+        // ungrouped (blank-label) columns merge across both tiers — else a single
+        // header row. The body scrolls under it.
         if (headerGroups != null) {
+            GroupedHeader(columns = columns, groups = headerGroups, fixed = fixed)
+        } else {
             Row(
                 modifier = rowWidth(fixed)
                     .background(MaterialTheme.colorScheme.primary)
                     .height(IntrinsicSize.Min),
             ) {
-                var start = 0
-                headerGroups.forEachIndexed { gi, group ->
-                    if (gi > 0) GridVDivider(onHeader = true)
-                    RenderHeaderGroup(columns, start, group, fixed)
-                    start += group.span
+                columns.forEachIndexed { i, col ->
+                    if (i > 0) GridVDivider(onHeader = true)
+                    Text(
+                        text = col.header,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = col.headerAlign,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = colWidth(col.width)
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                    )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f))
         }
-
-        // Header stays put; the body scrolls under it.
-        Row(
-            modifier = rowWidth(fixed)
-                .background(MaterialTheme.colorScheme.primary)
-                .height(IntrinsicSize.Min),
-        ) {
-            columns.forEachIndexed { i, col ->
-                if (i > 0) GridVDivider(onHeader = true)
-                Text(
-                    text = col.header,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    textAlign = col.headerAlign,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = colWidth(col.width)
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
-                )
-            }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = gridLineColor())
 
         val bodyModifier = if (scrollable) {
             Modifier.weight(1f).verticalScroll(vScroll)
@@ -217,7 +207,7 @@ fun <T> ReportTable(
                             RenderCell(col.width, col.align, col.render(row, index))
                         }
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = gridLineColor())
                 }
 
                 if (footerRows.isNotEmpty()) {
@@ -236,7 +226,7 @@ fun <T> ReportTable(
                                 colIndex += fc.colSpan
                             }
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(color = gridLineColor())
                     }
                 }
             }
@@ -276,36 +266,97 @@ private fun RowScope.RenderCell(
     }
 }
 
-/** A grouped-header cell spanning [group] columns starting at [start], centered. */
+/**
+ * Two-tier header. Each [ReportHeaderGroup] with a blank label is a single column
+ * that **merges** across both tiers (its own header, vertically centred — e.g.
+ * "#", "DESCRIPTION"); a labelled group shows the group name on top with its
+ * member columns' sub-headers (e.g. Dr/Cr) beneath. The whole header is one row
+ * of [IntrinsicSize.Min] height, so the merged cells stretch to the group height.
+ */
 @Composable
-private fun <T> RowScope.RenderHeaderGroup(
+private fun <T> GroupedHeader(
     columns: List<ReportColumn<T>>,
-    start: Int,
-    group: ReportHeaderGroup,
+    groups: List<ReportHeaderGroup>,
     fixed: Boolean,
 ) {
-    val spanned = columns.subList(start, start + group.span)
-    val base: Modifier = if (fixed) {
-        var total = 0.dp
-        spanned.forEach { total += (it.width as ReportColWidth.Fixed).dp }
-        total += GridLine * (group.span - 1)
-        Modifier.width(total)
-    } else {
-        var weight = 0f
-        spanned.forEach { weight += (it.width as ReportColWidth.Weight).weight }
-        Modifier.weight(weight)
-    }
+    Row(
+        modifier = rowWidth(fixed)
+            .background(MaterialTheme.colorScheme.primary)
+            .height(IntrinsicSize.Min),
+    ) {
+        var start = 0
+        groups.forEachIndexed { gi, group ->
+            if (gi > 0) GridVDivider(onHeader = true)
+            val members = columns.subList(start, start + group.span)
+            val sectionMod = headerSectionWidth(members, group.span, fixed)
 
+            if (group.label.isBlank()) {
+                // Merged cell: the single column's own header, full header height.
+                val col = members.first()
+                Box(
+                    modifier = sectionMod.fillMaxHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    HeaderText(col.header, col.headerAlign)
+                }
+            } else {
+                // Group label on top, member sub-headers beneath.
+                Column(modifier = sectionMod) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        HeaderText(group.label, TextAlign.Center)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    ) {
+                        members.forEachIndexed { mi, col ->
+                            if (mi > 0) GridVDivider(onHeader = true)
+                            Box(modifier = colWidth(col.width)) {
+                                HeaderText(col.header, col.headerAlign)
+                            }
+                        }
+                    }
+                }
+            }
+            start += group.span
+        }
+    }
+}
+
+/** Bold, on-primary header text used by [GroupedHeader]. */
+@Composable
+private fun HeaderText(text: String, align: TextAlign) {
     Text(
-        text = group.label,
+        text = text,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
+        textAlign = align,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
-        modifier = base.padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
     )
+}
+
+/** Total width (fixed) or weight (fluid) for a header section of [span] columns. */
+private fun <T> RowScope.headerSectionWidth(
+    members: List<ReportColumn<T>>,
+    span: Int,
+    fixed: Boolean,
+): Modifier = if (fixed) {
+    var total = 0.dp
+    members.forEach { total += (it.width as ReportColWidth.Fixed).dp }
+    total += GridLine * (span - 1)
+    Modifier.width(total)
+} else {
+    var weight = 0f
+    members.forEach { weight += (it.width as ReportColWidth.Weight).weight }
+    Modifier.weight(weight)
 }
 
 /** A footer cell spans [ReportFooterCell.colSpan] columns starting at [start]. */
@@ -365,6 +416,15 @@ private fun RowScope.colWidth(width: ReportColWidth): Modifier = when (width) {
 private fun rowWidth(fixed: Boolean): Modifier =
     if (fixed) Modifier else Modifier.fillMaxWidth()
 
+/**
+ * The grid line colour: a fixed, clearly-visible light grey derived from the
+ * on-surface colour, so it reads the same regardless of the (possibly dynamic)
+ * palette — [MaterialTheme.colorScheme.outlineVariant] can render near-invisible
+ * on some devices.
+ */
+@Composable
+private fun gridLineColor(): Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+
 /** Vertical grid line spanning the full height of a table row. */
 @Composable
 private fun GridVDivider(onHeader: Boolean = false) {
@@ -373,7 +433,7 @@ private fun GridVDivider(onHeader: Boolean = false) {
         color = if (onHeader) {
             MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
         } else {
-            MaterialTheme.colorScheme.outlineVariant
+            gridLineColor()
         },
     )
 }
