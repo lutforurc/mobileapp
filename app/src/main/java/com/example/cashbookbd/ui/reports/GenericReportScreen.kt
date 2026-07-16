@@ -587,6 +587,17 @@ private fun buildGenericColumns(table: TableModel): List<ReportColumn<List<Strin
     }
 }
 
+/**
+ * True when a cell reads as a number for layout purposes: a plain number, the "-"
+ * zero placeholder, or a number carrying a unit suffix ("1 nos"). Such columns
+ * stay compact and right-aligned.
+ */
+private fun isNumericCell(value: String): Boolean {
+    if (value == "-") return true
+    val head = value.substringBefore(' ').replace(",", "")
+    return head.toDoubleOrNull() != null
+}
+
 /** True for an API column that is just a serial/SL number (hidden — the table adds its own). */
 private fun isSerialColumn(label: String): Boolean {
     val normalized = label.lowercase().replace(".", "").replace(Regex("\\s+"), " ").trim()
@@ -620,7 +631,7 @@ private fun buildTable(rows: List<ReportRow>): TableModel {
 
     val numeric = columns.indices.map { col ->
         val values = matrix.mapNotNull { it[col].takeIf { v -> v.isNotBlank() } }
-        values.isNotEmpty() && values.all { it.replace(",", "").toDoubleOrNull() != null }
+        values.isNotEmpty() && values.all { isNumericCell(it) }
     }
 
     return TableModel(columns = columns, numeric = numeric, rows = matrix)

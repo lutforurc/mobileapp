@@ -159,12 +159,16 @@ class GenericReportRepository(
     }
 
     /** Turns the payload into display rows, honouring the report's [ReportResponseShape]. */
-    private fun buildRows(payload: JsonElement, config: ReportConfig): List<ReportRow> =
-        when (config.responseShape) {
+    private fun buildRows(payload: JsonElement, config: ReportConfig): List<ReportRow> {
+        val hidden = config.hiddenColumns.map { it.lowercase(Locale.US) }.toSet()
+        val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
+        val unitKey = config.unitColumn?.lowercase(Locale.US)
+        return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow() }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow() }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey) }
         }
+    }
 
     /**
      * IMEI Stock: an object `{ "1": scalar, "2": scalar }` → one row per entry, or
@@ -240,10 +244,31 @@ class GenericReportRepository(
         return cells
     }
 
-    private fun JsonElement.toReportRow(): ReportRow = when {
-        isJsonObject -> ReportRow(
-            asJsonObject.entrySet().map { ReportCell(humanize(it.key), formatValue(it.value)) }
-        )
+    private fun JsonElement.toReportRow(
+        hidden: Set<String> = emptySet(),
+        zeroDash: Set<String> = emptySet(),
+        unitKey: String? = null,
+    ): ReportRow = when {
+        isJsonObject -> {
+            val obj = asJsonObject
+            val unit = unitKey
+                ?.let { key -> obj.entrySet().firstOrNull { it.key.lowercase(Locale.US) == key }?.value }
+                ?.takeUnless { it.isJsonNull }
+                ?.asString?.trim()
+                .orEmpty()
+            ReportRow(
+                obj.entrySet()
+                    .filterNot { it.key.lowercase(Locale.US) in hidden }
+                    .map { entry ->
+                        val value = if (entry.key.lowercase(Locale.US) in zeroDash) {
+                            formatAmount(entry.value, unit)
+                        } else {
+                            formatValue(entry.value)
+                        }
+                        ReportCell(humanize(entry.key), value)
+                    }
+            )
+        }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
     }
 
@@ -256,6 +281,20 @@ class GenericReportRepository(
         }
         element.isJsonArray -> "${element.asJsonArray.size()} item(s)"
         else -> "…"
+    }
+
+    /**
+     * Formats a stock-amount cell: "-" when the value is zero, otherwise the
+     * thousands-grouped number with the row's [unit] appended ("1 nos"). Falls
+     * back to plain [formatValue] for a non-numeric value.
+     */
+    private fun formatAmount(element: JsonElement, unit: String): String {
+        if (!element.isJsonPrimitive) return formatValue(element)
+        val number = element.asString.replace(",", "").trim().toDoubleOrNull()
+            ?: return formatValue(element)
+        if (number == 0.0) return "-"
+        val formatted = amountFormat.format(number)
+        return if (unit.isNotBlank()) "$formatted $unit" else formatted
     }
 
     /** "branch_id" / "startDate" -> "Branch Id" / "Start Date". */

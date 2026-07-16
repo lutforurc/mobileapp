@@ -131,6 +131,23 @@ data class ReportConfig(
     val responseShape: ReportResponseShape = ReportResponseShape.NORMAL,
     /** Column header for a [ReportResponseShape.KEYED_SCALARS] report (e.g. "IMEI"). */
     val scalarLabel: String = "Value",
+    /**
+     * Raw API row keys to drop from the rendered table (case-insensitive), e.g.
+     * internal id columns the user doesn't need to see.
+     */
+    val hiddenColumns: List<String> = emptyList(),
+    /**
+     * Raw API row keys (case-insensitive) whose zero value should render as "-"
+     * instead of "0" — e.g. Product Stock's opening/in/out/balance amounts. Their
+     * non-zero values also carry the [unitColumn] suffix when one is set.
+     */
+    val zeroDashColumns: List<String> = emptyList(),
+    /**
+     * Raw API row key holding a per-row unit (e.g. "nos", "kg"). When set, the
+     * unit is appended to each [zeroDashColumns] amount ("1 nos") and its own
+     * column is not shown separately.
+     */
+    val unitColumn: String? = null,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -541,6 +558,12 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
             startParam = "startdate",
             endParam = "enddate",
+            // Internal ids + the standalone unit column (unit is shown inline on
+            // each amount instead) the user doesn't need to see.
+            hiddenColumns = listOf("product_id", "category_id", "unit"),
+            // Show "-" for 0, and suffix the unit ("1 nos") for the stock amounts.
+            zeroDashColumns = listOf("opening", "stock_in", "stock_out", "balance"),
+            unitColumn = "unit",
             selectors = listOf(
                 ReportSelector(
                     paramKey = "brand_id",
