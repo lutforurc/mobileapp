@@ -15,6 +15,10 @@ val devLoginProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// Single source of truth for the backend API base URL. Change it here to
+// repoint every build type (must end with a trailing slash for Retrofit).
+val baseUrl = "https://sinthia.cashbookbd.com/api/"
+
 /** Wraps a value as a valid Java string literal for buildConfigField. */
 fun javaStringLiteral(value: String): String {
     val escaped = value
@@ -42,8 +46,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Backend API base URL (must end with a trailing slash for Retrofit).
-        buildConfigField("String", "BASE_URL", "\"https://nibirnirman.cashbookbd.com/api/\"")
+        // Backend API base URL (single source of truth: `baseUrl` above).
+        buildConfigField("String", "BASE_URL", javaStringLiteral(baseUrl))
 
         // Local-dev DNS override for NetworkModule's VhostDns: it maps BASE_URL's
         // host to this IP so an emulator/device can reach a ".test" Valet/Herd vhost
@@ -71,7 +75,7 @@ android {
             // For a physical device over WiFi instead, use your PC's LAN IP
             // (e.g. "192.168.1.50") and add that IP to network_security_config.xml.
             // To point debug at production, restore the nibirnirman URL + empty IP.
-            buildConfigField("String", "BASE_URL", "\"https://nibirnirman.cashbookbd.com/api/\"")
+            buildConfigField("String", "BASE_URL", javaStringLiteral(baseUrl))
             buildConfigField("String", "LOCAL_HOST_IP", "\"\"")
 
             // Prefill login ONLY in debug, and ONLY if the developer opted in via
@@ -92,7 +96,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"https://nibirnirman.cashbookbd.com/api/\"")
+            buildConfigField("String", "BASE_URL", javaStringLiteral(baseUrl))
             // Empty => use real DNS (no vhost override in production).
             buildConfigField("String", "LOCAL_HOST_IP", "\"\"")
             // Never prefill credentials in a release build.

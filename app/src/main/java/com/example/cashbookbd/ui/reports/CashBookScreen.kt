@@ -257,35 +257,34 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-// Column widths for the horizontally-scrollable table.
-// Order: Date | VR No | Description | Received (credit) | Payment (debit)
-// Column widths for the horizontally-scrollable table.
+// Columns for the horizontally-scrollable table.
 // Order: Date | VR No | Description | Received (credit) | Payment (debit)
 private val cashBookColumns = listOf(
-    GridColumn("Date", GridColWidth.Fixed(96.dp)),
-    GridColumn("VR No", GridColWidth.Fixed(100.dp)),
-    GridColumn("Description", GridColWidth.Fixed(210.dp)),
-    GridColumn("Received", GridColWidth.Fixed(116.dp), TextAlign.End),
-    GridColumn("Payment", GridColWidth.Fixed(116.dp), TextAlign.End),
+    ReportColumn<CashBookRow>("Date", ReportColWidth.Fixed(96.dp)) { r, _ ->
+        cellText(r.date, bold = r.isSummary)
+    },
+    ReportColumn<CashBookRow>("VR No", ReportColWidth.Fixed(100.dp)) { r, _ ->
+        cellText(r.voucherNo, bold = r.isSummary)
+    },
+    ReportColumn<CashBookRow>("Description", ReportColWidth.Fixed(210.dp)) { r, _ ->
+        cellText(r.particulars, bold = r.isSummary, maxLines = 3)
+    },
+    ReportColumn<CashBookRow>("Received", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
+        cellText(amountOrBlank(r.credit), align = TextAlign.End, bold = r.isSummary)
+    },
+    ReportColumn<CashBookRow>("Payment", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
+        cellText(amountOrBlank(r.debit), align = TextAlign.End, bold = r.isSummary)
+    },
 )
 
 @Composable
 private fun CashBookTable(rows: List<CashBookRow>) {
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
-    val gridRows = rows.map { row ->
-        val bold = row.isSummary
-        GridRowSpec.Data(
-            cells = listOf(
-                GridCellSpec.Text(row.date, bold = bold),
-                GridCellSpec.Text(row.voucherNo, bold = bold),
-                GridCellSpec.Text(row.particulars, bold = bold, maxLines = 3),
-                GridCellSpec.Text(amountOrBlank(row.credit), align = TextAlign.End, bold = bold),
-                GridCellSpec.Text(amountOrBlank(row.debit), align = TextAlign.End, bold = bold),
-            ),
-            background = if (row.isSummary) summaryBg else null,
-        )
-    }
-    ReportGridTable(columns = cashBookColumns, rows = gridRows)
+    ReportTable(
+        columns = cashBookColumns,
+        data = rows,
+        rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
+    )
 }
 
 private val amountFormat = DecimalFormat("#,##0")

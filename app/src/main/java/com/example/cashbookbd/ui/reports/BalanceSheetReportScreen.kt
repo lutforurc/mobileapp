@@ -332,6 +332,47 @@ private fun SummaryBox(item: BalanceSheetSummaryItem) {
     }
 }
 
+// DESCRIPTION | AMOUNT, filling the width. Group titles/subtotals render as bold
+// rows; group items are indented; the section total goes in the footer.
+private val balanceSheetColumns = listOf(
+    ReportColumn<BsDisplayRow>("DESCRIPTION", ReportColWidth.Weight(1f)) { r, _ ->
+        cellText(r.label, bold = r.bold, startPadding = if (r.indent) 12.dp else 0.dp)
+    },
+    ReportColumn<BsDisplayRow>("AMOUNT", ReportColWidth.Weight(0.5f), TextAlign.End) { r, _ ->
+        if (r.showAmount) {
+            cellText(formatAmount(r.amount), align = TextAlign.End, bold = r.bold)
+        } else {
+            ReportTableCell.Empty
+        }
+    },
+)
+
+/** One flattened Balance Sheet line: a group title, an item, or a group subtotal. */
+private data class BsDisplayRow(
+    val label: String,
+    val amount: Double,
+    val bold: Boolean,
+    val indent: Boolean,
+    /** Group-title rows show no amount. */
+    val showAmount: Boolean,
+)
+
+/** Flattens a section's groups into display rows the 2-column table can render. */
+private fun BalanceSheetSection.toDisplayRows(): List<BsDisplayRow> = buildList {
+    groups.forEach { group ->
+        val grouped = group.title != null
+        if (group.title != null) {
+            add(BsDisplayRow(group.title, 0.0, bold = true, indent = false, showAmount = false))
+        }
+        group.items.forEach { item ->
+            add(BsDisplayRow(item.description, item.amount, bold = false, indent = grouped, showAmount = true))
+        }
+        if (group.title != null) {
+            add(BsDisplayRow("Total ${group.title}", group.total, bold = true, indent = true, showAmount = true))
+        }
+    }
+}
+
 @Composable
 private fun SectionBlock(section: BalanceSheetSection) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -342,115 +383,19 @@ private fun SectionBlock(section: BalanceSheetSection) {
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
         )
-
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
-                .height(IntrinsicSize.Min),
-        ) {
-            Text(
-                text = "DESCRIPTION",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-            )
-            GridVDivider(onHeader = true)
-            Text(
-                text = "AMOUNT",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary,
-                textAlign = TextAlign.End,
-                modifier = Modifier
-                    .weight(0.5f)
-                    .padding(start = 8.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
-            )
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        section.groups.forEach { group -> GroupBlock(group) }
-
-        // Section total
-        AmountRow(
-            label = "Total ${section.title}",
-            amount = section.total,
-            bold = true,
+        ReportTable(
+            columns = balanceSheetColumns,
+            data = section.toDisplayRows(),
+            footerRows = listOf(
+                listOf(
+                    ReportFooterCell(cellText("Total ${section.title}", bold = true)),
+                    ReportFooterCell(cellText(formatAmount(section.total), align = TextAlign.End, bold = true)),
+                ),
+            ),
+            // Embedded in the screen's outer vertical scroll.
+            scrollable = false,
         )
     }
-}
-
-@Composable
-private fun GroupBlock(group: BalanceSheetGroup) {
-    // Optional group header
-    group.title?.let { title ->
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
-        )
-    }
-
-    group.items.forEach { item ->
-        AmountRow(label = item.description, amount = item.amount, bold = false, indented = group.title != null)
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-    }
-
-    // Group subtotal (only when the group is a named group)
-    if (group.title != null) {
-        AmountRow(label = "Total ${group.title}", amount = group.total, bold = true, indented = true)
-    }
-}
-
-@Composable
-private fun AmountRow(
-    label: String,
-    amount: Double,
-    bold: Boolean,
-    indented: Boolean = false,
-) {
-    val weight = if (bold) FontWeight.Bold else FontWeight.Normal
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = weight,
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = if (indented) 28.dp else 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-        )
-        GridVDivider()
-        Text(
-            text = formatAmount(amount),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = weight,
-            textAlign = TextAlign.End,
-            modifier = Modifier
-                .weight(0.5f)
-                .padding(start = 8.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
-        )
-    }
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
-    )
 }
 
 @Composable

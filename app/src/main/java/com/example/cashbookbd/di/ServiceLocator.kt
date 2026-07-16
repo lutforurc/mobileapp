@@ -15,6 +15,7 @@ import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ProfitLossRepository
 import com.example.cashbookbd.data.repository.ReportRepository
+import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
@@ -64,6 +65,9 @@ object ServiceLocator {
 
     @Volatile
     private var ledgerRepository: LedgerRepository? = null
+
+    @Volatile
+    private var selectorRepository: SelectorRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -217,5 +221,12 @@ object ServiceLocator {
             ledgerRepository ?: LedgerRepository(
                 api = provideLedgerApiService(context),
             ).also { ledgerRepository = it }
+        }
+
+    fun provideSelectorRepository(context: Context): SelectorRepository =
+        selectorRepository ?: synchronized(this) {
+            selectorRepository ?: SelectorRepository(
+                api = provideReportApiService(context),
+            ).also { selectorRepository = it }
         }
 }

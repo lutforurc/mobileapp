@@ -21,17 +21,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,9 +60,13 @@ import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.report.ReportCell
 import com.example.cashbookbd.report.ReportRow
+import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
+import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.reports.model.BranchOption
+import com.example.cashbookbd.ui.reports.model.MonthYear
+import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 
 /**
@@ -109,6 +118,9 @@ fun GenericReportScreen(
                 onLedgerSelected = viewModel::onLedgerSelected,
                 searchLedgers = viewModel::searchLedgers,
                 onChoiceSelected = viewModel::onChoiceSelected,
+                onSelectorSelected = viewModel::onSelectorSelected,
+                searchSelector = viewModel::searchSelector,
+                onMonthYear = viewModel::onMonthYearSelected,
                 onStartDate = viewModel::onStartDateSelected,
                 onEndDate = viewModel::onEndDateSelected,
                 onApply = viewModel::apply,
@@ -127,6 +139,9 @@ private fun FilterCard(
     onLedgerSelected: (LedgerDropdownItem) -> Unit,
     searchLedgers: suspend (String) -> Resource<List<LedgerDropdownItem>>,
     onChoiceSelected: (com.example.cashbookbd.report.ReportChoice) -> Unit,
+    onSelectorSelected: (String, SelectorOption) -> Unit,
+    searchSelector: suspend (ReportSelectorSource, String) -> Resource<List<SelectorOption>>,
+    onMonthYear: (MonthYear) -> Unit,
     onStartDate: (SimpleDate) -> Unit,
     onEndDate: (SimpleDate) -> Unit,
     onApply: () -> Unit,
@@ -159,6 +174,27 @@ private fun FilterCard(
             )
         }
 
+        state.selectors.forEach { field ->
+            Spacer(Modifier.height(12.dp))
+            if (field.config.source.searchable) {
+                SearchableSelectDropdown(
+                    selected = field.selected,
+                    onSelected = { onSelectorSelected(field.config.paramKey, it) },
+                    search = { query -> searchSelector(field.config.source, query) },
+                    label = field.config.label,
+                )
+            } else {
+                StaticSelectDropdown(
+                    label = field.config.label,
+                    options = field.options,
+                    selected = field.selected,
+                    isLoading = field.isLoading,
+                    error = field.error,
+                    onSelected = { onSelectorSelected(field.config.paramKey, it) },
+                )
+            }
+        }
+
         if (state.showLedger) {
             Spacer(Modifier.height(12.dp))
             SearchableLedgerDropdown(
@@ -167,6 +203,11 @@ private fun FilterCard(
                 searchLedgers = searchLedgers,
                 label = if (state.ledgerRequired) "Select Ledger" else "Select Ledger (optional)",
             )
+        }
+
+        if (state.showMonthYear) {
+            Spacer(Modifier.height(12.dp))
+            MonthYearField(value = state.monthYear, onSelected = onMonthYear)
         }
 
         if (state.showStartDate || state.showEndDate) {
@@ -279,6 +320,145 @@ private fun ChoiceDropdown(
     }
 }
 
+/** A load-once remote dropdown (category, brand, somity). */
+@Composable
+private fun StaticSelectDropdown(
+    label: String,
+    options: List<SelectorOption>,
+    selected: SelectorOption?,
+    isLoading: Boolean,
+    error: String?,
+    onSelected: (SelectorOption) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        Box {
+            PickerField(
+                label = label,
+                value = selected?.label ?: if (isLoading) "Loading…" else "",
+                placeholder = if (isLoading) "Loading…" else "Select",
+                trailingIcon = Icons.Filled.ArrowDropDown,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { if (options.isNotEmpty()) expanded = true },
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = {
+                            onSelected(option)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+        error?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/** Field + dialog for a month/year selection (Collection Sheet). */
+@Composable
+private fun MonthYearField(value: MonthYear, onSelected: (MonthYear) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    PickerField(
+        label = "Month / Year",
+        value = value.toDisplay(),
+        trailingIcon = Icons.Filled.DateRange,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { showDialog = true },
+    )
+
+    if (showDialog) {
+        MonthYearPickerDialog(
+            initial = value,
+            onDismiss = { showDialog = false },
+            onConfirm = {
+                onSelected(it)
+                showDialog = false
+            },
+        )
+    }
+}
+
+private val MONTH_LABELS = listOf(
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
+
+@Composable
+private fun MonthYearPickerDialog(
+    initial: MonthYear,
+    onDismiss: () -> Unit,
+    onConfirm: (MonthYear) -> Unit,
+) {
+    var year by remember { mutableStateOf(initial.year) }
+    var month by remember { mutableStateOf(initial.month) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(MonthYear(year = year, month = month)) }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text("Select Month & Year") },
+        text = {
+            Column {
+                // Year stepper.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { year-- }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous year")
+                    }
+                    Text(
+                        text = year.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    IconButton(onClick = { year++ }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next year")
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                // 12-month grid, 3 per row.
+                for (rowStart in 0 until 12 step 3) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        for (offset in 0 until 3) {
+                            val m = rowStart + offset + 1
+                            val isSelected = m == month
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (isSelected) {
+                                    Button(
+                                        onClick = { month = m },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) { Text(MONTH_LABELS[m - 1]) }
+                                } else {
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = { month = m },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) { Text(MONTH_LABELS[m - 1]) }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
     when {
@@ -334,7 +514,7 @@ private fun ReportRowList(state: GenericReportUiState) {
                 )
             }
         } else {
-            ReportTable(table)
+            GenericReportTable(table)
         }
     }
 }
@@ -376,107 +556,36 @@ private fun SummaryBoxes(cells: List<ReportCell>) {
 }
 
 /**
- * Renders the report as a horizontally-scrollable table whose columns are
- * derived from the API row keys. Numeric columns are right-aligned; text
- * columns left-aligned. Compact rows, thin dividers, light-gray header.
+ * Renders the report through the shared [ReportTable]. Columns are derived from
+ * the API row keys (numeric → right-aligned, narrower; text → left-aligned), with
+ * a leading "Sl. No." column the table numbers itself.
  */
 @Composable
-private fun ReportTable(table: TableModel) {
-    val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalScroll(hScroll),
-    ) {
-        Row(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primary)
-                .height(IntrinsicSize.Min),
-        ) {
-            TableCell(text = "Sl. No.", width = COL_SL, align = TextAlign.Start, header = true)
-            table.columns.forEachIndexed { i, label ->
-                GridVDivider(onHeader = true)
-                TableCell(
-                    text = label,
-                    width = columnWidth(table.numeric[i]),
-                    align = if (table.numeric[i]) TextAlign.End else TextAlign.Start,
-                    header = true,
-                )
-            }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(vScroll),
-        ) {
-            table.rows.forEachIndexed { rowIndex, cells ->
-                Row(
-                    modifier = Modifier.height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TableCell(
-                        text = (rowIndex + 1).toString(),
-                        width = COL_SL,
-                        align = TextAlign.Start,
-                        header = false,
-                    )
-                    cells.forEachIndexed { i, value ->
-                        GridVDivider()
-                        TableCell(
-                            text = value,
-                            width = columnWidth(table.numeric[i]),
-                            align = if (table.numeric[i]) TextAlign.End else TextAlign.Start,
-                            header = false,
-                        )
-                    }
-                }
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun TableCell(text: String, width: Dp, align: TextAlign, header: Boolean) {
-    Text(
-        text = text,
-        style = if (header) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
-        fontWeight = if (header) FontWeight.Bold else FontWeight.Normal,
-        color = if (header) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-        textAlign = align,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
-    )
+private fun GenericReportTable(table: TableModel) {
+    val columns = remember(table) { buildGenericColumns(table) }
+    ReportTable(columns = columns, data = table.rows)
 }
 
 private val COL_SL = 48.dp
+
+private fun buildGenericColumns(table: TableModel): List<ReportColumn<List<String>>> = buildList {
+    add(
+        ReportColumn("Sl. No.", ReportColWidth.Fixed(COL_SL)) { _, index ->
+            cellText((index + 1).toString())
+        },
+    )
+    table.columns.forEachIndexed { ci, label ->
+        val numeric = table.numeric[ci]
+        val align = if (numeric) TextAlign.End else TextAlign.Start
+        add(
+            ReportColumn(
+                header = label,
+                width = ReportColWidth.Fixed(if (numeric) 112.dp else 172.dp),
+                align = align,
+            ) { row, _ -> cellText(row.getOrNull(ci).orEmpty(), align = align, maxLines = 2) },
+        )
+    }
+}
 
 /** True for an API column that is just a serial/SL number (hidden — the table adds its own). */
 private fun isSerialColumn(label: String): Boolean {
@@ -485,8 +594,6 @@ private fun isSerialColumn(label: String): Boolean {
         "sl", "slno", "sl no", "sl number", "serial", "serial no", "serial number",
     )
 }
-
-private fun columnWidth(numeric: Boolean): Dp = if (numeric) 112.dp else 172.dp
 
 /** Column model derived once from the parsed rows. */
 private data class TableModel(

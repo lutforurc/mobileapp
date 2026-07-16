@@ -250,7 +250,7 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
     }
 }
 
-// Column widths for the horizontally-scrollable table.
+// Columns for the horizontally-scrollable ledger table.
 // Order: SL. NO | VR DATE | VR NO | DESCRIPTION | DEBIT | CREDIT
 private val COL_SL = 56.dp
 private val COL_DATE = 96.dp
@@ -258,6 +258,27 @@ private val COL_VR = 116.dp
 private val COL_DESCRIPTION = 220.dp
 private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
+
+private val ledgerColumns = listOf(
+    ReportColumn<LedgerDisplayRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { r, _ ->
+        cellText(r.sl, bold = r.isSummary)
+    },
+    ReportColumn<LedgerDisplayRow>("VR DATE", ReportColWidth.Fixed(COL_DATE)) { r, _ ->
+        cellText(r.date, bold = r.isSummary)
+    },
+    ReportColumn<LedgerDisplayRow>("VR NO", ReportColWidth.Fixed(COL_VR)) { r, _ ->
+        cellText(r.voucherNo, bold = r.isSummary)
+    },
+    ReportColumn<LedgerDisplayRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESCRIPTION)) { r, _ ->
+        cellText(r.description, bold = r.isSummary, maxLines = 3)
+    },
+    ReportColumn<LedgerDisplayRow>("DEBIT", ReportColWidth.Fixed(COL_DEBIT), TextAlign.End) { r, _ ->
+        cellText(r.debit, align = TextAlign.End, bold = r.isSummary)
+    },
+    ReportColumn<LedgerDisplayRow>("CREDIT", ReportColWidth.Fixed(COL_CREDIT), TextAlign.End) { r, _ ->
+        cellText(r.credit, align = TextAlign.End, bold = r.isSummary)
+    },
+)
 
 /** One rendered line of the report (the opening-balance line, or a transaction). */
 private data class LedgerDisplayRow(
@@ -298,183 +319,39 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
 
 @Composable
 private fun LedgerTable(statement: LedgerStatement) {
-    val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
-    val displayRows = statement.toDisplayRows()
-
-    // Header stays put; details + the summary footer scroll together, sharing
-    // one horizontal scroll so every column stays aligned.
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalScroll(hScroll),
-    ) {
-        TableHeader()
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(vScroll),
-        ) {
-            displayRows.forEach { row -> TableRow(row) }
-            SummaryFooter(statement)
-            Spacer(Modifier.height(16.dp))
-        }
-    }
+    val summaryBg = MaterialTheme.colorScheme.secondaryContainer
+    ReportTable(
+        columns = ledgerColumns,
+        data = statement.toDisplayRows(),
+        footerRows = ledgerFooterRows(statement),
+        // The Opening Balance line is styled like the summary rows.
+        rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
+    )
 }
 
-/** Summary block appended after the details: Range Total, Total, Balance Receivable. */
-@Composable
-private fun SummaryFooter(statement: LedgerStatement) {
+/** Range Total, Total, and the net Balance line — each label sits under DESCRIPTION. */
+private fun ledgerFooterRows(statement: LedgerStatement): List<List<ReportFooterCell>> {
     val balance = statement.balance
-    Column {
-        HorizontalDivider(
-            thickness = 2.dp,
-            color = MaterialTheme.colorScheme.outline,
-        )
-        SummaryRow(
-            label = "Range Total",
-            debit = amountOrDash(statement.rangeDebit),
-            credit = amountOrDash(statement.rangeCredit),
-        )
-        SummaryRow(
-            label = "Total",
-            debit = amountOrDash(statement.totalDebit),
-            credit = amountOrDash(statement.totalCredit),
-        )
-        SummaryRow(
-            label = "Balance Receivable",
+    return listOf(
+        ledgerFooterRow("Range Total", statement.rangeDebit, statement.rangeCredit),
+        ledgerFooterRow("Total", statement.totalDebit, statement.totalCredit),
+        ledgerFooterRow(
+            "Balance Receivable",
             // Net balance sits on its side: receivable => debit, payable => credit.
-            debit = amountOrDash(if (balance > 0.0) balance else 0.0),
-            credit = amountOrDash(if (balance < 0.0) -balance else 0.0),
-        )
-    }
-}
-
-@Composable
-private fun SummaryRow(label: String, debit: String, credit: String) {
-    Column {
-        Row(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .height(IntrinsicSize.Min),
-        ) {
-            // Blank SL / VR DATE / VR NO; the label sits under DESCRIPTION.
-            Spacer(Modifier.width(COL_SL))
-            GridVDivider()
-            Spacer(Modifier.width(COL_DATE))
-            GridVDivider()
-            Spacer(Modifier.width(COL_VR))
-            GridVDivider()
-            BodyCell(label, COL_DESCRIPTION, fontWeight = FontWeight.Bold)
-            GridVDivider()
-            BodyCell(debit, COL_DEBIT, TextAlign.End, FontWeight.Bold)
-            GridVDivider()
-            BodyCell(credit, COL_CREDIT, TextAlign.End, FontWeight.Bold)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    }
-}
-
-@Composable
-private fun TableHeader() {
-    Row(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary)
-            .height(IntrinsicSize.Min),
-    ) {
-        HeaderCell("SL. NO", COL_SL)
-        GridVDivider(onHeader = true)
-        HeaderCell("VR DATE", COL_DATE)
-        GridVDivider(onHeader = true)
-        HeaderCell("VR NO", COL_VR)
-        GridVDivider(onHeader = true)
-        HeaderCell("DESCRIPTION", COL_DESCRIPTION)
-        GridVDivider(onHeader = true)
-        HeaderCell("DEBIT", COL_DEBIT, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("CREDIT", COL_CREDIT, TextAlign.End)
-    }
-}
-
-@Composable
-private fun TableRow(row: LedgerDisplayRow) {
-    val bg = if (row.isSummary) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val weight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal
-
-    Column {
-        Row(
-            modifier = Modifier
-                .background(bg)
-                .height(IntrinsicSize.Min),
-        ) {
-            BodyCell(row.sl, COL_SL, fontWeight = weight)
-            GridVDivider()
-            BodyCell(row.date, COL_DATE, fontWeight = weight)
-            GridVDivider()
-            BodyCell(row.voucherNo, COL_VR, fontWeight = weight)
-            GridVDivider()
-            BodyCell(row.description, COL_DESCRIPTION, fontWeight = weight, maxLines = 3)
-            GridVDivider()
-            BodyCell(row.debit, COL_DEBIT, TextAlign.End, weight)
-            GridVDivider()
-            BodyCell(row.credit, COL_CREDIT, TextAlign.End, weight)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    }
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
+            if (balance > 0.0) balance else 0.0,
+            if (balance < 0.0) -balance else 0.0,
+        ),
     )
 }
 
-@Composable
-private fun HeaderCell(text: String, width: Dp, align: TextAlign = TextAlign.Start) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = align,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+private fun ledgerFooterRow(label: String, debit: Double, credit: Double): List<ReportFooterCell> =
+    listOf(
+        // Blank SL / VR DATE / VR NO under one span; the label sits under DESCRIPTION.
+        ReportFooterCell(ReportTableCell.Empty, colSpan = 3),
+        ReportFooterCell(cellText(label, bold = true)),
+        ReportFooterCell(cellText(amountOrDash(debit), align = TextAlign.End, bold = true)),
+        ReportFooterCell(cellText(amountOrDash(credit), align = TextAlign.End, bold = true)),
     )
-}
-
-@Composable
-private fun BodyCell(
-    text: String,
-    width: Dp,
-    align: TextAlign = TextAlign.Start,
-    fontWeight: FontWeight = FontWeight.Normal,
-    maxLines: Int = 1,
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = fontWeight,
-        textAlign = align,
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
-}
 
 private val amountFormat = DecimalFormat("#,##0.00")
 

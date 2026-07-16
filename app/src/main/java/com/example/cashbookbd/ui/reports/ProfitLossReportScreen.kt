@@ -341,6 +341,16 @@ private fun SummaryBox(item: ProfitLossSummaryItem) {
     }
 }
 
+// PARTICULARS | AMOUNT, filling the width. Emphasis lines (subtotals/gross) bold.
+private val profitLossColumns = listOf(
+    ReportColumn<ProfitLossAccountLine>("PARTICULARS", ReportColWidth.Weight(1f)) { line, _ ->
+        cellText(line.label, bold = line.emphasis)
+    },
+    ReportColumn<ProfitLossAccountLine>("AMOUNT", ReportColWidth.Weight(0.5f), TextAlign.End) { line, _ ->
+        cellText(formatAmount(line.amount), align = TextAlign.End, bold = line.emphasis)
+    },
+)
+
 @Composable
 private fun AccountTable(title: String, lines: List<ProfitLossAccountLine>) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -351,81 +361,13 @@ private fun AccountTable(title: String, lines: List<ProfitLossAccountLine>) {
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
         )
-
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(horizontal = 16.dp),
-        ) {
-            Text(
-                text = "PARTICULARS",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp, top = 10.dp, bottom = 10.dp),
-            )
-            GridVDivider(onHeader = true)
-            Text(
-                text = "AMOUNT",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary,
-                textAlign = TextAlign.End,
-                modifier = Modifier
-                    .weight(0.5f)
-                    .padding(start = 8.dp, top = 10.dp, bottom = 10.dp),
-            )
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        // Lines
-        lines.forEach { line ->
-            val weight = if (line.emphasis) FontWeight.Bold else FontWeight.Normal
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(horizontal = 16.dp),
-            ) {
-                Text(
-                    text = line.label,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = weight,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp, top = 10.dp, bottom = 10.dp),
-                )
-                GridVDivider()
-                Text(
-                    text = formatAmount(line.amount),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = weight,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier
-                        .weight(0.5f)
-                        .padding(start = 8.dp, top = 10.dp, bottom = 10.dp),
-                )
-            }
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-        }
+        ReportTable(
+            columns = profitLossColumns,
+            data = lines,
+            // Embedded in the screen's outer vertical scroll.
+            scrollable = false,
+        )
     }
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
-    )
 }
 
 @Composable

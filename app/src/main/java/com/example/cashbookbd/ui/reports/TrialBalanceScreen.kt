@@ -364,128 +364,36 @@ private val COL_SL = 44.dp
 private val COL_DESC = 190.dp
 private val COL_NUM = 104.dp
 
+private val trialBalanceColumns = listOf(
+    ReportColumn<TrialBalanceRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { _, i ->
+        cellText((i + 1).toString())
+    },
+    ReportColumn<TrialBalanceRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESC)) { r, _ ->
+        cellText(r.description, maxLines = 2)
+    },
+    ReportColumn<TrialBalanceRow>("OPENING DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.openingDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("OPENING CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.openingCredit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("MOVEMENT DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.movementDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("MOVEMENT CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.movementCredit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("CLOSING DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.closingDebit), align = TextAlign.End)
+    },
+    ReportColumn<TrialBalanceRow>("CLOSING CR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.closingCredit), align = TextAlign.End)
+    },
+)
+
 @Composable
 private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
-    val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalScroll(hScroll),
-    ) {
-        TableHeader()
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(vScroll),
-        ) {
-            rows.forEachIndexed { index, row ->
-                TableRow(index = index + 1, row = row)
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun TableHeader() {
-    Row(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary)
-            .height(IntrinsicSize.Min),
-    ) {
-        HeaderCell("SL. NO", COL_SL, TextAlign.Start)
-        GridVDivider(onHeader = true)
-        HeaderCell("DESCRIPTION", COL_DESC, TextAlign.Start)
-        GridVDivider(onHeader = true)
-        HeaderCell("OPENING DR", COL_NUM, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("OPENING CR", COL_NUM, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("MOVEMENT DR", COL_NUM, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("MOVEMENT CR", COL_NUM, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("CLOSING DR", COL_NUM, TextAlign.End)
-        GridVDivider(onHeader = true)
-        HeaderCell("CLOSING CR", COL_NUM, TextAlign.End)
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-}
-
-@Composable
-private fun TableRow(index: Int, row: TrialBalanceRow) {
-    Row(
-        modifier = Modifier.height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BodyCell(index.toString(), COL_SL, TextAlign.Start)
-        GridVDivider()
-        BodyCell(row.description, COL_DESC, TextAlign.Start, maxLines = 2)
-        GridVDivider()
-        BodyCell(formatCell(row.openingDebit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.openingCredit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.movementDebit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.movementCredit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.closingDebit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.closingCredit), COL_NUM, TextAlign.End)
-    }
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
-    )
-}
-
-@Composable
-private fun HeaderCell(text: String, width: Dp, align: TextAlign) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = align,
-        maxLines = 2,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
-}
-
-@Composable
-private fun BodyCell(
-    text: String,
-    width: Dp,
-    align: TextAlign,
-    maxLines: Int = 1,
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        textAlign = align,
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
+    ReportTable(columns = trialBalanceColumns, data = rows)
 }
 
 @Composable

@@ -5,6 +5,28 @@ import com.example.cashbookbd.session.Permissions
 
 enum class ReportMethod { GET, POST }
 
+/**
+ * How the generic parser should extract rows from a report's payload. Most
+ * reports are [NORMAL] (an array under a known key, or a top-level array); a few
+ * legacy endpoints return unusual shapes and opt into a dedicated mode.
+ */
+enum class ReportResponseShape {
+    /** Array under a known key, or a top-level array (the default). */
+    NORMAL,
+
+    /**
+     * An object of `{ "1": scalar, "2": scalar, … }` (IMEI Stock) — each entry
+     * becomes a one-cell row. `[]` when empty.
+     */
+    KEYED_SCALARS,
+
+    /**
+     * A nested `{ group: { subgroup: [rows] } }` map with dynamic string keys
+     * (Labour Ledger) — flattened into the underlying rows.
+     */
+    NESTED_GROUPS,
+}
+
 /** Date wire format expected by a report's API. */
 enum class ReportDateStyle {
     /** `yyyy-MM-dd` (newer endpoints). */
@@ -95,16 +117,38 @@ data class ReportConfig(
      * sends the chosen value under [ReportChoiceParam.paramKey].
      */
     val choiceParam: ReportChoiceParam? = null,
+    /**
+     * Extra remote dropdown filters (category, brand, product, somity, labour)
+     * this report needs beyond branch/date/ledger/choice.
+     */
+    val selectors: List<ReportSelector> = emptyList(),
+    /**
+     * When set, the filter shows a month/year picker and sends `MM/yyyy` under
+     * this key (Collection Sheet's `month_year`).
+     */
+    val monthYearParam: String? = null,
+    /** How the generic parser should read this report's payload. */
+    val responseShape: ReportResponseShape = ReportResponseShape.NORMAL,
+    /** Column header for a [ReportResponseShape.KEYED_SCALARS] report (e.g. "IMEI"). */
+    val scalarLabel: String = "Value",
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
-        get() = !native && (filterType in GENERIC_FILTER_TYPES || ledgerParam != null)
+        get() = !native && (
+            filterType in GENERIC_FILTER_TYPES ||
+                ledgerParam != null ||
+                selectors.isNotEmpty() ||
+                monthYearParam != null
+            )
 
     /** True when this report needs the searchable ledger/party picker. */
     val usesLedger: Boolean get() = ledgerParam != null
 
     /** True when this report needs the single-select choice dropdown. */
     val usesChoice: Boolean get() = choiceParam != null
+
+    /** True when this report needs the month/year picker. */
+    val usesMonthYear: Boolean get() = monthYearParam != null
 
     private companion object {
         val GENERIC_FILTER_TYPES = setOf(
@@ -341,6 +385,21 @@ object ReportMenu {
             endpointKey = "labourLedger",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_PRODUCT_DATE_RANGE,
+            // camelCase params; nested {branch:{labour:[rows]}} payload.
+            branchParam = "branchId",
+            startParam = "startDate",
+            endParam = "endDate",
+            ledgerParam = "ledgerId",
+            ledgerRequired = false,
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "labourId",
+                    label = "Select Labour (optional)",
+                    source = ReportSelectorSource.LABOUR,
+                    required = false,
+                ),
+            ),
+            responseShape = ReportResponseShape.NESTED_GROUPS,
         ),
         ReportConfig(
             key = "purchaseLedger",
@@ -406,6 +465,28 @@ object ReportMenu {
             endpointKey = "collectionSheet",
             method = ReportMethod.POST,
             filterType = ReportFilterType.COLLECTION_SHEET,
+            // No date range: a month/year (sent MM/yyyy) plus a somity picker. The
+            // server prepends "01/" to month_year, so MM/yyyy is what it expects.
+            startParam = null,
+            endParam = null,
+            monthYearParam = "month_year",
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "somity_id",
+                    label = "Select Somity",
+                    source = ReportSelectorSource.SOMITY,
+                    required = true,
+                ),
+            ),
+            choiceParam = ReportChoiceParam(
+                paramKey = "type_id",
+                label = "Collection Type",
+                options = listOf(
+                    ReportChoice("Full Month", "2"),
+                    ReportChoice("Opening Day", "1"),
+                ),
+            ),
+            responseShape = ReportResponseShape.NORMAL,
         ),
         ReportConfig(
             key = "monthlyReport",
@@ -458,6 +539,30 @@ object ReportMenu {
             endpointKey = "productStock",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "brand_id",
+                    label = "Select Brand (optional)",
+                    source = ReportSelectorSource.BRAND,
+                    required = false,
+                ),
+                ReportSelector(
+                    paramKey = "category_id",
+                    label = "Select Category (optional)",
+                    source = ReportSelectorSource.CATEGORY,
+                    required = false,
+                ),
+                ReportSelector(
+                    paramKey = "product_name",
+                    label = "Select Product (optional)",
+                    source = ReportSelectorSource.PRODUCT,
+                    required = false,
+                    // The endpoint filters on the product name, not its id.
+                    sendLabel = true,
+                ),
+            ),
         ),
         ReportConfig(
             key = "imeiStock",
@@ -468,6 +573,20 @@ object ReportMenu {
             endpointKey = "imeiStock",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_PRODUCT_ONLY,
+            // No date range — just a product (item_id). Payload is an object keyed
+            // "1","2",… of IMEI strings, or [] when empty.
+            startParam = null,
+            endParam = null,
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "item_id",
+                    label = "Select Product",
+                    source = ReportSelectorSource.PRODUCT,
+                    required = true,
+                ),
+            ),
+            responseShape = ReportResponseShape.KEYED_SCALARS,
+            scalarLabel = "IMEI / Serial",
         ),
         ReportConfig(
             key = "categoryWiseInOut",
@@ -478,6 +597,24 @@ object ReportMenu {
             endpointKey = "categoryWiseInOut",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_CATEGORY_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            choiceParam = ReportChoiceParam(
+                paramKey = "reportType",
+                label = "Report Type",
+                options = listOf(
+                    ReportChoice("Purchase", "1"),
+                    ReportChoice("Sales", "2"),
+                ),
+            ),
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "category_id",
+                    label = "Select Category (optional)",
+                    source = ReportSelectorSource.CATEGORY,
+                    required = false,
+                ),
+            ),
         ),
         ReportConfig(
             key = "dateWiseInOut",

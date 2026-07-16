@@ -257,184 +257,93 @@ private val COL_PAGE = 92.dp
 private val COL_AREA = 92.dp
 private val COL_NUM = 104.dp
 
+private val dueListColumns = listOf(
+    ReportColumn<DueRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { _, i ->
+        cellText((i + 1).toString())
+    },
+    ReportColumn<DueRow>("CUSTOMER/SUPPLIER", ReportColWidth.Fixed(COL_PARTY)) { r, _ ->
+        ReportTableCell.Slot { PartyCell(r) }
+    },
+    ReportColumn<DueRow>("PAGE", ReportColWidth.Fixed(COL_PAGE)) { r, _ ->
+        cellText(r.page ?: "-", maxLines = 2)
+    },
+    ReportColumn<DueRow>("AREA CODE", ReportColWidth.Fixed(COL_AREA)) { r, _ ->
+        cellText(r.areaCode ?: "-")
+    },
+    ReportColumn<DueRow>("DEBIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.debit), align = TextAlign.End)
+    },
+    ReportColumn<DueRow>("CREDIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+        cellText(formatCell(r.credit), align = TextAlign.End)
+    },
+)
+
 @Composable
 private fun DueTable(report: com.example.cashbookbd.ui.reports.model.DueListReport) {
-    val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalScroll(hScroll),
-    ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primary)
-                .height(IntrinsicSize.Min),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HeaderCell("SL. NO", COL_SL, TextAlign.Start)
-            GridVDivider(onHeader = true)
-            HeaderCell("CUSTOMER/SUPPLIER", COL_PARTY, TextAlign.Start)
-            GridVDivider(onHeader = true)
-            HeaderCell("PAGE", COL_PAGE, TextAlign.Start)
-            GridVDivider(onHeader = true)
-            HeaderCell("AREA CODE", COL_AREA, TextAlign.Start)
-            GridVDivider(onHeader = true)
-            HeaderCell("DEBIT", COL_NUM, TextAlign.End)
-            GridVDivider(onHeader = true)
-            HeaderCell("CREDIT", COL_NUM, TextAlign.End)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(vScroll),
-        ) {
-            report.rows.forEachIndexed { index, row ->
-                PartyRow(serial = index + 1, row = row)
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            }
-
-            // Total / Balance summary rows, mirroring the backend's summary lines.
-            SummaryRow(label = "Total", debit = report.totalDebit, credit = report.totalCredit)
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            SummaryRow(
-                label = "Balance",
-                // Net balance shows on the side it falls: receivable → debit, advance → credit.
-                debit = if (report.netBalance >= 0) report.netBalance else 0.0,
-                credit = if (report.netBalance < 0) -report.netBalance else 0.0,
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-    }
+    ReportTable(
+        columns = dueListColumns,
+        data = report.rows,
+        footerRows = dueFooterRows(report),
+    )
 }
 
-/** One party line: SL, a stacked name/phone/address block, page, area code, and amounts. */
-@Composable
-private fun PartyRow(serial: Int, row: DueRow) {
-    Row(
-        modifier = Modifier.height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BodyCell(serial.toString(), COL_SL, TextAlign.Start)
-        GridVDivider()
+/** Total and the net Balance rows, mirroring the backend's summary lines. */
+private fun dueFooterRows(
+    report: com.example.cashbookbd.ui.reports.model.DueListReport,
+): List<List<ReportFooterCell>> = listOf(
+    dueFooterRow("Total", report.totalDebit, report.totalCredit),
+    dueFooterRow(
+        "Balance",
+        // Net balance shows on the side it falls: receivable → debit, advance → credit.
+        if (report.netBalance >= 0) report.netBalance else 0.0,
+        if (report.netBalance < 0) -report.netBalance else 0.0,
+    ),
+)
 
-        Column(
-            modifier = Modifier
-                .width(COL_PARTY)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-        ) {
+/** A bold Total / Balance footer row with the label under the party column. */
+private fun dueFooterRow(label: String, debit: Double, credit: Double): List<ReportFooterCell> =
+    listOf(
+        ReportFooterCell(ReportTableCell.Empty),                    // SL
+        ReportFooterCell(cellText(label, bold = true)),             // party
+        ReportFooterCell(ReportTableCell.Empty),                    // page
+        ReportFooterCell(cellText("-")),                            // area code
+        ReportFooterCell(cellText(formatCell(debit), align = TextAlign.End, bold = true)),
+        ReportFooterCell(cellText(formatCell(credit), align = TextAlign.End, bold = true)),
+    )
+
+/** The party column's stacked name / phone / address block. */
+@Composable
+private fun PartyCell(row: DueRow) {
+    Column(
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = row.customer,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        row.mobile?.let {
             Text(
-                text = row.customer,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        row.address?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            row.mobile?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            row.address?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
-
-        GridVDivider()
-        BodyCell(row.page ?: "-", COL_PAGE, TextAlign.Start, maxLines = 2)
-        GridVDivider()
-        BodyCell(row.areaCode ?: "-", COL_AREA, TextAlign.Start)
-        GridVDivider()
-        BodyCell(formatCell(row.debit), COL_NUM, TextAlign.End)
-        GridVDivider()
-        BodyCell(formatCell(row.credit), COL_NUM, TextAlign.End)
     }
-}
-
-/** A bold Total / Balance footer row with the label under the party column. */
-@Composable
-private fun SummaryRow(label: String, debit: Double, credit: Double) {
-    Row(
-        modifier = Modifier.height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BodyCell("", COL_SL, TextAlign.Start)
-        GridVDivider()
-        BodyCell(label, COL_PARTY, TextAlign.Start, bold = true, color = MaterialTheme.colorScheme.onSurface)
-        GridVDivider()
-        BodyCell("", COL_PAGE, TextAlign.Start)
-        GridVDivider()
-        BodyCell("-", COL_AREA, TextAlign.Start)
-        GridVDivider()
-        BodyCell(formatCell(debit), COL_NUM, TextAlign.End, bold = true)
-        GridVDivider()
-        BodyCell(formatCell(credit), COL_NUM, TextAlign.End, bold = true)
-    }
-}
-
-@Composable
-private fun HeaderCell(text: String, width: Dp, align: TextAlign) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = align,
-        maxLines = 2,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
-}
-
-@Composable
-private fun BodyCell(
-    text: String,
-    width: Dp,
-    align: TextAlign,
-    maxLines: Int = 1,
-    bold: Boolean = false,
-    color: Color = Color.Unspecified,
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-        color = color,
-        textAlign = align,
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .width(width)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-    )
-}
-
-/** Vertical grid line spanning the full height of a table row. */
-@Composable
-private fun GridVDivider(onHeader: Boolean = false) {
-    VerticalDivider(
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        },
-    )
 }
 
 @Composable

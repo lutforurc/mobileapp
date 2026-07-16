@@ -7,6 +7,7 @@ import com.example.cashbookbd.report.ReportConfig
 import com.example.cashbookbd.report.ReportDateStyle
 import com.example.cashbookbd.report.ReportEndpoints
 import com.example.cashbookbd.report.ReportMethod
+import com.example.cashbookbd.report.ReportResponseShape
 import com.example.cashbookbd.report.ReportResult
 import com.example.cashbookbd.report.ReportRow
 import com.example.cashbookbd.ui.reports.model.SimpleDate
@@ -49,11 +50,15 @@ class GenericReportRepository(
         endDate: SimpleDate?,
         ledgerId: Long? = null,
         choiceValue: String? = null,
+        selectorValues: Map<String, String> = emptyMap(),
+        monthYear: String? = null,
     ): Resource<ReportResult> = withContext(ioDispatcher) {
         val path = ReportEndpoints.path(config.endpointKey)
             ?: return@withContext Resource.Error("This report is not available.")
 
-        val params = buildParams(config, branchId, startDate, endDate, ledgerId, choiceValue)
+        val params = buildParams(
+            config, branchId, startDate, endDate, ledgerId, choiceValue, selectorValues, monthYear,
+        )
 
         try {
             val response = when (config.method) {
@@ -76,7 +81,7 @@ class GenericReportRepository(
                 )
             }
 
-            parseBody(response)
+            parseBody(response, config)
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {
@@ -100,6 +105,8 @@ class GenericReportRepository(
         endDate: SimpleDate?,
         ledgerId: Long?,
         choiceValue: String?,
+        selectorValues: Map<String, String>,
+        monthYear: String?,
     ): Map<String, String> {
         fun fmt(date: SimpleDate): String =
             if (config.dateStyle == ReportDateStyle.DISPLAY) date.toDisplay() else date.toApi()
@@ -108,6 +115,9 @@ class GenericReportRepository(
         params[config.branchParam] = branchId.toString()
         config.choiceParam?.let { choice -> choiceValue?.let { params[choice.paramKey] = it } }
         config.ledgerParam?.let { key -> ledgerId?.let { params[key] = it.toString() } }
+        // Remote-dropdown filters (category, brand, product, somity, labour).
+        selectorValues.forEach { (key, value) -> if (value.isNotBlank()) params[key] = value }
+        config.monthYearParam?.let { key -> monthYear?.let { params[key] = it } }
         config.startParam?.let { key -> startDate?.let { params[key] = fmt(it) } }
         config.endParam?.let { key -> endDate?.let { params[key] = fmt(it) } }
         config.altStartParam?.let { key -> startDate?.let { params[key] = fmt(it) } }
@@ -116,11 +126,14 @@ class GenericReportRepository(
         return params
     }
 
-    private fun parseBody(response: Response<JsonElement>): Resource<ReportResult> {
+    private fun parseBody(response: Response<JsonElement>, config: ReportConfig): Resource<ReportResult> {
         val root = response.body()
             ?: return Resource.Error("Invalid response from server.")
 
-        // Envelope: { success, message, data, error }. A false success is an error.
+        // Envelope: { success, message, data, error }. A false success is either
+        // an empty report (the `notFound()` helper — blank message, data.data == [])
+        // or a real failure. Treat the blank-message case as "no rows", per the API
+        // spec, and only surface a genuine message as an error.
         if (root.isJsonObject) {
             val obj = root.asJsonObject
             val success = obj.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
@@ -128,17 +141,64 @@ class GenericReportRepository(
                 val message = obj.getAsJsonObject("error")
                     ?.get("message")?.takeUnless { it.isJsonNull }?.asString
                     ?: obj.get("message")?.takeUnless { it.isJsonNull }?.asString
-                return Resource.Error(message?.ifBlank { null } ?: "Report load failed.")
+                return if (message.isNullOrBlank()) {
+                    Resource.Success(ReportResult(rows = emptyList()))
+                } else {
+                    Resource.Error(message)
+                }
             }
         }
 
         val payload = unwrap(root)
         return Resource.Success(
             ReportResult(
-                rows = extractRows(payload).map { it.toReportRow() },
+                rows = buildRows(payload, config),
                 summary = extractSummary(payload),
             )
         )
+    }
+
+    /** Turns the payload into display rows, honouring the report's [ReportResponseShape]. */
+    private fun buildRows(payload: JsonElement, config: ReportConfig): List<ReportRow> =
+        when (config.responseShape) {
+            ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow() }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow() }
+        }
+
+    /**
+     * IMEI Stock: an object `{ "1": scalar, "2": scalar }` → one row per entry, or
+     * `[]` when empty. Each scalar becomes a single [scalarLabel] cell.
+     */
+    private fun keyedScalarRows(payload: JsonElement, scalarLabel: String): List<ReportRow> {
+        if (payload.isJsonArray) {
+            // Empty case serializes as [] rather than an object.
+            return payload.asJsonArray
+                .filter { it.isJsonPrimitive }
+                .map { ReportRow(listOf(ReportCell(scalarLabel, formatValue(it)))) }
+        }
+        if (!payload.isJsonObject) return emptyList()
+        return payload.asJsonObject.entrySet()
+            .filter { it.value.isJsonPrimitive }
+            .map { ReportRow(listOf(ReportCell(scalarLabel, formatValue(it.value)))) }
+    }
+
+    /**
+     * Labour Ledger: a nested `{ group: { subgroup: [rows] } }` map with dynamic
+     * keys. Walks the tree and collects every row object found in any array.
+     */
+    private fun nestedGroupRows(payload: JsonElement): List<JsonElement> {
+        val rows = mutableListOf<JsonElement>()
+        fun walk(element: JsonElement) {
+            when {
+                element.isJsonArray -> element.asJsonArray.forEach { child ->
+                    if (child.isJsonObject) rows += child else walk(child)
+                }
+                element.isJsonObject -> element.asJsonObject.entrySet().forEach { walk(it.value) }
+            }
+        }
+        walk(payload)
+        return rows
     }
 
     /** Peels the `data` / `data.data` envelope produced by the backend helpers. */
