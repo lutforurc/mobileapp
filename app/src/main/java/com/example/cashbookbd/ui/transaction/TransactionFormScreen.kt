@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -130,21 +130,13 @@ fun TransactionFormScreen(
 
             Spacer(Modifier.height(2.dp))
 
-            Button(
+            PrimaryButton(
+                text = "Save",
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                if (state.isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text("Save")
-                }
-            }
+                isLoading = state.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             state.message?.let { message ->
                 Text(

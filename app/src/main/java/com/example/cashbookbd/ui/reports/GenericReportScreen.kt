@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,7 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.LinkButton
+import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -236,23 +238,11 @@ private fun FilterCard(
 
         Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = onApply,
-            enabled = state.canApply,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-        ) {
-            if (state.isReportLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            } else {
-                Text("Apply")
-            }
-        }
+        FilterActions(
+            onApply = onApply,
+            canApply = state.canApply,
+            isLoading = state.isReportLoading,
+        )
     }
 }
 
@@ -403,9 +393,9 @@ private fun MonthYearPickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onConfirm(MonthYear(year = year, month = month)) }) { Text("OK") }
+            LinkButton(text = "OK", onClick = { onConfirm(MonthYear(year = year, month = month)) })
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { LinkButton(text = "Cancel", onClick = onDismiss) },
         title = { Text("Select Month & Year") },
         text = {
             Column {
@@ -438,16 +428,19 @@ private fun MonthYearPickerDialog(
                             val m = rowStart + offset + 1
                             val isSelected = m == month
                             Box(modifier = Modifier.weight(1f)) {
+                                // Selected reads as the primary style, the rest outlined.
                                 if (isSelected) {
-                                    Button(
+                                    PrimaryButton(
+                                        text = MONTH_LABELS[m - 1],
                                         onClick = { month = m },
                                         modifier = Modifier.fillMaxWidth(),
-                                    ) { Text(MONTH_LABELS[m - 1]) }
+                                    )
                                 } else {
-                                    androidx.compose.material3.OutlinedButton(
+                                    SecondaryButton(
+                                        text = MONTH_LABELS[m - 1],
                                         onClick = { month = m },
                                         modifier = Modifier.fillMaxWidth(),
-                                    ) { Text(MONTH_LABELS[m - 1]) }
+                                    )
                                 }
                             }
                         }
@@ -472,7 +465,7 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = onRetry) { Text("Retry") }
+                PrimaryButton(text = "Retry", onClick = onRetry)
             }
         }
 

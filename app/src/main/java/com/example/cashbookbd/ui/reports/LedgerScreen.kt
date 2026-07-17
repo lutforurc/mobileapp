@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -50,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.LinkButton
+import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -161,23 +164,11 @@ private fun LedgerFilterForm(
 
         Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = onApply,
-            enabled = state.canApply,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-        ) {
-            if (state.isReportLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            } else {
-                Text("Apply")
-            }
-        }
+        FilterActions(
+            onApply = onApply,
+            canApply = state.canApply,
+            isLoading = state.isReportLoading,
+        )
     }
 }
 
@@ -234,7 +225,7 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = onRetry) { Text("Retry") }
+                PrimaryButton(text = "Retry", onClick = onRetry)
             }
         }
 

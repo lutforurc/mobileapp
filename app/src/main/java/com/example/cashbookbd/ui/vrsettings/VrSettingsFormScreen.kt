@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -26,7 +25,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.FieldButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -110,21 +111,13 @@ fun VrSettingsFormScreen(
                 )
             }
 
-            Button(
+            PrimaryButton(
+                text = state.actionLabel,
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                if (state.isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text(state.actionLabel)
-                }
-            }
+                isLoading = state.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             state.message?.let { message ->
                 Text(
@@ -137,13 +130,12 @@ fun VrSettingsFormScreen(
 
             // Already-deleted → offer a force delete.
             if (state.requiresConfirmation) {
-                OutlinedButton(
+                SecondaryButton(
+                    text = "Force Delete",
                     onClick = viewModel::forceDelete,
                     enabled = !state.isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Force Delete")
-                }
+                )
             }
         }
     }
@@ -272,16 +264,12 @@ private fun DateField(
     onPicked: (SimpleDate) -> Unit,
     context: Context,
 ) {
-    OutlinedButton(
+    FieldButton(
+        text = value.toDisplay(),
         onClick = { showDatePicker(context, value, onPicked) },
-        modifier = modifier.height(56.dp),
-    ) {
-        Icon(Icons.Filled.DateRange, contentDescription = null)
-        Text(
-            text = "  ${value.toDisplay()}",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
+        icon = Icons.Filled.DateRange,
+        modifier = modifier,
+    )
 }
 
 private fun showDatePicker(context: Context, current: SimpleDate, onPicked: (SimpleDate) -> Unit) {

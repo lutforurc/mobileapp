@@ -1,0 +1,225 @@
+package com.example.cashbookbd.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+
+/**
+ * Every button in the app, in one place.
+ *
+ * Screens must build their buttons from here and never call Material's
+ * [Button]/[OutlinedButton]/[TextButton] directly, so a colour, shape or size
+ * change is made once and applies everywhere. When a screen wants a different
+ * look, add a parameter — or a new variant — here rather than writing a one-off
+ * button locally.
+ *
+ * The variants:
+ *  - [PrimaryButton] — the main action (Save, Apply, Log in).
+ *  - [SecondaryButton] — a lower-emphasis action beside a primary one (Reset).
+ *  - [LinkButton] — a borderless action (Retry, OK/Cancel, Prev/Next).
+ *  - [AddButton] — a list toolbar's "+ Add …".
+ *  - [FieldButton] — a button that sits in a form row and must line up with the
+ *    text fields next to it (the date pickers).
+ */
+
+/** Shared geometry, so every button in the app lines up. */
+private val ButtonHeight = 48.dp
+
+/** Matches an OutlinedTextField, for buttons that sit in a form row. */
+private val FieldHeight = 56.dp
+
+private val ButtonShape = RoundedCornerShape(24.dp)
+private val IconSize = 18.dp
+
+/**
+ * The primary call to action — Save, Apply, Log in, "+ Add …".
+ *
+ * Shows a spinner and blocks further taps while [isLoading].
+ */
+@Composable
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    isLoading: Boolean = false,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled && !isLoading,
+        shape = ButtonShape,
+        modifier = modifier.height(ButtonHeight),
+    ) {
+        ButtonContent(text = text, icon = icon, isLoading = isLoading, spinnerColor = MaterialTheme.colorScheme.onPrimary)
+    }
+}
+
+/** A lower-emphasis action shown beside a [PrimaryButton] — Reset, page size. */
+@Composable
+fun SecondaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
+    trailingIconDescription: String? = null,
+    isLoading: Boolean = false,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled && !isLoading,
+        shape = ButtonShape,
+        modifier = modifier.height(ButtonHeight),
+    ) {
+        ButtonContent(text = text, icon = icon, isLoading = isLoading, spinnerColor = MaterialTheme.colorScheme.primary)
+        if (trailingIcon != null && !isLoading) {
+            Icon(trailingIcon, contentDescription = trailingIconDescription, modifier = Modifier.size(IconSize))
+        }
+    }
+}
+
+/** A borderless action — Retry, a dialog's OK/Cancel, Prev/Next, Show/Hide. */
+@Composable
+fun LinkButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
+    iconDescription: String? = null,
+) {
+    TextButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+        if (icon != null) {
+            Icon(icon, contentDescription = iconDescription, modifier = Modifier.size(IconSize))
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(text)
+        if (trailingIcon != null) {
+            Spacer(Modifier.width(4.dp))
+            Icon(trailingIcon, contentDescription = iconDescription, modifier = Modifier.size(IconSize))
+        }
+    }
+}
+
+/**
+ * The "+ Add …" button a list toolbar shows when its list has a create screen.
+ * Wraps [PrimaryButton] so the plus icon and wording stay identical everywhere.
+ */
+@Composable
+fun AddButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    PrimaryButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        icon = Icons.Filled.Add,
+    )
+}
+
+/**
+ * A button that acts as a form field — the date pickers. Taller than the other
+ * variants so it lines up with the OutlinedTextFields beside it.
+ */
+@Composable
+fun FieldButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = ButtonShape,
+        modifier = modifier.height(FieldHeight),
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize))
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * The Apply/Reset pair every report filter card ends with. Lives here so all the
+ * report screens share one layout and one pair of styles; pass a null [onReset]
+ * for a filter that has nothing to clear.
+ */
+@Composable
+fun FilterActions(
+    onApply: () -> Unit,
+    modifier: Modifier = Modifier,
+    onReset: (() -> Unit)? = null,
+    canApply: Boolean = true,
+    isLoading: Boolean = false,
+    applyText: String = "Apply",
+    resetText: String = "Reset",
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        PrimaryButton(
+            text = applyText,
+            onClick = onApply,
+            enabled = canApply,
+            isLoading = isLoading,
+            modifier = Modifier.weight(1f),
+        )
+        if (onReset != null) {
+            SecondaryButton(
+                text = resetText,
+                onClick = onReset,
+                enabled = !isLoading,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** The label/spinner shared by the filled and outlined variants. */
+@Composable
+private fun ButtonContent(
+    text: String,
+    icon: ImageVector?,
+    isLoading: Boolean,
+    spinnerColor: androidx.compose.ui.graphics.Color,
+) {
+    if (isLoading) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(IconSize),
+            strokeWidth = 2.dp,
+            color = spinnerColor,
+        )
+        return
+    }
+    if (icon != null) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize))
+        Spacer(Modifier.width(8.dp))
+    }
+    Text(text)
+}

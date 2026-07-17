@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -27,7 +26,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +43,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cashbookbd.ui.components.LinkButton
+import com.example.cashbookbd.ui.components.PrimaryButton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -129,9 +129,10 @@ fun LoginScreen(
                 enabled = !uiState.isLoading,
                 leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
                 trailingIcon = {
-                    TextButton(onClick = viewModel::togglePasswordVisibility) {
-                        Text(if (uiState.isPasswordVisible) "Hide" else "Show")
-                    }
+                    LinkButton(
+                        text = if (uiState.isPasswordVisible) "Hide" else "Show",
+                        onClick = viewModel::togglePasswordVisibility,
+                    )
                 },
                 visualTransformation = if (uiState.isPasswordVisible) {
                     VisualTransformation.None
@@ -175,26 +176,16 @@ fun LoginScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            Button(
+            PrimaryButton(
+                text = "Log in",
                 onClick = {
                     keyboardController?.hide()
                     viewModel.login()
                 },
                 enabled = uiState.isSubmitEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text("Log in")
-                }
-            }
+                isLoading = uiState.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
