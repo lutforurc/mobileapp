@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -42,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.report.ReportMenu
+import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
@@ -70,6 +72,8 @@ fun AuthenticatedShell(
 
     // The single "Reports" section is shown when the user has any report permission.
     val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
+    // The "Transaction" section is shown when the user has any transaction permission.
+    val canTransactions = TransactionMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -86,6 +90,7 @@ fun AuthenticatedShell(
             AppDrawerContent(
                 currentRoute = currentRoute,
                 canReports = canReports,
+                canTransactions = canTransactions,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -146,6 +151,7 @@ fun AuthenticatedShell(
 private fun AppDrawerContent(
     currentRoute: String,
     canReports: Boolean,
+    canTransactions: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -170,6 +176,18 @@ private fun AppDrawerContent(
                 onClick = { onDestinationClick(Routes.HOME) },
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
+
+            // Single "Transaction" section — its child forms are listed inside
+            // TransactionHomeScreen, filtered by permission.
+            if (canTransactions) {
+                NavigationDrawerItem(
+                    label = { Text("Transaction") },
+                    icon = { Icon(Icons.Filled.Create, contentDescription = null) },
+                    selected = currentRoute == Routes.TRANSACTIONS,
+                    onClick = { onDestinationClick(Routes.TRANSACTIONS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
 
             // Single "Reports" section — its child reports are listed inside
             // ReportsHomeScreen, filtered by permission. Shown only when the user

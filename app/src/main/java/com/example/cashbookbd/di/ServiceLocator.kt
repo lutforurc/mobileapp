@@ -7,6 +7,7 @@ import com.example.cashbookbd.data.remote.ApiService
 import com.example.cashbookbd.data.remote.LedgerApiService
 import com.example.cashbookbd.data.remote.NetworkModule
 import com.example.cashbookbd.data.remote.ReportApiService
+import com.example.cashbookbd.data.remote.TransactionApiService
 import com.example.cashbookbd.data.repository.AuthRepository
 import com.example.cashbookbd.data.repository.BalanceSheetRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
@@ -18,6 +19,7 @@ import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
+import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.theme.ThemeManager
@@ -68,6 +70,12 @@ object ServiceLocator {
 
     @Volatile
     private var selectorRepository: SelectorRepository? = null
+
+    @Volatile
+    private var transactionApiService: TransactionApiService? = null
+
+    @Volatile
+    private var transactionRepository: TransactionRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -228,5 +236,18 @@ object ServiceLocator {
             selectorRepository ?: SelectorRepository(
                 api = provideReportApiService(context),
             ).also { selectorRepository = it }
+        }
+
+    private fun provideTransactionApiService(context: Context): TransactionApiService =
+        transactionApiService ?: synchronized(this) {
+            transactionApiService ?: provideRetrofit(context).create(TransactionApiService::class.java)
+                .also { transactionApiService = it }
+        }
+
+    fun provideTransactionRepository(context: Context): TransactionRepository =
+        transactionRepository ?: synchronized(this) {
+            transactionRepository ?: TransactionRepository(
+                api = provideTransactionApiService(context),
+            ).also { transactionRepository = it }
         }
 }
