@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -46,6 +47,7 @@ import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
+import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
@@ -78,6 +80,8 @@ fun AuthenticatedShell(
     val canTransactions = TransactionMenu.hasParentAccess(sessionState.permissions)
     // The "Invoice" section is shown when the user has any invoice permission.
     val canInvoices = InvoiceMenu.hasParentAccess(sessionState.permissions)
+    // The "VR Settings" section is shown when the user has any voucher-settings permission.
+    val canVrSettings = VrSettingsMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -96,6 +100,7 @@ fun AuthenticatedShell(
                 canReports = canReports,
                 canTransactions = canTransactions,
                 canInvoices = canInvoices,
+                canVrSettings = canVrSettings,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -158,6 +163,7 @@ private fun AppDrawerContent(
     canReports: Boolean,
     canTransactions: Boolean,
     canInvoices: Boolean,
+    canVrSettings: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -218,6 +224,18 @@ private fun AppDrawerContent(
                         currentRoute == Routes.CASHBOOK ||
                         currentRoute == Routes.LEDGER,
                     onClick = { onDestinationClick(Routes.REPORTS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // Single "VR Settings" section — its child screens are listed inside
+            // VrSettingsHomeScreen, filtered by permission.
+            if (canVrSettings) {
+                NavigationDrawerItem(
+                    label = { Text("VR Settings") },
+                    icon = { Icon(Icons.Filled.Build, contentDescription = null) },
+                    selected = currentRoute == Routes.VR_SETTINGS,
+                    onClick = { onDestinationClick(Routes.VR_SETTINGS) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }

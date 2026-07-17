@@ -22,6 +22,7 @@ import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
+import com.example.cashbookbd.data.repository.VrSettingsRepository
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.theme.ThemeManager
 import retrofit2.Retrofit
@@ -80,6 +81,9 @@ object ServiceLocator {
 
     @Volatile
     private var invoiceRepository: InvoiceRepository? = null
+
+    @Volatile
+    private var vrSettingsRepository: VrSettingsRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -261,5 +265,12 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { invoiceRepository = it }
+        }
+
+    fun provideVrSettingsRepository(context: Context): VrSettingsRepository =
+        vrSettingsRepository ?: synchronized(this) {
+            vrSettingsRepository ?: VrSettingsRepository(
+                api = provideTransactionApiService(context),
+            ).also { vrSettingsRepository = it }
         }
 }

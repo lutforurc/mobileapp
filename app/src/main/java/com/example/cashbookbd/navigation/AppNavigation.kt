@@ -21,6 +21,7 @@ import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
+import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.common.PermissionGate
 import com.example.cashbookbd.ui.dashboard.DashboardScreen
 import com.example.cashbookbd.ui.login.LoginScreen
@@ -36,6 +37,8 @@ import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
+import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
+import com.example.cashbookbd.ui.vrsettings.VrSettingsHomeScreen
 
 object Routes {
     const val LOGIN = "login"
@@ -70,6 +73,13 @@ object Routes {
     const val INVOICE_KEY_ARG = "key"
 
     fun invoiceView(key: String): String = "invoices/view/$key"
+
+    // VR Settings section
+    const val VR_SETTINGS = "vr-settings/home"
+    const val VR_SETTINGS_VIEW = "vr-settings/view/{key}"
+    const val VR_SETTINGS_KEY_ARG = "key"
+
+    fun vrSettingsView(key: String): String = "vr-settings/view/$key"
 }
 
 @Composable
@@ -202,6 +212,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 InvoiceFormScreen(
                     invoiceKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.VR_SETTINGS) {
+            PermissionGate(anyOf = VrSettingsMenu.all.flatMap { it.anyOf }) {
+                VrSettingsHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.VR_SETTINGS_VIEW,
+            arguments = listOf(navArgument(Routes.VR_SETTINGS_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.VR_SETTINGS_KEY_ARG).orEmpty()
+            val item = VrSettingsMenu.byKey(key)
+            PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
+                VrSettingsFormScreen(
+                    settingKey = key,
                     navController = navController,
                     onLogout = backToLogin,
                 )
