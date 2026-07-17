@@ -270,10 +270,10 @@ private val cashBookColumns = listOf(
         cellText(r.particulars, bold = r.isSummary, maxLines = 3)
     },
     ReportColumn<CashBookRow>("Received", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
-        cellText(amountOrBlank(r.credit), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.credit), align = TextAlign.End, bold = r.isSummary)
     },
     ReportColumn<CashBookRow>("Payment", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
-        cellText(amountOrBlank(r.debit), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.debit), align = TextAlign.End, bold = r.isSummary)
     },
 )
 
@@ -289,9 +289,9 @@ private fun CashBookTable(rows: List<CashBookRow>) {
 
 private val amountFormat = DecimalFormat("#,##0")
 
-/** Received/Payment cells read cleaner when zeros are blank. */
-private fun amountOrBlank(value: Double): String =
-    if (value == 0.0) "" else amountFormat.format(value)
+/** Received/Payment cells read cleaner when zeros show as a dash. */
+private fun amountOrDash(value: Double): String =
+    if (value == 0.0) "-" else amountFormat.format(value)
 
 private fun showDatePicker(
     context: Context,
