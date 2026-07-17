@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AppListRepository
+import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,9 @@ class AppListViewModel(
             isSupported = spec != null,
             columns = spec?.columns.orEmpty(),
             isPaginated = spec?.paginated == true,
+            perPage = spec?.perPage ?: 25,
+            hasStatusToggle = spec?.statusToggle != null,
+            addAction = spec?.addAction,
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
@@ -37,11 +41,15 @@ class AppListViewModel(
         if (spec != null) load(1)
     }
 
-    fun load(page: Int = _uiState.value.currentPage) {
+    /**
+     * Loads [page]. A [silent] load skips the spinner so the table stays on
+     * screen — used to reconcile rows after a status toggle.
+     */
+    fun load(page: Int = _uiState.value.currentPage, silent: Boolean = false) {
         val currentSpec = spec ?: return
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        if (!silent) _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            when (val result = repository.fetch(currentSpec, page)) {
+            when (val result = repository.fetch(currentSpec, page, _uiState.value.perPage)) {
                 is Resource.Success -> _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -64,6 +72,13 @@ class AppListViewModel(
         }
     }
 
+    /** Changes the page size and reloads from page 1, as the web selector does. */
+    fun onPerPageChange(perPage: Int) {
+        if (perPage == _uiState.value.perPage) return
+        _uiState.update { it.copy(perPage = perPage) }
+        load(page = 1)
+    }
+
     fun nextPage() {
         val s = _uiState.value
         if (s.canNext) load(s.currentPage + 1)
@@ -73,6 +88,43 @@ class AppListViewModel(
         val s = _uiState.value
         if (s.canPrev) load(s.currentPage - 1)
     }
+
+    /**
+     * Flips [row]'s status. The switch moves immediately; on success the page is
+     * silently reloaded so the rows settle on the server's own state, and on
+     * failure the switch snaps back and the reason is surfaced.
+     */
+    fun onToggleStatus(row: AppListRow, on: Boolean) {
+        val currentSpec = spec ?: return
+        val id = row.id ?: return
+        if (id in _uiState.value.togglingIds) return
+
+        _uiState.update { state ->
+            state.copy(
+                rows = state.rows.map { if (it.id == id) it.copy(statusOn = on) else it },
+                togglingIds = state.togglingIds + id,
+            )
+        }
+        viewModelScope.launch {
+            when (val result = repository.setStatus(currentSpec, id, on)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(togglingIds = it.togglingIds - id) }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update { state ->
+                    state.copy(
+                        rows = state.rows.map { if (it.id == id) it.copy(statusOn = !on) else it },
+                        togglingIds = state.togglingIds - id,
+                        actionMessage = result.message,
+                        sessionExpired = state.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 

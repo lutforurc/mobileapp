@@ -19,6 +19,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.admin.AdminMenu
+import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
@@ -36,6 +37,9 @@ import com.example.cashbookbd.ui.reports.ReportsHomeScreen
 import com.example.cashbookbd.ui.reports.TrialBalanceScreen
 import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
+import com.example.cashbookbd.ui.branch.AddBranchScreen
+import com.example.cashbookbd.ui.customer.CustomerHomeScreen
+import com.example.cashbookbd.ui.user.AddUserScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
@@ -90,6 +94,16 @@ object Routes {
     const val ADMIN_KEY_ARG = "key"
 
     fun adminView(key: String): String = "admin/view/$key"
+
+    // Create screens, opened from their list's "+ Add" button.
+    const val BRANCH_ADD = "branch/add"
+    const val USER_ADD = "user/add"
+
+    /** savedStateHandle key carrying a create confirmation back to the list. */
+    const val CREATED_MESSAGE = "created_message"
+
+    // Customers section
+    const val CUSTOMERS = "customers/home"
 
     // Shared read-only list screens (used by VR Settings and Admin).
     const val APP_LIST_VIEW = "list/view/{key}"
@@ -276,6 +290,33 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 AdminFormScreen(
                     adminKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.BRANCH_ADD) {
+            PermissionGate(anyOf = listOf("branch.view")) {
+                AddBranchScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.USER_ADD) {
+            PermissionGate(anyOf = listOf("all.user.view", "user.view")) {
+                AddUserScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.CUSTOMERS) {
+            PermissionGate(anyOf = CustomerMenu.all.flatMap { it.anyOf }) {
+                CustomerHomeScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

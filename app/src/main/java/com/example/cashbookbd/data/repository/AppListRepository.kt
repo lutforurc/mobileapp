@@ -15,9 +15,19 @@ import retrofit2.Response
 import java.io.IOException
 import java.text.DecimalFormat
 
+/**
+ * One rendered row: a display [cells] string per configured column, plus the raw
+ * id/status the Action toggle needs (both null/false when the spec has no toggle).
+ */
+data class AppListRow(
+    val cells: List<String>,
+    val id: String? = null,
+    val statusOn: Boolean = false,
+)
+
 /** A page of list rows plus the server-side pagination meta. */
 data class AppListResult(
-    val rows: List<List<String>>,
+    val rows: List<AppListRow>,
     val currentPage: Int = 1,
     val lastPage: Int = 1,
     val total: Int = 0,
@@ -41,9 +51,13 @@ class AppListRepository(
         private val amountFormat = DecimalFormat("#,##0.##")
     }
 
-    suspend fun fetch(spec: AppListSpec, page: Int = 1): Resource<AppListResult> = withContext(ioDispatcher) {
+    suspend fun fetch(
+        spec: AppListSpec,
+        page: Int = 1,
+        perPage: Int = spec.perPage,
+    ): Resource<AppListResult> = withContext(ioDispatcher) {
         val params = if (spec.paginated) {
-            spec.params + mapOf("page" to page.toString(), "per_page" to spec.perPage.toString())
+            spec.params + mapOf("page" to page.toString(), "per_page" to perPage.toString())
         } else {
             spec.params
         }
@@ -77,6 +91,56 @@ class AppListRepository(
         }
     }
 
+    /**
+     * Flips a row's status via the spec's [AppListSpec.statusToggle]. The server
+     * reports failure in the JSON `success` field, so a 200 alone isn't success.
+     */
+    suspend fun setStatus(spec: AppListSpec, id: String, on: Boolean): Resource<Unit> =
+        withContext(ioDispatcher) {
+            val toggle = spec.statusToggle
+                ?: return@withContext Resource.Error("This list has no status action.")
+            try {
+                val response = api.post(
+                    toggle.endpoint,
+                    mapOf("id" to id, "status" to if (on) "1" else "0"),
+                )
+                when (response.code()) {
+                    HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.", isUnauthorized = true,
+                    )
+                    HTTP_FORBIDDEN -> return@withContext Resource.Error(
+                        "You do not have permission to change this."
+                    )
+                }
+                if (!response.isSuccessful) {
+                    return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+                }
+                val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                val success = body?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+                if (success == false) {
+                    val message = body.get("message")?.takeUnless { it.isJsonNull }?.asString
+                    return@withContext Resource.Error(message ?: "Could not update the status.")
+                }
+                Resource.Success(Unit)
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: HttpException) {
+                if (e.code() == HTTP_UNAUTHORIZED) {
+                    Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+                } else {
+                    Resource.Error("Server error (${e.code()}). Please try again later.")
+                }
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /** Reads a status field that may arrive as 1/0, "1"/"0" or true/false. */
+    private fun isOn(element: JsonElement?): Boolean {
+        val text = element?.takeIf { it.isJsonPrimitive }?.asString ?: return false
+        return text.equals("true", ignoreCase = true) || text.toDoubleOrNull()?.let { it != 0.0 } == true
+    }
+
     private fun parse(root: JsonElement?, spec: AppListSpec): AppListResult {
         if (root == null) return AppListResult(emptyList())
         if (root.isJsonObject) {
@@ -88,9 +152,14 @@ class AppListRepository(
         val paginator = payload.takeIf { it.isJsonObject }?.asJsonObject
             ?.takeIf { it.has("current_page") }
         val array = locateRows(payload) ?: return AppListResult(emptyList())
+        val toggle = spec.statusToggle
         val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
-            spec.columns.map { col -> format(dotGet(obj, col.key)) }
+            AppListRow(
+                cells = spec.columns.map { col -> format(dotGet(obj, col.key), numeric = col.numeric) },
+                id = toggle?.let { dotGet(obj, it.idKey)?.asString },
+                statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,
+            )
         }
         return if (paginator != null) {
             AppListResult(
@@ -141,7 +210,12 @@ class AppListRepository(
         return current
     }
 
-    private fun format(element: JsonElement?): String = when {
+    /**
+     * Renders one cell. Only [numeric] columns get thousands separators — a text
+     * column may hold digits that are an identifier rather than a quantity
+     * (mobile number, national ID), and those must survive verbatim.
+     */
+    private fun format(element: JsonElement?, numeric: Boolean): String = when {
         element == null || element.isJsonNull -> "-"
         element.isJsonPrimitive -> {
             val text = element.asString
@@ -149,7 +223,8 @@ class AppListRepository(
             when {
                 number == null -> text
                 number == 0.0 -> "-"
-                else -> amountFormat.format(number)
+                numeric -> amountFormat.format(number)
+                else -> text
             }
         }
         element.isJsonArray -> "${element.asJsonArray.size()} item(s)"

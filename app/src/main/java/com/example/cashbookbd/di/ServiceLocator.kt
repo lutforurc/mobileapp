@@ -12,6 +12,7 @@ import com.example.cashbookbd.data.repository.AdminRepository
 import com.example.cashbookbd.data.repository.AppListRepository
 import com.example.cashbookbd.data.repository.AuthRepository
 import com.example.cashbookbd.data.repository.BalanceSheetRepository
+import com.example.cashbookbd.data.repository.BranchRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
@@ -24,6 +25,7 @@ import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
+import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.theme.ThemeManager
@@ -92,6 +94,12 @@ object ServiceLocator {
 
     @Volatile
     private var appListRepository: AppListRepository? = null
+
+    @Volatile
+    private var branchRepository: BranchRepository? = null
+
+    @Volatile
+    private var userRepository: UserRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -294,5 +302,19 @@ object ServiceLocator {
             appListRepository ?: AppListRepository(
                 api = provideReportApiService(context),
             ).also { appListRepository = it }
+        }
+
+    fun provideBranchRepository(context: Context): BranchRepository =
+        branchRepository ?: synchronized(this) {
+            branchRepository ?: BranchRepository(
+                api = provideReportApiService(context),
+            ).also { branchRepository = it }
+        }
+
+    fun provideUserRepository(context: Context): UserRepository =
+        userRepository ?: synchronized(this) {
+            userRepository ?: UserRepository(
+                api = provideReportApiService(context),
+            ).also { userRepository = it }
         }
 }

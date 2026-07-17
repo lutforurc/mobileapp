@@ -1,5 +1,8 @@
 package com.example.cashbookbd.applist
 
+import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.session.MenuPermissions
+
 /** HTTP method used to fetch a list. */
 enum class ListMethod { GET, POST }
 
@@ -11,9 +14,32 @@ data class AppListColumn(
 )
 
 /**
- * A read-only list screen: fetch [endpoint] (with [params]) and render the
- * returned rows as a table of [columns]. The row array is located defensively
- * (top-level array, `data.data`, or a paginator's `data.data.data`).
+ * The list toolbar's "+ Add" button: [label] opens [route]. Declaring it here
+ * keeps the toolbar config-driven — no per-list branching in the screen.
+ */
+data class ListAddAction(
+    val label: String,
+    val route: String,
+)
+
+/**
+ * A per-row status switch, shown in a trailing "Action" column. Flipping it posts
+ * `{id: <row [idKey]>, status: 0|1}` to [endpoint], mirroring the web list's
+ * Action toggle.
+ */
+data class ListStatusToggle(
+    val endpoint: String,
+    /** Row field holding the id the server expects back. */
+    val idKey: String = "id",
+    /** Row field holding the current status (1 = on). */
+    val statusKey: String = "status",
+)
+
+/**
+ * A list screen: fetch [endpoint] (with [params]) and render the returned rows as
+ * a table of [columns]. The row array is located defensively (top-level array,
+ * `data.data`, or a paginator's `data.data.data`). Read-only unless it declares a
+ * [statusToggle].
  */
 data class AppListSpec(
     val key: String,
@@ -26,6 +52,10 @@ data class AppListSpec(
     /** Server-side paginated (sends `page`/`per_page`, response is a paginator). */
     val paginated: Boolean = false,
     val perPage: Int = 25,
+    /** When set, each row gets an Action column with a status switch. */
+    val statusToggle: ListStatusToggle? = null,
+    /** When set, the toolbar shows a "+ Add" button opening the create screen. */
+    val addAction: ListAddAction? = null,
 )
 
 /**
@@ -83,10 +113,12 @@ object AppLists {
                 AppListColumn("contact_person", "Contact Person"),
                 AppListColumn("business_type", "Business Type"),
                 AppListColumn("phone", "Phone"),
-                AppListColumn("status_label", "Status"),
+                // No Status column — the Action toggle already shows it.
             ),
             anyOf = listOf("branch.view"),
             paginated = true,
+            statusToggle = ListStatusToggle(endpoint = "branch/branch-status"),
+            addAction = ListAddAction(label = "Add Branch", route = Routes.BRANCH_ADD),
         ),
         AppListSpec(
             key = "companyList",
@@ -117,6 +149,7 @@ object AppLists {
             ),
             anyOf = listOf("all.user.view", "user.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add User", route = Routes.USER_ADD),
         ),
         AppListSpec(
             key = "companyUser",
@@ -171,6 +204,38 @@ object AppLists {
             method = ListMethod.GET,
             columns = listOf(AppListColumn("name", "Role")),
             anyOf = listOf("roles.view"),
+        ),
+
+        // ---- Customers ----
+        AppListSpec(
+            key = "customers",
+            title = "Customers",
+            endpoint = "contact/details",
+            method = ListMethod.POST,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Name"),
+                AppListColumn("national_id", "National ID"),
+                AppListColumn("manual_address", "Address"),
+                AppListColumn("ledger_page", "Ledger Page"),
+                AppListColumn("mobile", "Mobile"),
+            ),
+            anyOf = MenuPermissions.map["customer"].orEmpty(),
+            paginated = true,
+        ),
+        AppListSpec(
+            key = "coaL4",
+            title = "CoA L4",
+            endpoint = "coal4/coal4-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Chart of Account L4"),
+                AppListColumn("l3_name", "CoA L3"),
+                AppListColumn("l2_name", "CoA L2"),
+            ),
+            anyOf = listOf("coa.l4.view"),
+            paginated = true,
         ),
     )
 

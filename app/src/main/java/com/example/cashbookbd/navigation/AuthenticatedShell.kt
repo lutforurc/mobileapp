@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.DrawerValue
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminMenu
+import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
@@ -86,6 +88,8 @@ fun AuthenticatedShell(
     val canVrSettings = VrSettingsMenu.hasParentAccess(sessionState.permissions)
     // The "Admin" section is shown when the user has any admin permission.
     val canAdmin = AdminMenu.hasParentAccess(sessionState.permissions)
+    // The "Customers" section is shown when the user has any customer permission.
+    val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -106,6 +110,7 @@ fun AuthenticatedShell(
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
                 canAdmin = canAdmin,
+                canCustomers = canCustomers,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -170,6 +175,7 @@ private fun AppDrawerContent(
     canInvoices: Boolean,
     canVrSettings: Boolean,
     canAdmin: Boolean,
+    canCustomers: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -254,6 +260,18 @@ private fun AppDrawerContent(
                     icon = { Icon(Icons.Filled.AccountBox, contentDescription = null) },
                     selected = currentRoute == Routes.ADMIN,
                     onClick = { onDestinationClick(Routes.ADMIN) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // Single "Customers" section — its child lists are listed inside
+            // CustomerHomeScreen, filtered by permission.
+            if (canCustomers) {
+                NavigationDrawerItem(
+                    label = { Text("Customers") },
+                    icon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                    selected = currentRoute == Routes.CUSTOMERS,
+                    onClick = { onDestinationClick(Routes.CUSTOMERS) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
