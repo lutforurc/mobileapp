@@ -17,7 +17,7 @@ val devLoginProps = Properties().apply {
 
 // Single source of truth for the backend API base URL. Change it here to
 // repoint every build type (must end with a trailing slash for Retrofit).
-val baseUrl = "https://nibirnirman.cashbookbd.com/api/"
+val baseUrl = "https://aft.cashbookbd.com/api/"
 
 /** Wraps a value as a valid Java string literal for buildConfigField. */
 fun javaStringLiteral(value: String): String {
