@@ -570,8 +570,8 @@ private val COL_SL = 48.dp
 
 private fun buildGenericColumns(table: TableModel): List<ReportColumn<List<String>>> = buildList {
     add(
-        ReportColumn("Sl. No.", ReportColWidth.Fixed(COL_SL)) { _, index ->
-            cellText((index + 1).toString())
+        ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
+            cellText((index + 1).toString(), align = TextAlign.Center)
         },
     )
     table.columns.forEachIndexed { ci, label ->

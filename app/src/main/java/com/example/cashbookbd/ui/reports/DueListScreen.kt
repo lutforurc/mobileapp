@@ -258,8 +258,8 @@ private val COL_AREA = 92.dp
 private val COL_NUM = 104.dp
 
 private val dueListColumns = listOf(
-    ReportColumn<DueRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { _, i ->
-        cellText((i + 1).toString())
+    ReportColumn<DueRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, i ->
+        cellText((i + 1).toString(), align = TextAlign.Center)
     },
     ReportColumn<DueRow>("CUSTOMER/SUPPLIER", ReportColWidth.Fixed(COL_PARTY)) { r, _ ->
         ReportTableCell.Slot { PartyCell(r) }

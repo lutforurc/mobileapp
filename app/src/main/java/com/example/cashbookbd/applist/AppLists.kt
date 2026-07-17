@@ -23,6 +23,9 @@ data class AppListSpec(
     val params: Map<String, String> = emptyMap(),
     val columns: List<AppListColumn>,
     val anyOf: List<String> = emptyList(),
+    /** Server-side paginated (sends `page`/`per_page`, response is a paginator). */
+    val paginated: Boolean = false,
+    val perPage: Int = 25,
 )
 
 /**

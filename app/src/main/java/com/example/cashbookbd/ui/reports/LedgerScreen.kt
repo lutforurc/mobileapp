@@ -260,8 +260,8 @@ private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
 
 private val ledgerColumns = listOf(
-    ReportColumn<LedgerDisplayRow>("SL. NO", ReportColWidth.Fixed(COL_SL)) { r, _ ->
-        cellText(r.sl, bold = r.isSummary)
+    ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
+        cellText(r.sl, bold = r.isSummary, align = TextAlign.Center)
     },
     ReportColumn<LedgerDisplayRow>("VR DATE", ReportColWidth.Fixed(COL_DATE)) { r, _ ->
         cellText(r.date, bold = r.isSummary)

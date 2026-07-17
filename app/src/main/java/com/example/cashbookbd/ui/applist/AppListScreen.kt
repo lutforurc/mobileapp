@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,29 +64,45 @@ fun AppListScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        when {
-            state.isLoading -> Center { CircularProgressIndicator() }
-
-            state.error != null -> Center {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = viewModel::load) { Text("Retry") }
-                }
+        Column(modifier = Modifier.fillMaxSize()) {
+            // The menu name, shown as a heading above the list.
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+            )
+            Box(modifier = Modifier.weight(1f)) {
+                ListBody(state = state, onRetry = viewModel::load)
             }
+        }
+    }
+}
 
-            state.rows.isEmpty() -> Center {
-                Text(
-                    text = "No records found.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
+@Composable
+private fun ListBody(state: AppListUiState, onRetry: () -> Unit) {
+    when {
+        state.isLoading -> Center { CircularProgressIndicator() }
 
-            else -> {
-                val columns = remember(state.columns) { buildColumns(state) }
-                ReportTable(columns = columns, data = state.rows)
+        state.error != null -> Center {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(state.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = onRetry) { Text("Retry") }
             }
+        }
+
+        state.rows.isEmpty() -> Center {
+            Text(
+                text = "No records found.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        else -> {
+            val columns = remember(state.columns) { buildColumns(state) }
+            ReportTable(columns = columns, data = state.rows)
         }
     }
 }
@@ -94,7 +111,9 @@ private val COL_SL = 48.dp
 
 private fun buildColumns(state: AppListUiState): List<ReportColumn<List<String>>> = buildList {
     add(
-        ReportColumn("Sl. No.", ReportColWidth.Fixed(COL_SL)) { _, index -> cellText((index + 1).toString()) },
+        ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
+            cellText((index + 1).toString(), align = TextAlign.Center)
+        },
     )
     state.columns.forEachIndexed { ci, col ->
         val align = if (col.numeric) TextAlign.End else TextAlign.Start
