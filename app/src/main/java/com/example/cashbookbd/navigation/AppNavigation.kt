@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.ui.common.PermissionGate
@@ -31,6 +32,8 @@ import com.example.cashbookbd.ui.reports.LedgerScreen
 import com.example.cashbookbd.ui.reports.ProfitLossReportScreen
 import com.example.cashbookbd.ui.reports.ReportsHomeScreen
 import com.example.cashbookbd.ui.reports.TrialBalanceScreen
+import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
+import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
 
@@ -60,6 +63,13 @@ object Routes {
     const val TXN_KEY_ARG = "key"
 
     fun txnView(key: String): String = "transactions/view/$key"
+
+    // Invoice section
+    const val INVOICES = "invoices/home"
+    const val INVOICE_VIEW = "invoices/view/{key}"
+    const val INVOICE_KEY_ARG = "key"
+
+    fun invoiceView(key: String): String = "invoices/view/$key"
 }
 
 @Composable
@@ -168,6 +178,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 TransactionFormScreen(
                     txnKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.INVOICES) {
+            PermissionGate(anyOf = InvoiceMenu.all.flatMap { it.anyOf }) {
+                InvoiceHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.INVOICE_VIEW,
+            arguments = listOf(navArgument(Routes.INVOICE_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.INVOICE_KEY_ARG).orEmpty()
+            val item = InvoiceMenu.byKey(key)
+            PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
+                InvoiceFormScreen(
+                    invoiceKey = key,
                     navController = navController,
                     onLogout = backToLogin,
                 )

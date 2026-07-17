@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.ui.theme.ThemeMode
@@ -74,6 +76,8 @@ fun AuthenticatedShell(
     val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
     // The "Transaction" section is shown when the user has any transaction permission.
     val canTransactions = TransactionMenu.hasParentAccess(sessionState.permissions)
+    // The "Invoice" section is shown when the user has any invoice permission.
+    val canInvoices = InvoiceMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -91,6 +95,7 @@ fun AuthenticatedShell(
                 currentRoute = currentRoute,
                 canReports = canReports,
                 canTransactions = canTransactions,
+                canInvoices = canInvoices,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -152,6 +157,7 @@ private fun AppDrawerContent(
     currentRoute: String,
     canReports: Boolean,
     canTransactions: Boolean,
+    canInvoices: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -185,6 +191,18 @@ private fun AppDrawerContent(
                     icon = { Icon(Icons.Filled.Create, contentDescription = null) },
                     selected = currentRoute == Routes.TRANSACTIONS,
                     onClick = { onDestinationClick(Routes.TRANSACTIONS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // Single "Invoice" section — its child forms are listed inside
+            // InvoiceHomeScreen, filtered by permission.
+            if (canInvoices) {
+                NavigationDrawerItem(
+                    label = { Text("Invoice") },
+                    icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
+                    selected = currentRoute == Routes.INVOICES,
+                    onClick = { onDestinationClick(Routes.INVOICES) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }

@@ -31,12 +31,15 @@ class LedgerRepository(
      * to an empty list (the backend returns a bare `[]` for that, which wouldn't
      * parse, and there's nothing to search anyway).
      */
-    suspend fun searchLedgers(query: String): Resource<List<LedgerDropdownItem>> = withContext(ioDispatcher) {
+    suspend fun searchLedgers(
+        query: String,
+        acType: String = "",
+    ): Resource<List<LedgerDropdownItem>> = withContext(ioDispatcher) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return@withContext Resource.Success(emptyList())
 
         safeCall {
-            val response = api.searchLedgers(searchName = trimmed)
+            val response = api.searchLedgers(searchName = trimmed, acType = acType)
             response.unauthorizedOrNull()?.let { return@safeCall it }
 
             if (response.code() == 404) {

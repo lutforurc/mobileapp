@@ -13,6 +13,7 @@ import com.example.cashbookbd.data.repository.BalanceSheetRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
+import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ProfitLossRepository
 import com.example.cashbookbd.data.repository.ReportRepository
@@ -76,6 +77,9 @@ object ServiceLocator {
 
     @Volatile
     private var transactionRepository: TransactionRepository? = null
+
+    @Volatile
+    private var invoiceRepository: InvoiceRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -249,5 +253,13 @@ object ServiceLocator {
             transactionRepository ?: TransactionRepository(
                 api = provideTransactionApiService(context),
             ).also { transactionRepository = it }
+        }
+
+    fun provideInvoiceRepository(context: Context): InvoiceRepository =
+        invoiceRepository ?: synchronized(this) {
+            invoiceRepository ?: InvoiceRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { invoiceRepository = it }
         }
 }
