@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -53,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
@@ -160,9 +160,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(20.dp))
-        Button(onClick = onRetry) {
-            Text("Retry")
-        }
+        PrimaryButton(text = "Retry", onClick = onRetry)
     }
 }
 
@@ -190,14 +188,17 @@ private fun DashboardContent(
 
         item { TopPurchaseCard(dashboard) }
 
-        item {
-            ReceivedFromHoPanel(
-                title = dashboard.receiveDetailsTitle,
-                total = dashboard.receivedTotal,
-                groups = dashboard.receivedGroups,
-                rowActions = rowActions,
-                onReceive = onReceive,
-            )
+        // Hide the whole H/O panel when there's nothing to receive.
+        if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
+            item {
+                ReceivedFromHoPanel(
+                    title = dashboard.receiveDetailsTitle,
+                    total = dashboard.receivedTotal,
+                    groups = dashboard.receivedGroups,
+                    rowActions = rowActions,
+                    onReceive = onReceive,
+                )
+            }
         }
     }
 }
@@ -453,8 +454,8 @@ private fun TopPurchaseRow(serial: Int, product: TopPurchase) {
 
 /**
  * The "Received Details from H/O" panel: a single card with a total badge in the
- * header, then each branch's rows under a subtotal strip, with a confirmation
- * check per row. Mirrors the web `card-received-ho` panel.
+ * header, then every branch's rows listed under it, with a confirmation check
+ * per row. Mirrors the web `card-received-ho` panel.
  */
 @Composable
 private fun ReceivedFromHoPanel(
@@ -497,36 +498,9 @@ private fun ReceivedFromHoPanel(
                 }
             }
 
-            if (groups.isEmpty()) {
-                Text(
-                    text = "No records for this month.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
+            // The panel is only rendered when it has rows (see DashboardContent).
             groups.forEach { group ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = group.branchName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = formatBdAmount(group.subtotal),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-
+                // No per-branch subtotal strip — the panel header already carries the total.
                 group.rows.forEachIndexed { index, row ->
                     val action = rowActions[row.mtmId] ?: RowActionState()
                     ReceivedRow(
