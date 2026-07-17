@@ -44,6 +44,7 @@ class InvoiceFormViewModel(
             amountLabel = spec?.amountLabel ?: "Amount",
             autoFillPrice = spec?.autoFillPrice == true,
             showInvoiceNo = spec?.showInvoiceNo == true,
+            showInvoiceDate = spec?.showInvoiceDate == true,
         )
     )
     val uiState: StateFlow<InvoiceFormUiState> = _uiState.asStateFlow()
@@ -90,6 +91,8 @@ class InvoiceFormViewModel(
     fun onDiscountChange(value: String) = _uiState.update { it.copy(discount = value.decimalOnly()) }
     fun onNotesChange(value: String) = _uiState.update { it.copy(notes = value) }
     fun onInvoiceNoChange(value: String) = _uiState.update { it.copy(invoiceNo = value) }
+    fun onInvoiceDateChange(date: com.example.cashbookbd.ui.reports.model.SimpleDate) =
+        _uiState.update { it.copy(invoiceDate = date) }
 
     /** Adds the current product entry as a line and clears the entry fields. */
     fun addLine() {
@@ -130,6 +133,7 @@ class InvoiceFormViewModel(
                 discount = state.discount.toDoubleOrNull() ?: 0.0,
                 notes = state.notes.trim(),
                 invoiceNo = state.invoiceNo.trim(),
+                invoiceDate = if (state.showInvoiceDate) state.invoiceDate.toApi() else "",
             )
             when (result) {
                 is Resource.Success -> _uiState.update {

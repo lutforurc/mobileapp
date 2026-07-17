@@ -25,8 +25,8 @@ object InvoiceMenu {
         InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.create"), supported = false),
         InvoiceItem("sales", "Sales", listOf("sales.create"), supported = true),
         InvoiceItem("salesImport", "Sales Import", listOf("sales.create"), supported = false),
-        InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.create"), supported = false),
-        InvoiceItem("salesReturn", "Sales Return", listOf("sales.create"), supported = false),
+        InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.create"), supported = true),
+        InvoiceItem("salesReturn", "Sales Return", listOf("sales.create"), supported = true),
         InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = false),
         InvoiceItem(
             "branchIssue",

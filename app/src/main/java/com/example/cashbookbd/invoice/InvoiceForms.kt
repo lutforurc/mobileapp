@@ -19,8 +19,14 @@ data class InvoiceSpec(
     val amountKey: String,
     /** Purchase auto-fills each line's price from the product's purchase price. */
     val autoFillPrice: Boolean,
-    /** Purchase shows an optional supplier invoice-no field. */
+    /** Shows the supplier/original invoice-no field. */
     val showInvoiceNo: Boolean,
+    /** Returns send a different body (table_data/supplier_id/netpayment/total). */
+    val isReturn: Boolean = false,
+    /** Returns show a required original-invoice date field. */
+    val showInvoiceDate: Boolean = false,
+    /** Body key prefix for a return's invoice number/date ("sales"/"purchase"). */
+    val returnPrefix: String? = null,
 )
 
 /** Registry of the buildable invoice forms (General/Trading + default Purchase). */
@@ -48,6 +54,34 @@ object InvoiceForms {
             amountKey = "paymentAmt",
             autoFillPrice = true,
             showInvoiceNo = true,
+        ),
+        InvoiceSpec(
+            key = "salesReturn",
+            title = "Sales Return",
+            kind = InvoiceKind.SALES,
+            endpoint = "sales-return/api-store",
+            partyLabel = "Select Customer",
+            amountLabel = "Received Amount",
+            amountKey = "netpayment",
+            autoFillPrice = false,
+            showInvoiceNo = true,
+            isReturn = true,
+            showInvoiceDate = true,
+            returnPrefix = "sales",
+        ),
+        InvoiceSpec(
+            key = "purchaseReturn",
+            title = "Purchase Return",
+            kind = InvoiceKind.PURCHASE,
+            endpoint = "purchase-return/api-store",
+            partyLabel = "Select Supplier",
+            amountLabel = "Payment Amount",
+            amountKey = "netpayment",
+            autoFillPrice = true,
+            showInvoiceNo = true,
+            isReturn = true,
+            showInvoiceDate = true,
+            returnPrefix = "purchase",
         ),
     )
 

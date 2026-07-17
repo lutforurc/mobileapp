@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -75,7 +76,14 @@ fun VrSettingsHomeScreen(
             items(items) { item ->
                 VrSettingsRowItem(
                     item = item,
-                    onClick = { navController.navigate(Routes.vrSettingsView(item.key)) },
+                    onClick = {
+                        val route = if (AppLists.byKey(item.key) != null) {
+                            Routes.appListView(item.key)
+                        } else {
+                            Routes.vrSettingsView(item.key)
+                        }
+                        navController.navigate(route)
+                    },
                 )
             }
         }

@@ -23,9 +23,9 @@ object VrSettingsMenu {
         VrSettingsItem("voucherDelete", "Voucher Delete", listOf("voucher.delete"), supported = true),
         VrSettingsItem("installmentDelete", "Installment Delete", listOf("installment.delete"), supported = true),
         VrSettingsItem("voucherDateChange", "Voucher Date Change", listOf("voucher.date.change"), supported = true),
-        VrSettingsItem("recycleBin", "Recycle Bin", listOf("voucher.recycle"), supported = false),
+        VrSettingsItem("recycleBin", "Recycle Bin", listOf("voucher.recycle"), supported = true),
         VrSettingsItem("history", "History", listOf("voucher.history"), supported = false),
-        VrSettingsItem("logChanges", "Log Changes", listOf("voucher.changes"), supported = false),
+        VrSettingsItem("logChanges", "Log Changes", listOf("voucher.changes"), supported = true),
     )
 
     private val byKey: Map<String, VrSettingsItem> = all.associateBy { it.key }

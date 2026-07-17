@@ -22,21 +22,21 @@ object AdminMenu {
     private val USER_VIEW = listOf("all.user.view", "user.view")
 
     val all: List<AdminItem> = listOf(
-        AdminItem("branchList", "Branch List", listOf("branch.view"), supported = false),
-        AdminItem("companyList", "Company List", listOf("branch.view"), supported = false),
+        AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
+        AdminItem("companyList", "Company List", listOf("branch.view"), supported = true),
         AdminItem("softwareInfo", "Software Information", listOf("branch.view"), supported = false),
-        AdminItem("userList", "User List", USER_VIEW, supported = false),
-        AdminItem("onlineUsers", "Online Users", USER_VIEW, supported = false),
-        AdminItem("companyUser", "Company User", USER_VIEW, supported = false),
+        AdminItem("userList", "User List", USER_VIEW, supported = true),
+        AdminItem("onlineUsers", "Online Users", USER_VIEW, supported = true),
+        AdminItem("companyUser", "Company User", USER_VIEW, supported = true),
         AdminItem(
             "resellers", "Resellers",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = false,
         ),
-        AdminItem("roles", "Roles", listOf("roles.view"), supported = false),
+        AdminItem("roles", "Roles", listOf("roles.view"), supported = true),
         AdminItem("addRoles", "Add Roles", listOf("roles.create"), supported = false),
         AdminItem("dayClose", "Day Close", listOf("dayclose.create"), supported = true),
         AdminItem("addGroupReport", "Add Group Report", listOf("group.report"), supported = false),
-        AdminItem("orders", "Orders", listOf("order.view"), supported = false),
+        AdminItem("orders", "Orders", listOf("order.view"), supported = true),
         AdminItem("orderWithTransaction", "Order With Transaction", listOf("order.view"), supported = false),
         AdminItem("averagePrice", "Average Price", listOf("order.avg.price"), supported = false),
         AdminItem("approvalCenter", "Approval Center", listOf("voucher.approval", "attendance.view"), supported = false),

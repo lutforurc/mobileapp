@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import android.app.DatePickerDialog
+import android.content.Context
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,6 +70,7 @@ fun InvoiceFormScreen(
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -124,10 +128,20 @@ fun InvoiceFormScreen(
                 OutlinedTextField(
                     value = state.invoiceNo,
                     onValueChange = viewModel::onInvoiceNoChange,
-                    label = { Text("Supplier Invoice No (optional)") },
+                    label = { Text(if (state.showInvoiceDate) "Invoice No" else "Supplier Invoice No (optional)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            if (state.showInvoiceDate) {
+                OutlinedButton(
+                    onClick = { showDatePicker(context, state.invoiceDate, viewModel::onInvoiceDateChange) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Icon(Icons.Filled.DateRange, contentDescription = null)
+                    Text("  Invoice Date: ${state.invoiceDate.toDisplay()}")
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -270,4 +284,20 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
             }
         }
     }
+}
+
+private fun showDatePicker(
+    context: Context,
+    current: com.example.cashbookbd.ui.reports.model.SimpleDate,
+    onPicked: (com.example.cashbookbd.ui.reports.model.SimpleDate) -> Unit,
+) {
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onPicked(com.example.cashbookbd.ui.reports.model.SimpleDate(year = year, month = month + 1, day = dayOfMonth))
+        },
+        current.year,
+        current.month - 1,
+        current.day,
+    ).show()
 }

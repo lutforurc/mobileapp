@@ -73,22 +73,12 @@ class InvoiceRepository(
         discount: Double,
         notes: String,
         invoiceNo: String,
+        invoiceDate: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
-        val body = JsonObject().apply {
-            addProperty("mtmId", "")
-            addProperty("account", party.id)
-            addProperty("accountName", party.name)
-            addProperty(spec.amountKey, amount)
-            addProperty("discountAmt", discount)
-            addProperty("vehicleNumber", "")
-            addProperty("notes", notes)
-            if (spec.showInvoiceNo) {
-                addProperty("invoice_no", invoiceNo)
-                addProperty("invoice_date", "")
-            }
-            add("products", JsonArray().apply {
-                lines.forEach { line -> add(productJson(line)) }
-            })
+        val body = if (spec.isReturn) {
+            returnBody(spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate)
+        } else {
+            invoiceBody(spec, party, lines, amount, discount, notes, invoiceNo)
         }
 
         try {
@@ -115,6 +105,53 @@ class InvoiceRepository(
         }
     }
 
+    /** Normal Sales/Purchase invoice body (`products` array). */
+    private fun invoiceBody(
+        spec: InvoiceSpec,
+        party: TxnSelection,
+        lines: List<InvoiceLine>,
+        amount: String,
+        discount: Double,
+        notes: String,
+        invoiceNo: String,
+    ): JsonObject = JsonObject().apply {
+        addProperty("mtmId", "")
+        addProperty("account", party.id)
+        addProperty("accountName", party.name)
+        addProperty(spec.amountKey, amount)
+        addProperty("discountAmt", discount)
+        addProperty("vehicleNumber", "")
+        addProperty("notes", notes)
+        if (spec.showInvoiceNo) {
+            addProperty("invoice_no", invoiceNo)
+            addProperty("invoice_date", "")
+        }
+        add("products", JsonArray().apply { lines.forEach { add(productJson(it)) } })
+    }
+
+    /** Sales/Purchase Return body (`table_data` + supplier_id + netpayment + total). */
+    private fun returnBody(
+        spec: InvoiceSpec,
+        party: TxnSelection,
+        lines: List<InvoiceLine>,
+        amount: String,
+        discount: Double,
+        notes: String,
+        invoiceNo: String,
+        invoiceDate: String,
+    ): JsonObject = JsonObject().apply {
+        val prefix = spec.returnPrefix ?: "sales"
+        addProperty("supplier_id", party.id)
+        addProperty("${prefix}_invoice_number", invoiceNo)
+        addProperty("${prefix}_invoice_date", invoiceDate)
+        addProperty("total", lines.sumOf { it.amount })
+        addProperty("discount", discount)
+        addProperty("netpayment", amount)
+        addProperty("notes", notes)
+        addProperty("vehicle_no", "")
+        add("table_data", JsonArray().apply { lines.forEach { add(returnLineJson(it)) } })
+    }
+
     private fun productJson(line: InvoiceLine): JsonObject = JsonObject().apply {
         addProperty("id", System.currentTimeMillis())
         // product id as a number when possible (the server casts to int).
@@ -124,6 +161,14 @@ class InvoiceRepository(
         addProperty("qty", line.qty)
         addProperty("price", line.price)
         addProperty("warehouse", "")
+    }
+
+    /** A return line: `{code, qty, price, godown}`. */
+    private fun returnLineJson(line: InvoiceLine): JsonObject = JsonObject().apply {
+        line.product.id.toIntOrNull()?.let { addProperty("code", it) } ?: addProperty("code", line.product.id)
+        addProperty("qty", line.qty)
+        addProperty("price", line.price)
+        addProperty("godown", "")
     }
 
     private fun parseProducts(root: JsonElement?): List<InvoiceProduct> {

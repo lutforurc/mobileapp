@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminItem
 import com.example.cashbookbd.admin.AdminMenu
+import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -75,7 +76,14 @@ fun AdminHomeScreen(
             items(items) { item ->
                 AdminRowItem(
                     item = item,
-                    onClick = { navController.navigate(Routes.adminView(item.key)) },
+                    onClick = {
+                        val route = if (AppLists.byKey(item.key) != null) {
+                            Routes.appListView(item.key)
+                        } else {
+                            Routes.adminView(item.key)
+                        }
+                        navController.navigate(route)
+                    },
                 )
             }
         }

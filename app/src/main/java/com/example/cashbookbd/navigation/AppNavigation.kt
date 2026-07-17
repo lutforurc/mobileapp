@@ -90,6 +90,12 @@ object Routes {
     const val ADMIN_KEY_ARG = "key"
 
     fun adminView(key: String): String = "admin/view/$key"
+
+    // Shared read-only list screens (used by VR Settings and Admin).
+    const val APP_LIST_VIEW = "list/view/{key}"
+    const val APP_LIST_KEY_ARG = "key"
+
+    fun appListView(key: String): String = "list/view/$key"
 }
 
 @Composable
@@ -270,6 +276,21 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 AdminFormScreen(
                     adminKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.APP_LIST_VIEW,
+            arguments = listOf(navArgument(Routes.APP_LIST_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.APP_LIST_KEY_ARG).orEmpty()
+            val spec = com.example.cashbookbd.applist.AppLists.byKey(key)
+            PermissionGate(anyOf = spec?.anyOf ?: emptyList()) {
+                com.example.cashbookbd.ui.applist.AppListScreen(
+                    listKey = key,
                     navController = navController,
                     onLogout = backToLogin,
                 )
