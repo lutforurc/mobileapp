@@ -89,6 +89,12 @@ class SelectorRepository(
             idKey = "value", labelKey = "label", sublabelKey = "label_2",
             searchParam = "searchName",
         )
+        ReportSelectorSource.WAREHOUSE -> SourceSpec(
+            path = "active/warehouse",
+            objectKey = null,
+            idKey = "id", labelKey = "name", sublabelKey = null,
+            searchParam = null,
+        )
     }
 
     /**

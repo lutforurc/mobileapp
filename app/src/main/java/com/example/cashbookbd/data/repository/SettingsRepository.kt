@@ -47,10 +47,16 @@ class SettingsRepository(
                 )
             }
 
-            val permissions = body.data?.payload?.permissions
+            val payload = body.data?.payload
+            val permissions = payload?.permissions
                 .orEmpty()
                 .mapNotNull { it.toPermission() }
-            Resource.Success(Settings(permissions = permissions))
+            Resource.Success(
+                Settings(
+                    permissions = permissions,
+                    businessTypeId = payload?.branch?.businessTypeId,
+                )
+            )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {

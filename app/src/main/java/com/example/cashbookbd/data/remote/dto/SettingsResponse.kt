@@ -35,6 +35,13 @@ data class SettingsEnvelope(
 
 data class SettingsPayload(
     @SerializedName("permissions") val permissions: List<PermissionDto>? = null,
+    @SerializedName("branch") val branch: SettingsBranchDto? = null,
+)
+
+/** The current branch, from `settings/get-settings`. Only the fields the app reads. */
+data class SettingsBranchDto(
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("business_type_id") val businessTypeId: Int? = null,
 )
 
 /**

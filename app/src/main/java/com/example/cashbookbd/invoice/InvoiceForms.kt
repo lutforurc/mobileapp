@@ -1,5 +1,21 @@
 package com.example.cashbookbd.invoice
 
+/**
+ * The branch business type that gets the "Electronics" (Computer and Accessories)
+ * sales form — a separate endpoint and a per-line serial number. Mirrors the web
+ * `SalesIndex`, which hardcodes business_type_id 4 for the Electronics form (and 8
+ * for Trading, which otherwise shares the General/Trading endpoint).
+ */
+const val ELECTRONICS_BUSINESS_TYPE_ID = 4
+
+/**
+ * The branch business type that gets the "Trading" sales form — vehicle number,
+ * purchase/sales order pickers, and per-line warehouse, bag and weight-variance.
+ * The endpoint is shared with General (`trading/sales/api-store`); only the extra
+ * inputs differ (web `SalesIndex` hardcodes business_type_id 8 for Trading).
+ */
+const val TRADING_BUSINESS_TYPE_ID = 8
+
 /** Sales vs Purchase — chooses body keys and price behaviour. */
 enum class InvoiceKind { SALES, PURCHASE }
 
@@ -27,6 +43,12 @@ data class InvoiceSpec(
     val showInvoiceDate: Boolean = false,
     /** Body key prefix for a return's invoice number/date ("sales"/"purchase"). */
     val returnPrefix: String? = null,
+    /**
+     * Sales only: the endpoint used when the current branch is an Electronics
+     * (Computer and Accessories) business. When set, such branches also get a
+     * per-line serial-number field and send `serial_no` on each product line.
+     */
+    val electronicsEndpoint: String? = null,
 )
 
 /** Registry of the buildable invoice forms (General/Trading + default Purchase). */
@@ -37,12 +59,15 @@ object InvoiceForms {
             key = "sales",
             title = "Sales",
             kind = InvoiceKind.SALES,
+            // General/Trading/etc. businesses; Electronics branches use
+            // [electronicsEndpoint] instead (see the web's SalesIndex).
             endpoint = "trading/sales/api-store",
             partyLabel = "Select Customer",
             amountLabel = "Received Amount",
             amountKey = "receivedAmt",
             autoFillPrice = false,
             showInvoiceNo = false,
+            electronicsEndpoint = "electronics/sales/store",
         ),
         InvoiceSpec(
             key = "purchase",

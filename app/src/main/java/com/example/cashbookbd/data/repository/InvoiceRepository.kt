@@ -5,7 +5,9 @@ import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.data.remote.TransactionApiService
 import com.example.cashbookbd.invoice.InvoiceKind
 import com.example.cashbookbd.invoice.InvoiceSpec
+import com.example.cashbookbd.ui.invoice.model.InstallmentInput
 import com.example.cashbookbd.ui.invoice.model.InvoiceLine
+import com.example.cashbookbd.ui.invoice.model.OrderOption
 import com.example.cashbookbd.ui.invoice.model.InvoiceProduct
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
@@ -15,6 +17,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
+
+/** The Trading sales form's invoice-level extras (vehicle + linked orders). */
+data class TradingExtras(
+    val vehicleNumber: String = "",
+    val salesOrderNumber: String = "",
+    val salesOrderText: String = "",
+    val purchaseOrderNumber: String = "",
+    val purchaseOrderText: String = "",
+)
 
 /**
  * Backs the invoice (Sales/Purchase) entry forms: searches the product dropdown
@@ -64,7 +75,52 @@ class InvoiceRepository(
         }
     }
 
-    /** Submits the invoice; returns the server's voucher/success message. */
+    /**
+     * Searches purchase ([orderType] "1") or sales ("2") orders for the Trading
+     * form (`invoice/order/search`). Blank/short (<3-char) queries return empty,
+     * matching the web picker.
+     */
+    suspend fun searchOrders(query: String, orderType: String): Resource<List<OrderOption>> =
+        withContext(ioDispatcher) {
+            val q = query.trim()
+            if (q.length < 3) return@withContext Resource.Success(emptyList())
+            try {
+                val response = reportApi.get(
+                    "invoice/order/search",
+                    mapOf("q" to q, "order_type" to orderType),
+                )
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.", isUnauthorized = true,
+                    )
+                }
+                if (response.code() == 404 || response.code() == 201) {
+                    return@withContext Resource.Success(emptyList())
+                }
+                if (!response.isSuccessful) {
+                    return@withContext Resource.Error("Couldn't search orders (${response.code()}).")
+                }
+                Resource.Success(parseOrders(response.body()))
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: HttpException) {
+                if (e.code() == HTTP_UNAUTHORIZED) {
+                    Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+                } else {
+                    Resource.Error("Server error (${e.code()}). Please try again later.")
+                }
+            } catch (e: Exception) {
+                Resource.Error("Couldn't search orders.")
+            }
+        }
+
+    /**
+     * Submits the invoice; returns the server's voucher/success message.
+     *
+     * [electronics] routes a sales invoice to the Electronics (Computer and
+     * Accessories) endpoint and adds `serial_no` to each product line, mirroring
+     * the web's business-type-specific sales form.
+     */
     suspend fun submit(
         spec: InvoiceSpec,
         party: TxnSelection,
@@ -74,15 +130,20 @@ class InvoiceRepository(
         notes: String,
         invoiceNo: String,
         invoiceDate: String = "",
+        electronics: Boolean = false,
+        installment: InstallmentInput? = null,
+        trading: TradingExtras? = null,
     ): Resource<String> = withContext(ioDispatcher) {
+        val useElectronics = electronics && spec.electronicsEndpoint != null
         val body = if (spec.isReturn) {
             returnBody(spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate)
         } else {
-            invoiceBody(spec, party, lines, amount, discount, notes, invoiceNo)
+            invoiceBody(spec, party, lines, amount, discount, notes, invoiceNo, useElectronics, installment, trading)
         }
+        val endpoint = if (useElectronics) spec.electronicsEndpoint!! else spec.endpoint
 
         try {
-            val response = transactionApi.postObject(spec.endpoint, body)
+            val response = transactionApi.postObject(endpoint, body)
             when (response.code()) {
                 HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                     "Your session has expired. Please log in again.", isUnauthorized = true,
@@ -114,19 +175,45 @@ class InvoiceRepository(
         discount: Double,
         notes: String,
         invoiceNo: String,
+        electronics: Boolean,
+        installment: InstallmentInput?,
+        trading: TradingExtras?,
     ): JsonObject = JsonObject().apply {
         addProperty("mtmId", "")
         addProperty("account", party.id)
         addProperty("accountName", party.name)
         addProperty(spec.amountKey, amount)
         addProperty("discountAmt", discount)
-        addProperty("vehicleNumber", "")
+        // Electronics uses no vehicle field; the others send one — Trading's real
+        // value, or an empty one (the server reads it unconditionally).
+        if (!electronics) addProperty("vehicleNumber", trading?.vehicleNumber.orEmpty())
         addProperty("notes", notes)
         if (spec.showInvoiceNo) {
             addProperty("invoice_no", invoiceNo)
             addProperty("invoice_date", "")
         }
-        add("products", JsonArray().apply { lines.forEach { add(productJson(it)) } })
+        if (trading != null) {
+            addProperty("salesOrderNumber", trading.salesOrderNumber)
+            addProperty("salesOrderText", trading.salesOrderText)
+            addProperty("purchaseOrderNumber", trading.purchaseOrderNumber)
+            addProperty("purchaseOrderText", trading.purchaseOrderText)
+        }
+        add("products", JsonArray().apply { lines.forEach { add(productJson(it, electronics, trading != null)) } })
+        if (electronics) {
+            // The web always sends isInstallment; installmentData is null when off.
+            addProperty("isInstallment", installment != null)
+            if (installment != null) add("installmentData", installmentJson(installment))
+        }
+    }
+
+    /** The electronics `installmentData` object; blank dates go as empty strings. */
+    private fun installmentJson(plan: InstallmentInput): JsonObject = JsonObject().apply {
+        addProperty("amount", plan.amount)
+        addProperty("numberOfInstallments", plan.numberOfInstallments)
+        addProperty("startDate", plan.startDate)
+        addProperty("isEarlyPayment", plan.isEarlyPayment)
+        addProperty("earlyDiscount", plan.earlyDiscount)
+        addProperty("earlyPaymentDate", plan.earlyPaymentDate)
     }
 
     /** Sales/Purchase Return body (`table_data` + supplier_id + netpayment + total). */
@@ -152,15 +239,23 @@ class InvoiceRepository(
         add("table_data", JsonArray().apply { lines.forEach { add(returnLineJson(it)) } })
     }
 
-    private fun productJson(line: InvoiceLine): JsonObject = JsonObject().apply {
+    private fun productJson(line: InvoiceLine, electronics: Boolean, trading: Boolean): JsonObject = JsonObject().apply {
         addProperty("id", System.currentTimeMillis())
         // product id as a number when possible (the server casts to int).
         line.product.id.toIntOrNull()?.let { addProperty("product", it) } ?: addProperty("product", line.product.id)
         addProperty("product_name", line.product.name)
+        // Electronics lines carry a serial/IMEI; the web sends it between name and unit.
+        if (electronics) addProperty("serial_no", line.serialNo)
         addProperty("unit", line.product.unit)
         addProperty("qty", line.qty)
         addProperty("price", line.price)
-        addProperty("warehouse", "")
+        addProperty("warehouse", line.warehouseId)
+        // Trading lines add bag + weight variance; the server reads them optionally.
+        if (trading) {
+            addProperty("bag", line.bag)
+            addProperty("variance", line.variance)
+            addProperty("variance_type", line.varianceType)
+        }
     }
 
     /** A return line: `{code, qty, price, godown}`. */
@@ -169,6 +264,37 @@ class InvoiceRepository(
         addProperty("qty", line.qty)
         addProperty("price", line.price)
         addProperty("godown", "")
+    }
+
+    private fun parseOrders(root: JsonElement?): List<OrderOption> {
+        val array = locateArray(root) ?: return emptyList()
+        return array.mapNotNull { el ->
+            val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+            val id = o.str("value") ?: return@mapNotNull null
+            OrderOption(
+                id = id,
+                orderNumber = o.str("label") ?: id,
+                customerName = o.str("label_2").orEmpty(),
+                productName = o.str("label_3").orEmpty(),
+                rate = o.str("label_5")?.replace(",", "")?.toDoubleOrNull(),
+                remainingQty = o.str("label_8")?.replace(",", "")?.toDoubleOrNull(),
+            )
+        }
+    }
+
+    /** Locates the row array under `foundData`'s `data.data` envelope. */
+    private fun locateArray(root: JsonElement?): JsonArray? {
+        if (root == null) return null
+        if (root.isJsonObject) {
+            val success = root.asJsonObject.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            if (success == false) return null
+        }
+        var payload: JsonElement = root
+        repeat(2) {
+            val inner = payload.takeIf { it.isJsonObject }?.asJsonObject?.get("data")?.takeUnless { it.isJsonNull }
+            if (inner != null) payload = inner
+        }
+        return payload.takeIf { it.isJsonArray }?.asJsonArray
     }
 
     private fun parseProducts(root: JsonElement?): List<InvoiceProduct> {

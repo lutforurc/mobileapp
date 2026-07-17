@@ -37,6 +37,20 @@ data class SimpleDate(
     /** Format shown to the user. */
     fun toDisplay(): String = String.format(Locale.US, "%02d/%02d/%04d", day, month, year)
 
+    /** This date shifted by [days] (normalising month/year via Calendar). */
+    fun plusDays(days: Int): SimpleDate {
+        val c = Calendar.getInstance().apply {
+            clear()
+            set(year, month - 1, day)
+            add(Calendar.DAY_OF_MONTH, days)
+        }
+        return SimpleDate(
+            year = c.get(Calendar.YEAR),
+            month = c.get(Calendar.MONTH) + 1,
+            day = c.get(Calendar.DAY_OF_MONTH),
+        )
+    }
+
     companion object {
         fun today(): SimpleDate {
             val c = Calendar.getInstance()

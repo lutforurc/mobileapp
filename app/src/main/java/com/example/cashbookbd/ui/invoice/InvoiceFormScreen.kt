@@ -18,14 +18,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,9 +40,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.FieldButton
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
@@ -111,17 +113,8 @@ fun InvoiceFormScreen(
                 label = state.partyLabel,
             )
 
-            ProductEntry(
-                state = state,
-                onProductSelected = viewModel::onProductSelected,
-                searchProducts = viewModel::searchProducts,
-                onQtyChange = viewModel::onQtyChange,
-                onPriceChange = viewModel::onPriceChange,
-                onAdd = viewModel::addLine,
-            )
-
-            if (state.lines.isNotEmpty()) {
-                LinesList(lines = state.lines, onRemove = viewModel::removeLine, total = state.total)
+            if (state.isTrading) {
+                TradingHeaderFields(state = state, viewModel = viewModel)
             }
 
             if (state.showInvoiceNo) {
@@ -135,13 +128,12 @@ fun InvoiceFormScreen(
             }
 
             if (state.showInvoiceDate) {
-                OutlinedButton(
+                FieldButton(
+                    text = "Invoice Date: ${state.invoiceDate.toDisplay()}",
                     onClick = { showDatePicker(context, state.invoiceDate, viewModel::onInvoiceDateChange) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) {
-                    Icon(Icons.Filled.DateRange, contentDescription = null)
-                    Text("  Invoice Date: ${state.invoiceDate.toDisplay()}")
-                }
+                    icon = Icons.Filled.DateRange,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -171,27 +163,149 @@ fun InvoiceFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Button(
+            if (state.isElectronics) {
+                InstallmentSection(state = state, viewModel = viewModel)
+            }
+
+            PrimaryButton(
+                text = "Save Invoice",
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                if (state.isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text("Save Invoice")
-                }
-            }
+                isLoading = state.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             state.message?.let { message ->
                 Text(
                     text = message,
                     color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            // The product picker sits below the invoice itself: the invoice
+            // fields are what the user came for, adding items is the side task.
+            ProductEntry(
+                state = state,
+                viewModel = viewModel,
+                onProductSelected = viewModel::onProductSelected,
+                searchProducts = viewModel::searchProducts,
+                onQtyChange = viewModel::onQtyChange,
+                onPriceChange = viewModel::onPriceChange,
+                onSerialNoChange = viewModel::onSerialNoChange,
+                onAdd = viewModel::addLine,
+            )
+
+            if (state.lines.isNotEmpty()) {
+                LinesList(lines = state.lines, onRemove = viewModel::removeLine, total = state.total)
+            }
+        }
+    }
+}
+
+/**
+ * Trading invoice-level extras: vehicle number and the purchase/sales order
+ * pickers. Selecting a sales order auto-fills the customer and the entry line.
+ */
+@Composable
+private fun TradingHeaderFields(state: InvoiceFormUiState, viewModel: InvoiceFormViewModel) {
+    OutlinedTextField(
+        value = state.vehicleNumber,
+        onValueChange = viewModel::onVehicleNumberChange,
+        label = { Text("Vehicle Number") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SearchableSelectDropdown(
+        selected = state.purchaseOrder?.let { SelectorOption(it.id, it.orderNumber, it.customerName) },
+        onSelected = viewModel::onPurchaseOrderSelected,
+        search = viewModel::searchPurchaseOrders,
+        label = "Purchase Order",
+        placeholder = "Type 3+ chars to search…",
+        emptyText = "No order found",
+    )
+    SearchableSelectDropdown(
+        selected = state.salesOrder?.let { SelectorOption(it.id, it.orderNumber, it.customerName) },
+        onSelected = viewModel::onSalesOrderSelected,
+        search = viewModel::searchSalesOrders,
+        label = "Sales Order",
+        placeholder = "Type 3+ chars to search…",
+        emptyText = "No order found",
+    )
+}
+
+/**
+ * Electronics installment plan: a toggle that reveals amount, count, an optional
+ * start date, and an early-payment sub-section. Mirrors the web's Installment
+ * Sale popup; the server only requires amount and count.
+ */
+@Composable
+private fun InstallmentSection(state: InvoiceFormUiState, viewModel: InvoiceFormViewModel) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = state.isInstallment, onCheckedChange = viewModel::onInstallmentToggle)
+            Text("Installment Sale", style = MaterialTheme.typography.bodyLarge)
+        }
+
+        if (state.isInstallment) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = state.installmentAmount,
+                    onValueChange = viewModel::onInstallmentAmountChange,
+                    label = { Text("Installment Amount") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = state.installmentsNo,
+                    onValueChange = viewModel::onInstallmentsNoChange,
+                    label = { Text("Installments No.") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            FieldButton(
+                text = "Start Date: ${state.installmentStartDate?.toDisplay() ?: "Auto (next month)"}",
+                onClick = {
+                    showDatePicker(
+                        context,
+                        state.installmentStartDate ?: com.example.cashbookbd.ui.reports.model.SimpleDate.today(),
+                        viewModel::onInstallmentStartDate,
+                    )
+                },
+                icon = Icons.Filled.DateRange,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = state.isEarlyPayment, onCheckedChange = viewModel::onEarlyPaymentToggle)
+                Text("Early Payment", style = MaterialTheme.typography.bodyLarge)
+            }
+
+            if (state.isEarlyPayment) {
+                OutlinedTextField(
+                    value = state.earlyDiscount,
+                    onValueChange = viewModel::onEarlyDiscountChange,
+                    label = { Text("Early Discount") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FieldButton(
+                    text = "Early Payment Date: ${state.earlyPaymentDate?.toDisplay() ?: "—"}",
+                    onClick = {
+                        showDatePicker(
+                            context,
+                            state.earlyPaymentDate ?: com.example.cashbookbd.ui.reports.model.SimpleDate.today(),
+                            viewModel::onEarlyPaymentDate,
+                        )
+                    },
+                    icon = Icons.Filled.DateRange,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -202,54 +316,102 @@ fun InvoiceFormScreen(
 @Composable
 private fun ProductEntry(
     state: InvoiceFormUiState,
+    viewModel: InvoiceFormViewModel,
     onProductSelected: (SelectorOption) -> Unit,
     searchProducts: suspend (String) -> com.example.cashbookbd.core.Resource<List<SelectorOption>>,
     onQtyChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
+    onSerialNoChange: (String) -> Unit,
     onAdd: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    // No Card here — the product entry sits directly on the screen background.
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
 
-            SearchableSelectDropdown(
-                selected = state.selectedProduct?.let { SelectorOption(it.id, it.name, it.unit) },
-                onSelected = onProductSelected,
-                search = searchProducts,
-                label = "Select Product",
-                emptyText = "No product found",
+        SearchableSelectDropdown(
+            selected = state.selectedProduct?.let { SelectorOption(it.id, it.name, it.unit) },
+            onSelected = onProductSelected,
+            search = searchProducts,
+            label = "Select Product",
+            emptyText = "No product found",
+        )
+
+        // Electronics (Computer and Accessories) sales take an optional IMEI/serial.
+        if (state.isElectronics) {
+            OutlinedTextField(
+                value = state.serialNo,
+                onValueChange = onSerialNoChange,
+                label = { Text("Serial No (optional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
+        }
 
+        if (state.isTrading) {
+            AppSelectDropdown(
+                label = "Warehouse",
+                options = state.warehouses,
+                selected = state.selectedWarehouse,
+                onSelected = viewModel::onWarehouseSelected,
+                placeholder = "Not Applicable",
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
-                    value = state.qty,
-                    onValueChange = onQtyChange,
-                    label = { Text("Qty" + state.selectedProduct?.unit?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()) },
+                    value = state.bag,
+                    onValueChange = viewModel::onBagChange,
+                    label = { Text("Bag Number") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
-                    value = state.price,
-                    onValueChange = onPriceChange,
-                    label = { Text("Price") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    AppSelectDropdown(
+                        label = "Variance Type",
+                        options = VARIANCE_TYPES,
+                        selected = state.varianceType,
+                        onSelected = viewModel::onVarianceTypeSelected,
+                    )
+                }
             }
-
-            OutlinedButton(
-                onClick = onAdd,
-                enabled = state.canAddLine,
+            OutlinedTextField(
+                value = state.variance,
+                onValueChange = viewModel::onVarianceChange,
+                label = { Text("Weight Variance") },
+                singleLine = true,
+                enabled = state.varianceEnabled,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Add Item")
-            }
+            )
         }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = state.qty,
+                onValueChange = onQtyChange,
+                label = { Text("Qty" + state.selectedProduct?.unit?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedTextField(
+                value = state.price,
+                onValueChange = onPriceChange,
+                label = { Text("Price") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        PrimaryButton(
+            text = "Add Item",
+            onClick = onAdd,
+            enabled = state.canAddLine,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -270,6 +432,27 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (line.serialNo.isNotBlank()) {
+                            Text(
+                                text = "Serial: ${line.serialNo}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        val lineExtras = buildList {
+                            if (line.warehouseName.isNotBlank()) add(line.warehouseName)
+                            if (line.bag.isNotBlank()) add("Bag ${line.bag}")
+                            if (line.variance.isNotBlank() && line.varianceType.isNotBlank()) {
+                                add("Var ${line.varianceType}${line.variance}")
+                            }
+                        }
+                        if (lineExtras.isNotEmpty()) {
+                            Text(
+                                text = lineExtras.joinToString("  •  "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     IconButton(onClick = { onRemove(index) }) {
                         Icon(Icons.Filled.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
