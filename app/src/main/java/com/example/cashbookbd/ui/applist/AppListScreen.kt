@@ -1,15 +1,24 @@
 package com.example.cashbookbd.ui.applist
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,8 +82,35 @@ fun AppListScreen(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
             )
             Box(modifier = Modifier.weight(1f)) {
-                ListBody(state = state, onRetry = viewModel::load)
+                ListBody(state = state, onRetry = { viewModel.load() })
             }
+            if (state.showPagination) {
+                PaginationBar(state = state, onPrev = viewModel::prevPage, onNext = viewModel::nextPage)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaginationBar(state: AppListUiState, onPrev: () -> Unit, onNext: () -> Unit) {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        TextButton(onClick = onPrev, enabled = state.canPrev) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous")
+            Text("Prev")
+        }
+        Text(
+            text = "Page ${state.currentPage} of ${state.lastPage}  •  ${state.total} total",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onNext, enabled = state.canNext) {
+            Text("Next")
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next")
         }
     }
 }

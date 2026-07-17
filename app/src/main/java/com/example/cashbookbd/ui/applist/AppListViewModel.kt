@@ -28,21 +28,29 @@ class AppListViewModel(
             title = spec?.title ?: "List",
             isSupported = spec != null,
             columns = spec?.columns.orEmpty(),
+            isPaginated = spec?.paginated == true,
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
 
     init {
-        if (spec != null) load()
+        if (spec != null) load(1)
     }
 
-    fun load() {
+    fun load(page: Int = _uiState.value.currentPage) {
         val currentSpec = spec ?: return
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            when (val result = repository.fetch(currentSpec)) {
+            when (val result = repository.fetch(currentSpec, page)) {
                 is Resource.Success -> _uiState.update {
-                    it.copy(isLoading = false, rows = result.data, error = null)
+                    it.copy(
+                        isLoading = false,
+                        rows = result.data.rows,
+                        currentPage = result.data.currentPage,
+                        lastPage = result.data.lastPage,
+                        total = result.data.total,
+                        error = null,
+                    )
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(
@@ -54,6 +62,16 @@ class AppListViewModel(
                 Resource.Loading -> Unit
             }
         }
+    }
+
+    fun nextPage() {
+        val s = _uiState.value
+        if (s.canNext) load(s.currentPage + 1)
+    }
+
+    fun prevPage() {
+        val s = _uiState.value
+        if (s.canPrev) load(s.currentPage - 1)
     }
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }

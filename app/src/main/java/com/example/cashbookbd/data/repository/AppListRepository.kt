@@ -15,6 +15,14 @@ import retrofit2.Response
 import java.io.IOException
 import java.text.DecimalFormat
 
+/** A page of list rows plus the server-side pagination meta. */
+data class AppListResult(
+    val rows: List<List<String>>,
+    val currentPage: Int = 1,
+    val lastPage: Int = 1,
+    val total: Int = 0,
+)
+
 /**
  * Fetches a read-only [AppListSpec] and maps the returned rows to display cells,
  * one string per configured column (dot-path keys supported). The row array is
@@ -33,11 +41,16 @@ class AppListRepository(
         private val amountFormat = DecimalFormat("#,##0.##")
     }
 
-    suspend fun fetch(spec: AppListSpec): Resource<List<List<String>>> = withContext(ioDispatcher) {
+    suspend fun fetch(spec: AppListSpec, page: Int = 1): Resource<AppListResult> = withContext(ioDispatcher) {
+        val params = if (spec.paginated) {
+            spec.params + mapOf("page" to page.toString(), "per_page" to spec.perPage.toString())
+        } else {
+            spec.params
+        }
         try {
             val response: Response<JsonElement> = when (spec.method) {
-                ListMethod.GET -> api.get(spec.endpoint, spec.params)
-                ListMethod.POST -> api.post(spec.endpoint, spec.params)
+                ListMethod.GET -> api.get(spec.endpoint, params)
+                ListMethod.POST -> api.post(spec.endpoint, params)
             }
             when (response.code()) {
                 HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
@@ -64,18 +77,35 @@ class AppListRepository(
         }
     }
 
-    private fun parse(root: JsonElement?, spec: AppListSpec): List<List<String>> {
-        if (root == null) return emptyList()
+    private fun parse(root: JsonElement?, spec: AppListSpec): AppListResult {
+        if (root == null) return AppListResult(emptyList())
         if (root.isJsonObject) {
             val success = root.asJsonObject.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
-            if (success == false) return emptyList()
+            if (success == false) return AppListResult(emptyList())
         }
-        val array = locateRows(unwrap(root)) ?: return emptyList()
-        return array.mapNotNull { el ->
+        val payload = unwrap(root)
+        // A Laravel paginator carries current_page/last_page/total alongside its rows.
+        val paginator = payload.takeIf { it.isJsonObject }?.asJsonObject
+            ?.takeIf { it.has("current_page") }
+        val array = locateRows(payload) ?: return AppListResult(emptyList())
+        val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             spec.columns.map { col -> format(dotGet(obj, col.key)) }
         }
+        return if (paginator != null) {
+            AppListResult(
+                rows = rows,
+                currentPage = paginator.int("current_page", 1),
+                lastPage = paginator.int("last_page", 1),
+                total = paginator.int("total", rows.size),
+            )
+        } else {
+            AppListResult(rows = rows, total = rows.size)
+        }
     }
+
+    private fun JsonObject.int(key: String, default: Int): Int =
+        get(key)?.takeUnless { it.isJsonNull }?.asString?.toDoubleOrNull()?.toInt() ?: default
 
     /** Peels the `data` / `data.data` envelope. */
     private fun unwrap(root: JsonElement): JsonElement {
