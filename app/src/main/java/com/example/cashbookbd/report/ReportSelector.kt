@@ -16,6 +16,7 @@ enum class ReportSelectorSource(val searchable: Boolean) {
     SOMITY(searchable = false),
     PRODUCT(searchable = true),
     LABOUR(searchable = true),
+    EMPLOYEE(searchable = true),
 }
 
 /**

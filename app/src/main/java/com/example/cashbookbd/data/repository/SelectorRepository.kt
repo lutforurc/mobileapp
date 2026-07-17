@@ -83,6 +83,12 @@ class SelectorRepository(
             idKey = "value", labelKey = "label", sublabelKey = "label_2",
             searchParam = "q",
         )
+        ReportSelectorSource.EMPLOYEE -> SourceSpec(
+            path = "hrms/employee/ddl/list",
+            objectKey = null,
+            idKey = "value", labelKey = "label", sublabelKey = "label_2",
+            searchParam = "searchName",
+        )
     }
 
     /**

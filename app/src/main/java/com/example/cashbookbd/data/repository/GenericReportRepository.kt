@@ -37,7 +37,8 @@ class GenericReportRepository(
         private const val HTTP_FORBIDDEN = 403
 
         // Response wrappers we unwrap, and the arrays/summary keys we look for.
-        private val ROW_ARRAY_KEYS = listOf("rows", "items", "details", "data", "transactions", "list")
+        private val ROW_ARRAY_KEYS =
+            listOf("rows", "items", "details", "data", "transactions", "list", "installments")
         private val SUMMARY_KEYS = listOf("summary", "totals", "total", "opening", "closing", "grand_total")
 
         private val amountFormat = DecimalFormat("#,##0.##")
@@ -113,7 +114,10 @@ class GenericReportRepository(
 
         val params = LinkedHashMap<String, String>()
         params[config.branchParam] = branchId.toString()
-        config.choiceParam?.let { choice -> choiceValue?.let { params[choice.paramKey] = it } }
+        // Skip a blank choice value (e.g. status "All") so it isn't sent as an empty filter.
+        config.choiceParam?.let { choice ->
+            choiceValue?.takeIf { it.isNotBlank() }?.let { params[choice.paramKey] = it }
+        }
         config.ledgerParam?.let { key -> ledgerId?.let { params[key] = it.toString() } }
         // Remote-dropdown filters (category, brand, product, somity, labour).
         selectorValues.forEach { (key, value) -> if (value.isNotBlank()) params[key] = value }

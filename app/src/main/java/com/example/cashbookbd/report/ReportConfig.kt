@@ -177,6 +177,19 @@ data class ReportConfig(
     }
 }
 
+/** Status filter shared by the two installment reports (blank = all statuses). */
+private val INSTALLMENT_STATUS_CHOICE = ReportChoiceParam(
+    paramKey = "status",
+    label = "Select Status",
+    options = listOf(
+        ReportChoice("All", ""),
+        ReportChoice("Overdue", "overdue"),
+        ReportChoice("Pending", "pending"),
+        ReportChoice("Upcoming", "upcoming"),
+        ReportChoice("Partial", "partial"),
+    ),
+)
+
 /**
  * The Reports menu registry and its permission rules. Mirrors the web app's
  * `reportMenu.ts` and `REPORTS_PARENT_PERMISSIONS`.
@@ -345,7 +358,13 @@ object ReportMenu {
             anyOf = listOf("installment.create"),
             endpointKey = "dueInstallments",
             method = ReportMethod.POST,
-            filterType = ReportFilterType.BRANCH_CUSTOMER_INSTALLMENT,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // camelCase date keys; payload at data.data.installments (see repo).
+            startParam = "startDate",
+            endParam = "endDate",
+            choiceParam = INSTALLMENT_STATUS_CHOICE,
+            extraParams = mapOf("due_only" to "true", "upcoming_day" to "7"),
+            hiddenColumns = listOf("installment_id", "payments"),
         ),
         ReportConfig(
             key = "employeeInstallments",
@@ -355,7 +374,20 @@ object ReportMenu {
             anyOf = listOf("installment.create"),
             endpointKey = "employeeInstallments",
             method = ReportMethod.POST,
-            filterType = ReportFilterType.BRANCH_EMPLOYEE_INSTALLMENT,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "startDate",
+            endParam = "endDate",
+            choiceParam = INSTALLMENT_STATUS_CHOICE,
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "employee_id",
+                    label = "Select Field Officer (optional)",
+                    source = ReportSelectorSource.EMPLOYEE,
+                    required = false,
+                ),
+            ),
+            extraParams = mapOf("due_only" to "true", "upcoming_day" to "7"),
+            hiddenColumns = listOf("installment_id", "payments"),
         ),
         ReportConfig(
             key = "dueList",
