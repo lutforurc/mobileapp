@@ -8,6 +8,7 @@ import com.example.cashbookbd.data.remote.LedgerApiService
 import com.example.cashbookbd.data.remote.NetworkModule
 import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.data.remote.TransactionApiService
+import com.example.cashbookbd.data.repository.AdminRepository
 import com.example.cashbookbd.data.repository.AuthRepository
 import com.example.cashbookbd.data.repository.BalanceSheetRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
@@ -84,6 +85,9 @@ object ServiceLocator {
 
     @Volatile
     private var vrSettingsRepository: VrSettingsRepository? = null
+
+    @Volatile
+    private var adminRepository: AdminRepository? = null
 
     @Volatile
     private var authRepository: AuthRepository? = null
@@ -272,5 +276,12 @@ object ServiceLocator {
             vrSettingsRepository ?: VrSettingsRepository(
                 api = provideTransactionApiService(context),
             ).also { vrSettingsRepository = it }
+        }
+
+    fun provideAdminRepository(context: Context): AdminRepository =
+        adminRepository ?: synchronized(this) {
+            adminRepository ?: AdminRepository(
+                api = provideTransactionApiService(context),
+            ).also { adminRepository = it }
         }
 }

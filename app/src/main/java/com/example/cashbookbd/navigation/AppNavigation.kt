@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
@@ -33,6 +34,8 @@ import com.example.cashbookbd.ui.reports.LedgerScreen
 import com.example.cashbookbd.ui.reports.ProfitLossReportScreen
 import com.example.cashbookbd.ui.reports.ReportsHomeScreen
 import com.example.cashbookbd.ui.reports.TrialBalanceScreen
+import com.example.cashbookbd.ui.admin.AdminFormScreen
+import com.example.cashbookbd.ui.admin.AdminHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
@@ -80,6 +83,13 @@ object Routes {
     const val VR_SETTINGS_KEY_ARG = "key"
 
     fun vrSettingsView(key: String): String = "vr-settings/view/$key"
+
+    // Admin section
+    const val ADMIN = "admin/home"
+    const val ADMIN_VIEW = "admin/view/{key}"
+    const val ADMIN_KEY_ARG = "key"
+
+    fun adminView(key: String): String = "admin/view/$key"
 }
 
 @Composable
@@ -236,6 +246,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 VrSettingsFormScreen(
                     settingKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.ADMIN) {
+            PermissionGate(anyOf = AdminMenu.all.flatMap { it.anyOf }) {
+                AdminHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.ADMIN_VIEW,
+            arguments = listOf(navArgument(Routes.ADMIN_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.ADMIN_KEY_ARG).orEmpty()
+            val item = AdminMenu.byKey(key)
+            PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
+                AdminFormScreen(
+                    adminKey = key,
                     navController = navController,
                     onLogout = backToLogin,
                 )

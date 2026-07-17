@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
@@ -43,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
@@ -82,6 +84,8 @@ fun AuthenticatedShell(
     val canInvoices = InvoiceMenu.hasParentAccess(sessionState.permissions)
     // The "VR Settings" section is shown when the user has any voucher-settings permission.
     val canVrSettings = VrSettingsMenu.hasParentAccess(sessionState.permissions)
+    // The "Admin" section is shown when the user has any admin permission.
+    val canAdmin = AdminMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -101,6 +105,7 @@ fun AuthenticatedShell(
                 canTransactions = canTransactions,
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
+                canAdmin = canAdmin,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -164,6 +169,7 @@ private fun AppDrawerContent(
     canTransactions: Boolean,
     canInvoices: Boolean,
     canVrSettings: Boolean,
+    canAdmin: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -236,6 +242,18 @@ private fun AppDrawerContent(
                     icon = { Icon(Icons.Filled.Build, contentDescription = null) },
                     selected = currentRoute == Routes.VR_SETTINGS,
                     onClick = { onDestinationClick(Routes.VR_SETTINGS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // Single "Admin" section — its child screens are listed inside
+            // AdminHomeScreen, filtered by permission.
+            if (canAdmin) {
+                NavigationDrawerItem(
+                    label = { Text("Admin") },
+                    icon = { Icon(Icons.Filled.AccountBox, contentDescription = null) },
+                    selected = currentRoute == Routes.ADMIN,
+                    onClick = { onDestinationClick(Routes.ADMIN) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
