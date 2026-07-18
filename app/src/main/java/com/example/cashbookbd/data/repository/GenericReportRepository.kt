@@ -167,10 +167,11 @@ class GenericReportRepository(
         val hidden = config.hiddenColumns.map { it.lowercase(Locale.US) }.toSet()
         val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
         val unitKey = config.unitColumn?.lowercase(Locale.US)
+        val labels = config.columnLabels.mapKeys { it.key.lowercase(Locale.US) }
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels) }
         }
     }
 
@@ -252,6 +253,7 @@ class GenericReportRepository(
         hidden: Set<String> = emptySet(),
         zeroDash: Set<String> = emptySet(),
         unitKey: String? = null,
+        labels: Map<String, String> = emptyMap(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -269,7 +271,8 @@ class GenericReportRepository(
                         } else {
                             formatValue(entry.value)
                         }
-                        ReportCell(humanize(entry.key), value)
+                        val header = labels[entry.key.lowercase(Locale.US)] ?: humanize(entry.key)
+                        ReportCell(header, value)
                     }
             )
         }

@@ -137,6 +137,13 @@ data class ReportConfig(
      */
     val hiddenColumns: List<String> = emptyList(),
     /**
+     * Overrides a column's header text, keyed by the raw API row key
+     * (case-insensitive). Without an entry the header is derived from the key
+     * ("unit_sale_rate" -> "Unit Sale Rate"); use this to shorten headers that
+     * are too wide for a phone ("unit_sale_rate" -> "Sale Rate").
+     */
+    val columnLabels: Map<String, String> = emptyMap(),
+    /**
      * Raw API row keys (case-insensitive) whose zero value should render as "-"
      * instead of "0" — e.g. Product Stock's opening/in/out/balance amounts. Their
      * non-zero values also carry the [unitColumn] suffix when one is set.
@@ -338,6 +345,26 @@ object ReportMenu {
             endpointKey = "productProfitLoss",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Internal ids, the opening/closing stock pair and the invoice
+            // count/detail columns aren't useful on a phone-width table; the
+            // profit figures are what the report is for.
+            hiddenColumns = listOf(
+                "mid",
+                "product_id",
+                "opening_qty",
+                "opening_amount",
+                "closing_qty",
+                "closing_amount",
+                "warning",
+                "purchase_invoices",
+                "purchase_details",
+                "period_in_amount",
+            ),
+            // Shorter headers so the rate columns don't wrap on a phone.
+            columnLabels = mapOf(
+                "unit_purchase_rate" to "Pur. Rate",
+                "unit_sale_rate" to "Sale Rate",
+            ),
         ),
         ReportConfig(
             key = "customerSupplierStatement",

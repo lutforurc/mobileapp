@@ -232,7 +232,6 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
 private val COL_SL = 48.dp
 private val COL_PARTY = 200.dp
 private val COL_PAGE = 92.dp
-private val COL_AREA = 92.dp
 private val COL_NUM = 104.dp
 
 private val dueListColumns = listOf(
@@ -244,9 +243,6 @@ private val dueListColumns = listOf(
     },
     ReportColumn<DueRow>("PAGE", ReportColWidth.Fixed(COL_PAGE)) { r, _ ->
         cellText(r.page ?: "-", maxLines = 2)
-    },
-    ReportColumn<DueRow>("AREA CODE", ReportColWidth.Fixed(COL_AREA)) { r, _ ->
-        cellText(r.areaCode ?: "-")
     },
     ReportColumn<DueRow>("DEBIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.debit), align = TextAlign.End)
@@ -284,7 +280,6 @@ private fun dueFooterRow(label: String, debit: Double, credit: Double): List<Rep
         ReportFooterCell(ReportTableCell.Empty),                    // SL
         ReportFooterCell(cellText(label, bold = true)),             // party
         ReportFooterCell(ReportTableCell.Empty),                    // page
-        ReportFooterCell(cellText("-")),                            // area code
         ReportFooterCell(cellText(formatCell(debit), align = TextAlign.End, bold = true)),
         ReportFooterCell(cellText(formatCell(credit), align = TextAlign.End, bold = true)),
     )
