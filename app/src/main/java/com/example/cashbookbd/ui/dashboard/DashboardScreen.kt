@@ -58,7 +58,7 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
 import com.example.cashbookbd.ui.dashboard.model.ReceivedBranchGroup
 import com.example.cashbookbd.ui.dashboard.model.ReceivedFromHo
-import com.example.cashbookbd.ui.dashboard.model.TopPurchase
+import com.example.cashbookbd.ui.dashboard.model.TopProduct
 import com.example.cashbookbd.ui.dashboard.model.previewDashboard
 import com.example.cashbookbd.ui.theme.CashBookbdTheme
 import com.example.cashbookbd.ui.theme.accents
@@ -121,6 +121,7 @@ fun DashboardScreen(
                     DashboardContent(
                         dashboard = uiState.dashboard!!,
                         isRefreshing = uiState.isRefreshing,
+                        isConstruction = uiState.isConstruction,
                         rowActions = uiState.rowActions,
                         onReceive = viewModel::onReceive,
                     )
@@ -168,6 +169,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 private fun DashboardContent(
     dashboard: Dashboard,
     isRefreshing: Boolean,
+    isConstruction: Boolean,
     rowActions: Map<Int, RowActionState>,
     onReceive: (ReceivedFromHo) -> Unit,
 ) {
@@ -186,18 +188,60 @@ private fun DashboardContent(
 
         item { SummaryCard(dashboard) }
 
-        item { TopPurchaseCard(dashboard) }
-
-        // Hide the whole H/O panel when there's nothing to receive.
-        if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
+        if (isConstruction) {
+            // Construction: Top Purchase only, always shown (with its own empty
+            // state), no Total row — then the head-office receive panel.
             item {
-                ReceivedFromHoPanel(
-                    title = dashboard.receiveDetailsTitle,
-                    total = dashboard.receivedTotal,
-                    groups = dashboard.receivedGroups,
-                    rowActions = rowActions,
-                    onReceive = onReceive,
+                TopProductsCard(
+                    title = "Top Purchase",
+                    products = dashboard.topPurchases,
+                    days = dashboard.topPurchaseDays,
+                    accent = MaterialTheme.accents.amber,
+                    showTotal = false,
+                    periodPrefix = "Last ",
+                    emptyText = "No purchases in this period.",
                 )
+            }
+            // Hide the whole H/O panel when there's nothing to receive.
+            if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
+                item {
+                    ReceivedFromHoPanel(
+                        title = dashboard.receiveDetailsTitle,
+                        total = dashboard.receivedTotal,
+                        groups = dashboard.receivedGroups,
+                        rowActions = rowActions,
+                        onReceive = onReceive,
+                    )
+                }
+            }
+        } else {
+            // Everything else: Top Sales + Top Purchase, each with a Total row
+            // and hidden entirely when empty (matching the web).
+            if (dashboard.topSales.isNotEmpty()) {
+                item {
+                    TopProductsCard(
+                        title = "Top Sales Products",
+                        products = dashboard.topSales,
+                        days = dashboard.topPurchaseDays,
+                        accent = MaterialTheme.accents.green,
+                        showTotal = true,
+                        periodPrefix = "",
+                        emptyText = "No sales found",
+                    )
+                }
+            }
+            if (dashboard.topPurchases.isNotEmpty()) {
+                item {
+                    TopProductsCard(
+                        title = "Top Purchase Products",
+                        products = dashboard.topPurchases,
+                        days = dashboard.topPurchaseDays,
+                        accent = MaterialTheme.accents.amber,
+                        showTotal = true,
+                        periodPrefix = "",
+                        emptyText = "No purchases found",
+                    )
+                }
             }
         }
     }
@@ -370,8 +414,17 @@ private fun SummaryStatRow(
  * (blue serial, name, amber quantity).
  */
 @Composable
-private fun TopPurchaseCard(dashboard: Dashboard) {
-    val accents = MaterialTheme.accents
+private fun TopProductsCard(
+    title: String,
+    products: List<TopProduct>,
+    days: Int,
+    accent: Color,
+    /** Web's ComputerAccessories lists end with a Total row; Construction's doesn't. */
+    showTotal: Boolean,
+    /** "7 Days" on the normal dashboard, "Last 7 Days" on Construction. */
+    periodPrefix: String,
+    emptyText: String,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
@@ -381,40 +434,56 @@ private fun TopPurchaseCard(dashboard: Dashboard) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Top Purchase",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
-                val periodLabel =
-                    if (dashboard.topPurchaseDays <= 1) "Today" else "${dashboard.topPurchaseDays} Days"
+                val periodLabel = if (days <= 1) "Today" else "$periodPrefix$days Days"
                 Box(
                     modifier = Modifier
-                        .background(accents.amber.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .background(accent.copy(alpha = 0.15f), RoundedCornerShape(50))
                         .padding(horizontal = 12.dp, vertical = 5.dp),
                 ) {
                     Text(
                         text = periodLabel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = accents.amber,
+                        color = accent,
                     )
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            if (dashboard.topPurchases.isEmpty()) {
+            if (products.isEmpty()) {
                 Text(
-                    text = "No purchases in this period.",
+                    text = emptyText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 )
             } else {
-                dashboard.topPurchases.forEachIndexed { index, product ->
-                    TopPurchaseRow(serial = index + 1, product = product)
-                    if (index != dashboard.topPurchases.lastIndex) {
+                products.forEachIndexed { index, product ->
+                    TopProductRow(serial = index + 1, product = product, accent = accent)
+                    if (index != products.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+                if (showTotal) {
+                    HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Total", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = formatBdAmount(products.sumOf { it.quantity }),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = accent,
+                        )
                     }
                 }
             }
@@ -423,7 +492,7 @@ private fun TopPurchaseCard(dashboard: Dashboard) {
 }
 
 @Composable
-private fun TopPurchaseRow(serial: Int, product: TopPurchase) {
+private fun TopProductRow(serial: Int, product: TopProduct, accent: Color) {
     val accents = MaterialTheme.accents
     Row(
         modifier = Modifier
@@ -447,7 +516,7 @@ private fun TopPurchaseRow(serial: Int, product: TopPurchase) {
             text = formatAmount(product.quantity),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = accents.amber,
+            color = accent,
         )
     }
 }
@@ -634,6 +703,7 @@ private fun DashboardContentPreview() {
         DashboardContent(
             dashboard = previewDashboard,
             isRefreshing = false,
+            isConstruction = false,
             rowActions = emptyMap(),
             onReceive = {},
         )
@@ -651,6 +721,7 @@ private fun DashboardContentDarkPreview() {
         DashboardContent(
             dashboard = previewDashboard,
             isRefreshing = false,
+            isConstruction = false,
             rowActions = emptyMap(),
             onReceive = {},
         )

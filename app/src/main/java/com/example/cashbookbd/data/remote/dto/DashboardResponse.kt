@@ -62,6 +62,28 @@ data class TransactionSumDto(
     @SerializedName("credit") val credit: String? = null,
 )
 
+/**
+ * `GET /dashboard/branch/monthly-purchase-sales`. The non-construction
+ * dashboards read their Top Sales / Top Purchase lists from here (the chart
+ * arrays in the same payload are ignored — the app draws no charts).
+ */
+data class MonthlyTopProductsResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: MonthlyTopProductsEnvelope? = null,
+    @SerializedName("error") val error: ApiError? = null,
+)
+
+data class MonthlyTopProductsEnvelope(
+    @SerializedName("data") val payload: MonthlyTopProductsPayload? = null,
+)
+
+data class MonthlyTopProductsPayload(
+    @SerializedName("topProductDays") val topProductDays: Int? = null,
+    @SerializedName("topProductsSales") val topProductsSales: List<TopProductDto>? = null,
+    @SerializedName("topProductsPurchase") val topProductsPurchase: List<TopProductDto>? = null,
+)
+
 data class TopProductDto(
     @SerializedName("product_id") val productId: Long? = null,
     @SerializedName("name") val name: String? = null,

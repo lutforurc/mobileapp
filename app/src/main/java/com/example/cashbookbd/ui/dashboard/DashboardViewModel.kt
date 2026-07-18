@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.repository.DashboardRepository
+import com.example.cashbookbd.invoice.CONSTRUCTION_BUSINESS_TYPE_ID
+import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.ui.dashboard.model.ReceivedFromHo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,13 +20,38 @@ import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val repository: DashboardRepository,
+    sessionManager: SessionManager,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DashboardUiState())
+    /**
+     * Construction branches get the web's ConstructionDashboard layout (Top
+     * Purchase from `dashboard/data` plus the H/O receive panel); every other
+     * business type gets the ComputerAccessories one (Top Sales + Top Purchase
+     * from `dashboard/branch/monthly-purchase-sales`, no receive panel).
+     */
+    private val isConstruction: Boolean =
+        sessionManager.state.value.settings?.businessTypeId == CONSTRUCTION_BUSINESS_TYPE_ID
+
+    private val _uiState = MutableStateFlow(DashboardUiState(isConstruction = isConstruction))
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
         start()
+    }
+
+    /** Folds the month's top sold/purchased products into the loaded dashboard. */
+    private suspend fun loadMonthlyTopProducts() {
+        val top = repository.getMonthlyTopProducts() ?: return
+        _uiState.update { state ->
+            val current = state.dashboard ?: return@update state
+            state.copy(
+                dashboard = current.copy(
+                    topSales = top.sales,
+                    topPurchases = top.purchases,
+                    topPurchaseDays = top.days.takeIf { it > 0 } ?: current.topPurchaseDays,
+                )
+            )
+        }
     }
 
     /**
@@ -61,13 +88,18 @@ class DashboardViewModel(
 
         viewModelScope.launch {
             when (val result = repository.getDashboard()) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isRefreshing = false,
-                        dashboard = result.data,
-                        errorMessage = null,
-                    )
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            dashboard = result.data,
+                            errorMessage = null,
+                        )
+                    }
+                    // Non-construction dashboards take their top-product lists
+                    // from a second endpoint; fold them in once they arrive.
+                    if (!isConstruction) loadMonthlyTopProducts()
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -157,7 +189,11 @@ class DashboardViewModel(
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
-                DashboardViewModel(ServiceLocator.provideDashboardRepository(context.applicationContext))
+                val app = context.applicationContext
+                DashboardViewModel(
+                    repository = ServiceLocator.provideDashboardRepository(app),
+                    sessionManager = ServiceLocator.provideSessionManager(app),
+                )
             }
         }
     }

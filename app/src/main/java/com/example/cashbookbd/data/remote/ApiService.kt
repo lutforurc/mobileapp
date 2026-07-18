@@ -3,6 +3,7 @@ package com.example.cashbookbd.data.remote
 import com.example.cashbookbd.data.remote.dto.BranchListResponse
 import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
+import com.example.cashbookbd.data.remote.dto.MonthlyTopProductsResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
@@ -33,6 +34,15 @@ interface ApiService {
      */
     @GET("dashboard/data")
     suspend fun getDashboard(): Response<DashboardResponse>
+
+    /**
+     * GET {BASE_URL}/dashboard/branch/monthly-purchase-sales
+     *
+     * Source of the Top Sales / Top Purchase lists on the non-construction
+     * dashboards (the web's ComputerAccessories variant).
+     */
+    @GET("dashboard/branch/monthly-purchase-sales")
+    suspend fun getMonthlyTopProducts(): Response<MonthlyTopProductsResponse>
 
     /**
      * GET {BASE_URL}/branch/ddl/protected-branch — branches for the report filter,

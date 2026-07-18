@@ -16,6 +16,14 @@ const val ELECTRONICS_BUSINESS_TYPE_ID = 4
  */
 const val TRADING_BUSINESS_TYPE_ID = 8
 
+/**
+ * Construction business. Only affects the dashboard today: the web serves
+ * business_type 7 its own dashboard (Top Purchase from `dashboard/data` plus the
+ * head-office receive panel) while every other type gets the ComputerAccessories
+ * layout — see the web's `DashboardIndex`.
+ */
+const val CONSTRUCTION_BUSINESS_TYPE_ID = 7
+
 /** Sales vs Purchase — chooses body keys and price behaviour. */
 enum class InvoiceKind { SALES, PURCHASE }
 

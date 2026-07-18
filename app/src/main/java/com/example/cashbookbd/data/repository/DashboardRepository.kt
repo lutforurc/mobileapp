@@ -4,13 +4,22 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.local.DashboardCache
 import com.example.cashbookbd.data.remote.ApiService
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
+import com.example.cashbookbd.data.remote.dto.TopProductDto
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
+import com.example.cashbookbd.ui.dashboard.model.TopProduct
 import com.example.cashbookbd.ui.dashboard.model.toDashboard
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
+
+/** The month's top sold/purchased products plus the period they cover. */
+data class MonthlyTopProducts(
+    val days: Int,
+    val sales: List<TopProduct>,
+    val purchases: List<TopProduct>,
+)
 
 /**
  * Fetches the dashboard payload and maps every outcome to a [Resource] so the
@@ -78,6 +87,33 @@ class DashboardRepository(
             Resource.Error("Something went wrong. Please try again.")
         }
     }
+
+    /**
+     * The month's top sold/purchased products, for the non-construction
+     * dashboards. Returns null on any failure — these two lists are secondary,
+     * so a miss leaves the rest of the dashboard usable rather than erroring.
+     */
+    suspend fun getMonthlyTopProducts(): MonthlyTopProducts? = withContext(ioDispatcher) {
+        try {
+            val body = api.getMonthlyTopProducts().takeIf { it.isSuccessful }?.body()
+            val payload = body?.takeIf { it.success }?.data?.payload ?: return@withContext null
+            MonthlyTopProducts(
+                days = payload.topProductDays ?: 0,
+                sales = payload.topProductsSales.toTopProducts(),
+                purchases = payload.topProductsPurchase.toTopProducts(),
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun List<TopProductDto>?.toTopProducts(): List<TopProduct> =
+        orEmpty().map {
+            TopProduct(
+                name = it.name?.trim().orEmpty().ifBlank { "Unnamed product" },
+                quantity = it.qty?.trim()?.toDoubleOrNull() ?: 0.0,
+            )
+        }
 
     /**
      * Confirms ("receives") one head-office remittance. Returns the success

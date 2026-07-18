@@ -22,10 +22,16 @@ data class Dashboard(
     /** Received rows grouped by branch, mirroring the web H/O panel. */
     val receivedGroups: List<ReceivedBranchGroup>,
     val topPurchaseDays: Int,
-    val topPurchases: List<TopPurchase>,
+    val topPurchases: List<TopProduct>,
+    /**
+     * Top-selling products. Only the non-construction dashboards show this; it
+     * comes from `dashboard/branch/monthly-purchase-sales`, so it stays empty
+     * until that call lands (see DashboardViewModel).
+     */
+    val topSales: List<TopProduct> = emptyList(),
 )
 
-data class TopPurchase(
+data class TopProduct(
     val name: String,
     val quantity: Double,
 )
@@ -61,7 +67,7 @@ fun DashboardPayload.toDashboard(): Dashboard {
     val balance = totalTransaction?.debit.toAmount() - totalTransaction?.credit.toAmount()
 
     val purchases = topProductsPurchase.orEmpty().map {
-        TopPurchase(
+        TopProduct(
             name = it.name?.trim().orEmpty().ifBlank { "Unnamed product" },
             quantity = it.qty.toAmount(),
         )
@@ -168,9 +174,9 @@ val previewDashboard: Dashboard = Dashboard(
     ),
     topPurchaseDays = 7,
     topPurchases = listOf(
-        TopPurchase("Basmati Rice 50kg", 320.0),
-        TopPurchase("Soybean Oil 5L", 210.0),
-        TopPurchase("Sugar 25kg", 175.0),
-        TopPurchase("Red Lentil 25kg", 140.0),
+        TopProduct("Basmati Rice 50kg", 320.0),
+        TopProduct("Soybean Oil 5L", 210.0),
+        TopProduct("Sugar 25kg", 175.0),
+        TopProduct("Red Lentil 25kg", 140.0),
     ),
 )
