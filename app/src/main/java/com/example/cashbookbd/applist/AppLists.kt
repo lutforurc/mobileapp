@@ -237,6 +237,38 @@ object AppLists {
             anyOf = listOf("coa.l4.view"),
             paginated = true,
         ),
+
+        // ---- Subscription ----
+        AppListSpec(
+            key = "subscriptionBilling",
+            title = "Billing History",
+            endpoint = "subscription/payments",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("paid_at", "Date"),
+                AppListColumn("plan_name", "Plan"),
+                AppListColumn("payment_method", "Method"),
+                AppListColumn("amount", "Amount", numeric = true),
+                AppListColumn("billing_months", "Months", numeric = true),
+                AppListColumn("transaction_id", "Transaction ID"),
+                AppListColumn("payment_status", "Status"),
+            ),
+        ),
+        AppListSpec(
+            key = "subscriptionAdminPlans",
+            title = "Subscription Plans",
+            endpoint = "admin/subscription/plans",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Plan"),
+                AppListColumn("billing_interval", "Billing"),
+                AppListColumn("price", "Price", numeric = true),
+                AppListColumn("trial_days", "Trial", numeric = true),
+                AppListColumn("max_users", "Max Users", numeric = true),
+                AppListColumn("status_label", "Status"),
+            ),
+            anyOf = listOf("subscription.plans"),
+        ),
     )
 
     private val byKey: Map<String, AppListSpec> = all.associateBy { it.key }

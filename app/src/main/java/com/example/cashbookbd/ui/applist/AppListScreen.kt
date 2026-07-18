@@ -43,6 +43,7 @@ import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.ui.components.AddButton
 import com.example.cashbookbd.ui.components.SecondaryButton
@@ -89,6 +90,7 @@ fun AppListScreen(
     // Keep the right drawer section highlighted.
     val parentRoute = when {
         CustomerMenu.byKey(listKey) != null -> Routes.CUSTOMERS
+        SubscriptionMenu.byKey(listKey) != null -> Routes.SUBSCRIPTION
         AdminMenu.byKey(listKey) != null -> Routes.ADMIN
         else -> Routes.VR_SETTINGS
     }

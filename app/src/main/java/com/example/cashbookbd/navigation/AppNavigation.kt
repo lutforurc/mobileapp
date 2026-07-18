@@ -39,6 +39,9 @@ import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
+import com.example.cashbookbd.ui.subscription.MyPlanScreen
+import com.example.cashbookbd.ui.subscription.PricingScreen
+import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
@@ -104,6 +107,11 @@ object Routes {
 
     // Customers section
     const val CUSTOMERS = "customers/home"
+
+    // Subscription section
+    const val SUBSCRIPTION = "subscription/home"
+    const val SUBSCRIPTION_MY_PLAN = "subscription/my-plan"
+    const val SUBSCRIPTION_PRICING = "subscription/pricing"
 
     // Shared read-only list screens (used by VR Settings and Admin).
     const val APP_LIST_VIEW = "list/view/{key}"
@@ -323,13 +331,27 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable(Routes.SUBSCRIPTION) {
+            SubscriptionHomeScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        composable(Routes.SUBSCRIPTION_MY_PLAN) {
+            MyPlanScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        composable(Routes.SUBSCRIPTION_PRICING) {
+            PricingScreen(navController = navController, onLogout = backToLogin)
+        }
+
         composable(
             route = Routes.APP_LIST_VIEW,
             arguments = listOf(navArgument(Routes.APP_LIST_KEY_ARG) { type = NavType.StringType }),
         ) { backStackEntry ->
             val key = backStackEntry.arguments?.getString(Routes.APP_LIST_KEY_ARG).orEmpty()
             val spec = com.example.cashbookbd.applist.AppLists.byKey(key)
-            PermissionGate(anyOf = spec?.anyOf ?: emptyList()) {
+            // An empty anyOf means "no permission required" — pass null, since
+            // PermissionGate treats an empty list as an unsatisfiable requirement.
+            PermissionGate(anyOf = spec?.anyOf?.takeIf { it.isNotEmpty() }) {
                 com.example.cashbookbd.ui.applist.AppListScreen(
                     listKey = key,
                     navController = navController,

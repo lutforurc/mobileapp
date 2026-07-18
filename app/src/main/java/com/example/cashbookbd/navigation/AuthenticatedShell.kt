@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
@@ -90,6 +92,8 @@ fun AuthenticatedShell(
     val canAdmin = AdminMenu.hasParentAccess(sessionState.permissions)
     // The "Customers" section is shown when the user has any customer permission.
     val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
+    // "Subscription" shows for any authenticated user (My Plan is universal).
+    val canSubscription = SubscriptionMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -111,6 +115,7 @@ fun AuthenticatedShell(
                 canVrSettings = canVrSettings,
                 canAdmin = canAdmin,
                 canCustomers = canCustomers,
+                canSubscription = canSubscription,
                 isDark = isDark,
                 onThemeChange = { dark ->
                     themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
@@ -176,6 +181,7 @@ private fun AppDrawerContent(
     canVrSettings: Boolean,
     canAdmin: Boolean,
     canCustomers: Boolean,
+    canSubscription: Boolean,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
@@ -272,6 +278,18 @@ private fun AppDrawerContent(
                     icon = { Icon(Icons.Filled.Person, contentDescription = null) },
                     selected = currentRoute == Routes.CUSTOMERS,
                     onClick = { onDestinationClick(Routes.CUSTOMERS) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // "Subscription" — My Plan / Pricing / Billing / Plans, listed inside
+            // SubscriptionHomeScreen.
+            if (canSubscription) {
+                NavigationDrawerItem(
+                    label = { Text("Subscription") },
+                    icon = { Icon(Icons.Filled.Star, contentDescription = null) },
+                    selected = currentRoute == Routes.SUBSCRIPTION,
+                    onClick = { onDestinationClick(Routes.SUBSCRIPTION) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
