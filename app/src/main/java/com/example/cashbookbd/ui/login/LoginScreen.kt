@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = viewModel(
         factory = LoginViewModel.provideFactory(LocalContext.current)
@@ -186,6 +187,24 @@ fun LoginScreen(
                 isLoading = uiState.isLoading,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Mirrors the web sign-in's "Register your company" affordance.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "New here?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LinkButton(
+                    text = "Register your company",
+                    onClick = onRegisterClick,
+                    enabled = !uiState.isLoading,
+                )
+            }
         }
     }
 }

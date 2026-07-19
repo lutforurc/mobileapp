@@ -20,6 +20,7 @@ import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ProfitLossRepository
+import com.example.cashbookbd.data.repository.RegistrationRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.SessionRepository
@@ -112,6 +113,9 @@ object ServiceLocator {
 
     @Volatile
     private var authRepository: AuthRepository? = null
+
+    @Volatile
+    private var registrationRepository: RegistrationRepository? = null
 
     @Volatile
     private var dashboardRepository: DashboardRepository? = null
@@ -249,6 +253,15 @@ object ServiceLocator {
                 dashboardCache = provideDashboardCache(context),
                 sessionManager = provideSessionManager(context),
             ).also { authRepository = it }
+        }
+
+    fun provideRegistrationRepository(context: Context): RegistrationRepository =
+        registrationRepository ?: synchronized(this) {
+            registrationRepository ?: RegistrationRepository(
+                api = provideApiService(context),
+                tokenManager = provideTokenManager(context),
+                dashboardCache = provideDashboardCache(context),
+            ).also { registrationRepository = it }
         }
 
     fun provideSettingsRepository(context: Context): SettingsRepository =

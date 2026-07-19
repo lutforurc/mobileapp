@@ -27,6 +27,7 @@ import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.common.PermissionGate
 import com.example.cashbookbd.ui.dashboard.DashboardScreen
 import com.example.cashbookbd.ui.login.LoginScreen
+import com.example.cashbookbd.ui.register.RegisterScreen
 import com.example.cashbookbd.ui.reports.BalanceSheetReportScreen
 import com.example.cashbookbd.ui.reports.CashBookScreen
 import com.example.cashbookbd.ui.reports.DueListScreen
@@ -53,6 +54,7 @@ import com.example.cashbookbd.ui.vrsettings.VrSettingsHomeScreen
 
 object Routes {
     const val LOGIN = "login"
+    const val REGISTER = "register"
     const val HOME = "home"
 
     // Reports
@@ -163,15 +165,28 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         startDestination = startDestination,
         modifier = modifier,
     ) {
+        // Enter the app, clearing auth screens from the back stack so Back can't
+        // return to them. Shared by login and a successful registration.
+        val enterApp: () -> Unit = {
+            navController.navigate(Routes.HOME) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+
         composable(Routes.LOGIN) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
-                        // Clear the back stack so Back doesn't return to login.
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
+                onLoginSuccess = enterApp,
+                onRegisterClick = {
+                    navController.navigate(Routes.REGISTER) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onRegistered = enterApp,
+                onBackToLogin = { navController.popBackStack() },
             )
         }
 

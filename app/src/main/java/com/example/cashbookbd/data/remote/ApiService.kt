@@ -9,8 +9,12 @@ import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.remote.dto.ReceiveResponse
+import com.example.cashbookbd.data.remote.dto.RegisterOtpRequest
+import com.example.cashbookbd.data.remote.dto.RequestOtpResponse
 import com.example.cashbookbd.data.remote.dto.RevokeDeviceResponse
 import com.example.cashbookbd.data.remote.dto.SettingsResponse
+import com.example.cashbookbd.data.remote.dto.VerifyOtpRequest
+import com.example.cashbookbd.data.remote.dto.VerifyOtpResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -29,6 +33,25 @@ interface ApiService {
      */
     @POST("login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    /**
+     * POST {BASE_URL}/register/request-otp — public company sign-up, step 1.
+     *
+     * Parks the whole form server-side and texts a 6-digit code, returning an
+     * `otp_session_id` to carry into [verifyRegistrationOtp]. Public (no token).
+     * Rate-limited server-side (6/min); a 422 carries validation errors.
+     */
+    @POST("register/request-otp")
+    suspend fun requestRegistrationOtp(@Body request: RegisterOtpRequest): Response<RequestOtpResponse>
+
+    /**
+     * POST {BASE_URL}/register/verify-otp — public company sign-up, step 2.
+     *
+     * Checks the code and, on success, creates the company + user and returns an
+     * auth token (HTTP 201) — so the app saves it and enters like a fresh login.
+     */
+    @POST("register/verify-otp")
+    suspend fun verifyRegistrationOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>
 
     /**
      * GET {BASE_URL}/dashboard/data
