@@ -16,56 +16,63 @@ val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
 /**
- * The app's green brand palette. Everything that reads as "the brand colour" —
+ * The app's blue brand palette. Everything that reads as "the brand colour" —
  * filled buttons, the report/list table headers, primary icons — comes from
- * `colorScheme.primary`, so these values set that colour in one place. A Material
- * green ramp: a deep green on light surfaces, a lighter one on dark, each with a
- * matching on-colour and container pair for contrast in both themes.
+ * `colorScheme.primary`, so these values set that colour in one place.
+ *
+ * The two primaries are the app owner's chosen blues: a mid steel-blue on light
+ * (white text sits on it), a lighter sky-blue on dark (which needs *dark* text,
+ * per Material's dark convention — white would be unreadable on it). The rest is
+ * a coordinated blue ramp with on-colours and containers for contrast in both
+ * themes. Backgrounds stay a neutral near-white / near-black so the blue leads.
  */
-object GreenBrand {
-    // Light
-    val Primary = Color(0xFF2E7D32)
+object Brand {
+    // Light — primary #458FB4
+    val Primary = Color(0xFF458FB4)
     val OnPrimary = Color(0xFFFFFFFF)
-    val PrimaryContainer = Color(0xFFB6F2B6)
-    val OnPrimaryContainer = Color(0xFF002106)
-    val Secondary = Color(0xFF52634F)
+    val PrimaryContainer = Color(0xFFCCE7F5)
+    val OnPrimaryContainer = Color(0xFF08293A)
+    val Secondary = Color(0xFF50606B)
     val OnSecondary = Color(0xFFFFFFFF)
-    val SecondaryContainer = Color(0xFFD5E8CF)
-    val OnSecondaryContainer = Color(0xFF101F0F)
-    val Tertiary = Color(0xFF38656A)
+    val SecondaryContainer = Color(0xFFD4E4EF)
+    val OnSecondaryContainer = Color(0xFF0C1D27)
+    val Tertiary = Color(0xFF3F6473)
     val OnTertiary = Color(0xFFFFFFFF)
-    val TertiaryContainer = Color(0xFFBCEBF0)
-    val OnTertiaryContainer = Color(0xFF002023)
-    val Background = Color(0xFFFCFDF7)
-    val OnBackground = Color(0xFF1A1C19)
-    val Surface = Color(0xFFFCFDF7)
-    val OnSurface = Color(0xFF1A1C19)
-    val SurfaceVariant = Color(0xFFDEE5D9)
-    val OnSurfaceVariant = Color(0xFF424940)
-    val Outline = Color(0xFF72796F)
-    val OutlineVariant = Color(0xFFC2C8BC)
+    val TertiaryContainer = Color(0xFFC2E8FA)
+    val OnTertiaryContainer = Color(0xFF001F2A)
+    val Background = Color(0xFFF8FAFC)
+    val OnBackground = Color(0xFF191C1E)
+    val Surface = Color(0xFFF8FAFC)
+    val OnSurface = Color(0xFF191C1E)
+    val SurfaceVariant = Color(0xFFDCE3E9)
+    val OnSurfaceVariant = Color(0xFF41484D)
+    val Outline = Color(0xFF71787E)
+    val OutlineVariant = Color(0xFFC1C7CD)
 
-    // Dark
-    val DarkPrimary = Color(0xFF9BD49B)
-    val DarkOnPrimary = Color(0xFF003910)
-    val DarkPrimaryContainer = Color(0xFF14531D)
-    val DarkOnPrimaryContainer = Color(0xFFB6F2B6)
-    val DarkSecondary = Color(0xFFB9CCB4)
-    val DarkOnSecondary = Color(0xFF243424)
-    val DarkSecondaryContainer = Color(0xFF3A4B37)
-    val DarkOnSecondaryContainer = Color(0xFFD5E8CF)
-    val DarkTertiary = Color(0xFFA0CFD4)
-    val DarkOnTertiary = Color(0xFF00363B)
-    val DarkTertiaryContainer = Color(0xFF1E4D52)
-    val DarkOnTertiaryContainer = Color(0xFFBCEBF0)
-    val DarkBackground = Color(0xFF1A1C19)
-    val DarkOnBackground = Color(0xFFE2E3DD)
-    val DarkSurface = Color(0xFF1A1C19)
-    val DarkOnSurface = Color(0xFFE2E3DD)
-    val DarkSurfaceVariant = Color(0xFF424940)
-    val DarkOnSurfaceVariant = Color(0xFFC2C9BD)
-    val DarkOutline = Color(0xFF8C9388)
-    val DarkOutlineVariant = Color(0xFF424940)
+    // Dark — primary #7BB4D2. A neutral near-black charcoal (no colour cast) lets
+    // the blue lead; surfaces step up in lightness (background < surface <
+    // surfaceVariant) so cards and fields separate without borders. The primary
+    // is light, so its on-colour is a dark navy — white would vanish on it.
+    val DarkPrimary = Color(0xFF7BB4D2)
+    val DarkOnPrimary = Color(0xFF08344A)
+    val DarkPrimaryContainer = Color(0xFF264C60)
+    val DarkOnPrimaryContainer = Color(0xFFCCE7F5)
+    val DarkSecondary = Color(0xFFB6C9D6)
+    val DarkOnSecondary = Color(0xFF20333F)
+    val DarkSecondaryContainer = Color(0xFF374A56)
+    val DarkOnSecondaryContainer = Color(0xFFD4E4EF)
+    val DarkTertiary = Color(0xFFA6CDE0)
+    val DarkOnTertiary = Color(0xFF0A3445)
+    val DarkTertiaryContainer = Color(0xFF25495C)
+    val DarkOnTertiaryContainer = Color(0xFFC2E8FA)
+    val DarkBackground = Color(0xFF101416)
+    val DarkOnBackground = Color(0xFFE1E3E5)
+    val DarkSurface = Color(0xFF181C1F)
+    val DarkOnSurface = Color(0xFFE1E3E5)
+    val DarkSurfaceVariant = Color(0xFF2A2F33)
+    val DarkOnSurfaceVariant = Color(0xFFC0C7CD)
+    val DarkOutline = Color(0xFF8A9197)
+    val DarkOutlineVariant = Color(0xFF3A4045)
 }
 
 /**
