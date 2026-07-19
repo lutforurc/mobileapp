@@ -144,19 +144,11 @@ fun SearchableLedgerDropdown(
         onExpandedChange = { if (enabled) expanded = it && searchKey.isNotBlank() },
         modifier = modifier,
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = {
-                query = it
-                searchKey = it
-                expanded = true
-            },
-            enabled = enabled,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            singleLine = true,
-            isError = errorMessage != null,
-            supportingText = errorMessage?.let { { Text(it) } },
+        FieldFrame(
+            label = label,
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = enabled)
+                .fillMaxWidth(),
             trailingIcon = {
                 if (isSearching) {
                     CircularProgressIndicator(
@@ -164,13 +156,34 @@ fun SearchableLedgerDropdown(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Filled.Search, contentDescription = null)
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 }
             },
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = enabled)
-                .fillMaxWidth(),
-        )
+        ) {
+            FieldTextInput(
+                value = query,
+                onValueChange = {
+                    query = it
+                    searchKey = it
+                    expanded = true
+                },
+                placeholder = placeholder,
+                enabled = enabled,
+            )
+        }
+
+        errorMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 4.dp, top = 3.dp),
+            )
+        }
 
         ExposedDropdownMenu(
             expanded = menuVisible,

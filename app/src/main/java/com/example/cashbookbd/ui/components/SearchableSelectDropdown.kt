@@ -111,27 +111,33 @@ fun SearchableSelectDropdown(
         onExpandedChange = { expanded = it && searchKey.isNotBlank() },
         modifier = modifier,
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = {
-                query = it
-                searchKey = it
-                expanded = true
-            },
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            singleLine = true,
+        FieldFrame(
+            label = label,
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true)
+                .fillMaxWidth(),
             trailingIcon = {
                 if (isSearching) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Filled.Search, contentDescription = null)
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 }
             },
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true)
-                .fillMaxWidth(),
-        )
+        ) {
+            FieldTextInput(
+                value = query,
+                onValueChange = {
+                    query = it
+                    searchKey = it
+                    expanded = true
+                },
+                placeholder = placeholder,
+            )
+        }
 
         ExposedDropdownMenu(expanded = menuVisible, onDismissRequest = { expanded = false }) {
             when {
