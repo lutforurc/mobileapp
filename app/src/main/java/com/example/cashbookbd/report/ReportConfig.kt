@@ -2,6 +2,7 @@ package com.example.cashbookbd.report
 
 import com.example.cashbookbd.session.Permission
 import com.example.cashbookbd.session.Permissions
+import com.example.cashbookbd.session.WILDCARD_PERMISSION
 
 enum class ReportMethod { GET, POST }
 
@@ -254,7 +255,7 @@ object ReportMenu {
             title = "Profit Loss",
             routeName = "ReportProfitLoss",
             webPath = "/reports/profit-loss",
-            anyOf = listOf("cashbook.view", "profit.loss"),
+            anyOf = listOf("profit.loss"),
             endpointKey = "profitLoss",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -266,7 +267,7 @@ object ReportMenu {
             title = "Balance Sheet",
             routeName = "ReportBalanceSheet",
             webPath = "/reports/balance-sheet",
-            anyOf = listOf("cashbook.view", "balancesheet.view"),
+            anyOf = listOf("balancesheet.view"),
             endpointKey = "balanceSheet",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -281,7 +282,7 @@ object ReportMenu {
             title = "Trial Balance Group",
             routeName = "ReportTrialBalanceLevel3",
             webPath = "/reports/trialbalance-level3",
-            anyOf = listOf("cashbook.view", "trial.balance.l3"),
+            anyOf = listOf("trial.balance.l3"),
             endpointKey = "trialBalanceLevel3",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -294,7 +295,7 @@ object ReportMenu {
             title = "Trial Balance Details",
             routeName = "ReportTrialBalanceLevel4",
             webPath = "/reports/trialbalance-level4",
-            anyOf = listOf("cashbook.view", "trial.balance.l4"),
+            anyOf = listOf("trial.balance.l4"),
             endpointKey = "trialBalanceLevel4",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -447,7 +448,7 @@ object ReportMenu {
             title = "Product In Out",
             routeName = "ReportProductInOut",
             webPath = "/reports/product-ledger-data",
-            anyOf = listOf("ledger.view", "ledger.customer", "product.in.out"),
+            anyOf = listOf("product.in.out"),
             endpointKey = "productLedgerData",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_PRODUCT_DATE_RANGE,
@@ -728,4 +729,16 @@ object ReportMenu {
     /** Reports the user is allowed to open, in registry order. */
     fun visible(permissions: List<Permission>?): List<ReportConfig> =
         all.filter { Permissions.hasAny(permissions, it.anyOf) }
+
+    /**
+     * The permissions guarding the report [key], for route-level gates. Routes
+     * MUST use this rather than repeating the list, so a rule change here can
+     * never leave the menu and the route disagreeing (a stale route gate would
+     * let a hidden report open via deep link).
+     *
+     * An unknown key falls back to the full-access wildcard — fail closed, since
+     * a gate that silently allows everyone is the worse failure.
+     */
+    fun permissionsFor(key: String): List<String> =
+        byKey(key)?.anyOf ?: listOf(WILDCARD_PERMISSION)
 }
