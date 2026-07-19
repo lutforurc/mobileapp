@@ -32,9 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 
 /**
  * One entry in the account menu. Kept as data so the menu's look is defined in a
@@ -60,6 +64,7 @@ data class AccountMenuItem(
 fun AccountMenu(
     userName: String?,
     transactionDate: String?,
+    photoUrl: String? = null,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
     items: List<AccountMenuItem>,
@@ -70,10 +75,9 @@ fun AccountMenu(
 
     Box(modifier = modifier) {
         IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.Filled.AccountCircle,
+            UserAvatar(
+                photoUrl = photoUrl,
                 contentDescription = "Account menu",
-                modifier = Modifier.size(AvatarSize),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -83,7 +87,11 @@ fun AccountMenu(
             onDismissRequest = { expanded = false },
             modifier = Modifier.width(MenuWidth),
         ) {
-            AccountHeader(userName = userName, transactionDate = transactionDate)
+            AccountHeader(
+                userName = userName,
+                transactionDate = transactionDate,
+                photoUrl = photoUrl,
+            )
             HorizontalDivider()
 
             items.forEach { item ->
@@ -130,7 +138,7 @@ fun AccountMenu(
 
 /** Name over transaction date, with the avatar — the web dropdown's header. */
 @Composable
-private fun AccountHeader(userName: String?, transactionDate: String?) {
+private fun AccountHeader(userName: String?, transactionDate: String?, photoUrl: String?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -138,18 +146,12 @@ private fun AccountHeader(userName: String?, transactionDate: String?) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(AvatarSize)
-                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.AccountCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
+        UserAvatar(
+            photoUrl = photoUrl,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            background = MaterialTheme.colorScheme.primaryContainer,
+        )
         Column {
             Text(
                 text = userName?.takeIf { it.isNotBlank() } ?: "Signed in",
@@ -165,6 +167,47 @@ private fun AccountHeader(userName: String?, transactionDate: String?) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The circular avatar: the user's photo when they have one, otherwise the
+ * [Icons.Filled.AccountCircle] fallback — the same substitution the web makes
+ * with `me.profile_photo || UserOne`.
+ *
+ * The icon sits underneath rather than in Coil's `error`/`placeholder` slots so
+ * it keeps its [tint]: it shows while the photo loads and stays put if the URL
+ * 404s, which the stored-at-upload-time URLs can do after a host change.
+ */
+@Composable
+private fun UserAvatar(
+    photoUrl: String?,
+    contentDescription: String?,
+    tint: Color,
+    background: Color? = null,
+) {
+    Box(
+        modifier = Modifier
+            .size(AvatarSize)
+            .then(background?.let { Modifier.background(it, CircleShape) } ?: Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AccountCircle,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(AvatarSize),
+            tint = tint,
+        )
+        if (!photoUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .size(AvatarSize)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
         }
     }
 }

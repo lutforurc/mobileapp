@@ -15,6 +15,8 @@ data class Settings(
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,
+    /** Absolute URL of the user's photo; null falls back to the avatar icon. */
+    val userPhotoUrl: String? = null,
     /** Branch transaction date, pre-formatted dd/MM/yyyy by the backend. */
     val transactionDate: String? = null,
 )

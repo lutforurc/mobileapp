@@ -165,6 +165,7 @@ fun AuthenticatedShell(
                     AccountMenu(
                         userName = sessionState.settings?.userName,
                         transactionDate = sessionState.settings?.transactionDate,
+                        photoUrl = sessionState.settings?.userPhotoUrl,
                         isDark = isDark,
                         onThemeChange = { dark ->
                             themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)

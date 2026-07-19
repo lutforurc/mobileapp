@@ -140,6 +140,9 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Remote images (the account-menu avatar)
+    implementation(libs.coil.compose)
+
     // Secure token storage
     implementation(libs.androidx.security.crypto)
     testImplementation(libs.junit)

@@ -50,6 +50,13 @@ data class SettingsUserDto(
     @SerializedName("id") val id: Long? = null,
     @SerializedName("name") val name: String? = null,
     @SerializedName("email") val email: String? = null,
+    /**
+     * Absolute URL of the user's photo, or null when they never uploaded one.
+     * The backend stores the whole URL (built with `asset()` at upload time), so
+     * there is no base path to prepend — the web's DropdownUser likewise drops
+     * `profile_photo` straight into an `<img src>`.
+     */
+    @SerializedName("profile_photo") val profilePhoto: String? = null,
 )
 
 /** The current branch, from `settings/get-settings`. Only the fields the app reads. */
