@@ -49,13 +49,18 @@ private val FieldHeight = 56.dp
 
 /**
  * Toolbar sizing. Chrome beside a table — page size, "+ Add …" — reads as heavy
- * at the full [ButtonHeight], so those opt into `compact`. Kept above Material's
- * 40dp minimum for a small button; the main actions stay [ButtonHeight] because
- * shrinking a Save or Apply target is a different trade entirely.
+ * at the full [ButtonHeight], so those opt into `compact`.
+ *
+ * 32dp is Material's chip height, and a chip is what this chrome really is. It
+ * is below the 48dp touch-target guidance, which is the deliberate trade: these
+ * buttons are wide, infrequent and non-destructive. The main actions stay at
+ * [ButtonHeight] — shrinking a Save or Apply target is not the same bet.
  */
-private val CompactButtonHeight = 40.dp
-private val CompactIconSize = 16.dp
-private val CompactPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+private val CompactButtonHeight = 32.dp
+private val CompactIconSize = 15.dp
+private val CompactPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+
+private val CompactShape = RoundedCornerShape(4.dp)
 
 private val ButtonShape = RoundedCornerShape(24.dp)
 private val IconSize = 18.dp
@@ -78,7 +83,7 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
-        shape = ButtonShape,
+        shape = if (compact) CompactShape else ButtonShape,
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -108,7 +113,7 @@ fun SecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
-        shape = ButtonShape,
+        shape = if (compact) CompactShape else ButtonShape,
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -156,6 +161,10 @@ fun LinkButton(
 /**
  * The "+ Add …" button a list toolbar shows when its list has a create screen.
  * Wraps [PrimaryButton] so the plus icon and wording stay identical everywhere.
+ *
+ * It keeps its filled background even when compact: this is the one action on
+ * the screen that creates something, and beside the outlined page-size button
+ * the fill is what separates the two at a glance.
  */
 @Composable
 fun AddButton(

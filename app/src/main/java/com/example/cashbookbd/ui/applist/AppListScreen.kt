@@ -162,7 +162,10 @@ private fun ListToolbar(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // A hair of space below, so the buttons do not touch the table header.
+            .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
