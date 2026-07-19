@@ -22,6 +22,7 @@ val devLoginProps = Properties().apply {
 val baseUrl = "https://sinthia.cashbookbd.com/api/" 
 
 
+
 /** Wraps a value as a valid Java string literal for buildConfigField. */
 fun javaStringLiteral(value: String): String {
     val escaped = value
