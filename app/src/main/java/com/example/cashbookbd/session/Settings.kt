@@ -12,4 +12,9 @@ package com.example.cashbookbd.session
 data class Settings(
     val permissions: List<Permission> = emptyList(),
     val businessTypeId: Int? = null,
+    /** Signed-in user's display name, shown in the account menu header. */
+    val userName: String? = null,
+    val userEmail: String? = null,
+    /** Branch transaction date, pre-formatted dd/MM/yyyy by the backend. */
+    val transactionDate: String? = null,
 )

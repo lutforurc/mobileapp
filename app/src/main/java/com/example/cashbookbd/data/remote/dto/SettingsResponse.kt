@@ -36,6 +36,20 @@ data class SettingsEnvelope(
 data class SettingsPayload(
     @SerializedName("permissions") val permissions: List<PermissionDto>? = null,
     @SerializedName("branch") val branch: SettingsBranchDto? = null,
+    @SerializedName("user") val user: SettingsUserDto? = null,
+    /**
+     * The branch's current transaction date, already formatted dd/MM/yyyy by the
+     * backend (`us_to_bd_date`). Shown as "Trx. Dt." in the account menu, exactly
+     * as the web's DropdownUser reads `settings.data.trx_dt`.
+     */
+    @SerializedName("trx_dt") val trxDt: String? = null,
+)
+
+/** The signed-in user, from `settings/get-settings`. Only the fields the app reads. */
+data class SettingsUserDto(
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("email") val email: String? = null,
 )
 
 /** The current branch, from `settings/get-settings`. Only the fields the app reads. */

@@ -54,6 +54,8 @@ import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
+import com.example.cashbookbd.ui.components.AccountMenu
+import com.example.cashbookbd.ui.components.accountMenuItems
 import com.example.cashbookbd.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 
@@ -103,6 +105,20 @@ fun AuthenticatedShell(
         ThemeMode.DARK -> true
     }
 
+    // Shared by the drawer and the account menu so both navigate identically.
+    // Compare against the ACTUAL current destination, not the drawer-highlight
+    // label: report detail screens report currentRoute = REPORTS, so tapping
+    // "Reports" from one must still navigate back to the Reports list.
+    val navigateTo: (String) -> Unit = { route ->
+        if (route != navController.currentDestination?.route) {
+            navController.navigate(route) {
+                // Keep the dashboard as the single base of the stack.
+                popUpTo(Routes.HOME) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+    }
+
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
@@ -116,27 +132,9 @@ fun AuthenticatedShell(
                 canAdmin = canAdmin,
                 canCustomers = canCustomers,
                 canSubscription = canSubscription,
-                isDark = isDark,
-                onThemeChange = { dark ->
-                    themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
-                },
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
-                    // Compare against the ACTUAL current destination, not the
-                    // drawer-highlight label: report detail screens report
-                    // currentRoute = REPORTS, so tapping "Reports" from one must
-                    // still navigate back to the Reports list (it wasn't, before).
-                    if (route != navController.currentDestination?.route) {
-                        navController.navigate(route) {
-                            // Keep the dashboard as the single base of the stack.
-                            popUpTo(Routes.HOME) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                },
-                onLogout = {
-                    scope.launch { drawerState.close() }
-                    onLogout()
+                    navigateTo(route)
                 },
             )
         },
@@ -162,6 +160,26 @@ fun AuthenticatedShell(
                         modifier = Modifier.weight(1f),
                     )
                     actions()
+                    // Right-hand account menu, matching the web's DropdownUser:
+                    // the drawer stays module navigation, this stays "me".
+                    AccountMenu(
+                        userName = sessionState.settings?.userName,
+                        transactionDate = sessionState.settings?.transactionDate,
+                        isDark = isDark,
+                        onThemeChange = { dark ->
+                            themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
+                        },
+                        items = accountMenuItems(
+                            onDashboard = { navigateTo(Routes.HOME) },
+                            onMyDevices = { navigateTo(Routes.MY_DEVICES) },
+                            onSubscription = if (canSubscription) {
+                                { navigateTo(Routes.SUBSCRIPTION) }
+                            } else {
+                                null
+                            },
+                        ),
+                        onLogout = onLogout,
+                    )
                 }
 
                 Box(modifier = Modifier.weight(1f)) {
@@ -182,10 +200,7 @@ private fun AppDrawerContent(
     canAdmin: Boolean,
     canCustomers: Boolean,
     canSubscription: Boolean,
-    isDark: Boolean,
-    onThemeChange: (Boolean) -> Unit,
     onDestinationClick: (String) -> Unit,
-    onLogout: () -> Unit,
 ) {
     ModalDrawerSheet {
         Column(
@@ -294,26 +309,9 @@ private fun AppDrawerContent(
                 )
             }
 
+            // Dark mode and Log Out deliberately live in the top-bar account
+            // menu only (as on the web), so the drawer stays pure navigation.
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-            Spacer(Modifier.height(12.dp))
-
-            NavigationDrawerItem(
-                label = { Text("Dark mode") },
-                icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                selected = false,
-                onClick = { onThemeChange(!isDark) },
-                badge = { Switch(checked = isDark, onCheckedChange = onThemeChange) },
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
-
-            NavigationDrawerItem(
-                label = { Text("Log out") },
-                icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
-                selected = false,
-                onClick = onLogout,
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
         }
     }
 }

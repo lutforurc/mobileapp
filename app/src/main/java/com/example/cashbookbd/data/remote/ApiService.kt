@@ -3,16 +3,20 @@ package com.example.cashbookbd.data.remote
 import com.example.cashbookbd.data.remote.dto.BranchListResponse
 import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
+import com.example.cashbookbd.data.remote.dto.DevicesResponse
 import com.example.cashbookbd.data.remote.dto.MonthlyTopProductsResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.remote.dto.ReceiveResponse
+import com.example.cashbookbd.data.remote.dto.RevokeDeviceResponse
 import com.example.cashbookbd.data.remote.dto.SettingsResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
@@ -84,4 +88,15 @@ interface ApiService {
      */
     @POST("accounts/payment/specific-item")
     suspend fun receiveSpecificItem(@Body request: ReceiveRequest): Response<ReceiveResponse>
+
+    /** GET {BASE_URL}/devices — the user's active sessions and their plan's device limit. */
+    @GET("devices")
+    suspend fun getDevices(): Response<DevicesResponse>
+
+    /**
+     * DELETE {BASE_URL}/devices/{tokenId} — signs one device out, freeing a slot
+     * against the plan's device limit. Returns 404 when the token is already gone.
+     */
+    @DELETE("devices/{tokenId}")
+    suspend fun revokeDevice(@Path("tokenId") tokenId: Long): Response<RevokeDeviceResponse>
 }

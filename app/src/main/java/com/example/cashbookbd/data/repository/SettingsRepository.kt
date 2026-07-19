@@ -55,6 +55,9 @@ class SettingsRepository(
                 Settings(
                     permissions = permissions,
                     businessTypeId = payload?.branch?.businessTypeId,
+                    userName = payload?.user?.name?.takeIf { it.isNotBlank() },
+                    userEmail = payload?.user?.email?.takeIf { it.isNotBlank() },
+                    transactionDate = payload?.trxDt?.takeIf { it.isNotBlank() },
                 )
             )
         } catch (e: IOException) {

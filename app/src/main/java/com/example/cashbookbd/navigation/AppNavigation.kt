@@ -35,6 +35,7 @@ import com.example.cashbookbd.ui.reports.LedgerScreen
 import com.example.cashbookbd.ui.reports.ProfitLossReportScreen
 import com.example.cashbookbd.ui.reports.ReportsHomeScreen
 import com.example.cashbookbd.ui.reports.TrialBalanceScreen
+import com.example.cashbookbd.ui.account.MyDevicesScreen
 import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
@@ -107,6 +108,9 @@ object Routes {
 
     // Customers section
     const val CUSTOMERS = "customers/home"
+
+    // Account section (the top-bar avatar menu)
+    const val MY_DEVICES = "account/my-devices"
 
     // Subscription section
     const val SUBSCRIPTION = "subscription/home"
@@ -361,7 +365,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.TRIAL_BALANCE_L3) {
-            PermissionGate(anyOf = listOf("cashbook.view", "trial.balance.l3")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("trialBalanceLevel3")) {
                 TrialBalanceScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -372,7 +376,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.TRIAL_BALANCE_L4) {
-            PermissionGate(anyOf = listOf("cashbook.view", "trial.balance.l4")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("trialBalanceLevel4")) {
                 TrialBalanceScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -381,7 +385,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.PROFIT_LOSS) {
-            PermissionGate(anyOf = listOf("cashbook.view", "profit.loss")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("profitLoss")) {
                 ProfitLossReportScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -390,7 +394,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.BALANCE_SHEET) {
-            PermissionGate(anyOf = listOf("cashbook.view", "balancesheet.view")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("balanceSheet")) {
                 BalanceSheetReportScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -399,7 +403,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.DUE_LIST) {
-            PermissionGate(anyOf = listOf("ledger.due.view")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("dueList")) {
                 DueListScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -408,7 +412,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.CASHBOOK) {
-            PermissionGate(anyOf = listOf("cashbook.view")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("cashbook")) {
                 CashBookScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -417,12 +421,20 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.LEDGER) {
-            PermissionGate(anyOf = listOf("ledger.view", "ledger.customer")) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("ledger")) {
                 LedgerScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
             }
+        }
+
+        // No permission gate: every signed-in user may manage their own devices.
+        composable(Routes.MY_DEVICES) {
+            MyDevicesScreen(
+                navController = navController,
+                onLogout = backToLogin,
+            )
         }
     }
 }
