@@ -91,7 +91,10 @@ fun PrimaryButton(
             text = text,
             icon = icon,
             isLoading = isLoading,
-            spinnerColor = MaterialTheme.colorScheme.onPrimary,
+            // Green, not on-primary white: while loading the button is disabled
+            // and greys out, and a white ring would vanish against it. The brand
+            // green stays visible and reads as "working".
+            spinnerColor = MaterialTheme.colorScheme.primary,
             compact = compact,
         )
     }
