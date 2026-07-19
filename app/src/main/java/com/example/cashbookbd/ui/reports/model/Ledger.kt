@@ -52,7 +52,12 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
         LedgerRow(
             date = dto.vrDate?.trim().orEmpty(),
             voucherNo = dto.vrNo?.trim().orEmpty(),
-            description = dto.remarks?.trim().orEmpty(),
+            // The web ledger's DESCRIPTION column renders `name` — the opposite
+            // side of the entry ("Sales, Sales Discount (<items>)"). `remarks` is
+            // a free-text note that is null on most rows, and the web only shows
+            // it as a tooltip, so reading it alone left the column blank.
+            description = dto.name?.trim().orEmpty()
+                .ifBlank { dto.remarks?.trim().orEmpty() },
             debit = dto.debit ?: 0.0,
             credit = dto.credit ?: 0.0,
         )
