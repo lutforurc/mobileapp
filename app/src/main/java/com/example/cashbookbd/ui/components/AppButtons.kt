@@ -1,6 +1,7 @@
 package com.example.cashbookbd.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +47,16 @@ private val ButtonHeight = 48.dp
 /** Matches an OutlinedTextField, for buttons that sit in a form row. */
 private val FieldHeight = 56.dp
 
+/**
+ * Toolbar sizing. Chrome beside a table — page size, "+ Add …" — reads as heavy
+ * at the full [ButtonHeight], so those opt into `compact`. Kept above Material's
+ * 40dp minimum for a small button; the main actions stay [ButtonHeight] because
+ * shrinking a Save or Apply target is a different trade entirely.
+ */
+private val CompactButtonHeight = 40.dp
+private val CompactIconSize = 16.dp
+private val CompactPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+
 private val ButtonShape = RoundedCornerShape(24.dp)
 private val IconSize = 18.dp
 
@@ -61,14 +73,22 @@ fun PrimaryButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     isLoading: Boolean = false,
+    compact: Boolean = false,
 ) {
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = ButtonShape,
-        modifier = modifier.height(ButtonHeight),
+        contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
+        modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
-        ButtonContent(text = text, icon = icon, isLoading = isLoading, spinnerColor = MaterialTheme.colorScheme.onPrimary)
+        ButtonContent(
+            text = text,
+            icon = icon,
+            isLoading = isLoading,
+            spinnerColor = MaterialTheme.colorScheme.onPrimary,
+            compact = compact,
+        )
     }
 }
 
@@ -83,16 +103,28 @@ fun SecondaryButton(
     trailingIcon: ImageVector? = null,
     trailingIconDescription: String? = null,
     isLoading: Boolean = false,
+    compact: Boolean = false,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = ButtonShape,
-        modifier = modifier.height(ButtonHeight),
+        contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
+        modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
-        ButtonContent(text = text, icon = icon, isLoading = isLoading, spinnerColor = MaterialTheme.colorScheme.primary)
+        ButtonContent(
+            text = text,
+            icon = icon,
+            isLoading = isLoading,
+            spinnerColor = MaterialTheme.colorScheme.primary,
+            compact = compact,
+        )
         if (trailingIcon != null && !isLoading) {
-            Icon(trailingIcon, contentDescription = trailingIconDescription, modifier = Modifier.size(IconSize))
+            Icon(
+                trailingIcon,
+                contentDescription = trailingIconDescription,
+                modifier = Modifier.size(if (compact) CompactIconSize else IconSize),
+            )
         }
     }
 }
@@ -131,6 +163,7 @@ fun AddButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    compact: Boolean = false,
 ) {
     PrimaryButton(
         text = text,
@@ -138,6 +171,7 @@ fun AddButton(
         modifier = modifier,
         enabled = enabled,
         icon = Icons.Filled.Add,
+        compact = compact,
     )
 }
 
@@ -208,18 +242,24 @@ private fun ButtonContent(
     icon: ImageVector?,
     isLoading: Boolean,
     spinnerColor: androidx.compose.ui.graphics.Color,
+    compact: Boolean = false,
 ) {
+    val iconSize = if (compact) CompactIconSize else IconSize
     if (isLoading) {
         CircularProgressIndicator(
-            modifier = Modifier.size(IconSize),
+            modifier = Modifier.size(iconSize),
             strokeWidth = 2.dp,
             color = spinnerColor,
         )
         return
     }
     if (icon != null) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize))
-        Spacer(Modifier.width(8.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+        Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
     }
-    Text(text)
+    if (compact) {
+        Text(text, style = MaterialTheme.typography.labelLarge)
+    } else {
+        Text(text)
+    }
 }
