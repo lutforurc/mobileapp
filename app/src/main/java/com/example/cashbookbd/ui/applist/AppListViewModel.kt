@@ -33,6 +33,7 @@ class AppListViewModel(
             perPage = spec?.perPage ?: 25,
             hasStatusToggle = spec?.statusToggle != null,
             addAction = spec?.addAction,
+            editAction = spec?.editAction,
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()

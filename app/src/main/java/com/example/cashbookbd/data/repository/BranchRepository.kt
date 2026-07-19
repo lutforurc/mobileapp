@@ -19,6 +19,18 @@ data class BranchFormOptions(
     val businessTypes: List<SelectorOption>,
 )
 
+/**
+ * A branch loaded for editing: [fields] is every scalar the server sent back for
+ * it, kept verbatim so an update can return the ones this form does not show.
+ */
+data class BranchEditData(
+    val fields: Map<String, String>,
+    val branchTypes: List<SelectorOption>,
+    val businessTypes: List<SelectorOption>,
+) {
+    fun field(key: String): String = fields[key].orEmpty()
+}
+
 /** The fields the Add Branch form collects. Everything else the server defaults. */
 data class NewBranch(
     val name: String,
@@ -113,6 +125,71 @@ class BranchRepository(
         }
     }
 
+    /** Loads one branch's current values plus the two pickers, for editing. */
+    suspend fun loadForEdit(branchId: String): Resource<BranchEditData> = withContext(ioDispatcher) {
+        get("branch/branch-edit/$branchId") { body ->
+            val payload = body?.getAsJsonObject("data")?.getAsJsonObject("data")
+            val branch = payload?.get("branch")?.takeIf { it.isJsonObject }?.asJsonObject
+            BranchEditData(
+                fields = branch.scalars(),
+                branchTypes = payload.options("branchType"),
+                businessTypes = payload.options("businessType"),
+            )
+        }
+    }
+
+    /**
+     * Updates a branch.
+     *
+     * `branch/branch-update` rewrites every column and meta row from the request,
+     * defaulting anything absent to 0/null — so a partial payload silently wipes
+     * settings this form never shows. [existing] is therefore posted back whole,
+     * with only the edited fields overwritten. `branch_id` (the hashed id the
+     * endpoint resolves on) rides along inside [existing].
+     */
+    suspend fun update(
+        existing: Map<String, String>,
+        branch: NewBranch,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = existing + mapOf(
+            "name" to branch.name.trim(),
+            "branch_types_id" to branch.branchTypeId,
+            "business_type_id" to branch.businessTypeId,
+            "address" to branch.address.trim(),
+            "phone" to branch.phone.trim(),
+            "contact_person" to branch.contactPerson.trim(),
+            "email" to branch.email.trim(),
+        )
+
+        call("branch/branch-update", body) { responseBody ->
+            responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() }
+                ?: "Branch updated successfully"
+        }
+    }
+
+    /**
+     * Every scalar field of a JSON object as strings. Nested objects and arrays
+     * are dropped: they are relations the update endpoint does not read, and a
+     * form-encoded body cannot carry them anyway.
+     */
+    private fun JsonObject?.scalars(): Map<String, String> {
+        val obj = this ?: return emptyMap()
+        return obj.entrySet().mapNotNull { (key, value) ->
+            when {
+                value == null || value.isJsonNull -> key to ""
+                value.isJsonPrimitive -> key to value.asString
+                else -> null
+            }
+        }.toMap()
+    }
+
+    /** GETs and maps the body via [onSuccess]. */
+    private suspend fun <T> get(
+        path: String,
+        onSuccess: (JsonObject?) -> T,
+    ): Resource<T> = request(onSuccess) { api.get(path, emptyMap()) }
+
     /**
      * POSTs and maps the body via [onSuccess].
      *
@@ -125,8 +202,13 @@ class BranchRepository(
         path: String,
         body: Map<String, String>,
         onSuccess: (JsonObject?) -> T,
+    ): Resource<T> = request(onSuccess) { api.post(path, body) }
+
+    private suspend fun <T> request(
+        onSuccess: (JsonObject?) -> T,
+        send: suspend () -> Response<JsonElement>,
     ): Resource<T> = try {
-        val response = api.post(path, body)
+        val response = send()
         when {
             response.code() == HTTP_UNAUTHORIZED ->
                 Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)

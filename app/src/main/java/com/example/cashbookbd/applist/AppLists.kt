@@ -36,6 +36,19 @@ data class ListStatusToggle(
 )
 
 /**
+ * A per-row edit pencil, shown in the trailing "Action" column. Tapping it opens
+ * [route] with the row's [idKey] appended.
+ *
+ * [idKey] defaults to the hashed `branch_id`-style key rather than `id` because
+ * the edit and update endpoints resolve a hashed id, while the status toggle
+ * posts the raw one — the same row carries both.
+ */
+data class ListEditAction(
+    val route: String,
+    val idKey: String,
+)
+
+/**
  * A list screen: fetch [endpoint] (with [params]) and render the returned rows as
  * a table of [columns]. The row array is located defensively (top-level array,
  * `data.data`, or a paginator's `data.data.data`). Read-only unless it declares a
@@ -56,6 +69,8 @@ data class AppListSpec(
     val statusToggle: ListStatusToggle? = null,
     /** When set, the toolbar shows a "+ Add" button opening the create screen. */
     val addAction: ListAddAction? = null,
+    /** When set, each row gets an edit pencil in the Action column. */
+    val editAction: ListEditAction? = null,
 )
 
 /**
@@ -119,6 +134,7 @@ object AppLists {
             paginated = true,
             statusToggle = ListStatusToggle(endpoint = "branch/branch-status"),
             addAction = ListAddAction(label = "Add Branch", route = Routes.BRANCH_ADD),
+            editAction = ListEditAction(route = Routes.BRANCH_EDIT, idKey = "branch_id"),
         ),
         AppListSpec(
             key = "companyList",

@@ -23,6 +23,11 @@ data class AppListRow(
     val cells: List<String>,
     val id: String? = null,
     val statusOn: Boolean = false,
+    /**
+     * The id the edit screen opens on. Separate from [id]: the status toggle
+     * posts the raw numeric id while the edit endpoints resolve a hashed one.
+     */
+    val editId: String? = null,
 )
 
 /** A page of list rows plus the server-side pagination meta. */
@@ -153,12 +158,14 @@ class AppListRepository(
             ?.takeIf { it.has("current_page") }
         val array = locateRows(payload) ?: return AppListResult(emptyList())
         val toggle = spec.statusToggle
+        val edit = spec.editAction
         val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             AppListRow(
                 cells = spec.columns.map { col -> format(dotGet(obj, col.key), numeric = col.numeric) },
                 id = toggle?.let { dotGet(obj, it.idKey)?.asString },
                 statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,
+                editId = edit?.let { dotGet(obj, it.idKey)?.asString },
             )
         }
         return if (paginator != null) {

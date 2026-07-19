@@ -9,17 +9,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -129,6 +132,11 @@ fun AppListScreen(
                     state = state,
                     onRetry = { viewModel.load() },
                     onToggleStatus = viewModel::onToggleStatus,
+                    onEdit = { row ->
+                        val edit = state.editAction ?: return@ListBody
+                        val id = row.editId ?: return@ListBody
+                        navController.navigate("${edit.route}/$id")
+                    },
                 )
                 SnackbarHost(
                     hostState = snackbarHostState,
@@ -166,6 +174,7 @@ private fun ListToolbar(
                     enabled = !state.isLoading,
                     trailingIcon = Icons.Filled.ArrowDropDown,
                     trailingIconDescription = "Rows per page",
+                    compact = true,
                 )
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     PER_PAGE_OPTIONS.forEach { option ->
@@ -184,7 +193,7 @@ private fun ListToolbar(
         }
 
         state.addAction?.let { add ->
-            AddButton(text = add.label, onClick = { onAdd(add.route) })
+            AddButton(text = add.label, onClick = { onAdd(add.route) }, compact = true)
         }
     }
 }
@@ -224,6 +233,7 @@ private fun ListBody(
     state: AppListUiState,
     onRetry: () -> Unit,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
+    onEdit: (AppListRow) -> Unit,
 ) {
     when {
         state.isLoading -> Center { CircularProgressIndicator() }
@@ -245,8 +255,10 @@ private fun ListBody(
         }
 
         else -> {
-            val columns = remember(state.columns, state.hasStatusToggle, state.togglingIds) {
-                buildColumns(state, onToggleStatus)
+            val columns = remember(
+                state.columns, state.hasStatusToggle, state.editAction, state.togglingIds,
+            ) {
+                buildColumns(state, onToggleStatus, onEdit)
             }
             ReportTable(columns = columns, data = state.rows)
         }
@@ -255,10 +267,12 @@ private fun ListBody(
 
 private val COL_SL = 48.dp
 private val COL_ACTION = 88.dp
+private val COL_ACTION_WITH_EDIT = 132.dp
 
 private fun buildColumns(
     state: AppListUiState,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
+    onEdit: (AppListRow) -> Unit,
 ): List<ReportColumn<AppListRow>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
@@ -275,27 +289,48 @@ private fun buildColumns(
             ) { row, _ -> cellText(row.cells.getOrNull(ci).orEmpty(), align = align, maxLines = 2) },
         )
     }
-    if (state.hasStatusToggle) {
+    val hasEdit = state.editAction != null
+    if (state.hasStatusToggle || hasEdit) {
+        val width = if (hasEdit && state.hasStatusToggle) COL_ACTION_WITH_EDIT else COL_ACTION
         add(
-            ReportColumn("Action", ReportColWidth.Fixed(COL_ACTION), TextAlign.Center) { row, _ ->
+            ReportColumn("Action", ReportColWidth.Fixed(width), TextAlign.Center) { row, _ ->
                 ReportTableCell.Slot {
-                    Box(
+                    Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        contentAlignment = Alignment.Center,
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Switch(
-                            checked = row.statusOn,
-                            onCheckedChange = { onToggleStatus(row, it) },
-                            // No id means nothing to send; a change already in
-                            // flight must land before another is accepted.
-                            enabled = row.id != null && row.id !in state.togglingIds,
-                        )
+                        if (hasEdit) {
+                            IconButton(
+                                onClick = { onEdit(row) },
+                                // Without an id there is nothing to open.
+                                enabled = row.editId != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Edit",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (state.hasStatusToggle) {
+                            Switch(
+                                checked = row.statusOn,
+                                onCheckedChange = { onToggleStatus(row, it) },
+                                // No id means nothing to send; a change already in
+                                // flight must land before another is accepted.
+                                enabled = row.id != null && row.id !in state.togglingIds,
+                            )
+                        }
                     }
                 }
             },
         )
     }
 }
+
+private val EditButtonSize = 36.dp
 
 @Composable
 private fun Center(content: @Composable () -> Unit) {

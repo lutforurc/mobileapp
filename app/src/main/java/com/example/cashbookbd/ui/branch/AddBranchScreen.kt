@@ -46,17 +46,23 @@ import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 
 /**
- * Creates a branch. Collects only what `branch/branch-store` requires — the
- * server defaults every other column and setting, exactly as the web's Add form
- * does when a user fills in nothing but the required fields.
+ * Creates or edits a branch, depending on whether [branchId] is given.
+ *
+ * Creating collects only what `branch/branch-store` requires — the server
+ * defaults every other column and setting, exactly as the web's Add form does
+ * when a user fills in nothing but the required fields. Editing shows the same
+ * fields, but the branch's other settings are loaded and posted back untouched
+ * (see [com.example.cashbookbd.data.repository.BranchRepository.update]).
  */
 @Composable
 fun AddBranchScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    branchId: String? = null,
     viewModel: AddBranchViewModel = viewModel(
-        factory = AddBranchViewModel.provideFactory(LocalContext.current)
+        key = branchId ?: "add",
+        factory = AddBranchViewModel.provideFactory(LocalContext.current, branchId),
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -85,7 +91,7 @@ fun AddBranchScreen(
     }
 
     AuthenticatedShell(
-        title = "Add Branch",
+        title = state.screenTitle,
         currentRoute = Routes.ADMIN,
         navController = navController,
         onLogout = onLogout,
@@ -136,7 +142,7 @@ fun AddBranchScreen(
                 Field("Email (optional)", state.email, viewModel::onEmail, keyboard = KeyboardType.Email)
 
                 PrimaryButton(
-                    text = "Save Branch",
+                    text = state.saveLabel,
                     onClick = viewModel::save,
                     enabled = state.canSave,
                     isLoading = state.isSaving,

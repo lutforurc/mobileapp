@@ -103,6 +103,11 @@ object Routes {
     const val BRANCH_ADD = "branch/add"
     const val USER_ADD = "user/add"
 
+    // Edit screens, opened from their list's row pencil. The id is appended by
+    // the list, so the base is stored bare and the pattern adds the argument.
+    const val BRANCH_EDIT = "branch/edit"
+    const val BRANCH_ID_ARG = "branchId"
+
     /** savedStateHandle key carrying a create confirmation back to the list. */
     const val CREATED_MESSAGE = "created_message"
 
@@ -313,6 +318,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 AddBranchScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.BRANCH_EDIT}/{${Routes.BRANCH_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("branch.view")) {
+                AddBranchScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    branchId = entry.arguments?.getString(Routes.BRANCH_ID_ARG),
                 )
             }
         }
