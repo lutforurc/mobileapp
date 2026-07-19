@@ -455,6 +455,7 @@ object ReportMenu {
             startParam = "startdate",
             endParam = "enddate",
             ledgerParam = "ledger_id",
+            dateStyle = ReportDateStyle.DISPLAY,
         ),
         ReportConfig(
             key = "labourLedger",
@@ -715,6 +716,7 @@ object ReportMenu {
             endParam = "enddate",
             ledgerParam = "ledger_id",
             ledgerRequired = false,
+            dateStyle = ReportDateStyle.DISPLAY,
         ),
     )
 
