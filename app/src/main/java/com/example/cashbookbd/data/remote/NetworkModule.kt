@@ -113,10 +113,23 @@ object NetworkModule {
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request().newBuilder()
                 .header("X-Device-Id", deviceIdProvider())
-                .header("X-Device-Name", deviceNameProvider())
+                .header("X-Device-Name", asciiHeaderValue(deviceNameProvider()))
                 .build()
             return chain.proceed(request)
         }
+
+        /**
+         * OkHttp rejects any header value char outside 0x20..0x7e with an
+         * IllegalArgumentException that crashes the request, so a device name
+         * carrying a "·" separator or a non-Latin brand name would take down
+         * every call. Drop those chars and collapse the resulting gaps so the
+         * device still gets a clean, readable name in My Devices.
+         */
+        private fun asciiHeaderValue(raw: String): String =
+            raw.map { if (it.code in 0x20..0x7e) it else ' ' }
+                .joinToString("")
+                .replace(Regex("\\s+"), " ")
+                .trim()
     }
 
     /**

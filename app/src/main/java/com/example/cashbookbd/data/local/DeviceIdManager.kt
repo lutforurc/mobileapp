@@ -39,9 +39,13 @@ class DeviceIdManager(context: Context) {
     }
 
     /**
-     * Label the user will see in "My Devices", e.g. "Samsung SM-A546E · Android 14".
+     * Label the user will see in "My Devices", e.g. "Samsung SM-A546E - Android 14".
      * Native clients have no meaningful user agent, so the server cannot work
      * this out on its own — it shows "Unknown device" unless we send it.
+     *
+     * Kept to printable ASCII: this value is sent as the `X-Device-Name` HTTP
+     * header, and OkHttp rejects any char outside 0x20..0x7e (a "·" separator or
+     * a non-Latin brand name would otherwise crash every request).
      */
     fun getName(): String {
         val manufacturer = Build.MANUFACTURER.orEmpty().trim()
@@ -56,7 +60,7 @@ class DeviceIdManager(context: Context) {
             else -> "$manufacturer $model"
         }
 
-        return "${hardware.replaceFirstChar { it.uppercase() }} · Android ${Build.VERSION.RELEASE}"
+        return "${hardware.replaceFirstChar { it.uppercase() }} - Android ${Build.VERSION.RELEASE}"
     }
 
     private companion object {
