@@ -34,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,6 +69,8 @@ fun AccountMenu(
     photoUrl: String? = null,
     isDark: Boolean,
     onThemeChange: (Boolean) -> Unit,
+    isFullScreen: Boolean,
+    onFullScreenChange: (Boolean) -> Unit,
     items: List<AccountMenuItem>,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
@@ -109,15 +113,18 @@ fun AccountMenu(
                 )
             }
 
-            // The switch drives the same callback as the row, so tapping anywhere
-            // on the row toggles the theme — as it does on the web.
-            DropdownMenuItem(
-                text = { Text(if (isDark) "Dark" else "Light") },
-                leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                trailingIcon = {
-                    Switch(checked = isDark, onCheckedChange = onThemeChange)
-                },
-                onClick = { onThemeChange(!isDark) },
+            SwitchMenuItem(
+                label = if (isDark) "Dark" else "Light",
+                icon = Icons.Filled.Settings,
+                checked = isDark,
+                onCheckedChange = onThemeChange,
+            )
+
+            SwitchMenuItem(
+                label = "Full Screen",
+                icon = FullScreenIcon,
+                checked = isFullScreen,
+                onCheckedChange = onFullScreenChange,
             )
 
             HorizontalDivider()
@@ -134,6 +141,59 @@ fun AccountMenu(
             )
         }
     }
+}
+
+/**
+ * A menu row that toggles a setting. The single switch-row component for the
+ * account menu — the theme and full-screen toggles both use it, so their
+ * spacing, icon slot and tap behaviour stay identical and change in one place.
+ *
+ * The switch drives the same callback as the row, so tapping anywhere on the row
+ * toggles the setting — as it does on the web.
+ */
+@Composable
+private fun SwitchMenuItem(
+    label: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(label) },
+        leadingIcon = { Icon(icon, contentDescription = null) },
+        trailingIcon = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+        onClick = { onCheckedChange(!checked) },
+    )
+}
+
+/**
+ * Material's "fullscreen" glyph (four corner brackets), drawn here because the
+ * project depends on the core icon set only, and adding
+ * `material-icons-extended` for one icon would cost several MB.
+ */
+private val FullScreenIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "FullScreen",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            // Bottom-left bracket.
+            moveTo(7f, 14f); lineTo(5f, 14f); lineTo(5f, 19f)
+            lineTo(10f, 19f); lineTo(10f, 17f); lineTo(7f, 17f); close()
+            // Top-left bracket.
+            moveTo(5f, 10f); lineTo(7f, 10f); lineTo(7f, 7f)
+            lineTo(10f, 7f); lineTo(10f, 5f); lineTo(5f, 5f); close()
+            // Bottom-right bracket.
+            moveTo(17f, 17f); lineTo(14f, 17f); lineTo(14f, 19f)
+            lineTo(19f, 19f); lineTo(19f, 14f); lineTo(17f, 14f); close()
+            // Top-right bracket.
+            moveTo(14f, 5f); lineTo(14f, 7f); lineTo(17f, 7f)
+            lineTo(17f, 10f); lineTo(19f, 10f); lineTo(19f, 5f); close()
+        }
+    }.build()
 }
 
 /** Name over transaction date, with the avatar — the web dropdown's header. */

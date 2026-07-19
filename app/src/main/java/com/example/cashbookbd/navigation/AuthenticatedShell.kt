@@ -99,6 +99,8 @@ fun AuthenticatedShell(
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
+    val fullScreenManager = remember { ServiceLocator.provideFullScreenManager(context) }
+    val isFullScreen by fullScreenManager.enabled.collectAsStateWithLifecycle()
     val isDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -170,6 +172,8 @@ fun AuthenticatedShell(
                         onThemeChange = { dark ->
                             themeManager.setMode(if (dark) ThemeMode.DARK else ThemeMode.LIGHT)
                         },
+                        isFullScreen = isFullScreen,
+                        onFullScreenChange = fullScreenManager::setEnabled,
                         items = accountMenuItems(
                             onDashboard = { navigateTo(Routes.HOME) },
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },

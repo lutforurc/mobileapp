@@ -31,6 +31,7 @@ import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
 import com.example.cashbookbd.session.SessionManager
+import com.example.cashbookbd.ui.theme.FullScreenManager
 import com.example.cashbookbd.ui.theme.ThemeManager
 import retrofit2.Retrofit
 
@@ -128,6 +129,9 @@ object ServiceLocator {
     private var themeManager: ThemeManager? = null
 
     @Volatile
+    private var fullScreenManager: FullScreenManager? = null
+
+    @Volatile
     private var settingsRepository: SettingsRepository? = null
 
     @Volatile
@@ -151,6 +155,13 @@ object ServiceLocator {
     fun provideThemeManager(context: Context): ThemeManager =
         themeManager ?: synchronized(this) {
             themeManager ?: ThemeManager(context.applicationContext).also { themeManager = it }
+        }
+
+    /** Shared, app-wide holder of the user's full-screen preference. */
+    fun provideFullScreenManager(context: Context): FullScreenManager =
+        fullScreenManager ?: synchronized(this) {
+            fullScreenManager ?: FullScreenManager(context.applicationContext)
+                .also { fullScreenManager = it }
         }
 
     private fun provideDashboardCache(context: Context): DashboardCache =
