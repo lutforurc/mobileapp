@@ -61,7 +61,7 @@ import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.LedgerStatement
 import com.example.cashbookbd.ui.reports.model.SimpleDate
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 @Composable
 fun LedgerScreen(
@@ -344,11 +344,8 @@ private fun ledgerFooterRow(label: String, debit: Double, credit: Double): List<
         ReportFooterCell(cellText(amountOrDash(credit), align = TextAlign.End, bold = true)),
     )
 
-private val amountFormat = DecimalFormat("#,##0.00")
-
-/** Debit/Credit cells show "-" for zero/empty, else a comma-grouped amount. */
-private fun amountOrDash(value: Double): String =
-    if (value == 0.0) "-" else amountFormat.format(value)
+/** Debit/Credit cells show "-" for zero/empty, else the branch-formatted amount. */
+private fun amountOrDash(value: Double): String = AmountFormat.formatOrDash(value)
 
 /** The API sends `vr_date` as yyyy-MM-dd; the report shows dd/MM/yyyy. */
 private fun formatVrDate(raw: String): String {

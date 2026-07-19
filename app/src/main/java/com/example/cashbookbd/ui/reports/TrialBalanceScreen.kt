@@ -60,7 +60,7 @@ import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.reports.model.TrialBalanceReport
 import com.example.cashbookbd.ui.reports.model.TrialBalanceRow
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 /**
  * Trial Balance Details (Level 4): a filterable, horizontally-scrollable table
@@ -411,13 +411,10 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-private val amountFormat = DecimalFormat("#,##0.##")
-
-private fun formatAmount(value: Double): String = amountFormat.format(value)
+private fun formatAmount(value: Double): String = AmountFormat.format(value)
 
 /** Blank out zeros so the numeric columns stay readable, like the web report. */
-private fun formatCell(value: Double): String =
-    if (value == 0.0) "-" else amountFormat.format(value)
+private fun formatCell(value: Double): String = AmountFormat.formatOrDash(value)
 
 private fun showDatePicker(
     context: Context,

@@ -51,9 +51,7 @@ import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.invoice.model.InvoiceLine
 import com.example.cashbookbd.ui.reports.model.SelectorOption
-import java.text.DecimalFormat
-
-private val amountFormat = DecimalFormat("#,##0.##")
+import com.example.cashbookbd.core.AmountFormat
 
 /**
  * A Sales/Purchase invoice entry form: a party (customer/supplier), a running
@@ -428,7 +426,7 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(line.product.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                         Text(
-                            text = "${amountFormat.format(line.qty)} × ${amountFormat.format(line.price)} = ${amountFormat.format(line.amount)}",
+                            text = "${AmountFormat.format(line.qty)} × ${AmountFormat.format(line.price)} = ${AmountFormat.format(line.amount)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -463,7 +461,7 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Total", fontWeight = FontWeight.Bold)
-                Text(amountFormat.format(total), fontWeight = FontWeight.Bold)
+                Text(AmountFormat.format(total), fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -59,7 +59,7 @@ import com.example.cashbookbd.ui.reports.model.BalanceSheetSection
 import com.example.cashbookbd.ui.reports.model.BalanceSheetSummaryItem
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 /**
  * Balance Sheet: filter area, summary boxes (Assets, Liabilities, Equity,
@@ -388,9 +388,7 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-private val amountFormat = DecimalFormat("#,##0.##")
-
-private fun formatAmount(value: Double): String = amountFormat.format(value)
+private fun formatAmount(value: Double): String = AmountFormat.format(value)
 
 private fun showDatePicker(
     context: Context,

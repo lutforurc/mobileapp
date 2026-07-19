@@ -1,5 +1,6 @@
 package com.example.cashbookbd.session
 
+import com.example.cashbookbd.core.AmountFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,12 +34,19 @@ class SessionManager {
 
     fun setLoading(loading: Boolean) = _state.update { it.copy(isLoading = loading) }
 
-    fun setSettings(settings: Settings) = _state.update {
-        it.copy(settings = settings, permissions = settings.permissions, isLoading = false)
+    fun setSettings(settings: Settings) {
+        // Keep the shared amount formatter in step with the current branch, so
+        // every screen's figures use this branch's decimal places without each
+        // one having to observe the session itself.
+        AmountFormat.setDecimalPlaces(settings.decimalPlaces)
+        _state.update {
+            it.copy(settings = settings, permissions = settings.permissions, isLoading = false)
+        }
     }
 
     /** Drop all session state (called on logout). */
     fun clear() {
+        AmountFormat.setDecimalPlaces(null)
         _state.value = State()
     }
 

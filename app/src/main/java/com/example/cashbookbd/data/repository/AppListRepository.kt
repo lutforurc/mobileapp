@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 /**
  * One rendered row: a display [cells] string per configured column, plus the raw
@@ -53,7 +53,6 @@ class AppListRepository(
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
         private val ROW_ARRAY_KEYS = listOf("data", "rows", "items", "list", "results", "users")
-        private val amountFormat = DecimalFormat("#,##0.##")
     }
 
     suspend fun fetch(
@@ -230,7 +229,7 @@ class AppListRepository(
             when {
                 number == null -> text
                 number == 0.0 -> "-"
-                numeric -> amountFormat.format(number)
+                numeric -> AmountFormat.format(number)
                 else -> text
             }
         }

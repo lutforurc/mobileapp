@@ -63,6 +63,12 @@ data class SettingsUserDto(
 data class SettingsBranchDto(
     @SerializedName("id") val id: Long? = null,
     @SerializedName("business_type_id") val businessTypeId: Int? = null,
+    /**
+     * Read as a string, not an Int: it comes from `meta()`, which returns "" for
+     * a branch that never set it, and an empty string coerced to Int would fail
+     * the whole settings parse. The mapper turns it into an Int or null.
+     */
+    @SerializedName("decimal_places") val decimalPlaces: String? = null,
 )
 
 /**

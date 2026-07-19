@@ -58,7 +58,7 @@ import com.example.cashbookbd.ui.reports.model.ProfitLossAccountLine
 import com.example.cashbookbd.ui.reports.model.ProfitLossReport
 import com.example.cashbookbd.ui.reports.model.ProfitLossSummaryItem
 import com.example.cashbookbd.ui.reports.model.SimpleDate
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 /**
  * Profit & Loss statement: filter area, summary boxes (income/expense/gross/net,
@@ -393,9 +393,7 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-private val amountFormat = DecimalFormat("#,##0.##")
-
-private fun formatAmount(value: Double): String = amountFormat.format(value)
+private fun formatAmount(value: Double): String = AmountFormat.format(value)
 
 private fun showDatePicker(
     context: Context,

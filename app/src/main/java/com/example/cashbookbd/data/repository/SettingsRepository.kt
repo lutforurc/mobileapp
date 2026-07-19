@@ -59,6 +59,7 @@ class SettingsRepository(
                     userEmail = payload?.user?.email?.takeIf { it.isNotBlank() },
                     userPhotoUrl = payload?.user?.profilePhoto?.takeIf { it.isNotBlank() },
                     transactionDate = payload?.trxDt?.takeIf { it.isNotBlank() },
+                    decimalPlaces = payload?.branch?.decimalPlaces?.trim()?.toIntOrNull(),
                 )
             )
         } catch (e: IOException) {

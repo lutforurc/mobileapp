@@ -19,4 +19,10 @@ data class Settings(
     val userPhotoUrl: String? = null,
     /** Branch transaction date, pre-formatted dd/MM/yyyy by the backend. */
     val transactionDate: String? = null,
+    /**
+     * How many fraction digits the current branch shows on amounts. Null when the
+     * branch has none set; [com.example.cashbookbd.core.AmountFormat] falls back
+     * to its default. Drives every transaction figure in the app.
+     */
+    val decimalPlaces: Int? = null,
 )

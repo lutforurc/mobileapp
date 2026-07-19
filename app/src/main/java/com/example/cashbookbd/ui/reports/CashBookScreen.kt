@@ -57,7 +57,7 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.CashBookRow
 import com.example.cashbookbd.ui.reports.model.SimpleDate
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 
 @Composable
 fun CashBookScreen(
@@ -278,11 +278,8 @@ private fun CashBookTable(rows: List<CashBookRow>) {
     )
 }
 
-private val amountFormat = DecimalFormat("#,##0")
-
 /** Received/Payment cells read cleaner when zeros show as a dash. */
-private fun amountOrDash(value: Double): String =
-    if (value == 0.0) "-" else amountFormat.format(value)
+private fun amountOrDash(value: Double): String = AmountFormat.formatOrDash(value)
 
 private fun showDatePicker(
     context: Context,

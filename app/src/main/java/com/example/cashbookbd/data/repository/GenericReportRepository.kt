@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
-import java.text.DecimalFormat
+import com.example.cashbookbd.core.AmountFormat
 import java.util.Locale
 
 /**
@@ -40,8 +40,6 @@ class GenericReportRepository(
         private val ROW_ARRAY_KEYS =
             listOf("rows", "items", "details", "data", "transactions", "list", "installments")
         private val SUMMARY_KEYS = listOf("summary", "totals", "total", "opening", "closing", "grand_total")
-
-        private val amountFormat = DecimalFormat("#,##0.##")
     }
 
     suspend fun fetch(
@@ -287,7 +285,7 @@ class GenericReportRepository(
             when {
                 // A numeric zero renders as "-" everywhere in report tables.
                 number != null && text.isNotBlank() && number == 0.0 -> "-"
-                number != null && text.isNotBlank() -> amountFormat.format(number)
+                number != null && text.isNotBlank() -> AmountFormat.format(number)
                 else -> text
             }
         }
@@ -305,7 +303,7 @@ class GenericReportRepository(
         val number = element.asString.replace(",", "").trim().toDoubleOrNull()
             ?: return formatValue(element)
         if (number == 0.0) return "-"
-        val formatted = amountFormat.format(number)
+        val formatted = AmountFormat.format(number)
         return if (unit.isNotBlank()) "$formatted $unit" else formatted
     }
 

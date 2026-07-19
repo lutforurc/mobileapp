@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -295,7 +296,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 icon = Icons.Filled.KeyboardArrowDown,
                 tint = accents.green,
                 label = "TODAY RECEIVED",
-                value = formatBdAmount(dashboard.todayReceived),
+                value = formatMoney(dashboard.todayReceived),
                 valueColor = MaterialTheme.colorScheme.onSurface,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -303,7 +304,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 icon = Icons.Filled.KeyboardArrowUp,
                 tint = accents.red,
                 label = "TODAY PAYMENT",
-                value = formatBdAmount(dashboard.todayPayment),
+                value = formatMoney(dashboard.todayPayment),
                 valueColor = accents.red,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -312,7 +313,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 glyph = "৳",
                 tint = accents.purple,
                 label = "BALANCE",
-                value = formatBdAmount(dashboard.balance),
+                value = formatMoney(dashboard.balance),
                 valueColor = accents.blue,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -559,7 +560,7 @@ private fun ReceivedFromHoPanel(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Text(
-                        text = "Tk. ${formatBdAmount(total)}",
+                        text = "Tk. ${formatMoney(total)}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = accents.blue,
@@ -623,7 +624,7 @@ private fun ReceivedRow(
             }
         }
         Text(
-            text = formatBdAmount(row.amount),
+            text = formatMoney(row.amount),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(end = 12.dp),
@@ -669,13 +670,33 @@ private fun ReceivedRow(
     }
 }
 
+// Quantity, not money — a product count keeps up to two decimals if present and
+// never picks up the branch's money decimal places (a count of "3" must not read
+// as "3.00").
 private val amountFormat = DecimalFormat("#,##0.##")
 
 private fun formatAmount(value: Double): String = amountFormat.format(value)
 
 /**
+ * A money figure in the dashboard's lakh style. Keeps the Bangladeshi grouping
+ * the panel is designed around, but takes the fraction from the branch's
+ * decimal_places via [AmountFormat] — so it agrees with every other transaction
+ * amount in the app. e.g. decimal_places=2 -> "2,38,807.00", =0 -> "2,38,807".
+ */
+private fun formatMoney(value: Double): String {
+    val western = AmountFormat.format(value)          // truncated + grouped, western
+    val negative = western.startsWith("-")
+    val body = western.removePrefix("-")
+    val dot = body.indexOf('.')
+    val intPart = (if (dot >= 0) body.substring(0, dot) else body).replace(",", "")
+    val fraction = if (dot >= 0) body.substring(dot) else ""   // keeps the "."
+    val grouped = groupLakh(intPart) + fraction
+    return if (negative) "-$grouped" else grouped
+}
+
+/**
  * Bangladeshi/Indian lakh grouping (e.g. 1540400 -> "15,40,400"): the rightmost
- * three digits, then groups of two. Whole taka, to match the H/O panel design.
+ * three digits, then groups of two. Whole numbers, for the top-products count.
  */
 private fun formatBdAmount(value: Double): String {
     val whole = Math.round(Math.abs(value)).toString()
