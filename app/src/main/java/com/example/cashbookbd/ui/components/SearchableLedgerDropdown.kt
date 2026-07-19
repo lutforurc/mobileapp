@@ -51,7 +51,9 @@ data class LedgerDropdownItem(
  * receive the chosen item. It contains **no** screen-specific logic.
  *
  * Behaviour:
- * - Each keystroke triggers [searchLedgers] after a [debounceMs] pause.
+ * - Searching starts only once [minSearchChars] characters are typed; below that
+ *   the menu says so instead of querying the server.
+ * - Each further keystroke triggers [searchLedgers] after a [debounceMs] pause.
  * - A spinner shows while searching; "No ledger found" when empty; the returned
  *   [Resource.Error.message] when the search fails.
  * - Each result shows the ledger name on line 1 and, when present, the mobile
@@ -69,6 +71,7 @@ data class LedgerDropdownItem(
  * @param enabled when false the field is read-only and won't open.
  * @param errorMessage an external (e.g. validation) error shown under the field.
  * @param debounceMs keystroke debounce in millis (default 400).
+ * @param minSearchChars characters required before searching (default [MIN_SEARCH_CHARS]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +85,7 @@ fun SearchableLedgerDropdown(
     enabled: Boolean = true,
     errorMessage: String? = null,
     debounceMs: Long = 400L,
+    minSearchChars: Int = MIN_SEARCH_CHARS,
 ) {
     // The text shown in the field (typed keyword, or the selected name).
     var query by remember { mutableStateOf(selectedLedger?.name.orEmpty()) }
@@ -104,7 +108,10 @@ fun SearchableLedgerDropdown(
     // changes, so rapid typing collapses into a single call after [debounceMs].
     LaunchedEffect(searchKey) {
         val keyword = searchKey.trim()
-        if (keyword.isEmpty()) {
+        // Below the threshold there is nothing to do — and crucially isSearching
+        // stays false, so the field shows the search icon rather than a spinner
+        // that would never resolve.
+        if (keyword.length < minSearchChars) {
             results = emptyList()
             isSearching = false
             searchError = null
@@ -170,6 +177,16 @@ fun SearchableLedgerDropdown(
             onDismissRequest = { expanded = false },
         ) {
             when {
+                // Ahead of the empty branch: 1–2 characters mean "keep typing",
+                // not "no ledger found".
+                searchKey.trim().length < minSearchChars -> InfoRow {
+                    Text(
+                        text = "Type at least $minSearchChars characters",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 isSearching -> InfoRow {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),

@@ -45,6 +45,7 @@ import kotlinx.coroutines.delay
  * @param search suspend search — typically a ViewModel call that hits the source's
  *   DDL endpoint with the typed keyword and returns a [Resource].
  * @param emptyText message shown when a search returns no rows.
+ * @param minSearchChars characters required before searching (default [MIN_SEARCH_CHARS]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,7 @@ fun SearchableSelectDropdown(
     placeholder: String = "Type to search…",
     emptyText: String = "No match found",
     debounceMs: Long = 400L,
+    minSearchChars: Int = MIN_SEARCH_CHARS,
 ) {
     var query by remember { mutableStateOf(selected?.label.orEmpty()) }
     var searchKey by remember { mutableStateOf("") }
@@ -73,7 +75,10 @@ fun SearchableSelectDropdown(
 
     LaunchedEffect(searchKey) {
         val keyword = searchKey.trim()
-        if (keyword.isEmpty()) {
+        // Below the threshold there is nothing to do — and crucially isSearching
+        // stays false, so the field shows the search icon rather than a spinner
+        // that would never resolve.
+        if (keyword.length < minSearchChars) {
             results = emptyList()
             isSearching = false
             searchError = null
@@ -130,6 +135,16 @@ fun SearchableSelectDropdown(
 
         ExposedDropdownMenu(expanded = menuVisible, onDismissRequest = { expanded = false }) {
             when {
+                // Ahead of the empty branch: 1–2 characters mean "keep typing",
+                // not "no match found".
+                searchKey.trim().length < minSearchChars -> InfoRow {
+                    Text(
+                        text = "Type at least $minSearchChars characters",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 isSearching -> InfoRow {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(12.dp))
