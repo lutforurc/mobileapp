@@ -19,7 +19,8 @@ val devLoginProps = Properties().apply {
 // repoint every build type (must end with a trailing slash for Retrofit).
 // val baseUrl = "https://aft.cashbookbd.com/api/"
 // val baseUrl = "https://eworld.cashbookbd.com/api/"
-val baseUrl = "https://sinthia.cashbookbd.com/api/" 
+// val baseUrl = "https://sinthia.cashbookbd.com/api/" 
+val baseUrl = "https://nibirnirman.cashbookbd.com/api/" 
 
 
 
