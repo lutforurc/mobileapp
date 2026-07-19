@@ -17,6 +17,7 @@ import java.io.IOException
 data class BranchFormOptions(
     val branchTypes: List<SelectorOption>,
     val businessTypes: List<SelectorOption>,
+    val paperSizes: List<SelectorOption>,
 )
 
 /**
@@ -27,28 +28,14 @@ data class BranchEditData(
     val fields: Map<String, String>,
     val branchTypes: List<SelectorOption>,
     val businessTypes: List<SelectorOption>,
-) {
-    fun field(key: String): String = fields[key].orEmpty()
-}
-
-/** The fields the Add Branch form collects. Everything else the server defaults. */
-data class NewBranch(
-    val name: String,
-    val branchTypeId: String,
-    val businessTypeId: String,
-    val address: String,
-    val phone: String,
-    val contactPerson: String,
-    val email: String,
+    val paperSizes: List<SelectorOption>,
 )
 
 /**
- * Branch create + its picker sources.
+ * Branch create/update and their picker sources.
  *
- * `branch/branch-store` needs only name, the two type ids, address, phone and
- * contact person — [NewBranch]. Every other column is defaulted server-side
- * (`branchData()` uses `?? default` throughout), so a short form is safe here;
- * `branch/branch-update` is the opposite and must never take a partial payload.
+ * Both take the form's values keyed by API name, so the wizard's configuration
+ * in `BranchForm` is the only place field names are written down.
  */
 class BranchRepository(
     private val api: ReportApiService,
@@ -58,43 +45,9 @@ class BranchRepository(
     companion object {
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
-
-        /**
-         * The branch settings the web's Add form posts when only the required
-         * fields are filled — its own initial state has every switch off,
-         * counters at 0 and texts blank. Sent verbatim so a branch created here
-         * gets the same meta rows as one created on the web.
-         */
-        private val WEB_DEFAULT_SETTINGS: Map<String, String> = mapOf(
-            "money_format" to "",
-            "invoice_label" to "",
-            "device_identifier_text" to "",
-            "decimal_places" to "0",
-            "dashboard_top_sales_days" to "0",
-            "have_is_guaranter" to "0",
-            "have_is_nominee" to "0",
-            "is_opening" to "0",
-            "stock_report_type" to "0",
-            "need_demo_tutorial" to "0",
-            "show_instalment_list" to "0",
-            "show_spelling_of_money" to "0",
-            "combined_invoice_note" to "0",
-            "show_category_in_invoice" to "0",
-            "show_brand_in_invoice" to "0",
-            "show_description_in_invoice" to "0",
-            "need_contact_person" to "0",
-            "due_list_with_address" to "0",
-            "need_relation_info" to "0",
-            "need_mother_name" to "0",
-            "sms_service" to "0",
-            "received_sms" to "0",
-            "sales_sms" to "0",
-            "purchase_sms" to "0",
-            "payment_sms" to "0",
-        )
     }
 
-    /** Loads the branch-type and business-type pickers. */
+    /** Loads the branch-type, business-type and paper-size pickers. */
     suspend fun loadFormOptions(): Resource<BranchFormOptions> = withContext(ioDispatcher) {
         call("settings/get-branch-settings", emptyMap()) { body ->
             // foundData nests the payload under data.data.
@@ -102,23 +55,14 @@ class BranchRepository(
             BranchFormOptions(
                 branchTypes = payload.options("branchType"),
                 businessTypes = payload.options("businessType"),
+                paperSizes = payload.options("paperSize"),
             )
         }
     }
 
-    /** Creates a branch. Returns the server's confirmation message. */
-    suspend fun store(branch: NewBranch): Resource<String> = withContext(ioDispatcher) {
-        val body = mapOf(
-            "name" to branch.name.trim(),
-            "branch_types_id" to branch.branchTypeId,
-            "business_type_id" to branch.businessTypeId,
-            "address" to branch.address.trim(),
-            "phone" to branch.phone.trim(),
-            "contact_person" to branch.contactPerson.trim(),
-            "email" to branch.email.trim(),
-        ) + WEB_DEFAULT_SETTINGS
-
-        call("branch/branch-store", body) { responseBody ->
+    /** Creates a branch from the wizard's values. Returns the server's message. */
+    suspend fun store(values: Map<String, String>): Resource<String> = withContext(ioDispatcher) {
+        call("branch/branch-store", values.trimmed()) { responseBody ->
             responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
                 ?.takeIf { it.isNotBlank() }
                 ?: "Branch saved successfully"
@@ -134,6 +78,7 @@ class BranchRepository(
                 fields = branch.scalars(),
                 branchTypes = payload.options("branchType"),
                 businessTypes = payload.options("businessType"),
+                paperSizes = payload.options("paperSize"),
             )
         }
     }
@@ -149,24 +94,17 @@ class BranchRepository(
      */
     suspend fun update(
         existing: Map<String, String>,
-        branch: NewBranch,
+        values: Map<String, String>,
     ): Resource<String> = withContext(ioDispatcher) {
-        val body = existing + mapOf(
-            "name" to branch.name.trim(),
-            "branch_types_id" to branch.branchTypeId,
-            "business_type_id" to branch.businessTypeId,
-            "address" to branch.address.trim(),
-            "phone" to branch.phone.trim(),
-            "contact_person" to branch.contactPerson.trim(),
-            "email" to branch.email.trim(),
-        )
-
-        call("branch/branch-update", body) { responseBody ->
+        call("branch/branch-update", (existing + values).trimmed()) { responseBody ->
             responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
                 ?.takeIf { it.isNotBlank() }
                 ?: "Branch updated successfully"
         }
     }
+
+    private fun Map<String, String>.trimmed(): Map<String, String> =
+        mapValues { (_, value) -> value.trim() }
 
     /**
      * Every scalar field of a JSON object as strings. Nested objects and arrays
