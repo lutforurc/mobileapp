@@ -2,6 +2,7 @@ package com.example.cashbookbd.di
 
 import android.content.Context
 import com.example.cashbookbd.data.local.DashboardCache
+import com.example.cashbookbd.data.local.DeviceIdManager
 import com.example.cashbookbd.data.local.TokenManager
 import com.example.cashbookbd.data.remote.ApiService
 import com.example.cashbookbd.data.remote.LedgerApiService
@@ -129,6 +130,9 @@ object ServiceLocator {
     @Volatile
     private var sessionRepository: SessionRepository? = null
 
+    @Volatile
+    private var deviceIdManager: DeviceIdManager? = null
+
     fun provideTokenManager(context: Context): TokenManager =
         tokenManager ?: synchronized(this) {
             tokenManager ?: TokenManager(context.applicationContext).also { tokenManager = it }
@@ -151,11 +155,22 @@ object ServiceLocator {
             dashboardCache ?: DashboardCache(context.applicationContext).also { dashboardCache = it }
         }
 
+    /** Shared, app-wide identity for this install against the plan device limit. */
+    fun provideDeviceIdManager(context: Context): DeviceIdManager =
+        deviceIdManager ?: synchronized(this) {
+            deviceIdManager ?: DeviceIdManager(context.applicationContext).also { deviceIdManager = it }
+        }
+
     private fun provideRetrofit(context: Context): Retrofit =
         retrofit ?: synchronized(this) {
             retrofit ?: run {
                 val tokens = provideTokenManager(context)
-                NetworkModule.retrofit(tokenProvider = tokens::getToken)
+                val device = provideDeviceIdManager(context)
+                NetworkModule.retrofit(
+                    tokenProvider = tokens::getToken,
+                    deviceIdProvider = device::getId,
+                    deviceNameProvider = device::getName,
+                )
             }.also { retrofit = it }
         }
 

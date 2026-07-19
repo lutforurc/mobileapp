@@ -39,7 +39,11 @@ object NetworkModule {
      * service interface (e.g. [ApiService], [LedgerApiService]) from the returned
      * Retrofit so they share one OkHttp client.
      */
-    fun retrofit(tokenProvider: () -> String?): Retrofit {
+    fun retrofit(
+        tokenProvider: () -> String?,
+        deviceIdProvider: () -> String,
+        deviceNameProvider: () -> String,
+    ): Retrofit {
         val gson = GsonBuilder()
             .registerTypeAdapterFactory(PhpEmptyArrayAsMapFactory())
             // Permissions arrive as either strings or {id,name,group_name} objects.
@@ -48,12 +52,16 @@ object NetworkModule {
 
         return Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)
-            .client(buildOkHttpClient(tokenProvider))
+            .client(buildOkHttpClient(tokenProvider, deviceIdProvider, deviceNameProvider))
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
-    private fun buildOkHttpClient(tokenProvider: () -> String?): OkHttpClient {
+    private fun buildOkHttpClient(
+        tokenProvider: () -> String?,
+        deviceIdProvider: () -> String,
+        deviceNameProvider: () -> String,
+    ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -73,6 +81,7 @@ object NetworkModule {
             .retryOnConnectionFailure(false)
             .dns(VhostDns(BASE_HOST, LOCAL_HOST_IP))
             .addInterceptor(AcceptJsonInterceptor)
+            .addInterceptor(DeviceHeadersInterceptor(deviceIdProvider, deviceNameProvider))
             .addInterceptor(AuthInterceptor(tokenProvider))
             .addInterceptor(logging)
             .build()
@@ -83,6 +92,28 @@ object NetworkModule {
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request().newBuilder()
                 .header("Accept", "application/json")
+                .build()
+            return chain.proceed(request)
+        }
+    }
+
+    /**
+     * Identifies this install to the API's per-plan device limit.
+     *
+     * Must be on every request, not just login: the server stamps the slot at
+     * login, but the id is also what lets a re-login reuse this phone's slot
+     * instead of consuming another one. The name is sent because a native
+     * client has no user agent the server can parse — without it the device
+     * shows up as "Unknown device" in My Devices.
+     */
+    private class DeviceHeadersInterceptor(
+        private val deviceIdProvider: () -> String,
+        private val deviceNameProvider: () -> String,
+    ) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request().newBuilder()
+                .header("X-Device-Id", deviceIdProvider())
+                .header("X-Device-Name", deviceNameProvider())
                 .build()
             return chain.proceed(request)
         }
