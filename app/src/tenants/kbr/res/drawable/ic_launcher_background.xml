@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The KBR logo's own background colour, so the adaptive icon reads as one
+     flat mark whatever shape the launcher masks it to. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#F7F7F7" />
+</shape>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon is the tenant's own logo, so a tenant brands its app icon
+     simply by shipping drawable/logo.png — no separate icon set to generate.
+     The inset keeps the mark inside the adaptive icon's safe zone, which a
+     launcher may mask to a circle, squircle or rounded square.
+
+     No <monochrome>: themed icons flatten the foreground to its alpha, which
+     turns a full-colour logo into a shapeless blob. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground>
+        <inset
+            android:drawable="@drawable/logo"
+            android:inset="22%" />
+    </foreground>
+</adaptive-icon>

@@ -25,7 +25,6 @@ val baseUrl = "https://nibirnirman.cashbookbd.com/api/"
 // val baseUrl = "https://krf.cashbookbd.com/api/" 
 // val baseUrl = "https://scn.cashbookbd.com/api/" 
 // val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
-
 // val baseUrl = "https://kps.cashbookbd.com/api/" 
 // val baseUrl = "https://kbr.cashbookbd.com/api/" 
 
@@ -35,19 +34,40 @@ val baseUrl = "https://nibirnirman.cashbookbd.com/api/"
 
 /**
  * Per-tenant branding. The tenant key is the base URL's subdomain, so switching
- * `baseUrl` above also switches the logo — no second place to keep in step.
+ * `baseUrl` above also switches the branding — no second place to keep in step.
  *
- * Each tenant's assets live in `src/tenants/<key>/res` and are named exactly as
- * they are for every other tenant (`drawable/logo.png`), so the app can always
- * reference `R.drawable.logo`. Only the active tenant's folder is added to the
- * build, so one tenant's APK never carries another's artwork. A tenant with no
- * folder falls back to `src/tenants/default`.
+ * Assets live in `src/tenants/<key>/res` and are named identically for every
+ * tenant (drawable/logo.png, and ic_launcher in the mipmap density folders), so
+ * the app just references `R.drawable.logo` / `@mipmap/ic_launcher` with no
+ * per-tenant branching.
+ *
+ * `src/tenants/default/res` is laid down first and the tenant's files are copied
+ * over it, so a tenant overrides only what it actually ships and inherits the
+ * rest — a tenant with just a logo keeps the stock launcher icon rather than
+ * losing it, or worse, inheriting another tenant's. These must NOT live in
+ * `src/main/res`: a resource declared there as well would collide, and anything
+ * tenant-specific left there would ship to every tenant.
  */
 val tenantKey: String = Regex("""^https?://([^./]+)""")
     .find(baseUrl)?.groupValues?.get(1).orEmpty()
 
-val tenantResDir: File = file("src/tenants/$tenantKey/res")
-    .takeIf { it.isDirectory } ?: file("src/tenants/default/res")
+// Keyed by tenant so switching tenants can't leave the previous one's artwork
+// behind in the output directory. Resolved to a plain File because the Android
+// source-set API rejects a Provider; prepareTenantRes is wired to preBuild below
+// so the directory still exists before anything reads it.
+val tenantResDir: File = layout.buildDirectory.dir("tenantRes/$tenantKey").get().asFile
+
+// Sync, not Copy: the output must mirror the sources exactly. A Copy leaves
+// behind files that were since deleted from the source, which would keep
+// shipping resources long after they were removed.
+val prepareTenantRes = tasks.register<Sync>("prepareTenantRes") {
+    description = "Overlays the active tenant's resources onto the default set."
+    from("src/tenants/default/res")
+    file("src/tenants/$tenantKey/res").takeIf { it.isDirectory }?.let { from(it) }
+    into(tenantResDir)
+    // Later sources win, which is what makes the tenant override the default.
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
 
 /** Wraps a value as a valid Java string literal for buildConfigField. */
 fun javaStringLiteral(value: String): String {
@@ -67,9 +87,7 @@ android {
         }
     }
 
-    // Adds the active tenant's assets alongside the shared ones. Nothing in
-    // src/main/res may declare a resource a tenant folder also declares (e.g.
-    // `logo`), or the two would collide.
+    // The merged default+tenant resources, built by prepareTenantRes below.
     sourceSets {
         getByName("main") {
             res.srcDir(tenantResDir)
@@ -152,6 +170,10 @@ android {
         buildConfig = true
     }
 }
+
+// The tenant resources are a generated source directory, so they must exist
+// before anything reads them.
+tasks.named("preBuild") { dependsOn(prepareTenantRes) }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
