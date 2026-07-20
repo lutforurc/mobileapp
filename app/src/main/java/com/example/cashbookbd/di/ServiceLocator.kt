@@ -5,6 +5,7 @@ import com.example.cashbookbd.data.local.DashboardCache
 import com.example.cashbookbd.data.local.DeviceIdManager
 import com.example.cashbookbd.data.local.TokenManager
 import com.example.cashbookbd.data.remote.ApiService
+import com.example.cashbookbd.data.remote.HrmApiService
 import com.example.cashbookbd.data.remote.LedgerApiService
 import com.example.cashbookbd.data.remote.NetworkModule
 import com.example.cashbookbd.data.remote.ReportApiService
@@ -17,6 +18,7 @@ import com.example.cashbookbd.data.repository.BranchRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
+import com.example.cashbookbd.data.repository.HrmRepository
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ProfitLossRepository
@@ -87,6 +89,12 @@ object ServiceLocator {
 
     @Volatile
     private var transactionRepository: TransactionRepository? = null
+
+    @Volatile
+    private var hrmApiService: HrmApiService? = null
+
+    @Volatile
+    private var hrmRepository: HrmRepository? = null
 
     @Volatile
     private var invoiceRepository: InvoiceRepository? = null
@@ -312,6 +320,19 @@ object ServiceLocator {
         transactionApiService ?: synchronized(this) {
             transactionApiService ?: provideRetrofit(context).create(TransactionApiService::class.java)
                 .also { transactionApiService = it }
+        }
+
+    private fun provideHrmApiService(context: Context): HrmApiService =
+        hrmApiService ?: synchronized(this) {
+            hrmApiService ?: provideRetrofit(context).create(HrmApiService::class.java)
+                .also { hrmApiService = it }
+        }
+
+    fun provideHrmRepository(context: Context): HrmRepository =
+        hrmRepository ?: synchronized(this) {
+            hrmRepository ?: HrmRepository(
+                api = provideHrmApiService(context),
+            ).also { hrmRepository = it }
         }
 
     fun provideTransactionRepository(context: Context): TransactionRepository =

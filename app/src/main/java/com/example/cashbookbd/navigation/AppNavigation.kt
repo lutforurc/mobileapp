@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
@@ -45,6 +46,8 @@ import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
+import com.example.cashbookbd.ui.hrm.HrmFormScreen
+import com.example.cashbookbd.ui.hrm.HrmHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
@@ -100,6 +103,13 @@ object Routes {
     const val ADMIN_KEY_ARG = "key"
 
     fun adminView(key: String): String = "admin/view/$key"
+
+    // HRM section
+    const val HRM = "hrm/home"
+    const val HRM_VIEW = "hrm/view/{key}"
+    const val HRM_KEY_ARG = "key"
+
+    fun hrmView(key: String): String = "hrm/view/$key"
 
     // Create screens, opened from their list's "+ Add" button.
     const val BRANCH_ADD = "branch/add"
@@ -307,6 +317,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.ADMIN) {
             PermissionGate(anyOf = AdminMenu.all.flatMap { it.anyOf }) {
                 AdminHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.HRM) {
+            PermissionGate(anyOf = HrmMenu.all.flatMap { it.anyOf }) {
+                HrmHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.HRM_VIEW,
+            arguments = listOf(navArgument(Routes.HRM_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.HRM_KEY_ARG).orEmpty()
+            val item = HrmMenu.byKey(key)
+            PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
+                HrmFormScreen(
+                    hrmKey = key,
                     navController = navController,
                     onLogout = backToLogin,
                 )

@@ -59,6 +59,7 @@ class GenericReportViewModel(
             selectedChoice = config?.choiceParam?.options?.firstOrNull(),
             selectors = config?.selectors.orEmpty().map { SelectorFieldState(config = it) },
             showMonthYear = config?.usesMonthYear == true,
+            showYearOnly = config?.usesYearOnly == true,
         )
     )
     val uiState: StateFlow<GenericReportUiState> = _uiState.asStateFlow()
@@ -234,7 +235,9 @@ class GenericReportViewModel(
                 ledgerId = if (state.showLedger) state.selectedLedger?.id?.toLong() else null,
                 choiceValue = if (state.showChoice) state.selectedChoice?.value else null,
                 selectorValues = selectorValues,
-                monthYear = if (state.showMonthYear) state.monthYear.toParam() else null,
+                monthYear = if (cfg.monthYearParam != null) state.monthYear.toParam() else null,
+                month = if (cfg.monthParam != null) state.monthYear.month.toString() else null,
+                year = if (cfg.yearParam != null) state.monthYear.year.toString() else null,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {

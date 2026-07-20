@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
@@ -48,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
@@ -92,6 +94,8 @@ fun AuthenticatedShell(
     val canVrSettings = VrSettingsMenu.hasParentAccess(sessionState.permissions)
     // The "Admin" section is shown when the user has any admin permission.
     val canAdmin = AdminMenu.hasParentAccess(sessionState.permissions)
+    // The "HRM" section is shown when the user has any HRM permission.
+    val canHrm = HrmMenu.hasParentAccess(sessionState.permissions)
     // The "Customers" section is shown when the user has any customer permission.
     val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
     // "Subscription" shows for any authenticated user (My Plan is universal).
@@ -132,6 +136,7 @@ fun AuthenticatedShell(
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
                 canAdmin = canAdmin,
+                canHrm = canHrm,
                 canCustomers = canCustomers,
                 canSubscription = canSubscription,
                 onDestinationClick = { route ->
@@ -203,6 +208,7 @@ private fun AppDrawerContent(
     canInvoices: Boolean,
     canVrSettings: Boolean,
     canAdmin: Boolean,
+    canHrm: Boolean,
     canCustomers: Boolean,
     canSubscription: Boolean,
     onDestinationClick: (String) -> Unit,
@@ -286,6 +292,18 @@ private fun AppDrawerContent(
                     icon = { Icon(Icons.Filled.AccountBox, contentDescription = null) },
                     selected = currentRoute == Routes.ADMIN,
                     onClick = { onDestinationClick(Routes.ADMIN) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+
+            // Single "HRM" section — its child screens are listed inside
+            // HrmHomeScreen, filtered by permission.
+            if (canHrm) {
+                NavigationDrawerItem(
+                    label = { Text("HRM") },
+                    icon = { Icon(Icons.Filled.Face, contentDescription = null) },
+                    selected = currentRoute == Routes.HRM,
+                    onClick = { onDestinationClick(Routes.HRM) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }

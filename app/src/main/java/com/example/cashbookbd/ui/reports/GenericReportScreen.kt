@@ -212,6 +212,11 @@ private fun FilterCard(
             MonthYearField(value = state.monthYear, onSelected = onMonthYear)
         }
 
+        if (state.showYearOnly) {
+            Spacer(Modifier.height(12.dp))
+            YearField(value = state.monthYear, onSelected = onMonthYear)
+        }
+
         if (state.showStartDate || state.showEndDate) {
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -371,6 +376,57 @@ private fun MonthYearField(value: MonthYear, onSelected: (MonthYear) -> Unit) {
             onConfirm = {
                 onSelected(it)
                 showDialog = false
+            },
+        )
+    }
+}
+
+/** Field + dialog for a year-only selection (HRM salary sheet). */
+@Composable
+private fun YearField(value: MonthYear, onSelected: (MonthYear) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    PickerField(
+        label = "Year",
+        value = value.year.toString(),
+        trailingIcon = Icons.Filled.DateRange,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { showDialog = true },
+    )
+
+    if (showDialog) {
+        var year by remember { mutableStateOf(value.year) }
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                LinkButton(
+                    text = "OK",
+                    onClick = {
+                        onSelected(value.copy(year = year))
+                        showDialog = false
+                    },
+                )
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = { showDialog = false }) },
+            title = { Text("Select Year") },
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { year-- }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous year")
+                    }
+                    Text(
+                        text = year.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    IconButton(onClick = { year++ }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next year")
+                    }
+                }
             },
         )
     }

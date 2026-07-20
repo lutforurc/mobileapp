@@ -51,12 +51,15 @@ class GenericReportRepository(
         choiceValue: String? = null,
         selectorValues: Map<String, String> = emptyMap(),
         monthYear: String? = null,
+        month: String? = null,
+        year: String? = null,
     ): Resource<ReportResult> = withContext(ioDispatcher) {
         val path = ReportEndpoints.path(config.endpointKey)
             ?: return@withContext Resource.Error("This report is not available.")
 
         val params = buildParams(
-            config, branchId, startDate, endDate, ledgerId, choiceValue, selectorValues, monthYear,
+            config, branchId, startDate, endDate, ledgerId, choiceValue, selectorValues,
+            monthYear, month, year,
         )
 
         try {
@@ -106,6 +109,8 @@ class GenericReportRepository(
         choiceValue: String?,
         selectorValues: Map<String, String>,
         monthYear: String?,
+        month: String?,
+        year: String?,
     ): Map<String, String> {
         fun fmt(date: SimpleDate): String =
             if (config.dateStyle == ReportDateStyle.DISPLAY) date.toDisplay() else date.toApi()
@@ -120,6 +125,9 @@ class GenericReportRepository(
         // Remote-dropdown filters (category, brand, product, somity, labour).
         selectorValues.forEach { (key, value) -> if (value.isNotBlank()) params[key] = value }
         config.monthYearParam?.let { key -> monthYear?.let { params[key] = it } }
+        // Split month/year params (HRM monthly summaries, salary sheet year).
+        config.monthParam?.let { key -> month?.let { params[key] = it } }
+        config.yearParam?.let { key -> year?.let { params[key] = it } }
         config.startParam?.let { key -> startDate?.let { params[key] = fmt(it) } }
         config.endParam?.let { key -> endDate?.let { params[key] = fmt(it) } }
         config.altStartParam?.let { key -> startDate?.let { params[key] = fmt(it) } }
@@ -166,10 +174,12 @@ class GenericReportRepository(
         val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
         val unitKey = config.unitColumn?.lowercase(Locale.US)
         val labels = config.columnLabels.mapKeys { it.key.lowercase(Locale.US) }
+        val text = config.textColumns.map { it.lowercase(Locale.US) }.toSet()
+        val months = config.monthColumns.map { it.lowercase(Locale.US) }.toSet()
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months) }
         }
     }
 
@@ -252,6 +262,8 @@ class GenericReportRepository(
         zeroDash: Set<String> = emptySet(),
         unitKey: String? = null,
         labels: Map<String, String> = emptyMap(),
+        text: Set<String> = emptySet(),
+        months: Set<String> = emptySet(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -264,17 +276,38 @@ class GenericReportRepository(
                 obj.entrySet()
                     .filterNot { it.key.lowercase(Locale.US) in hidden }
                     .map { entry ->
-                        val value = if (entry.key.lowercase(Locale.US) in zeroDash) {
-                            formatAmount(entry.value, unit)
-                        } else {
-                            formatValue(entry.value)
+                        val keyLower = entry.key.lowercase(Locale.US)
+                        val value = when {
+                            keyLower in months -> formatMonthCode(entry.value)
+                            keyLower in text -> rawText(entry.value)
+                            keyLower in zeroDash -> formatAmount(entry.value, unit)
+                            else -> formatValue(entry.value)
                         }
-                        val header = labels[entry.key.lowercase(Locale.US)] ?: humanize(entry.key)
+                        val header = labels[keyLower] ?: humanize(entry.key)
                         ReportCell(header, value)
                     }
             )
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /** The primitive's text exactly as sent — for digit-only codes, not amounts. */
+    private fun rawText(element: JsonElement): String =
+        if (element.isJsonPrimitive) element.asString else formatValue(element)
+
+    /** "092025" / "09-2025" -> "Sep 2025"; anything else passes through verbatim. */
+    private fun formatMonthCode(element: JsonElement): String {
+        if (!element.isJsonPrimitive) return formatValue(element)
+        val raw = element.asString.trim()
+        val match = Regex("""^(\d{2})-?(\d{4})$""").find(raw) ?: return raw
+        val month = match.groupValues[1].toIntOrNull()
+        val year = match.groupValues[2]
+        if (month == null || month !in 1..12) return raw
+        val label = listOf(
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        )[month - 1]
+        return "$label $year"
     }
 
     private fun formatValue(element: JsonElement): String = when {

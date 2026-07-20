@@ -46,6 +46,12 @@ enum class ReportDateStyle {
 enum class ReportFilterType {
     BRANCH_DATE_RANGE,
     BRANCH_END_DATE,
+    /** Branch picker only, no dates (e.g. HRM Loan Balance). */
+    BRANCH_ONLY,
+    /** Branch + month + year sent as separate params (HRM monthly summaries). */
+    BRANCH_MONTH_YEAR,
+    /** Branch + year only (HRM salary sheet). */
+    BRANCH_YEAR,
     BRANCH_LEDGER_DATE_RANGE,
     BRANCH_PRODUCT_DATE_RANGE,
     BRANCH_PRODUCT_ONLY,
@@ -128,6 +134,23 @@ data class ReportConfig(
      * this key (Collection Sheet's `month_year`).
      */
     val monthYearParam: String? = null,
+    /**
+     * When set (with [yearParam]), the month/year picker sends the month number
+     * ("1".."12") under this key and the year under [yearParam] — the HRM
+     * monthly-summary endpoints take them as two separate params.
+     */
+    val monthParam: String? = null,
+    /**
+     * Year param key. With [monthParam] it pairs with the month/year picker;
+     * alone it shows a year-only picker (HRM salary sheet's `year_id`).
+     */
+    val yearParam: String? = null,
+    /**
+     * Which parent section lists this report. The Reports home shows only
+     * [SECTION_REPORTS]; HRM report screens live in the HRM section but reuse
+     * this registry and the generic engine.
+     */
+    val section: String = SECTION_REPORTS,
     /** How the generic parser should read this report's payload. */
     val responseShape: ReportResponseShape = ReportResponseShape.NORMAL,
     /** Column header for a [ReportResponseShape.KEYED_SCALARS] report (e.g. "IMEI"). */
@@ -156,6 +179,18 @@ data class ReportConfig(
      * column is not shown separately.
      */
     val unitColumn: String? = null,
+    /**
+     * Raw API row keys (case-insensitive) rendered verbatim — no numeric
+     * formatting. For digit-only codes that are labels, not amounts (e.g. an
+     * employee serial "007", which must not become "7").
+     */
+    val textColumns: List<String> = emptyList(),
+    /**
+     * Raw API row keys (case-insensitive) holding a month code ("MMYYYY" or
+     * "MM-YYYY"), rendered as "Sep 2025". Falls back to the raw text when the
+     * value doesn't match either pattern.
+     */
+    val monthColumns: List<String> = emptyList(),
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -163,7 +198,9 @@ data class ReportConfig(
             filterType in GENERIC_FILTER_TYPES ||
                 ledgerParam != null ||
                 selectors.isNotEmpty() ||
-                monthYearParam != null
+                monthYearParam != null ||
+                monthParam != null ||
+                yearParam != null
             )
 
     /** True when this report needs the searchable ledger/party picker. */
@@ -172,18 +209,102 @@ data class ReportConfig(
     /** True when this report needs the single-select choice dropdown. */
     val usesChoice: Boolean get() = choiceParam != null
 
-    /** True when this report needs the month/year picker. */
-    val usesMonthYear: Boolean get() = monthYearParam != null
+    /** True when this report needs the month/year picker (single or split params). */
+    val usesMonthYear: Boolean get() = monthYearParam != null || monthParam != null
 
-    private companion object {
-        val GENERIC_FILTER_TYPES = setOf(
+    /** True when this report needs only a year picker (no month). */
+    val usesYearOnly: Boolean get() = yearParam != null && monthParam == null
+
+    companion object {
+        /** [section] of reports listed under the Reports parent menu. */
+        const val SECTION_REPORTS = "reports"
+
+        /** [section] of reports listed under the HRM parent menu. */
+        const val SECTION_HRM = "hrm"
+
+        private val GENERIC_FILTER_TYPES = setOf(
             ReportFilterType.BRANCH_DATE_RANGE,
             ReportFilterType.BRANCH_END_DATE,
+            ReportFilterType.BRANCH_ONLY,
             ReportFilterType.BRANCH_REPORT_TYPE_END_DATE,
             ReportFilterType.GROUP_REPORT,
         )
     }
 }
+
+/** Any of these opens the HRM attendance pages, mirroring the web sidebar. */
+private val HRM_ATTENDANCE_PERMISSIONS = listOf("attendance.view", "employee.view")
+
+/** Attendance status filter shared by the HRM attendance reports. */
+private val HRM_STATUS_CHOICES = listOf(
+    ReportChoice("All Status", ""),
+    ReportChoice("Present", "present"),
+    ReportChoice("Absent", "absent"),
+    ReportChoice("Half Day", "half_day"),
+    ReportChoice("Leave", "leave"),
+    ReportChoice("Holiday", "holiday"),
+    ReportChoice("Weekly Holiday", "weekly_holiday"),
+    ReportChoice("Late", "late"),
+    ReportChoice("Early Out", "early_out"),
+    ReportChoice("Pending", "pending"),
+)
+
+/** Internal id/flag columns dropped from the attendance-entry report tables. */
+private val HRM_ATTENDANCE_HIDDEN = listOf(
+    "id", "company_id", "employee_id", "branch_id", "shift_id", "attendance_policy_id",
+    "default_shift_id", "attendance_shift_id", "roster_id", "roster_shift_id",
+    "leave_date_id", "leave_pay_status", "is_leave_day", "is_manual", "is_night_shift",
+    "requires_approval", "attendance_source", "approved_by", "approved_at",
+    "rejected_by", "rejected_at", "approval_remarks", "rejection_reason",
+    "overtime_eligible", "daily_wage", "ot_rate", "standard_work_minutes",
+    "grace_minutes", "shift_start_time", "shift_end_time", "late_minutes",
+    "early_out_minutes", "created_by", "updated_by", "created_at", "updated_at",
+)
+
+/** Header overrides for the attendance-entry report tables. */
+private val HRM_ATTENDANCE_LABELS = mapOf(
+    "attendance_date" to "Date",
+    "employee_serial" to "ID",
+    "employee_name" to "Employee",
+    "branch_name" to "Branch",
+    "shift_name" to "Shift",
+    "in_time" to "In",
+    "out_time" to "Out",
+    "work_minutes" to "Minutes",
+    "overtime_minutes" to "OT Min",
+    "overtime_amount" to "OT Amount",
+    "approval_status" to "Approval",
+)
+
+/** Internal columns dropped from the monthly-summary report tables. */
+private val HRM_SUMMARY_HIDDEN = listOf(
+    "employee_id", "branch_id", "company_id", "summary_month",
+)
+
+/** Header overrides for the monthly-summary report tables. */
+private val HRM_SUMMARY_LABELS = mapOf(
+    "employee_serial" to "ID",
+    "employee_name" to "Employee",
+    "branch_name" to "Branch",
+    "month_days" to "Month Days",
+    "present_days" to "Present",
+    "leave_days" to "Leave",
+    "paid_leave_days" to "Paid Leave",
+    "unpaid_leave_days" to "Unpaid Leave",
+    "holiday_days" to "Holiday",
+    "weekly_holiday_days" to "Weekly Holiday",
+    "absent_days" to "Absent",
+    "half_days" to "Half Day",
+    "late_count" to "Late",
+    "early_out_count" to "Early Out",
+    "pending_days" to "Pending",
+    "payable_days" to "Payable",
+    "deduction_days" to "Deduction",
+    "late_deduction_days" to "Late Ded.",
+    "early_out_deduction_days" to "Early Ded.",
+    "overtime_minutes" to "OT Min",
+    "overtime_amount" to "OT Amount",
+)
 
 /** Status filter shared by the two installment reports (blank = all statuses). */
 private val INSTALLMENT_STATUS_CHOICE = ReportChoiceParam(
@@ -718,6 +839,301 @@ object ReportMenu {
             ledgerRequired = false,
             dateStyle = ReportDateStyle.DISPLAY,
         ),
+
+        // ---- HRM section (listed by HrmMenu, not the Reports home) ----
+        // These ride the same generic engine; endpoints/params mirror the web's
+        // hrms pages exactly (see the React module + Laravel Hrms controllers).
+        ReportConfig(
+            key = "hrmAttendanceReport",
+            title = "Attendance Report",
+            routeName = "HrmAttendanceReport",
+            webPath = "/hrms/attendance/report",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmAttendanceReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            choiceParam = ReportChoiceParam(
+                paramKey = "status",
+                label = "Select Status",
+                options = HRM_STATUS_CHOICES,
+            ),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
+            columnLabels = HRM_ATTENDANCE_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmOvertimeReport",
+            title = "Overtime Report",
+            routeName = "HrmOvertimeReport",
+            webPath = "/hrms/attendance/overtime-report",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmAttendanceReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            extraParams = mapOf("overtime_only" to "1", "overtime_eligible" to "1"),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
+            columnLabels = HRM_ATTENDANCE_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmAuditHistory",
+            title = "Audit History",
+            routeName = "HrmAuditHistory",
+            webPath = "/hrms/attendance/audit-history",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmAuditHistory",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            choiceParam = ReportChoiceParam(
+                paramKey = "action",
+                label = "Select Action",
+                options = listOf(
+                    ReportChoice("All Actions", ""),
+                    ReportChoice("Submitted", "submitted"),
+                    ReportChoice("Corrected", "corrected"),
+                    ReportChoice("Approved", "approved"),
+                    ReportChoice("Rejected", "rejected"),
+                    ReportChoice("Cleared/Cancelled", "cancelled"),
+                ),
+            ),
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "employee_id",
+                    label = "Select Employee (optional)",
+                    source = ReportSelectorSource.EMPLOYEE,
+                    required = false,
+                ),
+            ),
+            extraParams = mapOf("per_page" to "100"),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf(
+                "id", "attendance_entry_id", "employee_id", "branch_id", "action_by", "created_at",
+            ),
+            columnLabels = mapOf(
+                "employee_serial" to "ID",
+                "employee_name" to "Employee",
+                "branch_name" to "Branch",
+                "attendance_date" to "Date",
+                "attendance_status" to "Status",
+                "approval_status" to "Approval",
+                "action_by_name" to "Action By",
+                "action_at" to "Action Time",
+            ),
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmMonthlyAttendance",
+            title = "Monthly Attendance",
+            routeName = "HrmMonthlyAttendance",
+            webPath = "/hrms/attendance/monthly-report",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmMonthlySummary",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_MONTH_YEAR,
+            startParam = null,
+            endParam = null,
+            monthParam = "month",
+            yearParam = "year",
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_SUMMARY_HIDDEN,
+            columnLabels = HRM_SUMMARY_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmAttendanceAlerts",
+            title = "Attendance Alerts",
+            routeName = "HrmAttendanceAlerts",
+            webPath = "/hrms/attendance/exception-reports",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmAttendanceReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            choiceParam = ReportChoiceParam(
+                paramKey = "status",
+                label = "Alert Type",
+                options = listOf(
+                    ReportChoice("Absent", "absent"),
+                    ReportChoice("Late", "late"),
+                    ReportChoice("Early Out", "early_out"),
+                ),
+            ),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
+            columnLabels = HRM_ATTENDANCE_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmEmployeeAttendance",
+            title = "Employee Attendance",
+            routeName = "HrmEmployeeAttendance",
+            webPath = "/hrms/attendance/employee-report",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmAttendanceReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            choiceParam = ReportChoiceParam(
+                paramKey = "status",
+                label = "Select Status",
+                options = HRM_STATUS_CHOICES,
+            ),
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "employee_id",
+                    label = "Select Employee",
+                    source = ReportSelectorSource.EMPLOYEE,
+                    required = true,
+                ),
+            ),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
+            columnLabels = HRM_ATTENDANCE_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmBranchAttendance",
+            title = "Branch Attendance",
+            routeName = "HrmBranchAttendance",
+            webPath = "/hrms/attendance/branch-summary",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmMonthlySummary",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_MONTH_YEAR,
+            startParam = null,
+            endParam = null,
+            monthParam = "month",
+            yearParam = "year",
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = HRM_SUMMARY_HIDDEN,
+            columnLabels = HRM_SUMMARY_LABELS,
+            textColumns = listOf("employee_serial"),
+        ),
+        ReportConfig(
+            key = "hrmHolidayCalendar",
+            title = "Holiday Calendar",
+            routeName = "HrmHolidayCalendar",
+            webPath = "/hrms/attendance/holiday-calendar",
+            anyOf = HRM_ATTENDANCE_PERMISSIONS,
+            endpointKey = "hrmHolidays",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "date_from",
+            endParam = "date_to",
+            choiceParam = ReportChoiceParam(
+                paramKey = "holiday_type",
+                label = "Holiday Type",
+                options = listOf(
+                    ReportChoice("All Types", ""),
+                    ReportChoice("Government", "government"),
+                    ReportChoice("Festival", "festival"),
+                    ReportChoice("Company", "company"),
+                    ReportChoice("Optional", "optional"),
+                    ReportChoice("Project", "project"),
+                    ReportChoice("Weekly", "weekly"),
+                    ReportChoice("Other", "other"),
+                ),
+            ),
+            extraParams = mapOf("per_page" to "100"),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf(
+                "id", "company_id", "branch_id", "branch_type_id", "department_id",
+                "created_by", "updated_by", "created_at", "updated_at",
+            ),
+            columnLabels = mapOf(
+                "holiday_date" to "Date",
+                "holiday_name" to "Holiday",
+                "holiday_type" to "Type",
+                "is_paid" to "Paid",
+                "is_optional" to "Optional",
+            ),
+        ),
+        ReportConfig(
+            key = "hrmLoanBalance",
+            title = "Loan Balance",
+            routeName = "HrmLoanBalance",
+            webPath = "/accounts/employee-loan/balance",
+            anyOf = listOf("hrm.loan.create"),
+            endpointKey = "hrmLoanBalance",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_ONLY,
+            startParam = null,
+            endParam = null,
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf("emp_id", "received_amt", "payment_amt"),
+            columnLabels = mapOf(
+                "employee_name" to "Employee",
+                "total_senction" to "Total Sanction",
+                "total_payment" to "Total Payment",
+            ),
+        ),
+        ReportConfig(
+            key = "hrmLoanLedger",
+            title = "Loan Ledger",
+            routeName = "HrmLoanLedger",
+            webPath = "/accounts/employee-loan/ledger",
+            anyOf = listOf("employee.loan.ledger.view"),
+            endpointKey = "hrmLoanLedger",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            branchParam = "branchId",
+            startParam = "startDate",
+            endParam = "endDate",
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "ledgerId",
+                    label = "Select Employee",
+                    source = ReportSelectorSource.EMPLOYEE,
+                    required = true,
+                ),
+            ),
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf(
+                "id", "loan_detail_id", "branch_id", "branch_pad", "voucher_image",
+            ),
+            columnLabels = mapOf(
+                "vr_no" to "Vr No",
+                "vr_date" to "Vr Date",
+                "branch_name" to "Branch",
+                "received_amt" to "Received",
+                "payment_amt" to "Payment",
+            ),
+        ),
+        ReportConfig(
+            key = "hrmSalarySheet",
+            title = "Salary Reports",
+            routeName = "HrmSalarySheet",
+            webPath = "/hrms/salary-sheet",
+            anyOf = listOf("salary.sheet.view"),
+            endpointKey = "hrmSalarySheet",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_YEAR,
+            startParam = null,
+            endParam = null,
+            yearParam = "year_id",
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf("main_trx_id", "payment_year"),
+            columnLabels = mapOf(
+                "serial_no" to "Sl",
+                "payment_month" to "Month",
+                "total_employee" to "Employees",
+                "gross_salary" to "Gross Salary",
+                "net_salary" to "Net Salary",
+                "total_deduction" to "Loan Ded.",
+                "payment_amount" to "Payment",
+            ),
+            monthColumns = listOf("payment_month"),
+        ),
     )
 
     private val byKey: Map<String, ReportConfig> = all.associateBy { it.key }
@@ -728,9 +1144,12 @@ object ReportMenu {
     fun hasParentAccess(permissions: List<Permission>?): Boolean =
         Permissions.hasAny(permissions, PARENT_PERMISSIONS)
 
-    /** Reports the user is allowed to open, in registry order. */
+    /** Reports-section reports the user is allowed to open, in registry order. */
     fun visible(permissions: List<Permission>?): List<ReportConfig> =
-        all.filter { Permissions.hasAny(permissions, it.anyOf) }
+        all.filter {
+            it.section == ReportConfig.SECTION_REPORTS &&
+                Permissions.hasAny(permissions, it.anyOf)
+        }
 
     /**
      * The permissions guarding the report [key], for route-level gates. Routes

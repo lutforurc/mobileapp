@@ -45,6 +45,8 @@ data class GenericReportUiState(
 
     /** True when this report shows the month/year picker (Collection Sheet). */
     val showMonthYear: Boolean = false,
+    /** True when this report shows a year-only picker (HRM salary sheet). */
+    val showYearOnly: Boolean = false,
     val monthYear: MonthYear = MonthYear.current(),
 
     // Filter form
