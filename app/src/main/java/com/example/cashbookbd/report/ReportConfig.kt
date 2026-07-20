@@ -1094,31 +1094,9 @@ object ReportMenu {
                 "payment_amt" to "Payment",
             ),
         ),
-        ReportConfig(
-            key = "hrmSalarySheet",
-            title = "Salary Reports",
-            routeName = "HrmSalarySheet",
-            webPath = "/hrms/salary-sheet",
-            anyOf = listOf("salary.sheet.view"),
-            endpointKey = "hrmSalarySheet",
-            method = ReportMethod.POST,
-            filterType = ReportFilterType.BRANCH_YEAR,
-            startParam = null,
-            endParam = null,
-            yearParam = "year_id",
-            section = ReportConfig.SECTION_HRM,
-            hiddenColumns = listOf("main_trx_id", "payment_year"),
-            columnLabels = mapOf(
-                "serial_no" to "Sl",
-                "payment_month" to "Month",
-                "total_employee" to "Employees",
-                "gross_salary" to "Gross Salary",
-                "net_salary" to "Net Salary",
-                "total_deduction" to "Loan Ded.",
-                "payment_amount" to "Payment",
-            ),
-            monthColumns = listOf("payment_month"),
-        ),
+        // Salary Reports is NOT here: it needs the web's Paid/Due action column
+        // and payment flow, so it has a native screen — see
+        // ui/hrm/SalarySheetScreen, reached via the HRM form route.
     )
 
     private val byKey: Map<String, ReportConfig> = all.associateBy { it.key }

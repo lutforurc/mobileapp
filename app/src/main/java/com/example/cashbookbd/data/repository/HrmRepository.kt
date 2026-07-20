@@ -6,6 +6,9 @@ import com.example.cashbookbd.ui.hrm.model.AttendanceDayRow
 import com.example.cashbookbd.ui.hrm.model.AttendanceEntry
 import com.example.cashbookbd.ui.hrm.model.AttendanceSummary
 import com.example.cashbookbd.ui.hrm.model.MonthlySummaryRow
+import com.example.cashbookbd.ui.hrm.model.SalaryDetailRow
+import com.example.cashbookbd.ui.hrm.model.SalarySheetDetail
+import com.example.cashbookbd.ui.hrm.model.SalarySheetSummary
 import com.example.cashbookbd.ui.hrm.model.BonusEmployee
 import com.example.cashbookbd.ui.hrm.model.EmployeeDetail
 import com.example.cashbookbd.ui.hrm.model.EmployeeSettings
@@ -550,6 +553,155 @@ class HrmRepository(
         }
         val response = api.post("hrms/salary-generate", body)
         parseMessage(response, fallback = "Salary generated successfully")
+    }
+
+    /** The salary sheet list — one row per generated voucher/month. */
+    suspend fun salarySheetRows(
+        branchId: Long,
+        yearId: Int,
+    ): Resource<List<SalarySheetSummary>> = request {
+        val body = JsonObject().apply {
+            addProperty("branch_id", branchId)
+            addProperty("year_id", yearId.toString())
+        }
+        val response = api.post("hrms/salary-sheet", body)
+        parseEnvelope(response) { payload ->
+            rowsOf(payload).mapNotNull { row ->
+                val obj = row.asObjectOrNull() ?: return@mapNotNull null
+                SalarySheetSummary(
+                    serial = obj.text("serial_no")?.toDoubleOrNull()?.toInt() ?: 0,
+                    paymentMonth = obj.text("payment_month").orEmpty(),
+                    branchName = obj.get("main_trx")?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.get("branch")?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.text("name").orEmpty(),
+                    employees = obj.number("total_employee").toInt(),
+                    gross = obj.number("gross_salary"),
+                    net = obj.number("net_salary"),
+                    loanDeduction = obj.number("total_deduction"),
+                    payment = obj.number("payment_amount"),
+                    raw = obj,
+                )
+            }
+        }
+    }
+
+    /**
+     * A sheet's per-employee detail (the web's month-link print view). The row
+     * goes back whole; the response is RAW json — `{data, meta, vr_no, vr_date}`
+     * with no success envelope — and each line's identity lives in a `history`
+     * JSON string, exactly as the web parses it.
+     */
+    suspend fun salarySheetDetail(row: JsonObject): Resource<SalarySheetDetail> = request {
+        val response = api.post("hrms/salary-sheet-print", row)
+        checkHttp(response)?.let { return@request it }
+        val root = response.body()?.asObjectOrNull()
+            ?: return@request Resource.Error("Invalid response from server.")
+        root.get("error")?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.let {
+            return@request Resource.Error(it.asString)
+        }
+
+        // meta may arrive as an object or a "meta {...}"-prefixed JSON string.
+        val meta = root.get("meta")?.takeUnless { it.isJsonNull }?.let { element ->
+            when {
+                element.isJsonObject -> element.asJsonObject
+                element.isJsonPrimitive -> runCatching {
+                    com.google.gson.JsonParser.parseString(
+                        element.asString.trim().replace(Regex("^meta\\s*", RegexOption.IGNORE_CASE), ""),
+                    ).asJsonObject
+                }.getOrNull()
+                else -> null
+            }
+        }
+
+        val rows = root.get("data")?.takeIf { it.isJsonArray }?.asJsonArray?.toList().orEmpty()
+            .mapNotNull { element ->
+                val obj = element.asObjectOrNull() ?: return@mapNotNull null
+                // Per-line identity snapshot, stored as a JSON string.
+                val history = obj.get("history")?.takeUnless { it.isJsonNull }?.let { h ->
+                    when {
+                        h.isJsonObject -> h.asJsonObject
+                        h.isJsonPrimitive -> runCatching {
+                            com.google.gson.JsonParser.parseString(h.asString).asJsonObject
+                        }.getOrNull()
+                        else -> null
+                    }
+                }
+                fun hText(key: String): String = history?.text(key).orEmpty()
+                fun hNumber(key: String): Double =
+                    history?.text(key)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+
+                // Month days: row → history → derived from the payment month.
+                val paymentMonth = obj.text("payment_month")
+                    ?: meta?.text("month_id").orEmpty()
+                val monthDays = obj.number("month_days").takeIf { it > 0 }
+                    ?: hNumber("month_days").takeIf { it > 0 }
+                    ?: daysInPaymentMonth(paymentMonth)
+
+                // Monthly basic: saved value, else back-derived from the paid
+                // basic over the worked days (the web's fallback).
+                val paidBasic = obj.number("basic_salary")
+                val workingDays = hNumber("working_days")
+                val monthlyBasic = obj.number("monthly_basic_salary").takeIf { it > 0 }
+                    ?: hNumber("monthly_basic_salary").takeIf { it > 0 }
+                    ?: if (paidBasic > 0 && workingDays > 0 && monthDays > 0 && workingDays < monthDays) {
+                        kotlin.math.ceil(paidBasic / workingDays * monthDays)
+                    } else {
+                        paidBasic
+                    }
+
+                SalaryDetailRow(
+                    sl = hText("serial_no").ifBlank { obj.text("serial_no").orEmpty() },
+                    name = hText("name").ifBlank { "-" },
+                    designation = hText("designation_name"),
+                    monthDays = monthDays.compactCount(),
+                    workingDays = workingDays.takeIf { it > 0 }?.compactCount().orEmpty(),
+                    monthlyBasic = monthlyBasic,
+                    salary = paidBasic,
+                    mobileAllowance = obj.number("others_allowance"),
+                    total = obj.number("gross_salary"),
+                    loanDeduction = obj.number("loan_deduction"),
+                    attendanceDeduction = obj.number("attendance_deduction_amount"),
+                    netSalary = obj.number("net_salary"),
+                    payment = obj.number("payment_amount"),
+                    vrNo = obj.text("vr_no").orEmpty(),
+                )
+            }
+
+        Resource.Success(
+            SalarySheetDetail(
+                vrNo = root.text("vr_no").orEmpty(),
+                vrDate = root.text("vr_date").orEmpty(),
+                monthId = meta?.text("month_id").orEmpty(),
+                levelName = meta?.text("level_name").orEmpty(),
+                rows = rows,
+            )
+        )
+    }
+
+    /** "MM-YYYY"/"MMYYYY" → that month's day count; 0 when unparseable. */
+    private fun daysInPaymentMonth(raw: String): Double {
+        val match = Regex("""^(\d{2})-?(\d{4})$""").find(raw.trim()) ?: return 0.0
+        val month = match.groupValues[1].toIntOrNull() ?: return 0.0
+        val year = match.groupValues[2].toIntOrNull() ?: return 0.0
+        if (month !in 1..12) return 0.0
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(year, month - 1, 1)
+        return calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH).toDouble()
+    }
+
+    /** 30.0 → "30"; keeps a fraction when one exists. */
+    private fun Double.compactCount(): String =
+        if (this == toLong().toDouble()) toLong().toString() else toString()
+
+    /**
+     * Pays a sheet's full due: the row goes back whole under `data` (its
+     * hashed `main_trx.mtmId` included); with no `pay_amount`/selection the
+     * server pays everything outstanding. Creates a REAL cash-payment voucher.
+     */
+    suspend fun salaryPaymentFull(row: JsonObject): Resource<String> = request {
+        val body = JsonObject().apply { add("data", row) }
+        val response = api.post("hrms/salary-payment-full", body)
+        parseMessage(response, fallback = "Salary payment completed successfully")
     }
 
     // ---- Festival bonus ----

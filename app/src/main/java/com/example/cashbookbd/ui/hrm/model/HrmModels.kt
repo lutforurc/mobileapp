@@ -101,6 +101,67 @@ data class AttendanceDayRow(
     val approvalStatus: String,
 )
 
+/**
+ * One voucher-level row of the salary sheet list (`hrms/salary-sheet`). [raw]
+ * keeps the server row untouched — the payment call posts it back whole, with
+ * its hashed `main_trx.mtmId`, exactly as the web does.
+ */
+data class SalarySheetSummary(
+    val serial: Int,
+    /** Raw `payment_month` ("MMYYYY"). */
+    val paymentMonth: String,
+    /** Branch name from the row's main_trx relation (blank when own-branch). */
+    val branchName: String,
+    val employees: Int,
+    val gross: Double,
+    val net: Double,
+    val loanDeduction: Double,
+    val payment: Double,
+    val raw: com.google.gson.JsonObject,
+) {
+    val due: Double get() = net - payment
+
+    /** The web shows the Paid badge when nothing is due. */
+    val isPaid: Boolean get() = due <= 0.005
+}
+
+/** One employee line of a salary sheet's detail (the web's print view). */
+data class SalaryDetailRow(
+    val sl: String,
+    val name: String,
+    val designation: String,
+    val monthDays: String,
+    val workingDays: String,
+    val monthlyBasic: Double,
+    val salary: Double,
+    val mobileAllowance: Double,
+    val total: Double,
+    val loanDeduction: Double,
+    val attendanceDeduction: Double,
+    val netSalary: Double,
+    val payment: Double,
+    val vrNo: String,
+)
+
+/** A salary sheet's detail: header info + per-employee rows + grand totals. */
+data class SalarySheetDetail(
+    val vrNo: String,
+    val vrDate: String,
+    /** Raw month id ("MM-YYYY" / "MMYYYY") from the meta. */
+    val monthId: String,
+    val levelName: String,
+    val rows: List<SalaryDetailRow>,
+) {
+    val totalMonthlyBasic: Double get() = rows.sumOf { it.monthlyBasic }
+    val totalSalary: Double get() = rows.sumOf { it.salary }
+    val totalMobile: Double get() = rows.sumOf { it.mobileAllowance }
+    val totalGross: Double get() = rows.sumOf { it.total }
+    val totalLoan: Double get() = rows.sumOf { it.loanDeduction }
+    val totalAttendance: Double get() = rows.sumOf { it.attendanceDeduction }
+    val totalNet: Double get() = rows.sumOf { it.netSalary }
+    val totalPayment: Double get() = rows.sumOf { it.payment }
+}
+
 /** The employee form's lookup bundle from `hrms/employee/settings`. */
 data class EmployeeSettings(
     val branches: List<HrmOption>,

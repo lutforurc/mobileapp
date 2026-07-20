@@ -55,6 +55,7 @@ fun HrmFormScreen(
         "leaveApplications" -> LeaveApplicationsScreen(navController, onLogout, modifier)
         "attendanceSetup" -> AttendanceSetupScreen(navController, onLogout, modifier)
         "hrmMonthlyAttendance" -> MonthlyAttendanceScreen(navController, onLogout, modifier)
+        "hrmSalarySheet" -> SalarySheetScreen(navController, onLogout, modifier)
         "salaryGenerate" -> SalaryGenerateScreen(navController, onLogout, modifier)
         "bonusGenerate" -> BonusGenerateScreen(navController, onLogout, modifier)
         else -> AuthenticatedShell(
@@ -200,6 +201,59 @@ internal fun HrmDateField(
             ).show()
         },
     )
+}
+
+/** A year-only picker (the salary/bonus sheet filters), stepper dialog. */
+@Composable
+internal fun HrmYearField(
+    label: String,
+    value: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    PickerField(
+        label = label,
+        value = value.toString(),
+        trailingIcon = Icons.Filled.DateRange,
+        modifier = modifier,
+        onClick = { showDialog = true },
+    )
+
+    if (showDialog) {
+        var year by remember { mutableStateOf(value) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                com.example.cashbookbd.ui.components.LinkButton(
+                    text = "OK",
+                    onClick = {
+                        onSelected(year)
+                        showDialog = false
+                    },
+                )
+            },
+            dismissButton = {
+                com.example.cashbookbd.ui.components.LinkButton(
+                    text = "Cancel",
+                    onClick = { showDialog = false },
+                )
+            },
+            title = { Text("Select Year") },
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    com.example.cashbookbd.ui.components.LinkButton(text = "◀", onClick = { year-- })
+                    Text(text = year.toString(), style = MaterialTheme.typography.titleMedium)
+                    com.example.cashbookbd.ui.components.LinkButton(text = "▶", onClick = { year++ })
+                }
+            },
+        )
+    }
 }
 
 /** A month + year field for salary/bonus months, in the shared field chrome. */
