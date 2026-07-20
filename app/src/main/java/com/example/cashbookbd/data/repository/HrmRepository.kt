@@ -238,17 +238,18 @@ class HrmRepository(
 
     // ---- Manual attendance ----
 
-    /** Entries for one branch + date, newest form of the web's list panel. */
+    /** Entries for one branch + date range, the web's list panel. */
     suspend fun getAttendanceEntries(
         branchId: Long,
-        date: String,
+        dateFrom: String,
+        dateTo: String,
     ): Resource<List<AttendanceEntry>> = request {
         val response = api.get(
             "hrms/attendance/entries",
             mapOf(
                 "branch_id" to branchId.toString(),
-                "date_from" to date,
-                "date_to" to date,
+                "date_from" to dateFrom,
+                "date_to" to dateTo,
                 "per_page" to "100",
             ),
         )
@@ -260,6 +261,7 @@ class HrmRepository(
                     date = obj.text("attendance_date").orEmpty(),
                     employeeName = obj.text("employee_name").orEmpty(),
                     employeeSerial = obj.text("employee_serial").orEmpty(),
+                    employmentType = obj.text("employment_type").orEmpty(),
                     shiftName = obj.text("shift_name").orEmpty(),
                     inTime = obj.text("in_time").orEmpty(),
                     outTime = obj.text("out_time").orEmpty(),
@@ -285,6 +287,8 @@ class HrmRepository(
         outTime: String?,
         status: String,
         remarks: String?,
+        employmentType: String?,
+        overtimeMinutes: Int?,
     ): Resource<String> = request {
         val body = JsonObject().apply {
             addProperty("branch_id", branchId)
@@ -295,10 +299,64 @@ class HrmRepository(
             addNullable("out_time", outTime)
             addProperty("status", status)
             addNullable("remarks", remarks)
+            addNullable("employment_type", employmentType)
+            overtimeMinutes?.let { addProperty("overtime_minutes", it) }
             addProperty("update_existing", true)
         }
         val response = api.post("hrms/attendance/entries/store", body)
         parseMessage(response, fallback = "Attendance saved successfully")
+    }
+
+    /**
+     * The web's Bulk Entry: one entry per active employee of the branch (and
+     * optional type/shift) for the date. Existing rows update; approved rows
+     * are never touched. Returns the server's created/updated/skipped message.
+     */
+    suspend fun bulkStoreAttendance(
+        branchId: Long,
+        shiftId: Long?,
+        employmentType: String?,
+        date: String,
+        inTime: String?,
+        outTime: String?,
+        status: String,
+        remarks: String?,
+        overtimeMinutes: Int?,
+    ): Resource<String> = request {
+        val body = JsonObject().apply {
+            addProperty("branch_id", branchId)
+            addNullable("shift_id", shiftId?.toString())
+            addNullable("employment_type", employmentType)
+            addProperty("attendance_date", date)
+            addNullable("in_time", inTime)
+            addNullable("out_time", outTime)
+            addProperty("status", status)
+            addNullable("remarks", remarks)
+            overtimeMinutes?.let { addProperty("overtime_minutes", it) }
+            addProperty("update_existing", true)
+        }
+        val response = api.post("hrms/attendance/entries/bulk-store", body)
+        parseMessage(response, fallback = "Bulk attendance completed")
+    }
+
+    /** Deletes one entry (approved ones are rejected server-side). */
+    suspend fun deleteAttendance(entryId: String): Resource<String> = request {
+        val response = api.post("hrms/attendance/entries/delete/$entryId", JsonObject())
+        parseMessage(response, fallback = "Attendance deleted successfully")
+    }
+
+    /** The web's Bulk Clear: removes the given APPROVED entries. */
+    suspend fun bulkClearAttendance(entryIds: List<String>): Resource<String> = request {
+        val body = JsonObject().apply {
+            add(
+                "entry_ids",
+                JsonArray().apply {
+                    entryIds.forEach { id -> id.toLongOrNull()?.let(::add) }
+                },
+            )
+        }
+        val response = api.post("hrms/attendance/entries/bulk-clear", body)
+        parseMessage(response, fallback = "Bulk attendance clear completed")
     }
 
     /** Approves or rejects one entry (POST `.../approve/{id}`). */

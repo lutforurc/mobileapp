@@ -12,6 +12,7 @@ data class AttendanceEntry(
     val date: String,
     val employeeName: String,
     val employeeSerial: String,
+    val employmentType: String,
     val shiftName: String,
     val inTime: String,
     val outTime: String,
@@ -21,6 +22,8 @@ data class AttendanceEntry(
     val overtimeMinutes: Double,
 ) {
     val isPendingApproval: Boolean get() = approvalStatus.equals("pending", ignoreCase = true)
+
+    val isApproved: Boolean get() = approvalStatus.equals("approved", ignoreCase = true)
 }
 
 /** One leave application row. */
