@@ -292,9 +292,9 @@ object AppLists {
             title = "Employees",
             endpoint = "hrms/employees",
             method = ListMethod.GET,
+            // No Sl/Sal. Sl columns — the table's own # column already numbers
+            // rows, and the duplicates crowded the phone screen.
             columns = listOf(
-                AppListColumn("serial", "Sl"),
-                AppListColumn("employee_serial", "Sal. Sl"),
                 AppListColumn("name", "Employee Name"),
                 AppListColumn("designation_name", "Designation"),
                 AppListColumn("mobile", "Mobile"),
@@ -303,6 +303,10 @@ object AppLists {
             anyOf = listOf("employee.view"),
             paginated = true,
             statusToggle = ListStatusToggle(endpoint = "hrms/employee/status"),
+            addAction = ListAddAction(label = "Add Employee", route = Routes.EMPLOYEE_ADD),
+            // The employee edit/update endpoints resolve the RAW id (unlike
+            // branches, whose edit route takes the hashed key).
+            editAction = ListEditAction(route = Routes.EMPLOYEE_EDIT, idKey = "id"),
         ),
         AppListSpec(
             key = "hrmDesignationLevels",

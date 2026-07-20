@@ -73,3 +73,47 @@ data class BonusEmployee(
     val designationName: String,
     val basicSalary: Double,
 )
+
+/** The employee form's lookup bundle from `hrms/employee/settings`. */
+data class EmployeeSettings(
+    val branches: List<HrmOption>,
+    val designations: List<HrmOption>,
+    val sexes: List<HrmOption>,
+)
+
+/**
+ * One employee's editable record from `hrms/employee/edit/{id}`. Everything is
+ * kept as the raw string so the form can round-trip values it doesn't touch.
+ */
+data class EmployeeDetail(
+    val name: String,
+    val fatherName: String,
+    val nid: String,
+    val mobile: String,
+    val dateOfBirth: String,
+    val joiningDate: String,
+    val designationId: String,
+    val qualification: String,
+    val status: String,
+    val sexId: String,
+    val projectId: String,
+    /** The employee's own branch name (its id may be outside the user's list). */
+    val branchName: String,
+    val presentAddress: String,
+    val permanentAddress: String,
+    val basicSalary: String,
+    val houseRent: String,
+    val medicalAllowance: String,
+    val othersAllowance: String,
+    val loanDeduction: String,
+    val othersDeduction: String,
+    val salaryPayable: String,
+    val employmentType: String,
+    val attendancePolicyId: String,
+    val defaultShiftId: String,
+    val overtimeEligible: String,
+    val dailyWage: String,
+    val otRate: String,
+    val standardWorkMinutes: String,
+    val employeeSerial: String,
+)

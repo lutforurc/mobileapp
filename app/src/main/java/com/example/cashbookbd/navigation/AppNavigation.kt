@@ -46,6 +46,7 @@ import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
+import com.example.cashbookbd.ui.hrm.EmployeeFormScreen
 import com.example.cashbookbd.ui.hrm.HrmFormScreen
 import com.example.cashbookbd.ui.hrm.HrmHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
@@ -119,6 +120,11 @@ object Routes {
     // the list, so the base is stored bare and the pattern adds the argument.
     const val BRANCH_EDIT = "branch/edit"
     const val BRANCH_ID_ARG = "branchId"
+
+    // Employee create/edit (HRM), opened from the Employees list.
+    const val EMPLOYEE_ADD = "employee/add"
+    const val EMPLOYEE_EDIT = "employee/edit"
+    const val EMPLOYEE_ID_ARG = "employeeId"
 
     /** savedStateHandle key carrying a create confirmation back to the list. */
     const val CREATED_MESSAGE = "created_message"
@@ -386,6 +392,25 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 AddUserScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.EMPLOYEE_ADD) {
+            PermissionGate(anyOf = listOf("employee.view")) {
+                EmployeeFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.EMPLOYEE_EDIT}/{${Routes.EMPLOYEE_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("employee.view")) {
+                EmployeeFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    employeeId = entry.arguments?.getString(Routes.EMPLOYEE_ID_ARG),
                 )
             }
         }

@@ -5,6 +5,8 @@ import com.example.cashbookbd.data.remote.HrmApiService
 import com.example.cashbookbd.ui.hrm.model.AttendanceEntry
 import com.example.cashbookbd.ui.hrm.model.AttendanceSummary
 import com.example.cashbookbd.ui.hrm.model.BonusEmployee
+import com.example.cashbookbd.ui.hrm.model.EmployeeDetail
+import com.example.cashbookbd.ui.hrm.model.EmployeeSettings
 import com.example.cashbookbd.ui.hrm.model.HrmOption
 import com.example.cashbookbd.ui.hrm.model.LeaveApplication
 import com.example.cashbookbd.ui.hrm.model.SalaryViewEmployee
@@ -42,6 +44,115 @@ class HrmRepository(
     /** Leave types for the leave form's dropdown. */
     suspend fun getLeaveTypeOptions(): Resource<List<HrmOption>> =
         fetchOptions("hrms/attendance/leave-types", mapOf("per_page" to "100", "status" to "1"))
+
+    /** Attendance policies for the employee form's dropdown. */
+    suspend fun getPolicyOptions(): Resource<List<HrmOption>> =
+        fetchOptions("hrms/attendance/policies", mapOf("per_page" to "100", "status" to "1"))
+
+    /**
+     * The employee form's lookup bundle (`hrms/employee/settings`): branches,
+     * designations and genders in one call, exactly what the web form loads.
+     */
+    suspend fun getEmployeeSettings(): Resource<EmployeeSettings> = request {
+        val response = api.get("hrms/employee/settings", emptyMap())
+        parseEnvelope(response) { payload ->
+            val obj = payload.asObjectOrNull()
+            fun options(key: String): List<HrmOption> =
+                (obj?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.toList() ?: emptyList())
+                    .mapNotNull { row ->
+                        val item = row.asObjectOrNull() ?: return@mapNotNull null
+                        val id = item.text("id") ?: return@mapNotNull null
+                        HrmOption(id = id, name = item.text("name").orEmpty())
+                    }
+            EmployeeSettings(
+                branches = options("branchs"),
+                designations = options("designation"),
+                sexes = options("sex"),
+            )
+        }
+    }
+
+    /** One employee's full record for the edit form (`hrms/employee/edit/{id}`). */
+    suspend fun getEmployee(employeeId: String): Resource<EmployeeDetail> = request {
+        val response = api.get("hrms/employee/edit/$employeeId", emptyMap())
+        checkHttp(response)?.let { return@request it }
+        val root = response.body() ?: return@request Resource.Error("Invalid response from server.")
+        if (root.isJsonObject) {
+            val success = root.asJsonObject.get("success")
+                ?.takeUnless { it.isJsonNull }?.asBoolean
+            if (success == false) return@request Resource.Error("Employee not found.")
+        }
+        val obj = unwrap(root).asObjectOrNull()
+            ?: return@request Resource.Error("Employee not found.")
+        // The sex relation arrives as {id,name}; the raw column may also exist.
+        val sexId = obj.get("sex")?.let { sex ->
+            when {
+                sex.isJsonObject -> sex.asJsonObject.text("id")
+                sex.isJsonPrimitive -> sex.asString
+                else -> null
+            }
+        }
+        Resource.Success(
+            EmployeeDetail(
+                name = obj.text("name").orEmpty(),
+                fatherName = obj.text("father_name").orEmpty(),
+                nid = obj.text("nid").orEmpty(),
+                mobile = obj.text("mobile").orEmpty(),
+                dateOfBirth = obj.text("date_of_birth").orEmpty(),
+                joiningDate = obj.text("joning_dt").orEmpty(),
+                designationId = obj.text("designation").orEmpty(),
+                qualification = obj.text("qualification").orEmpty(),
+                status = obj.text("status").orEmpty(),
+                sexId = sexId.orEmpty(),
+                projectId = obj.text("project_id").orEmpty(),
+                // The branch relation names the employee's own project, which
+                // may not be in the editing user's branch list at all.
+                branchName = obj.get("branch")?.takeIf { it.isJsonObject }
+                    ?.asJsonObject?.text("name").orEmpty(),
+                presentAddress = obj.text("present_address").orEmpty(),
+                permanentAddress = obj.text("permanent_address").orEmpty(),
+                basicSalary = obj.text("basic_salary").orEmpty(),
+                houseRent = obj.text("house_rent").orEmpty(),
+                medicalAllowance = obj.text("medical_allowance").orEmpty(),
+                othersAllowance = obj.text("others_allowance").orEmpty(),
+                loanDeduction = obj.text("loan_deduction").orEmpty(),
+                othersDeduction = obj.text("others_deduction").orEmpty(),
+                salaryPayable = obj.text("salary_payable").orEmpty(),
+                employmentType = obj.text("employment_type").orEmpty(),
+                attendancePolicyId = obj.text("attendance_policy_id").orEmpty(),
+                defaultShiftId = obj.text("default_shift_id")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: obj.text("attendance_shift_id").orEmpty(),
+                overtimeEligible = obj.text("overtime_eligible").orEmpty(),
+                dailyWage = obj.text("daily_wage").orEmpty(),
+                otRate = obj.text("ot_rate").orEmpty(),
+                standardWorkMinutes = obj.text("standard_work_minutes").orEmpty(),
+                employeeSerial = obj.text("employee_serial").orEmpty(),
+            )
+        )
+    }
+
+    /**
+     * Creates or updates an employee. [payload] must carry the web form's full
+     * key set — the update endpoint rewrites every column with `?? 0`-style
+     * defaults, so a partial payload would silently wipe fields.
+     */
+    suspend fun saveEmployee(payload: JsonObject, employeeId: String?): Resource<String> = request {
+        val path = if (employeeId == null) {
+            "hrms/employee/store"
+        } else {
+            "hrms/employee/update/$employeeId"
+        }
+        val response = api.post(path, payload)
+        parseMessage(
+            response,
+            fallback = if (employeeId == null) {
+                "Employee created successfully"
+            } else {
+                "Employee updated successfully"
+            },
+        )
+    }
 
     private suspend fun fetchOptions(
         path: String,
