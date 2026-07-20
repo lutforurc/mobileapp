@@ -20,13 +20,31 @@ val devLoginProps = Properties().apply {
 // val baseUrl = "https://aft.cashbookbd.com/api/"
 // val baseUrl = "https://eworld.cashbookbd.com/api/"
 // val baseUrl = "https://sinthia.cashbookbd.com/api/" 
-// val baseUrl = "https://nibirnirman.cashbookbd.com/api/" 
+val baseUrl = "https://nibirnirman.cashbookbd.com/api/" 
 // val baseUrl = "https://gme.cashbookbd.com/api/" 
 // val baseUrl = "https://krf.cashbookbd.com/api/" 
 // val baseUrl = "https://scn.cashbookbd.com/api/" 
-val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
+// val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
+// val baseUrl = "https://kps.cashbookbd.com/api/" 
 
 
+
+
+/**
+ * Per-tenant branding. The tenant key is the base URL's subdomain, so switching
+ * `baseUrl` above also switches the logo — no second place to keep in step.
+ *
+ * Each tenant's assets live in `src/tenants/<key>/res` and are named exactly as
+ * they are for every other tenant (`drawable/logo.png`), so the app can always
+ * reference `R.drawable.logo`. Only the active tenant's folder is added to the
+ * build, so one tenant's APK never carries another's artwork. A tenant with no
+ * folder falls back to `src/tenants/default`.
+ */
+val tenantKey: String = Regex("""^https?://([^./]+)""")
+    .find(baseUrl)?.groupValues?.get(1).orEmpty()
+
+val tenantResDir: File = file("src/tenants/$tenantKey/res")
+    .takeIf { it.isDirectory } ?: file("src/tenants/default/res")
 
 /** Wraps a value as a valid Java string literal for buildConfigField. */
 fun javaStringLiteral(value: String): String {
@@ -43,6 +61,15 @@ android {
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
+        }
+    }
+
+    // Adds the active tenant's assets alongside the shared ones. Nothing in
+    // src/main/res may declare a resource a tenant folder also declares (e.g.
+    // `logo`), or the two would collide.
+    sourceSets {
+        getByName("main") {
+            res.srcDir(tenantResDir)
         }
     }
 
