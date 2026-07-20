@@ -929,24 +929,9 @@ object ReportMenu {
             ),
             textColumns = listOf("employee_serial"),
         ),
-        ReportConfig(
-            key = "hrmMonthlyAttendance",
-            title = "Monthly Attendance",
-            routeName = "HrmMonthlyAttendance",
-            webPath = "/hrms/attendance/monthly-report",
-            anyOf = HRM_ATTENDANCE_PERMISSIONS,
-            endpointKey = "hrmMonthlySummary",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_MONTH_YEAR,
-            startParam = null,
-            endParam = null,
-            monthParam = "month",
-            yearParam = "year",
-            section = ReportConfig.SECTION_HRM,
-            hiddenColumns = HRM_SUMMARY_HIDDEN,
-            columnLabels = HRM_SUMMARY_LABELS,
-            textColumns = listOf("employee_serial"),
-        ),
+        // Monthly Attendance is NOT here: it needs the web's two-tab layout
+        // (summary + day-by-day matrix), so it has a native screen — see
+        // ui/hrm/MonthlyAttendanceScreen, reached via the HRM form route.
         ReportConfig(
             key = "hrmAttendanceAlerts",
             title = "Attendance Alerts",

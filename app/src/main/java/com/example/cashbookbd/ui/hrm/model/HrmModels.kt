@@ -74,6 +74,33 @@ data class BonusEmployee(
     val basicSalary: Double,
 )
 
+/** One employee's month totals from `hrms/attendance/monthly-summary` (with names). */
+data class MonthlySummaryRow(
+    val employeeId: Long,
+    val employeeName: String,
+    val employeeSerial: String,
+    val presentDays: Double,
+    val paidLeaveDays: Double,
+    val unpaidLeaveDays: Double,
+    val absentDays: Double,
+    val lateCount: Double,
+    val earlyOutCount: Double,
+    val halfDays: Double,
+    val payableDays: Double,
+    val deductionDays: Double,
+)
+
+/** One (employee, day) attendance cell from the month's entry report. */
+data class AttendanceDayRow(
+    val employeeId: Long,
+    val employeeName: String,
+    val employeeSerial: String,
+    /** Day of month, 1-based. */
+    val day: Int,
+    val status: String,
+    val approvalStatus: String,
+)
+
 /** The employee form's lookup bundle from `hrms/employee/settings`. */
 data class EmployeeSettings(
     val branches: List<HrmOption>,

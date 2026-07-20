@@ -320,6 +320,8 @@ object AppLists {
             ),
             anyOf = listOf("employee.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Level", route = Routes.hrmCrudAdd("hrmDesignationLevels")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmDesignationLevels"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmDesignations",
@@ -335,6 +337,8 @@ object AppLists {
             ),
             anyOf = listOf("employee.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Designation", route = Routes.hrmCrudAdd("hrmDesignations")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmDesignations"), idKey = "id"),
         ),
 
         // ---- HRM: Attendance Setup (read-only views of the web's setup tabs) ----
@@ -352,6 +356,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view", "shift.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Shift", route = Routes.hrmCrudAdd("hrmShifts")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmShifts"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmPolicies",
@@ -367,6 +373,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Policy", route = Routes.hrmCrudAdd("hrmPolicies")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmPolicies"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmRosters",
@@ -382,6 +390,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view", "shift.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Roster", route = Routes.hrmCrudAdd("hrmRosters")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmRosters"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmWeeklyHolidays",
@@ -397,6 +407,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view", "holiday.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Weekly Holiday", route = Routes.hrmCrudAdd("hrmWeeklyHolidays")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmWeeklyHolidays"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmHolidaysList",
@@ -412,6 +424,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view", "holiday.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Holiday", route = Routes.hrmCrudAdd("hrmHolidaysList")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmHolidaysList"), idKey = "id"),
         ),
         AppListSpec(
             key = "hrmLeaveTypes",
@@ -426,6 +440,8 @@ object AppLists {
             ),
             anyOf = listOf("attendance.view", "employee.view", "leave.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Add Leave Type", route = Routes.hrmCrudAdd("hrmLeaveTypes")),
+            editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmLeaveTypes"), idKey = "id"),
         ),
     )
 

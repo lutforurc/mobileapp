@@ -2,8 +2,10 @@ package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.HrmApiService
+import com.example.cashbookbd.ui.hrm.model.AttendanceDayRow
 import com.example.cashbookbd.ui.hrm.model.AttendanceEntry
 import com.example.cashbookbd.ui.hrm.model.AttendanceSummary
+import com.example.cashbookbd.ui.hrm.model.MonthlySummaryRow
 import com.example.cashbookbd.ui.hrm.model.BonusEmployee
 import com.example.cashbookbd.ui.hrm.model.EmployeeDetail
 import com.example.cashbookbd.ui.hrm.model.EmployeeSettings
@@ -48,6 +50,69 @@ class HrmRepository(
     /** Attendance policies for the employee form's dropdown. */
     suspend fun getPolicyOptions(): Resource<List<HrmOption>> =
         fetchOptions("hrms/attendance/policies", mapOf("per_page" to "100", "status" to "1"))
+
+    /** Designation levels for the designation form's dropdown. */
+    suspend fun getLevelOptions(): Resource<List<HrmOption>> =
+        fetchOptions("hrms/designation-levels/ddl", emptyMap())
+
+    // ---- Generic CRUD (the config-driven HRM add/edit forms) ----
+
+    /**
+     * The row an edit form prefills from: a real edit endpoint when one exists
+     * (designations/levels), else found in the list — the web's setup tabs
+     * prefill from the table row the same way.
+     */
+    suspend fun fetchCrudRow(
+        editPath: String?,
+        listPath: String,
+        id: String,
+    ): Resource<JsonObject> = request {
+        if (editPath != null) {
+            val response = api.get("$editPath/$id", emptyMap())
+            checkHttp(response)?.let { return@request it }
+            val root = response.body()
+                ?: return@request Resource.Error("Invalid response from server.")
+            if (root.isJsonObject) {
+                val success = root.asJsonObject.get("success")
+                    ?.takeUnless { it.isJsonNull }?.asBoolean
+                if (success == false) return@request Resource.Error("Record not found.")
+            }
+            return@request unwrap(root).asObjectOrNull()
+                ?.let { Resource.Success(it) }
+                ?: Resource.Error("Record not found.")
+        }
+
+        // Page through the list (server caps per_page at 100) until the row shows.
+        for (page in 1..5) {
+            val response = api.get(
+                listPath,
+                mapOf("page" to page.toString(), "per_page" to "100"),
+            )
+            checkHttp(response)?.let { return@request it }
+            val root = response.body() ?: break
+            if (root.isJsonObject) {
+                val success = root.asJsonObject.get("success")
+                    ?.takeUnless { it.isJsonNull }?.asBoolean
+                if (success == false) break
+            }
+            val rows = rowsOf(unwrap(root))
+            if (rows.isEmpty()) break
+            rows.firstOrNull { it.asObjectOrNull()?.text("id") == id }
+                ?.asObjectOrNull()
+                ?.let { return@request Resource.Success(it) }
+            if (rows.size < 100) break
+        }
+        Resource.Error("Record not found.")
+    }
+
+    /** Posts a CRUD store/update body; the message parse handles both envelopes. */
+    suspend fun submitCrud(
+        path: String,
+        body: JsonObject,
+        fallback: String,
+    ): Resource<String> = request {
+        parseMessage(api.post(path, body), fallback)
+    }
 
     /**
      * The employee form's lookup bundle (`hrms/employee/settings`): branches,
@@ -387,6 +452,82 @@ class HrmRepository(
                     overtimeAmount = obj.number("overtime_amount"),
                 )
             }.toMap()
+        }
+    }
+
+    /** The monthly summary as display rows (names included), for the Summary tab. */
+    suspend fun monthlySummaryRows(
+        branchId: Long,
+        month: Int,
+        year: Int,
+    ): Resource<List<MonthlySummaryRow>> = request {
+        val response = api.get(
+            "hrms/attendance/monthly-summary",
+            mapOf(
+                "branch_id" to branchId.toString(),
+                "month" to month.toString(),
+                "year" to year.toString(),
+            ),
+        )
+        parseEnvelope(response) { payload ->
+            rowsOf(payload).mapNotNull { row ->
+                val obj = row.asObjectOrNull() ?: return@mapNotNull null
+                val employeeId = obj.text("employee_id")?.toLongOrNull() ?: return@mapNotNull null
+                MonthlySummaryRow(
+                    employeeId = employeeId,
+                    employeeName = obj.text("employee_name").orEmpty(),
+                    employeeSerial = obj.text("employee_serial").orEmpty(),
+                    presentDays = obj.number("present_days"),
+                    paidLeaveDays = obj.number("paid_leave_days"),
+                    unpaidLeaveDays = obj.number("unpaid_leave_days"),
+                    absentDays = obj.number("absent_days"),
+                    lateCount = obj.number("late_count"),
+                    earlyOutCount = obj.number("early_out_count"),
+                    halfDays = obj.number("half_days"),
+                    payableDays = obj.number("payable_days"),
+                    deductionDays = obj.number("deduction_days"),
+                )
+            }
+        }
+    }
+
+    /**
+     * Every (employee, day) attendance cell of a month, for the matrix tab.
+     * The report endpoint already merges approved leave in as `leave` rows.
+     */
+    suspend fun attendanceMatrix(
+        branchId: Long,
+        dateFrom: String,
+        dateTo: String,
+    ): Resource<List<AttendanceDayRow>> = request {
+        val response = api.get(
+            "hrms/attendance/entries/report",
+            mapOf(
+                "branch_id" to branchId.toString(),
+                "date_from" to dateFrom,
+                "date_to" to dateTo,
+                "status" to "",
+                "approval_status" to "",
+                "per_page" to "1000",
+            ),
+        )
+        parseEnvelope(response) { payload ->
+            rowsOf(payload).mapNotNull { row ->
+                val obj = row.asObjectOrNull() ?: return@mapNotNull null
+                val employeeId = obj.text("employee_id")?.toLongOrNull() ?: return@mapNotNull null
+                val day = obj.text("attendance_date")
+                    ?.takeIf { it.length >= 10 }
+                    ?.substring(8, 10)?.toIntOrNull()
+                    ?: return@mapNotNull null
+                AttendanceDayRow(
+                    employeeId = employeeId,
+                    employeeName = obj.text("employee_name").orEmpty(),
+                    employeeSerial = obj.text("employee_serial").orEmpty(),
+                    day = day,
+                    status = obj.text("status").orEmpty(),
+                    approvalStatus = obj.text("approval_status").orEmpty(),
+                )
+            }
         }
     }
 

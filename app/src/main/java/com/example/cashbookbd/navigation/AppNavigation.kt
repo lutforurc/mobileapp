@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.hrm.HrmCrudForms
 import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
@@ -47,6 +48,7 @@ import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
 import com.example.cashbookbd.ui.hrm.EmployeeFormScreen
+import com.example.cashbookbd.ui.hrm.HrmCrudFormScreen
 import com.example.cashbookbd.ui.hrm.HrmFormScreen
 import com.example.cashbookbd.ui.hrm.HrmHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
@@ -125,6 +127,17 @@ object Routes {
     const val EMPLOYEE_ADD = "employee/add"
     const val EMPLOYEE_EDIT = "employee/edit"
     const val EMPLOYEE_ID_ARG = "employeeId"
+
+    // Config-driven HRM add/edit forms (designations, attendance setup).
+    const val HRM_CRUD_ADD = "hrm/crud/{crudKey}/add"
+    const val HRM_CRUD_EDIT = "hrm/crud/{crudKey}/edit/{crudId}"
+    const val HRM_CRUD_KEY_ARG = "crudKey"
+    const val HRM_CRUD_ID_ARG = "crudId"
+
+    fun hrmCrudAdd(key: String): String = "hrm/crud/$key/add"
+
+    /** Base for a list's pencil — the list appends "/{id}" itself. */
+    fun hrmCrudEditBase(key: String): String = "hrm/crud/$key/edit"
 
     /** savedStateHandle key carrying a create confirmation back to the list. */
     const val CREATED_MESSAGE = "created_message"
@@ -411,6 +424,39 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                     employeeId = entry.arguments?.getString(Routes.EMPLOYEE_ID_ARG),
+                )
+            }
+        }
+
+        composable(
+            route = Routes.HRM_CRUD_ADD,
+            arguments = listOf(navArgument(Routes.HRM_CRUD_KEY_ARG) { type = NavType.StringType }),
+        ) { entry ->
+            val key = entry.arguments?.getString(Routes.HRM_CRUD_KEY_ARG).orEmpty()
+            PermissionGate(anyOf = HrmCrudForms.byKey(key)?.anyOf ?: emptyList()) {
+                HrmCrudFormScreen(
+                    crudKey = key,
+                    crudId = null,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.HRM_CRUD_EDIT,
+            arguments = listOf(
+                navArgument(Routes.HRM_CRUD_KEY_ARG) { type = NavType.StringType },
+                navArgument(Routes.HRM_CRUD_ID_ARG) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val key = entry.arguments?.getString(Routes.HRM_CRUD_KEY_ARG).orEmpty()
+            PermissionGate(anyOf = HrmCrudForms.byKey(key)?.anyOf ?: emptyList()) {
+                HrmCrudFormScreen(
+                    crudKey = key,
+                    crudId = entry.arguments?.getString(Routes.HRM_CRUD_ID_ARG),
+                    navController = navController,
+                    onLogout = backToLogin,
                 )
             }
         }

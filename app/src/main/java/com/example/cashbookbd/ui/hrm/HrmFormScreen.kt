@@ -54,6 +54,7 @@ fun HrmFormScreen(
         "manualAttendance" -> ManualAttendanceScreen(navController, onLogout, modifier)
         "leaveApplications" -> LeaveApplicationsScreen(navController, onLogout, modifier)
         "attendanceSetup" -> AttendanceSetupScreen(navController, onLogout, modifier)
+        "hrmMonthlyAttendance" -> MonthlyAttendanceScreen(navController, onLogout, modifier)
         "salaryGenerate" -> SalaryGenerateScreen(navController, onLogout, modifier)
         "bonusGenerate" -> BonusGenerateScreen(navController, onLogout, modifier)
         else -> AuthenticatedShell(
