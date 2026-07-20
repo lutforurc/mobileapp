@@ -67,16 +67,16 @@ fun PricingScreen(
         modifier = modifier,
     ) {
         when {
-            state.isLoading -> Center { CircularProgressIndicator() }
+            state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
             state.error != null -> Center {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    Text(state.error!!, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
                     PrimaryButton(text = "Retry", onClick = viewModel::loadPlans)
                 }
             }
             state.plans.isEmpty() -> Center {
-                Text("No plans available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("No plans available.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),

@@ -131,7 +131,7 @@ private fun LedgerFilterForm(
         )
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -215,13 +215,13 @@ private fun BranchDropdown(
 @Composable
 private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
     when {
-        state.isReportLoading -> CenterBox { CircularProgressIndicator() }
+        state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
         state.reportError != null -> CenterBox {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.reportError,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -232,7 +232,7 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
         state.statement == null -> CenterBox {
             Text(
                 text = "Choose a branch and ledger, pick a date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }

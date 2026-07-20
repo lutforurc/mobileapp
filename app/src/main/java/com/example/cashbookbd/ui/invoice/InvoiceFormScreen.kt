@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import android.app.DatePickerDialog
 import android.content.Context
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -25,7 +24,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +44,7 @@ import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AppSelectDropdown
+import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
@@ -90,7 +89,7 @@ fun InvoiceFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This invoice form isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -116,11 +115,10 @@ fun InvoiceFormScreen(
             }
 
             if (state.showInvoiceNo) {
-                OutlinedTextField(
+                AppTextField(
                     value = state.invoiceNo,
                     onValueChange = viewModel::onInvoiceNoChange,
-                    label = { Text(if (state.showInvoiceDate) "Invoice No" else "Supplier Invoice No (optional)") },
-                    singleLine = true,
+                    label = if (state.showInvoiceDate) "Invoice No" else "Supplier Invoice No (optional)",
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -135,29 +133,26 @@ fun InvoiceFormScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                AppTextField(
                     value = state.amount,
                     onValueChange = viewModel::onAmountChange,
-                    label = { Text(state.amountLabel) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = state.amountLabel,
+                    keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = state.discount,
                     onValueChange = viewModel::onDiscountChange,
-                    label = { Text("Discount") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = "Discount",
+                    keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f),
                 )
             }
 
-            OutlinedTextField(
+            AppTextField(
                 value = state.notes,
                 onValueChange = viewModel::onNotesChange,
-                label = { Text("Notes") },
-                singleLine = true,
+                label = "Notes",
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -176,7 +171,7 @@ fun InvoiceFormScreen(
             state.message?.let { message ->
                 Text(
                     text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -208,11 +203,10 @@ fun InvoiceFormScreen(
  */
 @Composable
 private fun TradingHeaderFields(state: InvoiceFormUiState, viewModel: InvoiceFormViewModel) {
-    OutlinedTextField(
+    AppTextField(
         value = state.vehicleNumber,
         onValueChange = viewModel::onVehicleNumberChange,
-        label = { Text("Vehicle Number") },
-        singleLine = true,
+        label = "Vehicle Number",
         modifier = Modifier.fillMaxWidth(),
     )
     SearchableSelectDropdown(
@@ -249,20 +243,18 @@ private fun InstallmentSection(state: InvoiceFormUiState, viewModel: InvoiceForm
 
         if (state.isInstallment) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+                AppTextField(
                     value = state.installmentAmount,
                     onValueChange = viewModel::onInstallmentAmountChange,
-                    label = { Text("Installment Amount") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = "Installment Amount",
+                    keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = state.installmentsNo,
                     onValueChange = viewModel::onInstallmentsNoChange,
-                    label = { Text("Installments No.") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = "Installments No.",
+                    keyboardType = KeyboardType.Number,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -286,12 +278,11 @@ private fun InstallmentSection(state: InvoiceFormUiState, viewModel: InvoiceForm
             }
 
             if (state.isEarlyPayment) {
-                OutlinedTextField(
+                AppTextField(
                     value = state.earlyDiscount,
                     onValueChange = viewModel::onEarlyDiscountChange,
-                    label = { Text("Early Discount") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = "Early Discount",
+                    keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FieldButton(
@@ -339,11 +330,10 @@ private fun ProductEntry(
 
         // Electronics (Computer and Accessories) sales take an optional IMEI/serial.
         if (state.isElectronics) {
-            OutlinedTextField(
+            AppTextField(
                 value = state.serialNo,
                 onValueChange = onSerialNoChange,
-                label = { Text("Serial No (optional)") },
-                singleLine = true,
+                label = "Serial No (optional)",
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -357,12 +347,11 @@ private fun ProductEntry(
                 placeholder = "Not Applicable",
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+                AppTextField(
                     value = state.bag,
                     onValueChange = viewModel::onBagChange,
-                    label = { Text("Bag Number") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = "Bag Number",
+                    keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f),
                 )
                 Box(modifier = Modifier.weight(1f)) {
@@ -374,32 +363,29 @@ private fun ProductEntry(
                     )
                 }
             }
-            OutlinedTextField(
+            AppTextField(
                 value = state.variance,
                 onValueChange = viewModel::onVarianceChange,
-                label = { Text("Weight Variance") },
-                singleLine = true,
+                label = "Weight Variance",
                 enabled = state.varianceEnabled,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
+            AppTextField(
                 value = state.qty,
                 onValueChange = onQtyChange,
-                label = { Text("Qty" + state.selectedProduct?.unit?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                label = "Qty" + state.selectedProduct?.unit?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
+                keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.weight(1f),
             )
-            OutlinedTextField(
+            AppTextField(
                 value = state.price,
                 onValueChange = onPriceChange,
-                label = { Text("Price") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                label = "Price",
+                keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.weight(1f),
             )
         }

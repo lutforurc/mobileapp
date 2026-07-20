@@ -14,18 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +36,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.AppSelectDropdown
+import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.ui.components.FieldButton
 import com.example.cashbookbd.admin.AdminKind
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -85,7 +82,7 @@ fun AdminFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This screen isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -120,7 +117,7 @@ fun AdminFormScreen(
                         onSelected = viewModel::onBranchSelected,
                     )
                     state.branchesError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                     }
                     VoucherNoField(state.voucherNo, viewModel::onVoucherNoChange)
                     TypeDropdown(
@@ -145,7 +142,7 @@ fun AdminFormScreen(
             state.message?.let { message ->
                 Text(
                     text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -156,22 +153,22 @@ fun AdminFormScreen(
 
 @Composable
 private fun ReadOnlyField(label: String, value: String) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
+        label = "",
+        caption = label,
+        enabled = false,
         modifier = Modifier.fillMaxWidth(),
     )
 }
 
 @Composable
 private fun VoucherNoField(value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text("Enter Voucher Number") },
-        singleLine = true,
+        label = "Enter Voucher Number",
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -185,18 +182,12 @@ private fun BranchDropdown(
     onSelected: (BranchOption) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && branches.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.name ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Select Branch") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = "Select Branch",
+            valueText = selected?.name,
+            placeholder = if (isLoading) "Loading…" else "",
+            onClick = { if (branches.isNotEmpty()) expanded = true },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             branches.forEach { branch ->
@@ -210,7 +201,6 @@ private fun BranchDropdown(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TypeDropdown(
     options: List<SelectorOption>,
@@ -218,30 +208,13 @@ private fun TypeDropdown(
     isLoading: Boolean,
     onSelected: (SelectorOption) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && options.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.label ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Select Voucher Type") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = { onSelected(option); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
+    AppSelectDropdown(
+        label = "Select Voucher Type",
+        options = options,
+        selected = selected,
+        onSelected = onSelected,
+        placeholder = if (isLoading) "Loading…" else "",
+    )
 }
 
 @Composable

@@ -375,13 +375,13 @@ fun EmployeeFormScreen(
     ) {
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
             }
             return@AuthenticatedShell
         }
         state.loadError?.let { error ->
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(error, color = MaterialTheme.colorScheme.error)
+                Text(error, color = MaterialTheme.colorScheme.onBackground)
             }
             return@AuthenticatedShell
         }
@@ -572,7 +572,7 @@ fun EmployeeFormScreen(
                 )
                 state.saveError?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

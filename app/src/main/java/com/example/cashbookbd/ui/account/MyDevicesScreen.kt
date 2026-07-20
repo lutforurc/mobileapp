@@ -1,6 +1,5 @@
 package com.example.cashbookbd.ui.account
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +35,7 @@ import androidx.navigation.NavHostController
 import com.example.cashbookbd.data.repository.UserDevice
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.BrandPill
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
 
@@ -83,13 +82,13 @@ fun MyDevicesScreen(
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 when {
-                    state.isLoading && state.devices.isEmpty() -> Center { CircularProgressIndicator() }
+                    state.isLoading && state.devices.isEmpty() -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
                     state.error != null && state.devices.isEmpty() -> Center {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = state.error!!,
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.Center,
                             )
                             Spacer(Modifier.height(16.dp))
@@ -100,7 +99,7 @@ fun MyDevicesScreen(
                     state.devices.isEmpty() -> Center {
                         Text(
                             text = "No active devices found.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         )
                     }
 
@@ -132,7 +131,7 @@ private fun DeviceList(
                 text = deviceLimit?.let { "${devices.size} of $it devices in use" }
                     ?: "${devices.size} active devices",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
             )
         }
 
@@ -160,7 +159,7 @@ private fun DeviceCard(device: UserDevice, isRevoking: Boolean, onRevoke: () -> 
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                if (device.isCurrent) ThisDevicePill()
+                if (device.isCurrent) BrandPill(text = "This device", compact = true)
             }
 
             device.ip?.let { DetailRow("IP", it) }
@@ -184,22 +183,6 @@ private fun DetailRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun ThisDevicePill() {
-    Box(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = "This device",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-        )
     }
 }
 

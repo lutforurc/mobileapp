@@ -40,6 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.ui.theme.accents
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.HrmRepository
@@ -323,7 +324,7 @@ fun SalarySheetScreen(
                 }
                 state.error?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -331,7 +332,7 @@ fun SalarySheetScreen(
                 state.isLoading || state.isDetailLoading -> Box(
                     Modifier.fillMaxSize().padding(24.dp),
                     contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
+                ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
                 !state.loaded -> Box(
                     Modifier.fillMaxSize().padding(32.dp),
@@ -339,7 +340,7 @@ fun SalarySheetScreen(
                 ) {
                     Text(
                         "Choose your filters, then tap Search.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )
                 }
 
@@ -349,7 +350,7 @@ fun SalarySheetScreen(
                 ) {
                     Text(
                         "No salary sheets for this year.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )
                 }
 
@@ -357,6 +358,7 @@ fun SalarySheetScreen(
                     // The web's Salary Sheet table, through the shared template:
                     // same columns, same colours, action column at the end.
                     val errorColor = MaterialTheme.colorScheme.error
+                    val paidColor = MaterialTheme.accents.green
                     val primaryColor = MaterialTheme.colorScheme.primary
                     val columns = listOf(
                         ReportColumn<SalarySheetSummary>(
@@ -414,7 +416,7 @@ fun SalarySheetScreen(
                         ) { row, _ ->
                             cellText(
                                 AmountFormat.formatOrDash(row.payment),
-                                color = if (row.payment > 0) PaidGreen else Color.Unspecified,
+                                color = if (row.payment > 0) paidColor else Color.Unspecified,
                             )
                         },
                         ReportColumn(
@@ -494,12 +496,13 @@ private fun SalaryDetailView(
                     Text(
                         text = voucherLine,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )
                 }
             }
         }
 
+        val paidColor = MaterialTheme.accents.green
         val columns = listOf(
             ReportColumn<com.example.cashbookbd.ui.hrm.model.SalaryDetailRow>(
                 header = "SL",
@@ -568,7 +571,7 @@ private fun SalaryDetailView(
                 cellText(
                     AmountFormat.formatOrDash(row.payment),
                     bold = row.payment > 0,
-                    color = if (row.payment > 0) PaidGreen else Color.Unspecified,
+                    color = if (row.payment > 0) paidColor else Color.Unspecified,
                 )
             },
             ReportColumn(
@@ -610,22 +613,23 @@ private fun SalaryDetailView(
     }
 }
 
-/** The web table's greens (emerald payment text and Paid pill). */
-private val PaidGreen = Color(0xFF10B981)
-
-/** The web's green "Paid" pill. */
+/**
+ * The web's green "Paid" pill. The colour is the theme's success accent, so it
+ * follows the palette in both themes — a translucent wash would re-tint itself
+ * against whatever card sits behind it.
+ */
 @Composable
 private fun PaidBadge() {
     Box(
         modifier = Modifier
-            .background(PaidGreen.copy(alpha = 0.18f), RoundedCornerShape(999.dp))
+            .background(MaterialTheme.accents.green, RoundedCornerShape(999.dp))
             .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(
             text = "Paid",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF047857),
+            color = MaterialTheme.colorScheme.surface,
         )
     }
 }

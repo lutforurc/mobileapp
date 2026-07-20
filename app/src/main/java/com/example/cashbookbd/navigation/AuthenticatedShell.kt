@@ -1,7 +1,11 @@
 package com.example.cashbookbd.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,6 +63,7 @@ import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.components.AccountMenu
 import com.example.cashbookbd.ui.components.accountMenuItems
 import com.example.cashbookbd.ui.theme.ThemeMode
+import com.example.cashbookbd.ui.theme.brand
 import kotlinx.coroutines.launch
 
 /**
@@ -213,123 +218,82 @@ private fun AppDrawerContent(
     canSubscription: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
-    ModalDrawerSheet {
+    ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-            Text(
-                text = "CashBook",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 28.dp, top = 24.dp, bottom = 16.dp),
-            )
+            // The brand sheet's "Signature gradient" (teal → deep blue) as the
+            // drawer header, so the drawer opens with the brand itself. Both
+            // the gradient and its text colour come from the palette, so the
+            // header follows a theme change like everything else.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.linearGradient(MaterialTheme.brand.gradient))
+                    .padding(start = 28.dp, top = 48.dp, bottom = 24.dp),
+            ) {
+                Text(
+                    text = "CashBook",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.brand.onGradient,
+                )
+            }
 
-            NavigationDrawerItem(
-                label = { Text("Dashboard") },
-                icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                selected = currentRoute == Routes.HOME,
-                onClick = { onDestinationClick(Routes.HOME) },
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
+            Spacer(Modifier.height(12.dp))
 
-            // Single "Transaction" section — its child forms are listed inside
-            // TransactionHomeScreen, filtered by permission.
+            // Each section is one DrawerItem; child screens live inside the
+            // section's own home screen, filtered by permission.
+            DrawerItem("Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME) {
+                onDestinationClick(Routes.HOME)
+            }
             if (canTransactions) {
-                NavigationDrawerItem(
-                    label = { Text("Transaction") },
-                    icon = { Icon(Icons.Filled.Create, contentDescription = null) },
-                    selected = currentRoute == Routes.TRANSACTIONS,
-                    onClick = { onDestinationClick(Routes.TRANSACTIONS) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS) {
+                    onDestinationClick(Routes.TRANSACTIONS)
+                }
             }
-
-            // Single "Invoice" section — its child forms are listed inside
-            // InvoiceHomeScreen, filtered by permission.
             if (canInvoices) {
-                NavigationDrawerItem(
-                    label = { Text("Invoice") },
-                    icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = null) },
-                    selected = currentRoute == Routes.INVOICES,
-                    onClick = { onDestinationClick(Routes.INVOICES) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES) {
+                    onDestinationClick(Routes.INVOICES)
+                }
             }
-
-            // Single "Reports" section — its child reports are listed inside
-            // ReportsHomeScreen, filtered by permission. Shown only when the user
-            // has any report permission.
             if (canReports) {
-                NavigationDrawerItem(
-                    label = { Text("Reports") },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    selected = currentRoute == Routes.REPORTS ||
+                DrawerItem(
+                    "Reports",
+                    Icons.AutoMirrored.Filled.List,
+                    currentRoute == Routes.REPORTS ||
                         currentRoute == Routes.CASHBOOK ||
                         currentRoute == Routes.LEDGER,
-                    onClick = { onDestinationClick(Routes.REPORTS) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                ) {
+                    onDestinationClick(Routes.REPORTS)
+                }
             }
-
-            // Single "VR Settings" section — its child screens are listed inside
-            // VrSettingsHomeScreen, filtered by permission.
             if (canVrSettings) {
-                NavigationDrawerItem(
-                    label = { Text("VR Settings") },
-                    icon = { Icon(Icons.Filled.Build, contentDescription = null) },
-                    selected = currentRoute == Routes.VR_SETTINGS,
-                    onClick = { onDestinationClick(Routes.VR_SETTINGS) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS) {
+                    onDestinationClick(Routes.VR_SETTINGS)
+                }
             }
-
-            // Single "Admin" section — its child screens are listed inside
-            // AdminHomeScreen, filtered by permission.
             if (canAdmin) {
-                NavigationDrawerItem(
-                    label = { Text("Admin") },
-                    icon = { Icon(Icons.Filled.AccountBox, contentDescription = null) },
-                    selected = currentRoute == Routes.ADMIN,
-                    onClick = { onDestinationClick(Routes.ADMIN) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN) {
+                    onDestinationClick(Routes.ADMIN)
+                }
             }
-
-            // Single "HRM" section — its child screens are listed inside
-            // HrmHomeScreen, filtered by permission.
             if (canHrm) {
-                NavigationDrawerItem(
-                    label = { Text("HRM") },
-                    icon = { Icon(Icons.Filled.Face, contentDescription = null) },
-                    selected = currentRoute == Routes.HRM,
-                    onClick = { onDestinationClick(Routes.HRM) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("HRM", Icons.Filled.Face, currentRoute == Routes.HRM) {
+                    onDestinationClick(Routes.HRM)
+                }
             }
-
-            // Single "Customers" section — its child lists are listed inside
-            // CustomerHomeScreen, filtered by permission.
             if (canCustomers) {
-                NavigationDrawerItem(
-                    label = { Text("Customers") },
-                    icon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                    selected = currentRoute == Routes.CUSTOMERS,
-                    onClick = { onDestinationClick(Routes.CUSTOMERS) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS) {
+                    onDestinationClick(Routes.CUSTOMERS)
+                }
             }
-
-            // "Subscription" — My Plan / Pricing / Billing / Plans, listed inside
-            // SubscriptionHomeScreen.
             if (canSubscription) {
-                NavigationDrawerItem(
-                    label = { Text("Subscription") },
-                    icon = { Icon(Icons.Filled.Star, contentDescription = null) },
-                    selected = currentRoute == Routes.SUBSCRIPTION,
-                    onClick = { onDestinationClick(Routes.SUBSCRIPTION) },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
+                DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
+                    onDestinationClick(Routes.SUBSCRIPTION)
+                }
             }
 
             // Dark mode and Log Out deliberately live in the top-bar account
@@ -337,4 +301,34 @@ private fun AppDrawerContent(
             Spacer(Modifier.height(12.dp))
         }
     }
+}
+
+/**
+ * One drawer destination with the brand colours: the selected item sits in a
+ * filled teal (primary) pill with white content; unselected items stay quiet.
+ */
+@Composable
+private fun DrawerItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    NavigationDrawerItem(
+        label = {
+            Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        },
+        icon = { Icon(icon, contentDescription = null) },
+        selected = selected,
+        onClick = onClick,
+        colors = NavigationDrawerItemDefaults.colors(
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+            unselectedContainerColor = Color.Transparent,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+    )
 }

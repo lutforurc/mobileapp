@@ -65,7 +65,7 @@ fun ReportsHomeScreen(
             ) {
                 Text(
                     text = "You don't have access to any reports.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }

@@ -39,7 +39,7 @@ fun NoAccessScreen(
             imageVector = Icons.Filled.Lock,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
         )
         Spacer(Modifier.height(16.dp))
         Text(
@@ -50,7 +50,7 @@ fun NoAccessScreen(
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
         )
     }

@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.BrandPill
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.subscription.model.CurrentSubscription
 
@@ -64,10 +65,10 @@ fun MyPlanScreen(
         modifier = modifier,
     ) {
         when {
-            state.isLoading -> Center { CircularProgressIndicator() }
+            state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
             state.error != null -> Center {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    Text(state.error!!, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
                     PrimaryButton(text = "Retry", onClick = viewModel::loadCurrent)
                 }
@@ -75,7 +76,7 @@ fun MyPlanScreen(
             !state.hasCurrent -> Center {
                 Text(
                     text = "You don't have an active subscription yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -98,7 +99,7 @@ private fun PlanDetail(plan: CurrentSubscription) {
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
-                if (plan.status.isNotBlank()) StatusPill(plan.status.replace('_', ' '))
+                if (plan.status.isNotBlank()) BrandPill(plan.status.replace('_', ' '))
                 if (plan.accessStatus.isNotBlank()) {
                     Text(
                         text = "Access: ${plan.accessStatus.replace('_', ' ')}",
@@ -134,17 +135,6 @@ private fun DateRow(label: String, value: String) {
             Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value.ifBlank { "-" }, fontWeight = FontWeight.SemiBold)
         }
-    }
-}
-
-@Composable
-private fun StatusPill(text: String) {
-    Box(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(text, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
     }
 }
 

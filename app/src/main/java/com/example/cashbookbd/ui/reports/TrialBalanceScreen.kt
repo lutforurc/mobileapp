@@ -2,13 +2,13 @@ package com.example.cashbookbd.ui.reports
 
 import android.app.DatePickerDialog
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +53,7 @@ import com.example.cashbookbd.ui.components.FilterActions
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.SummaryTile
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -139,7 +140,7 @@ private fun FilterCard(
         )
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -209,13 +210,13 @@ private fun BranchDropdown(
 @Composable
 private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
     when {
-        state.isReportLoading -> CenterBox { CircularProgressIndicator() }
+        state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
         state.reportError != null -> CenterBox {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.reportError,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -226,7 +227,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -276,7 +277,7 @@ private fun ReportContent(
             Text(
                 text = "Reporting date: $range",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(Modifier.height(8.dp))
@@ -286,7 +287,7 @@ private fun ReportContent(
             CenterBox {
                 Text(
                     text = "No trial balance data for this selection.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -303,13 +304,9 @@ private fun SummaryBox(
     accent: Color,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+    SummaryTile(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,

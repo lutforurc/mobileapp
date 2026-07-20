@@ -14,18 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +37,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.ui.components.FieldButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -85,7 +81,7 @@ fun VrSettingsFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This screen isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -102,11 +98,10 @@ fun VrSettingsFormScreen(
             if (state.isDateChange) {
                 DateChangeFields(state = state, viewModel = viewModel)
             } else {
-                OutlinedTextField(
+                AppTextField(
                     value = state.voucherNo,
                     onValueChange = viewModel::onVoucherNoChange,
-                    label = { Text("Enter Voucher Number") },
-                    singleLine = true,
+                    label = "Enter Voucher Number",
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -122,7 +117,7 @@ fun VrSettingsFormScreen(
             state.message?.let { message ->
                 Text(
                     text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -152,7 +147,7 @@ private fun DateChangeFields(state: VrSettingsFormUiState, viewModel: VrSettings
         onSelected = viewModel::onBranchSelected,
     )
     state.branchesError?.let {
-        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
     }
 
     VoucherTypeDropdown(selected = state.voucherType, onSelected = viewModel::onVoucherTypeChange)
@@ -175,18 +170,16 @@ private fun DateChangeFields(state: VrSettingsFormUiState, viewModel: VrSettings
     }
 
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
+        AppTextField(
             value = state.startVoucher,
             onValueChange = viewModel::onStartVoucher,
-            label = { Text("Start Voucher") },
-            singleLine = true,
+            label = "Start Voucher",
             modifier = Modifier.weight(1f),
         )
-        OutlinedTextField(
+        AppTextField(
             value = state.endVoucher,
             onValueChange = viewModel::onEndVoucher,
-            label = { Text("End Voucher") },
-            singleLine = true,
+            label = "End Voucher",
             modifier = Modifier.weight(1f),
         )
     }
@@ -201,18 +194,12 @@ private fun BranchDropdown(
     onSelected: (BranchOption) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && branches.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.name ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Select Branch") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = "Select Branch",
+            valueText = selected?.name,
+            placeholder = if (isLoading) "Loading…" else "",
+            onClick = { if (branches.isNotEmpty()) expanded = true },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             branches.forEach { branch ->
@@ -231,18 +218,11 @@ private fun BranchDropdown(
 private fun VoucherTypeDropdown(selected: String, onSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val label = VOUCHER_TYPES.firstOrNull { it.first == selected }?.second ?: "Received"
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = label,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Voucher Type") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = "Voucher Type",
+            valueText = label,
+            onClick = { expanded = true },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             VOUCHER_TYPES.forEach { (value, text) ->

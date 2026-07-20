@@ -142,7 +142,7 @@ private fun LoadingState() {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
     }
 }
 
@@ -158,7 +158,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(20.dp))
@@ -253,7 +253,7 @@ private fun LinearRefreshHint() {
     Text(
         text = "Refreshing…",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
     )
@@ -321,7 +321,7 @@ private fun SummaryCard(dashboard: Dashboard) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -377,7 +377,10 @@ private fun SummaryStatRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(tint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                // A neutral chip with the accent kept on the glyph: a translucent
+                // wash of [tint] only works over a light card, and goes muddy on
+                // the dark one.
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (icon != null) {
@@ -720,7 +723,7 @@ private fun groupLakh(digits: String): String {
 @Preview(showBackground = true, name = "Dashboard · Light")
 @Composable
 private fun DashboardContentPreview() {
-    CashBookbdTheme(darkTheme = false, dynamicColor = false) {
+    CashBookbdTheme(darkTheme = false) {
         DashboardContent(
             dashboard = previewDashboard,
             isRefreshing = false,
@@ -738,7 +741,7 @@ private fun DashboardContentPreview() {
 )
 @Composable
 private fun DashboardContentDarkPreview() {
-    CashBookbdTheme(darkTheme = true, dynamicColor = false) {
+    CashBookbdTheme(darkTheme = true) {
         DashboardContent(
             dashboard = previewDashboard,
             isRefreshing = false,

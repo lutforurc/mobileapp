@@ -7,19 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -42,6 +35,9 @@ import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.AppSelectDropdown
+import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
@@ -102,7 +98,7 @@ fun AddUserScreen(
                 if (state.optionsError != null) {
                     Text(
                         text = state.optionsError!!,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -173,7 +169,7 @@ private fun Hint(text: String, isError: Boolean = false) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
     )
 }
 
@@ -186,16 +182,12 @@ private fun Field(
     isPassword: Boolean = false,
     isError: Boolean = false,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = true,
-        isError = isError,
+        label = label,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (isPassword) KeyboardType.Password else keyboard,
-        ),
+        keyboardType = if (isPassword) KeyboardType.Password else keyboard,
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -209,18 +201,12 @@ private fun BranchDropdown(
     onSelected: (BranchOption) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && branches.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.name ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Branch") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = "Branch",
+            valueText = selected?.name,
+            placeholder = if (isLoading) "Loading…" else "",
+            onClick = { if (branches.isNotEmpty()) expanded = true },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             branches.forEach { branch ->
@@ -234,7 +220,6 @@ private fun BranchDropdown(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RoleDropdown(
     roles: List<SelectorOption>,
@@ -242,28 +227,11 @@ private fun RoleDropdown(
     isLoading: Boolean,
     onSelected: (SelectorOption) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && roles.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.label ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Role") },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            roles.forEach { role ->
-                DropdownMenuItem(
-                    text = { Text(role.label) },
-                    onClick = { onSelected(role); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
+    AppSelectDropdown(
+        label = "Role",
+        options = roles,
+        selected = selected,
+        onSelected = onSelected,
+        placeholder = if (isLoading) "Loading…" else "",
+    )
 }

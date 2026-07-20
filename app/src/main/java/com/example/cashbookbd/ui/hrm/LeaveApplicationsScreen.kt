@@ -364,7 +364,7 @@ fun LeaveApplicationsScreen(
                 }
                 state.saveError?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -381,19 +381,19 @@ fun LeaveApplicationsScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(24.dp),
                         horizontalArrangement = Arrangement.Center,
-                    ) { CircularProgressIndicator() }
+                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
                 }
                 state.listError != null -> item {
                     Text(
                         text = state.listError.orEmpty(),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
                 state.applications.isEmpty() -> item {
                     Text(
                         text = "No leave applications in this period.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

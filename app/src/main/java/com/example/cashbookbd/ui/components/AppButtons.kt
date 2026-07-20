@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -84,6 +85,13 @@ fun PrimaryButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = if (compact) CompactShape else ButtonShape,
+        // M3's default disabled colours are onSurface at low alpha, which all
+        // but vanishes against the brand-teal screen. A solid surface fill with
+        // the muted on-colour keeps a disabled button legible in both themes.
+        colors = ButtonDefaults.buttonColors(
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -117,6 +125,13 @@ fun SecondaryButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = if (compact) CompactShape else ButtonShape,
+        // These sit on the screen background (filter bars, list toolbars), not
+        // on a card, so label and border take the background's on-colour — the
+        // primary would be one brand colour drawn on another.
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -124,7 +139,7 @@ fun SecondaryButton(
             text = text,
             icon = icon,
             isLoading = isLoading,
-            spinnerColor = MaterialTheme.colorScheme.primary,
+            spinnerColor = MaterialTheme.colorScheme.onBackground,
             compact = compact,
         )
         if (trailingIcon != null && !isLoading) {

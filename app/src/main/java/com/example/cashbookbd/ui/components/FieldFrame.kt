@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,11 +52,13 @@ fun FieldFrame(
     content: @Composable RowScope.() -> Unit,
 ) {
     Column(modifier = modifier) {
-        Text(
+        if (label.isNotBlank()) Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            // The caption sits on the screen's teal background, not on the
+            // field box, so it uses the background's on-colour.
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
         )
         Row(
@@ -62,10 +66,12 @@ fun FieldFrame(
                 .fillMaxWidth()
                 .height(FormFieldHeight)
                 .clip(FieldShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                // Solid surface, not a translucent tint: the screen behind is
+                // the brand teal, and a see-through box melts into it.
+                .background(MaterialTheme.colorScheme.surface)
                 .border(
-                    width = 1.5.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = FieldShape,
                 )
                 .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
@@ -100,12 +106,16 @@ fun RowScope.FieldTextInput(
     placeholder: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
         singleLine = true,
+        keyboardOptions = keyboardOptions,
+        visualTransformation = visualTransformation,
         textStyle = fieldValueTextStyle(),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = modifier.weight(1f),

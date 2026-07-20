@@ -10,19 +10,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -87,7 +83,7 @@ fun TransactionFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This form isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -111,20 +107,18 @@ fun TransactionFormScreen(
                 )
             }
 
-            OutlinedTextField(
+            AppTextField(
                 value = state.remarks,
                 onValueChange = viewModel::onRemarksChange,
-                label = { Text(state.remarksLabel) },
-                singleLine = true,
+                label = state.remarksLabel,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            OutlinedTextField(
+            AppTextField(
                 value = state.amount,
                 onValueChange = viewModel::onAmountChange,
-                label = { Text(state.amountLabel) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                label = state.amountLabel,
+                keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -142,7 +136,7 @@ fun TransactionFormScreen(
                 Text(
                     text = message,
                     color = if (state.isError) {
-                        MaterialTheme.colorScheme.error
+                        MaterialTheme.colorScheme.onBackground
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
@@ -203,40 +197,39 @@ private fun BankDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && options.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.name ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            isError = error != null,
-            supportingText = error?.let { { Text(it) } },
-            trailingIcon = {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            DropdownAnchorField(
+                label = label,
+                valueText = selected?.name,
+                placeholder = if (isLoading) "Loading…" else "",
+                onClick = { if (options.isNotEmpty()) expanded = true },
+                trailingIcon = if (isLoading) {
+                    { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp) }
                 } else {
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                    null
+                },
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = {
+                            onSelected(option)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                    )
                 }
-            },
-            modifier = Modifier
-                .menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = {
-                        onSelected(option)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
             }
+        }
+        error?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 4.dp, top = 3.dp),
+            )
         }
     }
 }

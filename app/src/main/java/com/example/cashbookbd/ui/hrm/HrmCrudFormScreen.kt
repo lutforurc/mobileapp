@@ -354,13 +354,13 @@ fun HrmCrudFormScreen(
     ) {
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
             }
             state.loadError != null -> Box(
                 Modifier.fillMaxSize().padding(32.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(state.loadError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                Text(state.loadError.orEmpty(), color = MaterialTheme.colorScheme.onBackground)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -389,7 +389,7 @@ fun HrmCrudFormScreen(
                         Spacer(Modifier.height(10.dp))
                         Text(
                             it,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onBackground,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

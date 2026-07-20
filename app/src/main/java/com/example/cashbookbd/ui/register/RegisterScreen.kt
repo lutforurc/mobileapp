@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.register
 
+import com.example.cashbookbd.ui.components.appTextFieldColors
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,6 +86,9 @@ fun RegisterScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // Same as the login screen: the form sits directly on the app-wide
+        // teal background, so it keeps the neutral surface.
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -366,6 +370,7 @@ private fun Field(
     placeholder: String? = null,
 ) {
     OutlinedTextField(
+            colors = appTextFieldColors(),
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
@@ -390,6 +395,7 @@ private fun PasswordField(
     imeAction: ImeAction = ImeAction.Next,
 ) {
     OutlinedTextField(
+            colors = appTextFieldColors(),
         value = value,
         onValueChange = onChange,
         label = { Text(label) },

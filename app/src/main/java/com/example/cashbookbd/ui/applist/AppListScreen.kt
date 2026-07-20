@@ -219,7 +219,7 @@ private fun PaginationBar(state: AppListUiState, onPrev: () -> Unit, onNext: () 
         Text(
             text = "Page ${state.currentPage} of ${state.lastPage}  •  ${state.total} total",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
         )
         LinkButton(
             text = "Next",
@@ -239,11 +239,11 @@ private fun ListBody(
     onEdit: (AppListRow) -> Unit,
 ) {
     when {
-        state.isLoading -> Center { CircularProgressIndicator() }
+        state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
         state.error != null -> Center {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(state.error!!, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                Text(state.error!!, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
                 PrimaryButton(text = "Retry", onClick = onRetry)
             }
@@ -252,7 +252,7 @@ private fun ListBody(
         state.rows.isEmpty() -> Center {
             Text(
                 text = "No records found.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }

@@ -482,7 +482,7 @@ fun SalaryGenerateScreen(
                 }
                 (state.loadError ?: state.generateError)?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -491,7 +491,7 @@ fun SalaryGenerateScreen(
                 item {
                     Text(
                         text = "No eligible employees for this month.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

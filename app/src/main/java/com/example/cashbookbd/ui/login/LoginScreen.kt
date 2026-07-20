@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.login
 
+import com.example.cashbookbd.ui.components.appTextFieldColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -79,6 +80,10 @@ fun LoginScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // The app-wide background is the brand teal; this screen's teal links
+        // and outlined fields sit directly on it, so it keeps the neutral
+        // surface instead.
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -106,6 +111,7 @@ fun LoginScreen(
 
             // Identifier: email / phone / username
             OutlinedTextField(
+            colors = appTextFieldColors(),
                 value = uiState.identifier,
                 onValueChange = viewModel::onIdentifierChange,
                 label = { Text("Email, phone or username") },
@@ -123,6 +129,7 @@ fun LoginScreen(
 
             // Password
             OutlinedTextField(
+            colors = appTextFieldColors(),
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
                 label = { Text("Password") },

@@ -2,13 +2,13 @@ package com.example.cashbookbd.ui.reports
 
 import android.app.DatePickerDialog
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -51,6 +50,8 @@ import com.example.cashbookbd.ui.components.FilterActions
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.SummaryTile
+import com.example.cashbookbd.ui.components.SummaryTileRow
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -135,7 +136,7 @@ private fun FilterCard(
         )
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -205,13 +206,15 @@ private fun BranchDropdown(
 @Composable
 private fun Results(state: ProfitLossUiState, onRetry: () -> Unit) {
     when {
-        state.isReportLoading -> CenterBox { CircularProgressIndicator() }
+        state.isReportLoading -> CenterBox {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
+        }
 
         state.reportError != null -> CenterBox {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.reportError,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -222,7 +225,7 @@ private fun Results(state: ProfitLossUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -230,7 +233,7 @@ private fun Results(state: ProfitLossUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No Profit & Loss data for this selection.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -261,7 +264,7 @@ private fun ReportContent(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
             )
         }
@@ -296,14 +299,7 @@ private fun ReportContent(
 
 @Composable
 private fun SummaryBox(item: ProfitLossSummaryItem) {
-    Column(
-        modifier = Modifier
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(10.dp),
-            )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
+    SummaryTile {
         Text(
             text = item.label,
             style = MaterialTheme.typography.labelSmall,
@@ -357,16 +353,11 @@ private fun NetLine(report: ProfitLossReport) {
     } else {
         MaterialTheme.colorScheme.error
     }
-    Row(
+    SummaryTileRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(10.dp),
-            )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Text(
             text = report.netLabel,

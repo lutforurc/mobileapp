@@ -39,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -130,7 +129,7 @@ private fun FilterCard(
         )
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -191,13 +190,13 @@ private fun BranchDropdown(
 @Composable
 private fun Results(state: DueListUiState, onRetry: () -> Unit) {
     when {
-        state.isReportLoading -> CenterBox { CircularProgressIndicator() }
+        state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
         state.reportError != null -> CenterBox {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.reportError,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -208,7 +207,7 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and end date, then tap Apply.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -216,7 +215,7 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No dues found for this selection.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }

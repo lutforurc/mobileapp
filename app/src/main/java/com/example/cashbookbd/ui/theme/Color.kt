@@ -7,79 +7,186 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
-
 /**
- * The app's blue brand palette. Everything that reads as "the brand colour" —
- * filled buttons, the report/list table headers, primary icons — comes from
- * `colorScheme.primary`, so these values set that colour in one place.
- *
- * The two primaries are the app owner's chosen blues: a mid steel-blue on light
- * (white text sits on it), a lighter sky-blue on dark (which needs *dark* text,
- * per Material's dark convention — white would be unreadable on it). The rest is
- * a coordinated blue ramp with on-colours and containers for contrast in both
- * themes. Backgrounds stay a neutral near-white / near-black so the blue leads.
+ * The owner's design-system sheet, verbatim. These are the only raw hex values
+ * in the app — every palette below is written in terms of them, so a change to
+ * the brand sheet is a change to this object alone.
  */
-object Brand {
-    // Light — primary #458FB4
-    val Primary = Color(0xFF458FB4)
-    val OnPrimary = Color(0xFFFFFFFF)
-    val PrimaryContainer = Color(0xFFCCE7F5)
-    val OnPrimaryContainer = Color(0xFF08293A)
-    val Secondary = Color(0xFF50606B)
-    val OnSecondary = Color(0xFFFFFFFF)
-    val SecondaryContainer = Color(0xFFD4E4EF)
-    val OnSecondaryContainer = Color(0xFF0C1D27)
-    val Tertiary = Color(0xFF3F6473)
-    val OnTertiary = Color(0xFFFFFFFF)
-    val TertiaryContainer = Color(0xFFC2E8FA)
-    val OnTertiaryContainer = Color(0xFF001F2A)
-    val Background = Color(0xFFF8FAFC)
-    val OnBackground = Color(0xFF191C1E)
-    val Surface = Color(0xFFF8FAFC)
-    val OnSurface = Color(0xFF191C1E)
-    val SurfaceVariant = Color(0xFFDCE3E9)
-    val OnSurfaceVariant = Color(0xFF41484D)
-    val Outline = Color(0xFF71787E)
-    val OutlineVariant = Color(0xFFC1C7CD)
+object BrandSheet {
+    // Brand · Teal & Blue
+    val TealPrimary = Color(0xFF1BAFB3)
+    val TealDeep = Color(0xFF178A9E)
+    val BlueDeep = Color(0xFF1D5379)
 
-    // Dark — primary #7BB4D2. A neutral near-black charcoal (no colour cast) lets
-    // the blue lead; surfaces step up in lightness (background < surface <
-    // surfaceVariant) so cards and fields separate without borders. The primary
-    // is light, so its on-colour is a dark navy — white would vanish on it.
-    val DarkPrimary = Color(0xFF7BB4D2)
-    val DarkOnPrimary = Color(0xFF08344A)
-    val DarkPrimaryContainer = Color(0xFF264C60)
-    val DarkOnPrimaryContainer = Color(0xFFCCE7F5)
-    val DarkSecondary = Color(0xFFB6C9D6)
-    val DarkOnSecondary = Color(0xFF20333F)
-    val DarkSecondaryContainer = Color(0xFF374A56)
-    val DarkOnSecondaryContainer = Color(0xFFD4E4EF)
-    val DarkTertiary = Color(0xFFA6CDE0)
-    val DarkOnTertiary = Color(0xFF0A3445)
-    val DarkTertiaryContainer = Color(0xFF25495C)
-    val DarkOnTertiaryContainer = Color(0xFFC2E8FA)
-    val DarkBackground = Color(0xFF101416)
-    val DarkOnBackground = Color(0xFFE1E3E5)
-    val DarkSurface = Color(0xFF181C1F)
-    val DarkOnSurface = Color(0xFFE1E3E5)
-    val DarkSurfaceVariant = Color(0xFF2A2F33)
-    val DarkOnSurfaceVariant = Color(0xFFC0C7CD)
-    val DarkOutline = Color(0xFF8A9197)
-    val DarkOutlineVariant = Color(0xFF3A4045)
+    // Accents & Semantic
+    val Orange = Color(0xFFE56A35)
+    val Coral = Color(0xFFFF8B7B)
+    val PinkTint = Color(0xFFFCEFEE)
+    val TealTint = Color(0xFFE1EEEE)
+    val Success = Color(0xFF4BAE4F)
+    val Danger = Color(0xFFEA4335)
+
+    // Ink & Neutrals
+    val Ink = Color(0xFF1F2935)
+    val Ink500 = Color(0xFF5A6470)
+    val Gray400 = Color(0xFFBDBDBD)
+    val Line = Color(0xFFE6E6E6)
+    val Cloud = Color(0xFFF3F3F3)
+    val Canvas = Color(0xFFF8F9FB)
+
+    val White = Color(0xFFFFFFFF)
 }
 
 /**
- * Brand accent colours used by the dashboard cards. These sit outside the M3
- * [androidx.compose.material3.ColorScheme], so they carry explicit light/dark
- * variants (darker/saturated on light surfaces, lighter on dark ones) to keep
- * adequate contrast in both themes.
+ * One theme's colours, named by role rather than by shade.
+ *
+ * This is the single place a colour decision is made: [card] is *the* card
+ * colour, [screen] is *the* colour behind the cards, and so on. Both themes are
+ * instances of this same class ([LightPalette], [DarkPalette]), and
+ * `Theme.kt` maps one instance onto Material's ColorScheme — including the
+ * `surfaceContainer*` roles Cards actually draw with. So changing [card] here
+ * changes every card, dialog, menu and field in the app at once; no screen ever
+ * names a colour of its own.
+ */
+@Immutable
+data class BrandPalette(
+    /** Behind the cards — the app's backdrop. */
+    val screen: Color,
+    /** Text and icons drawn directly on [screen]. */
+    val onScreen: Color,
+    /** Cards, dialogs, menus, sheets and form fields. */
+    val card: Color,
+    /** A step up from [card] — table rows and stripes inside a card. */
+    val cardRow: Color,
+    /** A step above [cardRow] — chips, inputs and selected states on a card. */
+    val cardRaised: Color,
+    /** Primary text on a [card]. */
+    val onCard: Color,
+    /** Captions, placeholders and secondary text on a [card]. */
+    val onCardMuted: Color,
+    /** A quieter fill on a [card] — chips, icon tiles, disabled buttons. */
+    val cardMuted: Color,
+    /** Filled buttons, table headers, the selected drawer item. Sits on a [card]. */
+    val primary: Color,
+    /** Text and icons on [primary]. */
+    val onPrimary: Color,
+    /** A soft [primary]-tinted fill — badges, highlighted rows. */
+    val primaryContainer: Color,
+    val onPrimaryContainer: Color,
+    /** The brand's second voice — the deep blue of the signature gradient. */
+    val secondary: Color,
+    val onSecondary: Color,
+    val secondaryContainer: Color,
+    val onSecondaryContainer: Color,
+    /** The brand's third voice — the light teal of the signature gradient. */
+    val tertiary: Color,
+    val onTertiary: Color,
+    val tertiaryContainer: Color,
+    val onTertiaryContainer: Color,
+    /** Borders that must be noticed. */
+    val outline: Color,
+    /** Dividers and field borders — quiet. */
+    val outlineVariant: Color,
+    /** The sheet's signature gradient (teal → blue), for the drawer header. */
+    val gradient: List<Color>,
+    /** Text and icons drawn on [gradient]. */
+    val onGradient: Color,
+    /** Status and category colours, chosen to be legible on [card]. */
+    val accents: AppAccents,
+)
+
+/**
+ * Light: the sheet mapped straight across — Teal·deep backdrop, Teal tint
+ * cards, Ink text.
+ */
+val LightPalette = BrandPalette(
+    screen = BrandSheet.TealDeep,
+    onScreen = BrandSheet.White,
+    card = BrandSheet.TealTint,
+    cardRow = Color(0xFFD9E8E8),
+    cardRaised = Color(0xFFD0E2E2),
+    onCard = BrandSheet.Ink,
+    onCardMuted = BrandSheet.Ink500,
+    cardMuted = Color(0xFFD3E4E4),
+    // Blue·deep, not Teal·deep: the screen behind is Teal·deep, so a teal fill
+    // would make every button and table header vanish into the backdrop. The
+    // blue end of the signature gradient reads on both the screen and a card.
+    primary = BrandSheet.BlueDeep,
+    onPrimary = BrandSheet.White,
+    primaryContainer = BrandSheet.TealTint,
+    onPrimaryContainer = Color(0xFF05343C),
+    secondary = BrandSheet.TealDeep,
+    onSecondary = BrandSheet.White,
+    secondaryContainer = Color(0xFFD4E4EF),
+    onSecondaryContainer = Color(0xFF0C1D27),
+    tertiary = BrandSheet.TealPrimary,
+    onTertiary = BrandSheet.White,
+    tertiaryContainer = Color(0xFFC5EDEE),
+    onTertiaryContainer = Color(0xFF003436),
+    outline = Color(0xFF8B939C),
+    outlineVariant = BrandSheet.Gray400,
+    gradient = listOf(BrandSheet.TealPrimary, BrandSheet.BlueDeep),
+    onGradient = BrandSheet.White,
+    accents = AppAccents(
+        blue = BrandSheet.BlueDeep,
+        green = BrandSheet.Success,
+        red = BrandSheet.Danger,
+        purple = Color(0xFF7048E8),
+        amber = BrandSheet.Orange,
+        rose = Color(0xFFC94F3E),
+    ),
+)
+
+/**
+ * Dark: the brand teal rebuilt as a low-chroma tonal ramp.
+ *
+ * The mistake worth not repeating: the first attempt used Teal·primary
+ * #1BAFB3 — an *accent* tone — as the card surface, and everything drawn on it
+ * had to fight it (white text on that teal is only 2.7:1). Here the surfaces
+ * step screen → card → row → chip in lightness alone, and saturated teal comes
+ * back only as [primary], so it reads as deliberate emphasis. Contrast on the
+ * card: body text 12.8:1, captions 7.1:1, every accent ≥ 4.5:1.
+ */
+val DarkPalette = BrandPalette(
+    screen = Color(0xFF06181E),
+    onScreen = Color(0xFFE8F1F3),
+    card = Color(0xFF102C35),
+    cardRow = Color(0xFF173945),
+    cardRaised = Color(0xFF1E4855),
+    onCard = Color(0xFFE8F1F3),
+    onCardMuted = Color(0xFFA3B8BF),
+    cardMuted = Color(0xFF173945),
+    primary = Color(0xFF178090),
+    onPrimary = BrandSheet.White,
+    primaryContainer = Color(0xFF1E4855),
+    onPrimaryContainer = BrandSheet.TealTint,
+    secondary = Color(0xFF8FB8D6),
+    onSecondary = Color(0xFF0E2C42),
+    secondaryContainer = BrandSheet.BlueDeep,
+    onSecondaryContainer = Color(0xFFD4E4EF),
+    tertiary = Color(0xFF6FD3D6),
+    onTertiary = Color(0xFF00393B),
+    tertiaryContainer = Color(0xFF0C5254),
+    onTertiaryContainer = Color(0xFFC5EDEE),
+    outline = Color(0xFF4E7B89),
+    outlineVariant = Color(0xFF2A5764),
+    gradient = listOf(Color(0xFF17808F), BrandSheet.BlueDeep),
+    onGradient = BrandSheet.White,
+    accents = AppAccents(
+        blue = Color(0xFF5AA9E6),
+        green = Color(0xFF5FCB72),
+        red = Color(0xFFFF7A6B),
+        purple = Color(0xFFB58BE8),
+        amber = Color(0xFFF0A050),
+        rose = Color(0xFFF58BAE),
+    ),
+)
+
+/**
+ * Brand accent colours used by the dashboard cards and status text. These sit
+ * outside the M3 [androidx.compose.material3.ColorScheme], so each
+ * [BrandPalette] carries its own set, picked to stay legible on that palette's
+ * card colour.
  *
  * Provided via [LocalAppAccents] from `CashBookbdTheme`; read as
  * `MaterialTheme.accents`.
@@ -95,28 +202,20 @@ data class AppAccents(
     val rose: Color,
 )
 
-val LightAccents = AppAccents(
-    blue = Color(0xFF2F80ED),
-    green = Color(0xFF2F9E44),
-    red = Color(0xFFE03131),
-    purple = Color(0xFF7048E8),
-    amber = Color(0xFFE8890C),
-    rose = Color(0xFF8E244D),
-)
+val LocalBrandPalette = staticCompositionLocalOf { LightPalette }
 
-val DarkAccents = AppAccents(
-    blue = Color(0xFF6EA8FE),
-    green = Color(0xFF51CF66),
-    red = Color(0xFFFF6B6B),
-    purple = Color(0xFF9775FA),
-    amber = Color(0xFFFFC078),
-    rose = Color(0xFFE896B3),
-)
-
-val LocalAppAccents = staticCompositionLocalOf { LightAccents }
+/**
+ * The current theme's [BrandPalette] — for the few things Material's
+ * ColorScheme has no role for (the signature gradient, the row/chip steps).
+ * Everything else should keep reading `MaterialTheme.colorScheme`.
+ */
+val MaterialTheme.brand: BrandPalette
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalBrandPalette.current
 
 /** Brand accents for the current theme. */
 val MaterialTheme.accents: AppAccents
     @Composable
     @ReadOnlyComposable
-    get() = LocalAppAccents.current
+    get() = LocalBrandPalette.current.accents

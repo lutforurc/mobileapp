@@ -293,7 +293,7 @@ fun MonthlyAttendanceScreen(
                 }
                 state.error?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -314,7 +314,7 @@ fun MonthlyAttendanceScreen(
                 state.isLoading -> Box(
                     Modifier.fillMaxSize().padding(24.dp),
                     contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
+                ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
                 !state.loaded -> Box(
                     Modifier.fillMaxSize().padding(32.dp),
@@ -322,7 +322,7 @@ fun MonthlyAttendanceScreen(
                 ) {
                     Text(
                         "Choose your filters, then tap Load.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )
                 }
 
@@ -398,13 +398,14 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(vertical = 6.dp),
         ) {
             Text(
                 text = "Employee",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.width(NAME_COL).padding(start = 16.dp),
             )
             Row(modifier = Modifier.horizontalScroll(hScroll)) {
@@ -413,6 +414,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                         text = day.toString(),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.width(DAY_COL),
                     )
@@ -442,7 +444,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                                 color = when (glyph) {
                                     "✕", "!" -> MaterialTheme.colorScheme.error
                                     "✓" -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.onSurface
+                                    else -> MaterialTheme.colorScheme.onBackground
                                 },
                                 modifier = Modifier.width(DAY_COL),
                             )
@@ -454,7 +456,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                 Text(
                     text = "✓ Present   ! Late   ✕ Absent   L Leave   ○ Holiday   ½ Half Day",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -465,7 +467,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
 @Composable
 private fun EmptyNote(text: String) {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
     }
 }
 

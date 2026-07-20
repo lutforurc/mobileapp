@@ -2,7 +2,6 @@ package com.example.cashbookbd.ui.reports
 
 import android.app.DatePickerDialog
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -66,6 +64,7 @@ import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
+import com.example.cashbookbd.ui.components.SummaryTile
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.MonthYear
 import com.example.cashbookbd.ui.reports.model.SelectorOption
@@ -106,7 +105,7 @@ fun GenericReportScreen(
             CenterBox {
                 Text(
                     text = "This report isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -163,7 +162,7 @@ private fun FilterCard(
         )
         state.branchesError?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
 
         if (state.showChoice) {
@@ -351,7 +350,7 @@ private fun StaticSelectDropdown(
         }
         error?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -511,13 +510,13 @@ private fun MonthYearPickerDialog(
 @Composable
 private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
     when {
-        state.isReportLoading -> CenterBox { CircularProgressIndicator() }
+        state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
         state.reportError != null -> CenterBox {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.reportError,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -528,7 +527,7 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
         state.result == null -> CenterBox {
             Text(
                 text = "Choose your filters, then tap Apply.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -536,7 +535,7 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No records found for this selection.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -558,7 +557,7 @@ private fun ReportRowList(state: GenericReportUiState) {
             CenterBox {
                 Text(
                     text = "No tabular data to display.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -578,14 +577,7 @@ private fun SummaryBoxes(cells: List<ReportCell>) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         cells.forEach { cell ->
-            Column(
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(10.dp),
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
+            SummaryTile {
                 Text(
                     text = cell.label,
                     style = MaterialTheme.typography.labelSmall,

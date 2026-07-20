@@ -14,23 +14,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -45,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +48,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
@@ -131,13 +127,13 @@ fun AddBranchScreen(
                     Text(
                         text = state.step.summary,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )
 
                     if (state.optionsError != null) {
                         Text(
                             text = state.optionsError!!,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -184,7 +180,7 @@ fun AddBranchScreen(
                             text = "The letterhead image can only be uploaded from the web for now. " +
                                 "Everything else on this page saves normally.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         )
                     }
                 }
@@ -270,7 +266,7 @@ private fun StepBar(
                     color = if (isCurrent) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                     },
                     fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                 )
@@ -304,7 +300,7 @@ private fun StepActions(
                 Text(
                     text = "$missing is required.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
             }
         }
@@ -343,19 +339,11 @@ private fun Field(
     onChange: (String) -> Unit,
     keyboard: KeyboardType = KeyboardType.Text,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = keyboard,
-            capitalization = if (keyboard == KeyboardType.Text) {
-                KeyboardCapitalization.Words
-            } else {
-                KeyboardCapitalization.None
-            },
-        ),
+        label = label,
+        keyboardType = keyboard,
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -393,24 +381,17 @@ private fun ChoiceField(
     onSelected: (SelectorOption) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && options.isNotEmpty() },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected?.label ?: if (isLoading) "Loading…" else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = {
-                if (isLoading && options.isEmpty()) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
-                }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = label,
+            valueText = selected?.label,
+            placeholder = if (isLoading) "Loading…" else "",
+            onClick = { if (options.isNotEmpty()) expanded = true },
+            trailingIcon = if (isLoading && options.isEmpty()) {
+                { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
+            } else {
+                null
             },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->

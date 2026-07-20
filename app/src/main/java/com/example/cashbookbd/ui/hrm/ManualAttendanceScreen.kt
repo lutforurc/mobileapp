@@ -623,12 +623,12 @@ fun ManualAttendanceScreen(
                 if (state.isBulkSaving) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.height(18.dp))
+                        CircularProgressIndicator(modifier = Modifier.height(18.dp), color = MaterialTheme.colorScheme.onBackground)
                         Spacer(Modifier.height(0.dp))
                         Text(
                             "  Saving bulk attendance…",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         )
                     }
                 }
@@ -639,7 +639,7 @@ fun ManualAttendanceScreen(
                 }
                 state.saveError?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -700,19 +700,19 @@ fun ManualAttendanceScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(24.dp),
                         horizontalArrangement = Arrangement.Center,
-                    ) { CircularProgressIndicator() }
+                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
                 }
                 state.entriesError != null -> item {
                     Text(
                         text = state.entriesError.orEmpty(),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
                 state.entries.isEmpty() -> item {
                     Text(
                         text = "No attendance entries in this range.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
