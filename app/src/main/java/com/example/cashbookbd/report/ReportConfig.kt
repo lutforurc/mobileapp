@@ -359,8 +359,8 @@ object ReportMenu {
     )
 
     val all: List<ReportConfig> = listOf(
-        
-        
+
+
         ReportConfig(
             key = "cashbook",
             title = "Cashbook",
@@ -373,20 +373,7 @@ object ReportMenu {
             native = true,
         ),
 
-       
         ReportConfig(
-            key = "ledger",
-            title = "Ledger",
-            routeName = "ReportLedger",
-            webPath = "/reports/ledger",
-            anyOf = listOf("ledger.view", "ledger.customer"),
-            endpointKey = "ledger",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
-            native = true,
-        ),
-
-         ReportConfig(
             key = "bankbook",
             title = "Bank Book",
             routeName = "ReportBankBook",
@@ -403,6 +390,20 @@ object ReportMenu {
             // the generic table would render as ordinary data.
             native = true,
         ),
+
+        ReportConfig(
+            key = "ledger",
+            title = "Ledger",
+            routeName = "ReportLedger",
+            webPath = "/reports/ledger",
+            anyOf = listOf("ledger.view", "ledger.customer"),
+            endpointKey = "ledger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            native = true,
+        ),
+
+
         ReportConfig(
             key = "cashBankReceivedPayment",
             title = "Cash & Bank Summary",
@@ -480,7 +481,7 @@ object ReportMenu {
             // Rendered by the bespoke TrialBalanceScreen (real table), not the generic flow.
             native = true,
         ),
-        
+
         ReportConfig(
             key = "bankInformation",
             title = "Bank Information",
@@ -611,7 +612,7 @@ object ReportMenu {
             // Rendered by the bespoke DueListScreen (nested data.data.original parser).
             native = true,
         ),
-        
+
         ReportConfig(
             key = "productInOut",
             title = "Product In Out",
