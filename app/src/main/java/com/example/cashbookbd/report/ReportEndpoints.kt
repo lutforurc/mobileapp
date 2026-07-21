@@ -18,6 +18,7 @@ object ReportEndpoints {
         "balanceSheet" to "reports/balance-sheet",
         "trialBalanceLevel3" to "reports/trialbalance-level3",
         "trialBalanceLevel4" to "reports/trialbalance-level4",
+        "cashBankReceivedPayment" to "reports/cash-bank-received-payment",
         "bankInformation" to "reports/bank-information-data",
         "connectedMember" to "reports/connected-member-data",
         "productProfitLoss" to "reports/product-profit-loss",

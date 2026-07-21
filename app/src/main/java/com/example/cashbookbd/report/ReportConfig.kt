@@ -358,16 +358,8 @@ object ReportMenu {
     )
 
     val all: List<ReportConfig> = listOf(
-        ReportConfig(
-            key = "dateWiseTotal",
-            title = "Date Wise Total",
-            routeName = "ReportDateWiseTotal",
-            webPath = "/reports/date-wise-total-data",
-            anyOf = listOf("date.wise.total"),
-            endpointKey = "dateWiseTotal",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_DATE_RANGE,
-        ),
+        
+        
         ReportConfig(
             key = "cashbook",
             title = "Cashbook",
@@ -378,6 +370,45 @@ object ReportMenu {
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             native = true,
+        ),
+
+       
+        ReportConfig(
+            key = "ledger",
+            title = "Ledger",
+            routeName = "ReportLedger",
+            webPath = "/reports/ledger",
+            anyOf = listOf("ledger.view", "ledger.customer"),
+            endpointKey = "ledger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            native = true,
+        ),
+
+         ReportConfig(
+            key = "cashBankReceivedPayment",
+            title = "Cash & Bank Summary",
+            routeName = "ReportCashBankReceivedPayment",
+            webPath = "/reports/cash-bank-received-payment",
+            anyOf = listOf("cashbook.view"),
+            endpointKey = "cashBankReceivedPayment",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            dateStyle = ReportDateStyle.DISPLAY,
+            // Rendered by the bespoke CashBankScreen. The endpoint answers with
+            // two sibling arrays and no `success` envelope, so the generic
+            // parser — which keeps a single array — would drop `bank_details`.
+            native = true,
+        ),
+        ReportConfig(
+            key = "dateWiseTotal",
+            title = "Date Wise Total",
+            routeName = "ReportDateWiseTotal",
+            webPath = "/reports/date-wise-total-data",
+            anyOf = listOf("date.wise.total"),
+            endpointKey = "dateWiseTotal",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
         ),
         ReportConfig(
             key = "profitLoss",
@@ -431,6 +462,7 @@ object ReportMenu {
             // Rendered by the bespoke TrialBalanceScreen (real table), not the generic flow.
             native = true,
         ),
+        
         ReportConfig(
             key = "bankInformation",
             title = "Bank Information",
@@ -561,17 +593,7 @@ object ReportMenu {
             // Rendered by the bespoke DueListScreen (nested data.data.original parser).
             native = true,
         ),
-        ReportConfig(
-            key = "ledger",
-            title = "Ledger",
-            routeName = "ReportLedger",
-            webPath = "/reports/ledger",
-            anyOf = listOf("ledger.view", "ledger.customer"),
-            endpointKey = "ledger",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
-            native = true,
-        ),
+        
         ReportConfig(
             key = "productInOut",
             title = "Product In Out",

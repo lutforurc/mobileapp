@@ -30,6 +30,7 @@ import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.DeviceRepository
 import com.example.cashbookbd.data.repository.SubscriptionRepository
+import com.example.cashbookbd.data.repository.CashBankRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
@@ -67,6 +68,7 @@ object ServiceLocator {
     private var genericReportRepository: GenericReportRepository? = null
 
     @Volatile
+    private var cashBankRepository: CashBankRepository? = null
     private var trialBalanceRepository: TrialBalanceRepository? = null
 
     @Volatile
@@ -223,6 +225,13 @@ object ServiceLocator {
             genericReportRepository ?: GenericReportRepository(
                 api = provideReportApiService(context),
             ).also { genericReportRepository = it }
+        }
+
+    fun provideCashBankRepository(context: Context): CashBankRepository =
+        cashBankRepository ?: synchronized(this) {
+            cashBankRepository ?: CashBankRepository(
+                api = provideReportApiService(context),
+            ).also { cashBankRepository = it }
         }
 
     fun provideTrialBalanceRepository(context: Context): TrialBalanceRepository =
