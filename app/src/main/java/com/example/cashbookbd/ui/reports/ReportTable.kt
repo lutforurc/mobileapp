@@ -411,7 +411,14 @@ private fun <T> RowScope.RenderFooterCell(
             text = cell.text,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-            color = cell.color,
+            // Default to onSurfaceVariant so the footer reads against its
+            // surfaceVariant background (white-on-light washed out in light mode);
+            // an explicit cell colour still wins.
+            color = if (cell.color == Color.Unspecified) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                cell.color
+            },
             textAlign = cell.align ?: columnAlign,
             maxLines = cell.maxLines,
             overflow = TextOverflow.Ellipsis,
