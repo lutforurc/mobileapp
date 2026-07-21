@@ -2,6 +2,8 @@ package com.example.cashbookbd.ui.hrm
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,11 +15,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -25,7 +30,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,8 +40,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -275,6 +286,32 @@ class ManualAttendanceViewModel(
     fun onOutTime(value: String) = _uiState.update { it.copy(outTime = value) }
     fun onOtHours(value: String) = _uiState.update { it.copy(otHours = value) }
     fun onRemarks(value: String) = _uiState.update { it.copy(remarks = value) }
+
+    /**
+     * The table's edit (pencil) action: pull a row's values back into the entry
+     * form so it can be adjusted and re-saved (Save Single sends update_existing).
+     * Shift isn't restored — a row carries only the shift name, not its id, and
+     * the field is optional anyway.
+     */
+    fun startEdit(entry: AttendanceEntry) = _uiState.update {
+        it.copy(
+            employee = SelectorOption(entry.employeeId, entry.employeeName),
+            employmentType = ATTENDANCE_TYPES.firstOrNull { t -> t.id == entry.employmentType }
+                ?: it.employmentType,
+            date = SimpleDate.fromApi(entry.date) ?: it.date,
+            inTime = entry.inTime,
+            outTime = entry.outTime,
+            otHours = if (entry.overtimeMinutes > 0) {
+                String.format(java.util.Locale.US, "%.2f", entry.overtimeMinutes / 60.0)
+            } else {
+                ""
+            },
+            status = ATTENDANCE_STATUSES.firstOrNull { s -> s.id == entry.status } ?: it.status,
+            remarks = entry.remarks,
+            saveMessage = null,
+            saveError = null,
+        )
+    }
 
     /**
      * The web's Reset: clear the entry form back to its defaults. Branch and date
@@ -820,12 +857,8 @@ fun ManualAttendanceScreen(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Attendance List — ${state.entries.size} entries",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Spacer(Modifier.height(20.dp))
+                AttendanceListHeader(count = state.entries.size)
                 Spacer(Modifier.height(8.dp))
             }
 
@@ -850,20 +883,11 @@ fun ManualAttendanceScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                // Roster rows for employees with no entry yet have a blank id, so
-                // key on the always-present employee id to keep every key unique.
-                else -> items(
-                    state.entries,
-                    key = { it.id.ifBlank { "emp:${it.employeeId}" } },
-                ) { entry ->
-                    AttendanceEntryRow(
-                        entry = entry,
-                        isActing = state.actingId == entry.id,
-                        onApprove = { viewModel.approve(entry.id, approve = true) },
-                        onReject = { viewModel.approve(entry.id, approve = false) },
-                        onDelete = { viewModel.delete(entry.id) },
-                    )
-                    Spacer(Modifier.height(8.dp))
+                // The whole table is one item: header and rows share a single
+                // horizontal scroll so their columns stay aligned, and the outer
+                // LazyColumn keeps handling the vertical scroll.
+                else -> item {
+                    AttendanceTable(entries = state.entries, onEdit = viewModel::startEdit)
                 }
             }
         }
@@ -936,76 +960,226 @@ private fun FilterApprovalHeader() {
     }
 }
 
-/** One compact entry row: identity, times, type/OT, and the action buttons. */
+/** The list header: a badged people icon, the title, and an "N entries" pill. */
 @Composable
-private fun AttendanceEntryRow(
-    entry: AttendanceEntry,
-    isActing: Boolean,
-    onApprove: () -> Unit,
-    onReject: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = entry.employeeName +
-                            entry.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = entry.date,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = entry.status.replace('_', ' '),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Row {
-                LabelValue("In", entry.inTime.ifBlank { "-" }, Modifier.weight(1f))
-                LabelValue("Out", entry.outTime.ifBlank { "-" }, Modifier.weight(1f))
-                LabelValue("Type", entry.employmentType.ifBlank { "-" }, Modifier.weight(1f))
-                LabelValue(
-                    "OT Hr.",
-                    if (entry.overtimeMinutes > 0) {
-                        String.format(java.util.Locale.US, "%.2f", entry.overtimeMinutes / 60.0)
-                    } else {
-                        "-"
-                    },
-                    Modifier.weight(1f),
-                )
-                LabelValue("Approval", entry.approvalStatus.ifBlank { "-" }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
+private fun AttendanceListHeader(count: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = "Attendance List",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(50))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = "$count entries",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+/** Fixed column widths, so the header and every body row line up under one scroll. */
+private object AttCol {
+    val sl = 44.dp
+    val date = 96.dp
+    val employee = 150.dp
+    val type = 78.dp
+    val shift = 64.dp
+    val inT = 58.dp
+    val outT = 58.dp
+    val ot = 64.dp
+    val status = 92.dp
+    val approval = 88.dp
+    val action = 60.dp
+}
+
+/**
+ * The web's Attendance List table. All 11 columns are wider than a phone, so the
+ * header and rows share one horizontal scroll (they align because they use the
+ * same fixed widths); the outer LazyColumn keeps the vertical scroll.
+ */
+@Composable
+private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceEntry) -> Unit) {
+    val hScroll = rememberScrollState()
+    val border = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, border, RoundedCornerShape(8.dp)),
+    ) {
+        Column(Modifier.horizontalScroll(hScroll)) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
+                    .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (entry.isPendingApproval) {
-                    PrimaryButton(
-                        text = "Approve",
-                        onClick = onApprove,
-                        isLoading = isActing,
-                        compact = true,
+                HeaderCell("SL", AttCol.sl)
+                HeaderCell("DATE", AttCol.date)
+                HeaderCell("EMPLOYEE", AttCol.employee)
+                HeaderCell("TYPE", AttCol.type)
+                HeaderCell("SHIFT", AttCol.shift)
+                HeaderCell("IN", AttCol.inT)
+                HeaderCell("OUT", AttCol.outT)
+                HeaderCell("OT HR.", AttCol.ot)
+                HeaderCell("STATUS", AttCol.status)
+                HeaderCell("APPROVAL", AttCol.approval)
+                HeaderCell("ACTION", AttCol.action)
+            }
+            entries.forEachIndexed { index, entry ->
+                HorizontalDivider(color = border.copy(alpha = 0.6f))
+                Row(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BodyCell("${index + 1}", AttCol.sl)
+                    BodyCell(entry.date, AttCol.date)
+                    BodyCell(
+                        entry.employeeName +
+                            entry.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
+                        AttCol.employee,
                     )
-                    SecondaryButton(
-                        text = "Reject",
-                        onClick = onReject,
-                        enabled = !isActing,
-                        compact = true,
+                    BodyCell(entry.employmentType.ifBlank { "-" }, AttCol.type)
+                    BodyCell(entry.shiftName.ifBlank { "-" }, AttCol.shift)
+                    BodyCell(entry.inTime.ifBlank { "-" }, AttCol.inT)
+                    BodyCell(entry.outTime.ifBlank { "-" }, AttCol.outT)
+                    BodyCell(
+                        if (entry.overtimeMinutes > 0) {
+                            String.format(java.util.Locale.US, "%.2f", entry.overtimeMinutes / 60.0)
+                        } else {
+                            "0.00"
+                        },
+                        AttCol.ot,
                     )
-                }
-                if (!entry.isApproved) {
-                    LinkButton(text = "Delete", onClick = onDelete, enabled = !isActing)
+                    CellBox(AttCol.status) { StatusPill(entry.status) }
+                    CellBox(AttCol.approval) { ApprovalPill(entry.approvalStatus) }
+                    CellBox(AttCol.action) {
+                        IconButton(onClick = { onEdit(entry) }, modifier = Modifier.size(32.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Create,
+                                    contentDescription = "Edit ${entry.employeeName}",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HeaderCell(text: String, width: Dp) {
+    Text(
+        text = text,
+        modifier = Modifier.width(width).padding(horizontal = 8.dp),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+        maxLines = 1,
+    )
+}
+
+@Composable
+private fun BodyCell(text: String, width: Dp) {
+    Text(
+        text = text,
+        modifier = Modifier.width(width).padding(horizontal = 8.dp),
+        style = MaterialTheme.typography.bodySmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun CellBox(width: Dp, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.width(width).padding(horizontal = 8.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) { content() }
+}
+
+/** A colored status pill — green for Present, red for Absent, muted otherwise. */
+@Composable
+private fun StatusPill(status: String) {
+    if (status.isBlank()) {
+        Text("-", style = MaterialTheme.typography.labelSmall)
+        return
+    }
+    val color = when (status.lowercase()) {
+        "present", "late" -> Color(0xFF16A34A)
+        "absent" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+    }
+    Box(
+        modifier = Modifier
+            .background(color.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = status.replace('_', ' ').replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            maxLines = 1,
+        )
+    }
+}
+
+/** A muted approval pill; "-" for roster rows that have no entry (approval) yet. */
+@Composable
+private fun ApprovalPill(approval: String) {
+    if (approval.isBlank()) {
+        Text("-", style = MaterialTheme.typography.labelSmall)
+        return
+    }
+    val color = when (approval.lowercase()) {
+        "approved" -> Color(0xFF16A34A)
+        "rejected" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Box(
+        modifier = Modifier
+            .background(color.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = approval.replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            maxLines = 1,
+        )
     }
 }

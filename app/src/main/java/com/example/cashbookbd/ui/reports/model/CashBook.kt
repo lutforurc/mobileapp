@@ -74,6 +74,20 @@ data class SimpleDate(
             if (month !in 1..12 || day !in 1..31 || year < 1900) return null
             return SimpleDate(year = year, month = month, day = day)
         }
+
+        /**
+         * Parses the backend's yyyy-MM-dd wire date (e.g. "2026-07-21"), the
+         * `attendance_date` an attendance row carries. Null when blank/malformed.
+         */
+        fun fromApi(value: String?): SimpleDate? {
+            val parts = value?.trim()?.split("-") ?: return null
+            if (parts.size != 3) return null
+            val year = parts[0].toIntOrNull() ?: return null
+            val month = parts[1].toIntOrNull() ?: return null
+            val day = parts[2].toIntOrNull() ?: return null
+            if (month !in 1..12 || day !in 1..31 || year < 1900) return null
+            return SimpleDate(year = year, month = month, day = day)
+        }
     }
 }
 
