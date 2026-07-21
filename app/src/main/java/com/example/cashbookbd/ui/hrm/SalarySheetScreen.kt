@@ -538,46 +538,46 @@ private fun SalaryDetailView(
             ReportColumn(
                 header = "M. Basic",
                 width = ReportColWidth.Fixed(94.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.monthlyBasic), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.monthlyBasic), align = TextAlign.End) },
             ReportColumn(
                 header = "Salary",
                 width = ReportColWidth.Fixed(94.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.salary), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.salary), align = TextAlign.End) },
             ReportColumn(
                 header = "Mobile",
                 width = ReportColWidth.Fixed(80.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.mobileAllowance), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.mobileAllowance), align = TextAlign.End) },
             ReportColumn(
                 header = "Total",
                 width = ReportColWidth.Fixed(96.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.total), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.total), align = TextAlign.End) },
             ReportColumn(
                 header = "Loan",
                 width = ReportColWidth.Fixed(88.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.loanDeduction), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.loanDeduction), align = TextAlign.End) },
             ReportColumn(
                 header = "Att. Ded",
                 width = ReportColWidth.Fixed(84.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.attendanceDeduction), align = TextAlign.Center) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.attendanceDeduction), align = TextAlign.End) },
             ReportColumn(
                 header = "Net Salary",
                 width = ReportColWidth.Fixed(100.dp),
-                align = TextAlign.Center,
-            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.netSalary), align = TextAlign.Center, bold = true) },
+                align = TextAlign.End,
+            ) { row, _ -> cellText(AmountFormat.formatOrDash(row.netSalary), align = TextAlign.End, bold = true) },
             ReportColumn(
                 header = "Payment",
                 width = ReportColWidth.Fixed(100.dp),
-                align = TextAlign.Center,
+                align = TextAlign.End,
             ) { row, _ ->
                 cellText(
                     AmountFormat.formatOrDash(row.payment),
-                    align = TextAlign.Center,
+                    align = TextAlign.End,
                     bold = row.payment > 0,
                     color = if (row.payment > 0) paidColor else Color.Unspecified,
                 )

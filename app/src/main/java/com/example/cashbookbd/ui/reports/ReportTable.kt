@@ -182,7 +182,10 @@ fun <T> ReportTable(
                         textAlign = col.headerAlign,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        // Centre vertically so a one-line header sits level with a
+                        // header that wraps to two lines (e.g. "M. Days").
                         modifier = colWidth(col.width)
+                            .align(Alignment.CenterVertically)
                             .padding(horizontal = 8.dp, vertical = 10.dp),
                     )
                 }
