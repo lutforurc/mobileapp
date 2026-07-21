@@ -256,7 +256,9 @@ private fun RowScope.RenderCell(
     columnAlign: TextAlign,
     cell: ReportTableCell,
 ) {
-    val base = colWidth(width)
+    // Centre every cell vertically so short cells sit level with a tall neighbour
+    // (a 2-line name, a multi-line voucher list) instead of sticking to the top.
+    val base = colWidth(width).align(Alignment.CenterVertically)
     when (cell) {
         is ReportTableCell.Slot -> Box(modifier = base) { cell.content() }
 
