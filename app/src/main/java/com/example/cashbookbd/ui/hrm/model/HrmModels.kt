@@ -8,7 +8,10 @@ data class HrmOption(
 
 /** One manual-attendance entry row (branch + date list under the form). */
 data class AttendanceEntry(
+    /** Attendance-entry id; blank for a roster row the employee has no entry for yet. */
     val id: String,
+    /** Employee id — always present, so it keys roster rows that have no entry id. */
+    val employeeId: String,
     val date: String,
     val employeeName: String,
     val employeeSerial: String,

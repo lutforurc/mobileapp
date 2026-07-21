@@ -301,6 +301,7 @@ class HrmRepository(
             val obj = row.asObjectOrNull() ?: return@mapNotNull null
             AttendanceEntry(
                 id = obj.text("id").orEmpty(),
+                employeeId = obj.text("employee_id").orEmpty(),
                 date = obj.text("attendance_date").orEmpty(),
                 employeeName = obj.text("employee_name").orEmpty(),
                 employeeSerial = obj.text("employee_serial").orEmpty(),

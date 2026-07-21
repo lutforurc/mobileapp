@@ -850,7 +850,12 @@ fun ManualAttendanceScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                else -> items(state.entries, key = { it.id }) { entry ->
+                // Roster rows for employees with no entry yet have a blank id, so
+                // key on the always-present employee id to keep every key unique.
+                else -> items(
+                    state.entries,
+                    key = { it.id.ifBlank { "emp:${it.employeeId}" } },
+                ) { entry ->
                     AttendanceEntryRow(
                         entry = entry,
                         isActing = state.actingId == entry.id,
