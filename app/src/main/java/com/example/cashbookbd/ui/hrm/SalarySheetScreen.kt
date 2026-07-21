@@ -358,9 +358,14 @@ fun SalarySheetScreen(
                 else -> {
                     // The web's Salary Sheet table, through the shared template:
                     // same columns, same colours, action column at the end.
-                    val errorColor = MaterialTheme.colorScheme.error
-                    val paidColor = MaterialTheme.accents.green
-                    val primaryColor = MaterialTheme.colorScheme.primary
+                    // On this screen's teal light-mode rows the semantic red/green
+                    // and the primary link colour wash out; fall back to white there,
+                    // keeping the colours in dark mode. Covers Payment Month, Loan
+                    // Ded., Payment and Due in one place.
+                    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                    val errorColor = if (isDark) MaterialTheme.colorScheme.error else Color.White
+                    val paidColor = if (isDark) MaterialTheme.accents.green else Color.White
+                    val primaryColor = if (isDark) MaterialTheme.colorScheme.primary else Color.White
                     val columns = listOf(
                         ReportColumn<SalarySheetSummary>(
                             header = "Sl",
