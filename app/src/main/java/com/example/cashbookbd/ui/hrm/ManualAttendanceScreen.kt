@@ -1006,7 +1006,7 @@ private fun AttendanceListHeader(count: Int) {
 /** Fixed column widths, so the header and every body row line up under one scroll. */
 private object AttCol {
     val sl = 44.dp
-    val date = 96.dp
+    val date = 76.dp
     val employee = 150.dp
     val type = 78.dp
     val shift = 64.dp
@@ -1059,7 +1059,8 @@ private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceE
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     BodyCell("${index + 1}", AttCol.sl)
-                    BodyCell(entry.date, AttCol.date)
+                    // dd/MM/yy — the row carries the yyyy-MM-dd wire date.
+                    BodyCell(SimpleDate.fromApi(entry.date)?.toShortDisplay() ?: entry.date, AttCol.date)
                     BodyCell(
                         entry.employeeName +
                             entry.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),

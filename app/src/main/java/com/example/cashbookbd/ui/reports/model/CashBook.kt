@@ -37,6 +37,9 @@ data class SimpleDate(
     /** Format shown to the user. */
     fun toDisplay(): String = String.format(Locale.US, "%02d/%02d/%04d", day, month, year)
 
+    /** Compact dd/MM/yy (two-digit year), for tight table cells. */
+    fun toShortDisplay(): String = String.format(Locale.US, "%02d/%02d/%02d", day, month, year % 100)
+
     /** This date shifted by [days] (normalising month/year via Calendar). */
     fun plusDays(days: Int): SimpleDate {
         val c = Calendar.getInstance().apply {
