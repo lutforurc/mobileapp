@@ -22,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -284,9 +285,17 @@ private fun ButtonContent(
         Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
         Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
     }
+    // A button label must never wrap: the fixed height clips a second line. Cap
+    // it at one line and ellipsize instead, so a long or high-count label degrades
+    // gracefully on a narrow screen rather than losing its bottom half.
     if (compact) {
-        Text(text, style = MaterialTheme.typography.labelLarge)
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     } else {
-        Text(text)
+        Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
