@@ -221,7 +221,7 @@ private fun DashboardContent(
             if (dashboard.topSales.isNotEmpty()) {
                 item {
                     TopProductsCard(
-                        title = "Top Sales Products",
+                        title = "Top Sales",
                         products = dashboard.topSales,
                         days = dashboard.topPurchaseDays,
                         accent = MaterialTheme.accents.green,
@@ -234,7 +234,7 @@ private fun DashboardContent(
             if (dashboard.topPurchases.isNotEmpty()) {
                 item {
                     TopProductsCard(
-                        title = "Top Purchase Products",
+                        title = "Top Purchase",
                         products = dashboard.topPurchases,
                         days = dashboard.topPurchaseDays,
                         accent = MaterialTheme.accents.amber,

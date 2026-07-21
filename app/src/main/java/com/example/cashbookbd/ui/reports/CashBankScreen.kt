@@ -501,16 +501,16 @@ private val summaryColumns = listOf(
     ReportColumn<CashBankSummaryRow>("ACCOUNT NAME", ReportColWidth.Fixed(COL_NAME)) { r, _ ->
         cellText(r.name.ifBlank { "-" }, maxLines = 2)
     },
-    ReportColumn<CashBankSummaryRow>("RECEIVED (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<CashBankSummaryRow>("RCV. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.cashReceived), align = TextAlign.End)
     },
-    ReportColumn<CashBankSummaryRow>("PAYMENT (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<CashBankSummaryRow>("PMT. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.cashPayment), align = TextAlign.End)
     },
-    ReportColumn<CashBankSummaryRow>("RECEIVED (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<CashBankSummaryRow>("RCV. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.bankReceived), align = TextAlign.End)
     },
-    ReportColumn<CashBankSummaryRow>("PAYMENT (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<CashBankSummaryRow>("PMT. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.bankPayment), align = TextAlign.End)
     },
 )
@@ -557,10 +557,10 @@ private val bankColumns = listOf(
     ReportColumn<BankDetailRow>("BANK ACCOUNT", ReportColWidth.Fixed(COL_NAME)) { r, _ ->
         cellText(r.bankName.ifBlank { "-" }, maxLines = 2)
     },
-    ReportColumn<BankDetailRow>("RECEIVED (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<BankDetailRow>("RCV. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.received), align = TextAlign.End)
     },
-    ReportColumn<BankDetailRow>("PAYMENT (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+    ReportColumn<BankDetailRow>("PMT. (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
         cellText(formatCell(r.payment), align = TextAlign.End)
     },
     ReportColumn<BankDetailRow>("MOVEMENT (TK.)", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
