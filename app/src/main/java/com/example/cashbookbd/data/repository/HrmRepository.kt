@@ -238,41 +238,82 @@ class HrmRepository(
 
     // ---- Manual attendance ----
 
-    /** Entries for one branch + date range, the web's list panel. */
+    /**
+     * The Filter & Approval panel's Load: existing entries for one branch + date
+     * range. No `include_employee_list`, so it returns only rows that exist —
+     * the web's `loadEntries()` with its `filters` (date_from first).
+     */
     suspend fun getAttendanceEntries(
         branchId: Long,
         dateFrom: String,
         dateTo: String,
     ): Resource<List<AttendanceEntry>> = request {
+        // date_from first, matching the web's `filters` object — the range Load's
+        // URL reads `?date_from=…`, distinct from the roster Load's `?branch_id=…`.
         val response = api.get(
             "hrms/attendance/entries",
             mapOf(
-                "branch_id" to branchId.toString(),
                 "date_from" to dateFrom,
                 "date_to" to dateTo,
+                "branch_id" to branchId.toString(),
                 "per_page" to "100",
             ),
         )
-        parseEnvelope(response) { payload ->
-            rowsOf(payload).mapNotNull { row ->
-                val obj = row.asObjectOrNull() ?: return@mapNotNull null
-                AttendanceEntry(
-                    id = obj.text("id").orEmpty(),
-                    date = obj.text("attendance_date").orEmpty(),
-                    employeeName = obj.text("employee_name").orEmpty(),
-                    employeeSerial = obj.text("employee_serial").orEmpty(),
-                    employmentType = obj.text("employment_type").orEmpty(),
-                    shiftName = obj.text("shift_name").orEmpty(),
-                    inTime = obj.text("in_time").orEmpty(),
-                    outTime = obj.text("out_time").orEmpty(),
-                    status = obj.text("status").orEmpty(),
-                    approvalStatus = obj.text("approval_status").orEmpty(),
-                    remarks = obj.text("remarks").orEmpty(),
-                    overtimeMinutes = obj.number("overtime_minutes"),
-                )
-            }
-        }
+        parseEnvelope(response) { payload -> mapAttendanceRows(payload) }
     }
+
+    /**
+     * The entry form's Load: the roster for a single day with
+     * `include_employee_list=1`, so the list also carries active employees who
+     * have no attendance yet — ready to bulk-enter. Mirrors the web's
+     * handleBulkLoad / loadedListParams (branch + shift + type + the form's
+     * in/out/status/remarks, date_from == date_to == the entry date).
+     */
+    suspend fun getAttendanceRoster(
+        branchId: Long,
+        date: String,
+        shiftId: Long?,
+        employmentType: String?,
+        inTime: String?,
+        outTime: String?,
+        status: String?,
+        remarks: String?,
+    ): Resource<List<AttendanceEntry>> = request {
+        val params = buildMap {
+            put("branch_id", branchId.toString())
+            shiftId?.let { put("shift_id", it.toString()) }
+            employmentType?.takeIf { it.isNotBlank() }?.let { put("employment_type", it) }
+            put("date_from", date)
+            put("date_to", date)
+            inTime?.takeIf { it.isNotBlank() }?.let { put("in_time", it) }
+            outTime?.takeIf { it.isNotBlank() }?.let { put("out_time", it) }
+            status?.takeIf { it.isNotBlank() }?.let { put("status", it) }
+            remarks?.takeIf { it.isNotBlank() }?.let { put("remarks", it) }
+            put("include_employee_list", "1")
+            put("per_page", "100")
+        }
+        val response = api.get("hrms/attendance/entries", params)
+        parseEnvelope(response) { payload -> mapAttendanceRows(payload) }
+    }
+
+    private fun mapAttendanceRows(payload: JsonElement): List<AttendanceEntry> =
+        rowsOf(payload).mapNotNull { row ->
+            val obj = row.asObjectOrNull() ?: return@mapNotNull null
+            AttendanceEntry(
+                id = obj.text("id").orEmpty(),
+                date = obj.text("attendance_date").orEmpty(),
+                employeeName = obj.text("employee_name").orEmpty(),
+                employeeSerial = obj.text("employee_serial").orEmpty(),
+                employmentType = obj.text("employment_type").orEmpty(),
+                shiftName = obj.text("shift_name").orEmpty(),
+                inTime = obj.text("in_time").orEmpty(),
+                outTime = obj.text("out_time").orEmpty(),
+                status = obj.text("status").orEmpty(),
+                approvalStatus = obj.text("approval_status").orEmpty(),
+                remarks = obj.text("remarks").orEmpty(),
+                overtimeMinutes = obj.number("overtime_minutes"),
+            )
+        }
 
     /**
      * Saves one manual attendance entry (the web's single-entry form). Blank

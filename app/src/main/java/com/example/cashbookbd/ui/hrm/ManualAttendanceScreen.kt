@@ -1,7 +1,9 @@
 package com.example.cashbookbd.ui.hrm
 
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,11 +12,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,7 +112,9 @@ data class ManualAttendanceUiState(
     val saveMessage: String? = null,
     val saveError: String? = null,
 
-    // The web's Filter & Approval panel (the list's own range).
+    // The web's Filter & Approval panel: its own branch + date range, independent
+    // of the entry form's branch (web binds these to `filters.*`, not `form.*`).
+    val listBranch: BranchOption? = null,
     val listFrom: SimpleDate = SimpleDate.today(),
     val listTo: SimpleDate = SimpleDate.today(),
     val entries: List<AttendanceEntry> = emptyList(),
@@ -121,7 +134,10 @@ data class ManualAttendanceUiState(
     val canBulk: Boolean
         get() = selectedBranch != null && !isSaving && !isBulkSaving
 
-    val pendingCount: Int get() = entries.count { it.isPendingApproval }
+    // Anything not already approved is approvable in bulk — pending AND rejected,
+    // matching the web's `approval_status !== 'approved'` filter (a rejected entry
+    // flips back to approved).
+    val approvableCount: Int get() = entries.count { !it.isApproved }
 
     val approvedIds: List<String> get() = entries.filter { it.isApproved }.map { it.id }
 
@@ -151,10 +167,12 @@ class ManualAttendanceViewModel(
                 is Resource.Success -> {
                     _uiState.update {
                         val today = result.data.transactionDate ?: it.date
+                        val firstBranch = result.data.branches.firstOrNull()
                         it.copy(
                             isBranchesLoading = false,
                             branches = result.data.branches,
-                            selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
+                            selectedBranch = it.selectedBranch ?: firstBranch,
+                            listBranch = it.listBranch ?: firstBranch,
                             date = today,
                             listFrom = today,
                             listTo = today,
@@ -183,38 +201,58 @@ class ManualAttendanceViewModel(
         }
     }
 
+    /** The Filter & Approval panel's Load: existing entries for a branch + range. */
     fun loadEntries() {
         val state = _uiState.value
-        val branch = state.selectedBranch ?: return
+        // The list is driven by the filter panel's own branch (web: filters.branch_id),
+        // falling back to the entry branch before the panel has initialised.
+        val branch = state.listBranch ?: state.selectedBranch ?: return
         _uiState.update { it.copy(isEntriesLoading = true, entriesError = null) }
         viewModelScope.launch {
-            val result = hrmRepository.getAttendanceEntries(
-                branchId = branch.id,
-                dateFrom = state.listFrom.toApi(),
-                dateTo = state.listTo.toApi(),
+            applyEntriesResult(
+                hrmRepository.getAttendanceEntries(
+                    branchId = branch.id,
+                    dateFrom = state.listFrom.toApi(),
+                    dateTo = state.listTo.toApi(),
+                )
             )
-            when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(isEntriesLoading = false, entries = result.data)
-                }
-                is Resource.Error -> _uiState.update {
-                    it.copy(
-                        isEntriesLoading = false,
-                        entriesError = result.message,
-                        sessionExpired = it.sessionExpired || result.isUnauthorized,
-                    )
-                }
-                Resource.Loading -> Unit
+        }
+    }
+
+    /** Success/error handling shared by both loads. */
+    private fun applyEntriesResult(result: Resource<List<AttendanceEntry>>) {
+        when (result) {
+            is Resource.Success -> _uiState.update {
+                it.copy(isEntriesLoading = false, entries = result.data)
             }
+            is Resource.Error -> _uiState.update {
+                it.copy(
+                    isEntriesLoading = false,
+                    entriesError = result.message,
+                    sessionExpired = it.sessionExpired || result.isUnauthorized,
+                )
+            }
+            Resource.Loading -> Unit
         }
     }
 
     fun onBranchSelected(branch: BranchOption) {
-        _uiState.update { it.copy(selectedBranch = branch, employee = null) }
+        // Point the list's branch at the entry branch too, so the list keeps
+        // tracking it as before; the filter panel can still override it.
+        _uiState.update { it.copy(selectedBranch = branch, listBranch = branch, employee = null) }
         loadEntries()
     }
 
-    /** The entry date also refocuses the list on that day, like before. */
+    /** The filter panel's own branch — changed here does not reload until Load. */
+    fun onListBranchSelected(branch: BranchOption) =
+        _uiState.update { it.copy(listBranch = branch) }
+
+    /**
+     * The entry date also refocuses the list on that day, like before — but it
+     * leaves the filter panel's branch alone, so changing a date never discards
+     * the branch the user picked there (the entry "Load" button is the explicit
+     * way to pull the list back to the entry branch).
+     */
     fun onDateSelected(date: SimpleDate) {
         _uiState.update { it.copy(date = date, listFrom = date, listTo = date) }
         loadEntries()
@@ -237,6 +275,63 @@ class ManualAttendanceViewModel(
     fun onOutTime(value: String) = _uiState.update { it.copy(outTime = value) }
     fun onOtHours(value: String) = _uiState.update { it.copy(otHours = value) }
     fun onRemarks(value: String) = _uiState.update { it.copy(remarks = value) }
+
+    /**
+     * The web's Reset: clear the entry form back to its defaults. Branch and date
+     * are kept — on mobile the date drives the loaded list below, so resetting it
+     * to today would silently jump that list; the web can afford to because its
+     * list has its own separate date filter.
+     */
+    fun reset() = _uiState.update {
+        it.copy(
+            employee = null,
+            selectedShift = null,
+            employmentType = ATTENDANCE_TYPES.first(),
+            inTime = "",
+            outTime = "",
+            otHours = "",
+            status = ATTENDANCE_STATUSES.first(),
+            remarks = "",
+            saveMessage = null,
+            saveError = null,
+        )
+    }
+
+    /**
+     * The web's form-panel Load: (re)fetch the list for the entry Date as a single
+     * day, mirroring handleBulkLoad's date_from == date_to == attendance_date. The
+     * Filter & Approval panel keeps its own range-based Load.
+     */
+    fun loadForEntryDate() {
+        val state = _uiState.value
+        val branch = state.selectedBranch ?: return
+        // Point the filter panel at the entry's day/branch so the two stay in step,
+        // then run the roster load (include_employee_list=1) for that single day —
+        // the web's handleBulkLoad, distinct from the filter panel's range Load.
+        _uiState.update {
+            it.copy(
+                listBranch = it.selectedBranch,
+                listFrom = it.date,
+                listTo = it.date,
+                isEntriesLoading = true,
+                entriesError = null,
+            )
+        }
+        viewModelScope.launch {
+            applyEntriesResult(
+                hrmRepository.getAttendanceRoster(
+                    branchId = branch.id,
+                    date = state.date.toApi(),
+                    shiftId = state.selectedShift?.id?.toLongOrNull(),
+                    employmentType = state.employmentType.id,
+                    inTime = state.inTime,
+                    outTime = state.outTime,
+                    status = state.status.id,
+                    remarks = state.remarks,
+                )
+            )
+        }
+    }
 
     /** Employee typeahead, branch + type scoped like the web's dropdown. */
     suspend fun searchEmployees(query: String): Resource<List<SelectorOption>> =
@@ -378,16 +473,17 @@ class ManualAttendanceViewModel(
         }
     }
 
-    /** The web's Bulk Approve: approves every pending entry in the list. */
+    /** The web's Bulk Approve: approves every not-yet-approved entry (pending or
+     *  rejected) in the list. */
     fun bulkApprove() {
-        val pending = _uiState.value.entries.filter { it.isPendingApproval }
-        if (pending.isEmpty() || _uiState.value.isBulkApproving) return
+        val approvable = _uiState.value.entries.filter { !it.isApproved }
+        if (approvable.isEmpty() || _uiState.value.isBulkApproving) return
 
         _uiState.update { it.copy(isBulkApproving = true, saveError = null, saveMessage = null) }
         viewModelScope.launch {
             var approved = 0
             var failed = 0
-            pending.forEach { entry ->
+            approvable.forEach { entry ->
                 when (hrmRepository.approveAttendance(entry.id, approve = true, remarks = null)) {
                     is Resource.Success -> approved++
                     else -> failed++
@@ -605,18 +701,39 @@ fun ManualAttendanceScreen(
                     )
                 }
                 Spacer(Modifier.height(16.dp))
+                // The web's four-button command row: Save Single, Bulk Entry,
+                // Reset, Load — two per row so the labels stay readable on a phone.
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton(
                         text = "Save Single",
                         onClick = viewModel::save,
                         enabled = state.canSave,
                         isLoading = state.isSaving,
+                        icon = Icons.Filled.Check,
                         modifier = Modifier.weight(1f),
                     )
                     SecondaryButton(
                         text = "Bulk Entry",
                         onClick = viewModel::onBulkClick,
                         enabled = state.canBulk,
+                        icon = Icons.Filled.Person,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SecondaryButton(
+                        text = "Reset",
+                        onClick = viewModel::reset,
+                        enabled = !state.isSaving && !state.isBulkSaving,
+                        icon = Icons.Filled.Refresh,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SecondaryButton(
+                        text = "Load",
+                        onClick = viewModel::loadForEntryDate,
+                        enabled = state.selectedBranch != null && !state.isEntriesLoading,
+                        icon = Icons.Filled.Search,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -642,8 +759,10 @@ fun ManualAttendanceScreen(
                     Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 }
 
-                Spacer(Modifier.height(20.dp))
-                SectionTitle("Filter & Approval")
+                Spacer(Modifier.height(24.dp))
+                // The web's Filter & Approval panel: a badged header, then the
+                // list's own branch + date range, then the three bulk actions.
+                FilterApprovalHeader()
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.Bottom,
@@ -662,27 +781,42 @@ fun ManualAttendanceScreen(
                         onSelected = viewModel::onListTo,
                         modifier = Modifier.weight(1f),
                     )
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    HrmBranchDropdown(
+                        branches = state.branches,
+                        selected = state.listBranch,
+                        isLoading = state.isBranchesLoading,
+                        onSelected = viewModel::onListBranchSelected,
+                        modifier = Modifier.weight(1f),
+                    )
                     SecondaryButton(
                         text = "Load",
                         onClick = viewModel::loadEntries,
                         enabled = !state.isEntriesLoading,
-                        compact = true,
+                        icon = Icons.Filled.Search,
                     )
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton(
-                        text = "Bulk Approve (${state.pendingCount})",
+                        text = "Bulk Approve",
                         onClick = viewModel::bulkApprove,
-                        enabled = state.pendingCount > 0 && !state.isBulkApproving,
+                        enabled = state.approvableCount > 0 && !state.isBulkApproving,
                         isLoading = state.isBulkApproving,
-                        compact = true,
+                        icon = Icons.Filled.Check,
+                        modifier = Modifier.weight(1f),
                     )
                     SecondaryButton(
-                        text = "Bulk Clear (${state.approvedIds.size})",
+                        text = "Bulk Clear",
                         onClick = viewModel::onClearClick,
                         enabled = state.approvedIds.isNotEmpty() && !state.isBulkClearing,
-                        compact = true,
+                        icon = Icons.Filled.Delete,
+                        modifier = Modifier.weight(1f),
                     )
                 }
 
@@ -753,6 +887,48 @@ private fun SectionTitle(title: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(bottom = 10.dp),
     )
+}
+
+/** The web panel's badged header: a tinted search icon over title + subtitle. */
+@Composable
+private fun FilterApprovalHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    RoundedCornerShape(8.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Column {
+            Text(
+                text = "Filter & Approval",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Load entries and approve in bulk",
+                style = MaterialTheme.typography.bodySmall,
+                // onSurfaceVariant reads as a low-contrast maroon on this screen's
+                // teal background (the header isn't inside a surface/card); the
+                // dimmed onBackground the rest of the screen uses stays legible.
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+            )
+        }
+    }
 }
 
 /** One compact entry row: identity, times, type/OT, and the action buttons. */
