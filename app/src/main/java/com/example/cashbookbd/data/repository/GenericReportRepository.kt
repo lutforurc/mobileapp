@@ -248,10 +248,10 @@ class GenericReportRepository(
         for (key in SUMMARY_KEYS) {
             val value = obj.get(key)?.takeUnless { it.isJsonNull } ?: continue
             when {
-                value.isJsonPrimitive -> cells += ReportCell(humanize(key), formatValue(value))
+                value.isJsonPrimitive -> cells += ReportCell(humanize(key), formatValue(value), key = key)
                 value.isJsonObject -> value.asJsonObject.entrySet()
                     .filter { it.value.isJsonPrimitive }
-                    .forEach { cells += ReportCell(humanize(it.key), formatValue(it.value)) }
+                    .forEach { cells += ReportCell(humanize(it.key), formatValue(it.value), key = it.key) }
             }
         }
         return cells

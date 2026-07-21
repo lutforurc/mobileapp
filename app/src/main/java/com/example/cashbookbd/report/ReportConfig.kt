@@ -261,6 +261,14 @@ private val HRM_ATTENDANCE_HIDDEN = listOf(
     "early_out_minutes", "created_by", "updated_by", "created_at", "updated_at",
 )
 
+/**
+ * The Daily Attendance Report also drops ID (employee_serial) and Branch, which
+ * the user does not want in that table — branch is redundant once filtered, and
+ * the serial adds noise. Scoped to this report so the other HRM tables keep them.
+ */
+private val HRM_ATTENDANCE_REPORT_HIDDEN =
+    HRM_ATTENDANCE_HIDDEN + listOf("employee_serial", "branch_name")
+
 /** Header overrides for the attendance-entry report tables. */
 private val HRM_ATTENDANCE_LABELS = mapOf(
     "attendance_date" to "Date",
@@ -860,7 +868,7 @@ object ReportMenu {
                 options = HRM_STATUS_CHOICES,
             ),
             section = ReportConfig.SECTION_HRM,
-            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
+            hiddenColumns = HRM_ATTENDANCE_REPORT_HIDDEN,
             columnLabels = HRM_ATTENDANCE_LABELS,
             textColumns = listOf("employee_serial"),
         ),

@@ -1,9 +1,14 @@
 package com.example.cashbookbd.report
 
-/** One field of a report row: a humanized [label] and its display [value]. */
+/**
+ * One field of a report row: a humanized [label] and its display [value]. The
+ * raw [key] is kept for summary cells so a report can colour its KPI cards by
+ * the underlying field (e.g. the attendance summary's present/absent/…).
+ */
 data class ReportCell(
     val label: String,
     val value: String,
+    val key: String = "",
 )
 
 /** One record of a report, rendered as a card of label/value cells. */

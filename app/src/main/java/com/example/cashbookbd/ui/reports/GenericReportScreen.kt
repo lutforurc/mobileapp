@@ -2,6 +2,7 @@ package com.example.cashbookbd.ui.reports
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -42,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -567,31 +573,122 @@ private fun ReportRowList(state: GenericReportUiState) {
     }
 }
 
+/** Colour + display label for a known KPI summary field. */
+private data class KpiStyle(val label: String, val accent: Color)
+
+/**
+ * The attendance report's KPI cards, in the web's order, colour and wording
+ * (Daily Attendance Report). Keyed by the backend summary field, so the same
+ * colours/labels apply wherever those fields appear. Insertion order is the
+ * display order; a card is shown only when its field is in the summary.
+ */
+private val KPI_STYLES: Map<String, KpiStyle> = linkedMapOf(
+    "active_employees" to KpiStyle("Active Employee", Color(0xFF6366F1)), // indigo
+    "total_entries" to KpiStyle("Attendance Entry", Color(0xFF0EA5E9)),   // sky
+    "absent" to KpiStyle("Absent/Missing", Color(0xFFF43F5E)),            // rose
+    "present" to KpiStyle("Present", Color(0xFF10B981)),                  // emerald
+    "half_day" to KpiStyle("Half Day", Color(0xFF3B82F6)),               // blue
+    "leave" to KpiStyle("Leave", Color(0xFF8B5CF6)),                     // violet
+    "late" to KpiStyle("Late", Color(0xFFF59E0B)),                       // amber
+    "early_out" to KpiStyle("Early Out", Color(0xFFF97316)),             // orange
+    "pending_approval" to KpiStyle("Pending Approval", Color(0xFFF59E0B)),
+    "approved" to KpiStyle("Approved", Color(0xFF10B981)),
+    "rejected" to KpiStyle("Rejected", Color(0xFFF43F5E)),
+)
+
 @Composable
 private fun SummaryBoxes(cells: List<ReportCell>) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    // Known KPIs (attendance report) become coloured cards in the web's order;
+    // any other report keeps the generic monochrome tiles.
+    val kpis = KPI_STYLES.mapNotNull { (key, style) ->
+        cells.firstOrNull { it.key == key }?.let { style to it.value }
+    }
+    if (kpis.isNotEmpty()) {
+        KpiCardGrid(kpis)
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            cells.forEach { cell ->
+                SummaryTile {
+                    Text(
+                        text = cell.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = cell.value,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Two-column grid of coloured KPI cards, mirroring the web's card layout. */
+@Composable
+private fun KpiCardGrid(items: List<Pair<KpiStyle, String>>) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        cells.forEach { cell ->
-            SummaryTile {
+        items.chunked(2).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowItems.forEach { (style, value) ->
+                    KpiCard(style, value, Modifier.weight(1f))
+                }
+                // Keep a lone last card at half width, like the grid's other rows.
+                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** One KPI card: an accent left-bar, a matching dot + label, and a bold value. */
+@Composable
+private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(style.accent),
+        )
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(style.accent))
                 Text(
-                    text = cell.label,
+                    text = style.label,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = cell.value,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
             }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = style.accent,
+                maxLines = 1,
+            )
         }
     }
 }
