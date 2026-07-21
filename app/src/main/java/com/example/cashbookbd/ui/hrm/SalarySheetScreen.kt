@@ -486,7 +486,14 @@ private fun SalaryDetailView(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LinkButton(text = "← Back", onClick = onBack)
+            // The primary link colour washes out on the teal light-mode header;
+            // use white there, keep the default in dark mode.
+            val isLight = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+            LinkButton(
+                text = "← Back",
+                onClick = onBack,
+                color = if (isLight) Color.White else null,
+            )
             Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
                 Text(
                     text = "Salary for the Month of ${monthLabel(detail.monthId)}",

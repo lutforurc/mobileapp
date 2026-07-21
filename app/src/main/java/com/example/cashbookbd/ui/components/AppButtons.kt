@@ -163,8 +163,15 @@ fun LinkButton(
     icon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     iconDescription: String? = null,
+    /** Overrides the default primary link colour (e.g. for a low-contrast bg). */
+    color: androidx.compose.ui.graphics.Color? = null,
 ) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+    val colors = if (color != null) {
+        ButtonDefaults.textButtonColors(contentColor = color)
+    } else {
+        ButtonDefaults.textButtonColors()
+    }
+    TextButton(onClick = onClick, enabled = enabled, modifier = modifier, colors = colors) {
         if (icon != null) {
             Icon(icon, contentDescription = iconDescription, modifier = Modifier.size(IconSize))
             Spacer(Modifier.width(4.dp))
