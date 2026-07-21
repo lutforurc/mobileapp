@@ -1,6 +1,7 @@
 package com.example.cashbookbd.ui.dashboard
 
 import android.content.res.Configuration
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -44,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.R
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -190,18 +190,19 @@ private fun DashboardContent(
         item { SummaryCard(dashboard) }
 
         if (isConstruction) {
-            // Construction: Top Purchase only, always shown (with its own empty
-            // state), no Total row — then the head-office receive panel.
-            item {
-                TopProductsCard(
-                    title = "Top Purchase",
-                    products = dashboard.topPurchases,
-                    days = dashboard.topPurchaseDays,
-                    accent = MaterialTheme.accents.amber,
-                    showTotal = false,
-                    periodPrefix = "Last ",
-                    emptyText = "No purchases in this period.",
-                )
+            // Construction: Top Purchase only, no Total row — then the
+            // head-office receive panel.
+            if (dashboard.topPurchases.isNotEmpty()) {
+                item {
+                    TopProductsCard(
+                        title = "Top Purchase",
+                        products = dashboard.topPurchases,
+                        days = dashboard.topPurchaseDays,
+                        accent = MaterialTheme.accents.amber,
+                        showTotal = false,
+                        periodPrefix = "Last ",
+                    )
+                }
             }
             // Hide the whole H/O panel when there's nothing to receive.
             if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
@@ -216,8 +217,7 @@ private fun DashboardContent(
                 }
             }
         } else {
-            // Everything else: Top Sales + Top Purchase, each with a Total row
-            // and hidden entirely when empty (matching the web).
+            // Everything else: Top Sales + Top Purchase, each with a Total row.
             if (dashboard.topSales.isNotEmpty()) {
                 item {
                     TopProductsCard(
@@ -227,7 +227,6 @@ private fun DashboardContent(
                         accent = MaterialTheme.accents.green,
                         showTotal = true,
                         periodPrefix = "",
-                        emptyText = "No sales found",
                     )
                 }
             }
@@ -240,7 +239,6 @@ private fun DashboardContent(
                         accent = MaterialTheme.accents.amber,
                         showTotal = true,
                         periodPrefix = "",
-                        emptyText = "No purchases found",
                     )
                 }
             }
@@ -285,15 +283,15 @@ private fun SummaryCard(dashboard: Dashboard) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             SummaryStatRow(
-                icon = Icons.Filled.DateRange,
+                iconRes = R.drawable.ic_stat_trx_date,
                 tint = accents.blue,
-                label = "TRX DATE",
+                label = "TRANSACTION DATE",
                 value = dashboard.transactionDate,
                 valueColor = MaterialTheme.colorScheme.onSurface,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
-                icon = Icons.Filled.KeyboardArrowDown,
+                iconRes = R.drawable.ic_stat_received,
                 tint = accents.green,
                 label = "TODAY RECEIVED",
                 value = formatMoney(dashboard.todayReceived),
@@ -301,7 +299,7 @@ private fun SummaryCard(dashboard: Dashboard) {
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
-                icon = Icons.Filled.KeyboardArrowUp,
+                iconRes = R.drawable.ic_stat_payment,
                 tint = accents.red,
                 label = "TODAY PAYMENT",
                 value = formatMoney(dashboard.todayPayment),
@@ -309,8 +307,7 @@ private fun SummaryCard(dashboard: Dashboard) {
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
-                icon = null,
-                glyph = "৳",
+                iconRes = R.drawable.ic_stat_balance,
                 tint = accents.purple,
                 label = "BALANCE",
                 value = formatMoney(dashboard.balance),
@@ -356,17 +353,19 @@ private fun IconChip(icon: ImageVector, tint: Color) {
 }
 
 /**
- * One metric row: a tinted icon chip (or [glyph] when no [icon]), an uppercase
- * label and its value.
+ * One metric row: a tinted icon chip, an uppercase label and its value.
+ *
+ * The icon is a drawable rather than a Material [ImageVector] because these
+ * four are a drawn set (`res/drawable/ic_stat_*`) — Material's stock arrows and
+ * a text glyph never matched each other's weight.
  */
 @Composable
 private fun SummaryStatRow(
-    icon: ImageVector?,
+    @DrawableRes iconRes: Int,
     tint: Color,
     label: String,
     value: String,
     valueColor: Color,
-    glyph: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -383,16 +382,12 @@ private fun SummaryStatRow(
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            if (icon != null) {
-                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
-            } else {
-                Text(
-                    text = glyph.orEmpty(),
-                    color = tint,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp),
+            )
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -416,6 +411,9 @@ private fun SummaryStatRow(
 /**
  * Top Purchase card: header with a period badge, then a numbered row per product
  * (blue serial, name, amber quantity).
+ *
+ * Callers only render this when [products] has something in it — an empty card
+ * is just a heading over a blank space — so there is no empty state here.
  */
 @Composable
 private fun TopProductsCard(
@@ -427,7 +425,6 @@ private fun TopProductsCard(
     showTotal: Boolean,
     /** "7 Days" on the normal dashboard, "Last 7 Days" on Construction. */
     periodPrefix: String,
-    emptyText: String,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
@@ -459,36 +456,27 @@ private fun TopProductsCard(
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            if (products.isEmpty()) {
-                Text(
-                    text = emptyText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                )
-            } else {
-                products.forEachIndexed { index, product ->
-                    TopProductRow(serial = index + 1, product = product, accent = accent)
-                    if (index != products.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
+            products.forEachIndexed { index, product ->
+                TopProductRow(serial = index + 1, product = product, accent = accent)
+                if (index != products.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                if (showTotal) {
-                    HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Total", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = formatBdAmount(products.sumOf { it.quantity }),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = accent,
-                        )
-                    }
+            }
+            if (showTotal) {
+                HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Total", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = formatBdAmount(products.sumOf { it.quantity }),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = accent,
+                    )
                 }
             }
         }

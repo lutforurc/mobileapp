@@ -1,0 +1,32 @@
+<!--
+  Money out: the same tray as ic_stat_received, with the arrow leaving it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Shaft -->
+    <path
+        android:pathData="M12,14.75V3.5"
+        android:strokeWidth="1.8"
+        android:strokeColor="#000000"
+        android:strokeLineCap="round" />
+
+    <!-- Head -->
+    <path
+        android:pathData="M7.75,7.5L12,3.25L16.25,7.5"
+        android:strokeWidth="1.8"
+        android:strokeColor="#000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Tray -->
+    <path
+        android:pathData="M3.75,17V18.75A2.25,2.25 0 0 0 6,21H18A2.25,2.25 0 0 0 20.25,18.75V17"
+        android:strokeWidth="1.8"
+        android:strokeColor="#000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
