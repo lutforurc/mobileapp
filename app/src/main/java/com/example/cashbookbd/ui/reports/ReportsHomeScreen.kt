@@ -118,6 +118,7 @@ private fun NavHostController.openReport(report: ReportConfig) {
     val route = when (report.key) {
         "cashbook" -> Routes.CASHBOOK
         "ledger" -> Routes.LEDGER
+        "bankbook" -> Routes.BANKBOOK
         "cashBankReceivedPayment" -> Routes.CASH_BANK
         "trialBalanceLevel3" -> Routes.TRIAL_BALANCE_L3
         "trialBalanceLevel4" -> Routes.TRIAL_BALANCE_L4

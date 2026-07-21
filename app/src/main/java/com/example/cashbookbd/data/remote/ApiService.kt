@@ -1,6 +1,7 @@
 package com.example.cashbookbd.data.remote
 
 import com.example.cashbookbd.data.remote.dto.BranchListResponse
+import com.example.cashbookbd.data.remote.dto.BankBookResponse
 import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
 import com.example.cashbookbd.data.remote.dto.DevicesResponse
@@ -99,6 +100,19 @@ interface ApiService {
         @Query("start_date") startDate: String,
         @Query("end_date") endDate: String,
     ): Response<CashBookResponse>
+
+    /**
+     * GET {BASE_URL}/reports/bankbook?branch_id=&start_date=&end_date=
+     *
+     * The bank-side twin of the cash book. Dates must be `yyyy-MM-dd` — note
+     * the rows come back with `vr_date` as `dd/MM/yyyy`.
+     */
+    @GET("reports/bankbook")
+    suspend fun getBankBook(
+        @Query("branch_id") branchId: Long,
+        @Query("start_date") startDate: String,
+        @Query("end_date") endDate: String,
+    ): Response<BankBookResponse>
 
     /**
      * POST {BASE_URL}/accounts/payment/specific-item — confirms ("receives") one

@@ -32,6 +32,7 @@ import com.example.cashbookbd.ui.dashboard.DashboardScreen
 import com.example.cashbookbd.ui.login.LoginScreen
 import com.example.cashbookbd.ui.register.RegisterScreen
 import com.example.cashbookbd.ui.reports.BalanceSheetReportScreen
+import com.example.cashbookbd.ui.reports.BankBookScreen
 import com.example.cashbookbd.ui.reports.CashBankScreen
 import com.example.cashbookbd.ui.reports.CashBookScreen
 import com.example.cashbookbd.ui.reports.DueListScreen
@@ -69,6 +70,7 @@ object Routes {
     const val REPORTS = "reports/home"
     const val CASHBOOK = "reports/cash_book"
     const val LEDGER = "reports/ledger"
+    const val BANKBOOK = "reports/bank_book"
     const val CASH_BANK = "reports/cash_bank"
     const val TRIAL_BALANCE_L3 = "reports/trial_balance_l3"
     const val TRIAL_BALANCE_L4 = "reports/trial_balance_l4"
@@ -509,6 +511,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onLogout = backToLogin,
                     title = "Trial Balance Group",
                     reportPath = com.example.cashbookbd.data.repository.TrialBalanceRepository.PATH_LEVEL3,
+                )
+            }
+        }
+
+        composable(Routes.BANKBOOK) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("bankbook")) {
+                BankBookScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
                 )
             }
         }

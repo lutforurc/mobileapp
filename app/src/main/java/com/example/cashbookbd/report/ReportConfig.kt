@@ -337,6 +337,7 @@ object ReportMenu {
     val PARENT_PERMISSIONS = listOf(
         "date.wise.total",
         "cashbook.view",
+        "bankbook.view",
         "profit.loss",
         "balancesheet.view",
         "trial.balance.l3",
@@ -386,6 +387,23 @@ object ReportMenu {
         ),
 
          ReportConfig(
+            key = "bankbook",
+            title = "Bank Book",
+            routeName = "ReportBankBook",
+            webPath = "/reports/bankbook",
+            // The web page is gated on bankbook.view, the React sidebar on
+            // cashbook.view — accept either rather than hide it from someone
+            // the web would let in.
+            anyOf = listOf("bankbook.view", "cashbook.view"),
+            endpointKey = "bankbook",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Rendered by the bespoke BankBookScreen: the payload mixes an
+            // opening row, transactions and three appended summary rows that
+            // the generic table would render as ordinary data.
+            native = true,
+        ),
+        ReportConfig(
             key = "cashBankReceivedPayment",
             title = "Cash & Bank Summary",
             routeName = "ReportCashBankReceivedPayment",

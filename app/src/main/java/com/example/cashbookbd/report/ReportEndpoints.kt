@@ -13,6 +13,7 @@ object ReportEndpoints {
     val map: Map<String, String> = mapOf(
         "dateWiseTotal" to "reports/date-wise-total-data",
         "cashbook" to "reports/cashbook",
+        "bankbook" to "reports/bankbook",
         "profitLoss" to "reports/profit-loss",
         "profitLossExpenseSummary" to "reports/profit-loss-expense-summary",
         "balanceSheet" to "reports/balance-sheet",

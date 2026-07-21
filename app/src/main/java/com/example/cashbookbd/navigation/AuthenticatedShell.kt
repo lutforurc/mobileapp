@@ -265,6 +265,7 @@ private fun AppDrawerContent(
                     Icons.AutoMirrored.Filled.List,
                     currentRoute == Routes.REPORTS ||
                         currentRoute == Routes.CASHBOOK ||
+                        currentRoute == Routes.BANKBOOK ||
                         currentRoute == Routes.LEDGER,
                 ) {
                     onDestinationClick(Routes.REPORTS)

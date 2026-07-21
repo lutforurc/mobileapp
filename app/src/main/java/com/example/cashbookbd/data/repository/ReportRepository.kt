@@ -2,9 +2,11 @@ package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ApiService
+import com.example.cashbookbd.ui.reports.model.BankBookReport
 import com.example.cashbookbd.ui.reports.model.BranchList
 import com.example.cashbookbd.ui.reports.model.CashBookReport
 import com.example.cashbookbd.ui.reports.model.SimpleDate
+import com.example.cashbookbd.ui.reports.model.toBankBookRow
 import com.example.cashbookbd.ui.reports.model.toBranchOption
 import com.example.cashbookbd.ui.reports.model.toCashBookRow
 import kotlinx.coroutines.CoroutineDispatcher
@@ -73,6 +75,35 @@ class ReportRepository(
 
             val rows = body.data?.rows.orEmpty().map { it.toCashBookRow() }
             Resource.Success(CashBookReport(rows))
+        }
+    }
+
+    /** The bank-side twin of [getCashBook]; [startDate]/[endDate] are yyyy-MM-dd. */
+    suspend fun getBankBook(
+        branchId: Long,
+        startDate: String,
+        endDate: String,
+    ): Resource<BankBookReport> = withContext(ioDispatcher) {
+        safeCall {
+            val response = api.getBankBook(branchId, startDate, endDate)
+            response.unauthorizedOrNull()?.let { return@safeCall it }
+
+            // notFound() answers 200 with success=false when the period is
+            // empty, so both it and a real 404 mean "no rows", not an error.
+            if (response.code() == 404) {
+                return@safeCall Resource.Success(BankBookReport(emptyList()))
+            }
+            if (!response.isSuccessful) {
+                return@safeCall Resource.Error("Server error (${response.code()}). Please try again later.")
+            }
+            val body = response.body()
+                ?: return@safeCall Resource.Error("Invalid response from server.")
+            if (!body.success) {
+                return@safeCall Resource.Success(BankBookReport(emptyList()))
+            }
+
+            val rows = body.data?.rows.orEmpty().map { it.toBankBookRow() }
+            Resource.Success(BankBookReport(rows))
         }
     }
 
