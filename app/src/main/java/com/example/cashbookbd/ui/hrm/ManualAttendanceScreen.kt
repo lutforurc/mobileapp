@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -1039,7 +1040,7 @@ private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceE
                     .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                HeaderCell("SL", AttCol.sl)
+                HeaderCell("#", AttCol.sl)
                 HeaderCell("DATE", AttCol.date)
                 HeaderCell("EMPLOYEE", AttCol.employee)
                 HeaderCell("TYPE", AttCol.type)
@@ -1109,6 +1110,7 @@ private fun HeaderCell(text: String, width: Dp) {
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+        textAlign = TextAlign.Center,
         maxLines = 1,
     )
 }
@@ -1119,6 +1121,7 @@ private fun BodyCell(text: String, width: Dp) {
         text = text,
         modifier = Modifier.width(width).padding(horizontal = 8.dp),
         style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Center,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
@@ -1128,7 +1131,7 @@ private fun BodyCell(text: String, width: Dp) {
 private fun CellBox(width: Dp, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier.width(width).padding(horizontal = 8.dp),
-        contentAlignment = Alignment.CenterStart,
+        contentAlignment = Alignment.Center,
     ) { content() }
 }
 
