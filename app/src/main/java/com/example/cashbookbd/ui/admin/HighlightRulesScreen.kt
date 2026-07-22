@@ -419,12 +419,17 @@ private fun RuleForm(state: HighlightRulesUiState, viewModel: HighlightRulesView
     }
     Spacer(Modifier.height(16.dp))
 
-    Row {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Full-width save button — the compact default read as an afterthought.
         PrimaryButton(
-            text = if (state.isEdit) "Update" else "Add",
+            text = if (state.isEdit) "Update Rule" else "Add Rule",
             onClick = viewModel::save,
             enabled = state.canSave,
             isLoading = state.isSaving,
+            modifier = Modifier.weight(1f),
         )
         if (state.isEdit) {
             LinkButton(
