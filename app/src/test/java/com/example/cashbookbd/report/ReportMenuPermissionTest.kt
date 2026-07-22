@@ -18,15 +18,19 @@ class ReportMenuPermissionTest {
     private fun perms(vararg names: String) = names.map { Permission(name = it) }
 
     /**
-     * Exactly the reports the web's Sidebar guards with `cashbook.view`. The two
-     * collection reports genuinely accept it (`group.report || ledger.due.view ||
-     * cashbook.view` on the web); no financial statement does.
+     * Exactly the reports the web's Sidebar guards with `cashbook.view`: the
+     * cashbook family (Bank Book and the Cash & Bank Summary sit under the same
+     * sidebar gate) and the two collection reports (`group.report ||
+     * ledger.due.view || cashbook.view` on the web). No financial statement does.
      */
     @Test
     fun `cashbook_view unlocks only the cashbook and collection reports`() {
         val titles = ReportMenu.visible(perms("cashbook.view")).map { it.title }
 
-        assertEquals(listOf("Cashbook", "Collection Sheet", "Monthly Report"), titles)
+        assertEquals(
+            listOf("Cashbook", "Bank Book", "Cash & Bank Summary", "Collection Sheet", "Monthly Report"),
+            titles,
+        )
     }
 
     @Test
