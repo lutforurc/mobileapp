@@ -77,10 +77,10 @@ fun AdminHomeScreen(
                 AdminRowItem(
                     item = item,
                     onClick = {
-                        val route = if (AppLists.byKey(item.key) != null) {
-                            Routes.appListView(item.key)
-                        } else {
-                            Routes.adminView(item.key)
+                        val route = when {
+                            item.key == AdminMenu.HIGHLIGHT_RULES_KEY -> Routes.HIGHLIGHT_RULES
+                            AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
+                            else -> Routes.adminView(item.key)
                         }
                         navController.navigate(route)
                     },

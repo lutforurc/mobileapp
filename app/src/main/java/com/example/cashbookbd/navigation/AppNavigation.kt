@@ -42,6 +42,7 @@ import com.example.cashbookbd.ui.reports.TrialBalanceScreen
 import com.example.cashbookbd.ui.account.MyDevicesScreen
 import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
+import com.example.cashbookbd.ui.admin.HighlightRulesScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
@@ -107,6 +108,9 @@ object Routes {
     const val ADMIN_KEY_ARG = "key"
 
     fun adminView(key: String): String = "admin/view/$key"
+
+    /** Highlight-rules management (form + list on one screen, like the web). */
+    const val HIGHLIGHT_RULES = "admin/highlight-rules"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -337,6 +341,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.ADMIN) {
             PermissionGate(anyOf = AdminMenu.all.flatMap { it.anyOf }) {
                 AdminHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.HIGHLIGHT_RULES) {
+            // Same gate as the web sidebar's Highlight Rules entry.
+            PermissionGate(anyOf = listOf("branch.view")) {
+                HighlightRulesScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
