@@ -12,6 +12,7 @@ import com.example.cashbookbd.report.ReportResult
 import com.example.cashbookbd.report.ReportRow
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.google.gson.JsonElement
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -78,8 +79,11 @@ class GenericReportRepository(
                 )
             }
             if (!response.isSuccessful) {
+                // Surface the server's own message when it sent one — a 422's
+                // validation sentence beats an opaque "Server error (422)".
                 return@withContext Resource.Error(
-                    "Server error (${response.code()}). Please try again later."
+                    errorBodyMessage(response)
+                        ?: "Server error (${response.code()}). Please try again later."
                 )
             }
 
@@ -218,6 +222,23 @@ class GenericReportRepository(
         }
         walk(payload)
         return rows
+    }
+
+    /**
+     * The human message inside a non-2xx body — Laravel's 422 validation
+     * response (`{"message": ...}`) or the app envelope's `message`.
+     */
+    private fun errorBodyMessage(response: Response<JsonElement>): String? = try {
+        val raw = response.errorBody()?.string()
+        if (raw.isNullOrBlank()) {
+            null
+        } else {
+            JsonParser.parseString(raw).asJsonObject
+                .get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.ifBlank { null }
+        }
+    } catch (_: Exception) {
+        null
     }
 
     /** Peels the `data` / `data.data` envelope produced by the backend helpers. */
