@@ -50,12 +50,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.HighlightedText
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.highlightBorderColor
+import com.example.cashbookbd.ui.components.rememberHighlightRules
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.report.HighlightRule
+import com.example.cashbookbd.report.matchHighlightRule
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -250,7 +255,7 @@ private val COL_DESCRIPTION = 220.dp
 private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
 
-private val ledgerColumns = listOf(
+private fun ledgerColumns(rules: List<HighlightRule>) = listOf(
     ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
         cellText(r.sl, bold = r.isSummary, align = TextAlign.Center)
     },
@@ -261,7 +266,13 @@ private val ledgerColumns = listOf(
         cellText(r.voucherNo, bold = r.isSummary)
     },
     ReportColumn<LedgerDisplayRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESCRIPTION)) { r, _ ->
-        cellText(r.description, bold = r.isSummary, maxLines = 3)
+        if (r.remarks.isBlank()) {
+            cellText(r.description, bold = r.isSummary, maxLines = 3)
+        } else {
+            ReportTableCell.Slot {
+                LedgerDescriptionCell(row = r, rule = matchHighlightRule(r.remarks, rules))
+            }
+        }
     },
     ReportColumn<LedgerDisplayRow>("DEBIT", ReportColWidth.Fixed(COL_DEBIT), TextAlign.End) { r, _ ->
         cellText(r.debit, align = TextAlign.End, bold = r.isSummary)
@@ -271,12 +282,44 @@ private val ledgerColumns = listOf(
     },
 )
 
+/**
+ * Description plus the voucher's free-text remarks beneath it (as on the web
+ * report), the remarks boxed in a highlight rule's colour when one matches.
+ * When the remarks ARE the description (blank `name`), the single line is boxed.
+ */
+@Composable
+private fun LedgerDescriptionCell(row: LedgerDisplayRow, rule: HighlightRule?) {
+    val remarksOnly = row.description == row.remarks
+    // The row draws on the screen backdrop, so the muted remarks line takes a
+    // faded on-background — onSurfaceVariant is unreadable on the teal.
+    val onScreen = MaterialTheme.colorScheme.onBackground
+    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+        if (!remarksOnly && row.description.isNotBlank()) {
+            Text(
+                text = row.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = onScreen,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+        }
+        HighlightedText(
+            text = row.remarks,
+            borderColor = highlightBorderColor(rule),
+            color = if (remarksOnly) onScreen else onScreen.copy(alpha = 0.75f),
+            maxLines = 3,
+        )
+    }
+}
+
 /** One rendered line of the report (the opening-balance line, or a transaction). */
 private data class LedgerDisplayRow(
     val sl: String,
     val date: String,
     val voucherNo: String,
     val description: String,
+    val remarks: String,
     val debit: String,
     val credit: String,
     val isSummary: Boolean,
@@ -290,6 +333,7 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
         date = "",
         voucherNo = "",
         description = "Opening Balance",
+        remarks = "",
         debit = amountOrDash(openingDebit),
         credit = amountOrDash(openingCredit),
         isSummary = true,
@@ -300,6 +344,7 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
             date = formatVrDate(r.date),
             voucherNo = r.voucherNo,
             description = r.description,
+            remarks = r.remarks,
             debit = amountOrDash(r.debit),
             credit = amountOrDash(r.credit),
             isSummary = false,
@@ -310,9 +355,11 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
 
 @Composable
 private fun LedgerTable(statement: LedgerStatement) {
+    val rules = rememberHighlightRules()
+    val columns = remember(rules) { ledgerColumns(rules) }
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     ReportTable(
-        columns = ledgerColumns,
+        columns = columns,
         data = statement.toDisplayRows(),
         footerRows = ledgerFooterRows(statement),
         // The Opening Balance line is styled like the summary rows.

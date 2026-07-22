@@ -14,6 +14,10 @@ data class ReportCell(
 /** One record of a report, rendered as a card of label/value cells. */
 data class ReportRow(
     val cells: List<ReportCell>,
+    /** Raw notes/remarks text the highlight rules match against ("" = none). */
+    val highlightText: String = "",
+    /** Display label of the column whose cell gets the coloured box, when any. */
+    val highlightLabel: String? = null,
 )
 
 /**

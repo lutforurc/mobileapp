@@ -93,6 +93,12 @@ data class BrandPalette(
     val onGradient: Color,
     /** Status and category colours, chosen to be legible on [card]. */
     val accents: AppAccents,
+    /**
+     * Border colours for the highlight rules ("phrase → coloured box" on report
+     * remarks), keyed by the API's palette key. Both themes carry the full set;
+     * red stays the pure #FF0000 the owner asked for in either mode.
+     */
+    val highlight: Map<String, Color>,
 )
 
 /**
@@ -134,6 +140,15 @@ val LightPalette = BrandPalette(
         purple = Color(0xFF7048E8),
         amber = BrandSheet.Orange,
         rose = Color(0xFFC94F3E),
+    ),
+    highlight = mapOf(
+        "red" to Color(0xFFFF0000),
+        "amber" to Color(0xFFF59E0B),
+        "green" to Color(0xFF22C55E),
+        "blue" to Color(0xFF3B82F6),
+        "purple" to Color(0xFFA855F7),
+        "pink" to Color(0xFFEC4899),
+        "gray" to Color(0xFF6B7280),
     ),
 )
 
@@ -179,6 +194,15 @@ val DarkPalette = BrandPalette(
         purple = Color(0xFFB58BE8),
         amber = Color(0xFFF0A050),
         rose = Color(0xFFF58BAE),
+    ),
+    highlight = mapOf(
+        "red" to Color(0xFFFF0000),
+        "amber" to Color(0xFFFBBF24),
+        "green" to Color(0xFF4ADE80),
+        "blue" to Color(0xFF60A5FA),
+        "purple" to Color(0xFFC084FC),
+        "pink" to Color(0xFFF472B6),
+        "gray" to Color(0xFF9CA3AF),
     ),
 )
 

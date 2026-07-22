@@ -98,6 +98,8 @@ data class SimpleDate(
 data class CashBookRow(
     val date: String,
     val particulars: String,
+    /** Free-text voucher note, shown under the description; highlight rules match on it. */
+    val remarks: String,
     val voucherNo: String,
     val debit: Double,
     val credit: Double,
@@ -142,6 +144,8 @@ fun CashBookRowDto.toCashBookRow(): CashBookRow {
     return CashBookRow(
         date = vrDate?.trim().orEmpty(),
         particulars = name,
+        // "-" is the backend's empty-remarks placeholder.
+        remarks = remarks?.trim().orEmpty().takeUnless { it == "-" }.orEmpty(),
         voucherNo = vrNo?.trim().orEmpty(),
         debit = debit.toAmount(),
         credit = credit.toAmount(),

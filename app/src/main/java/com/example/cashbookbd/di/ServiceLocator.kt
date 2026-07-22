@@ -18,6 +18,7 @@ import com.example.cashbookbd.data.repository.BranchRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
+import com.example.cashbookbd.data.repository.HighlightRuleRepository
 import com.example.cashbookbd.data.repository.HrmRepository
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
@@ -65,6 +66,9 @@ object ServiceLocator {
 
     @Volatile
     private var genericReportRepository: GenericReportRepository? = null
+
+    @Volatile
+    private var highlightRuleRepository: HighlightRuleRepository? = null
 
     @Volatile
     private var trialBalanceRepository: TrialBalanceRepository? = null
@@ -223,6 +227,13 @@ object ServiceLocator {
             genericReportRepository ?: GenericReportRepository(
                 api = provideReportApiService(context),
             ).also { genericReportRepository = it }
+        }
+
+    fun provideHighlightRuleRepository(context: Context): HighlightRuleRepository =
+        highlightRuleRepository ?: synchronized(this) {
+            highlightRuleRepository ?: HighlightRuleRepository(
+                api = provideApiService(context),
+            ).also { highlightRuleRepository = it }
         }
 
     fun provideTrialBalanceRepository(context: Context): TrialBalanceRepository =

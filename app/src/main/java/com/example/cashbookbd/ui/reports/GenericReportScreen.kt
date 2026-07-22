@@ -67,6 +67,10 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.report.ReportCell
 import com.example.cashbookbd.report.ReportRow
 import com.example.cashbookbd.report.ReportSelectorSource
+import com.example.cashbookbd.report.matchHighlightRule
+import com.example.cashbookbd.ui.components.highlightColor
+import com.example.cashbookbd.ui.components.rememberHighlightRules
+import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
@@ -700,13 +704,27 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
  */
 @Composable
 private fun GenericReportTable(table: TableModel) {
-    val columns = remember(table) { buildGenericColumns(table) }
+    val rules = rememberHighlightRules()
+    val brand = MaterialTheme.brand
+    // One matched border colour per row (null = no box), resolved up front so
+    // the (non-composable) column render lambdas only look it up.
+    val rowHighlights = remember(table, rules, brand) {
+        if (table.highlightCol < 0 || rules.isEmpty()) {
+            emptyList()
+        } else {
+            table.highlightTexts.map { text -> brand.highlightColor(matchHighlightRule(text, rules)) }
+        }
+    }
+    val columns = remember(table, rowHighlights) { buildGenericColumns(table, rowHighlights) }
     ReportTable(columns = columns, data = table.rows)
 }
 
 private val COL_SL = 48.dp
 
-private fun buildGenericColumns(table: TableModel): List<ReportColumn<List<String>>> = buildList {
+private fun buildGenericColumns(
+    table: TableModel,
+    rowHighlights: List<Color?>,
+): List<ReportColumn<List<String>>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
             cellText((index + 1).toString(), align = TextAlign.Center)
@@ -720,7 +738,14 @@ private fun buildGenericColumns(table: TableModel): List<ReportColumn<List<Strin
                 header = label,
                 width = ReportColWidth.Fixed(if (numeric) 112.dp else 172.dp),
                 align = align,
-            ) { row, _ -> cellText(row.getOrNull(ci).orEmpty(), align = align, maxLines = 2) },
+            ) { row, index ->
+                cellText(
+                    row.getOrNull(ci).orEmpty(),
+                    align = align,
+                    maxLines = 2,
+                    highlight = if (ci == table.highlightCol) rowHighlights.getOrNull(index) else null,
+                )
+            },
         )
     }
 }
@@ -749,6 +774,10 @@ private data class TableModel(
     val columns: List<String>,
     val numeric: List<Boolean>,
     val rows: List<List<String>>,
+    /** Per row, the raw text the highlight rules match against ("" = none). */
+    val highlightTexts: List<String> = emptyList(),
+    /** Index in [columns] of the cell that gets the coloured box; -1 = none. */
+    val highlightCol: Int = -1,
 )
 
 /**
@@ -772,7 +801,14 @@ private fun buildTable(rows: List<ReportRow>): TableModel {
         values.isNotEmpty() && values.all { isNumericCell(it) }
     }
 
-    return TableModel(columns = columns, numeric = numeric, rows = matrix)
+    val highlightLabel = rows.firstNotNullOfOrNull { it.highlightLabel }
+    return TableModel(
+        columns = columns,
+        numeric = numeric,
+        rows = matrix,
+        highlightTexts = rows.map { it.highlightText },
+        highlightCol = highlightLabel?.let { columns.indexOf(it) } ?: -1,
+    )
 }
 
 @Composable
