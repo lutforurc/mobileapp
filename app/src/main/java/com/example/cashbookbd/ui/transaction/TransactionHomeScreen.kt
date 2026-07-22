@@ -100,10 +100,12 @@ private fun TransactionRowItem(item: TransactionItem, onClick: () -> Unit) {
     }
 }
 
-/** Installments opens the existing Due Installments screen; the rest open a form. */
+/** Installments opens the customer installment schedule; the rest open a form. */
 private fun NavHostController.openTransaction(item: TransactionItem) {
     val route = if (item.key == "installments") {
-        Routes.reportView("dueInstallments")
+        // The web's Installments page (receive per row) — the Due Installments
+        // report stays under Reports.
+        Routes.INSTALLMENTS
     } else {
         Routes.txnView(item.key)
     }

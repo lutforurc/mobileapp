@@ -5,6 +5,8 @@ import com.example.cashbookbd.data.remote.TransactionApiService
 import com.example.cashbookbd.transaction.TxnFormSpec
 import com.example.cashbookbd.transaction.TxnKind
 import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.example.cashbookbd.ui.transaction.model.InstallmentPayment
+import com.example.cashbookbd.ui.transaction.model.InstallmentRow
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -199,6 +201,183 @@ class TransactionRepository(
             emptyList()
         }
     }
+
+    /**
+     * A customer's installment schedule
+     * (`accounts/installment/details/{customerId}`). [showAll] mirrors the web
+     * Installments page's "Show All" flag (`?report=`).
+     */
+    suspend fun fetchInstallments(
+        customerId: String,
+        showAll: Boolean,
+    ): Resource<List<InstallmentRow>> = withContext(ioDispatcher) {
+        try {
+            val response = api.get("accounts/installment/details/$customerId?report=$showAll")
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            if (response.code() == 404) return@withContext Resource.Success(emptyList())
+            if (!response.isSuccessful) {
+                return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            }
+            val obj = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Invalid response from server.")
+            val success = obj.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            if (success == false) {
+                val message = obj.get("message")?.takeUnless { it.isJsonNull }?.asString
+                return@withContext if (message.isNullOrBlank()) {
+                    Resource.Success(emptyList())
+                } else {
+                    Resource.Error(message)
+                }
+            }
+            val rows = obj.getAsJsonObject("data")
+                ?.get("data")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?: return@withContext Resource.Success(emptyList())
+            Resource.Success(
+                rows.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject?.toInstallmentRow() }
+            )
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: HttpException) {
+            if (e.code() == HTTP_UNAUTHORIZED) {
+                Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            } else {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * The branch-wide installment list (`accounts/installment/filter`) behind
+     * the Due Installments report — real JSON types, since Carbon 3 and
+     * Laravel's boolean rule both reject stringified values. [dueOnly] false
+     * mirrors the web's "Show All" toggle; a blank [status] means every status.
+     */
+    suspend fun fetchDueInstallments(
+        branchId: Long,
+        startDate: String,
+        endDate: String,
+        status: String,
+        dueOnly: Boolean,
+    ): Resource<List<InstallmentRow>> = withContext(ioDispatcher) {
+        try {
+            val body = JsonObject().apply {
+                addProperty("branch_id", branchId)
+                addProperty("startDate", startDate)
+                addProperty("endDate", endDate)
+                addProperty("due_only", dueOnly)
+                if (status.isNotBlank()) addProperty("status", status)
+            }
+            val response = api.postObject("accounts/installment/filter", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            if (response.code() == 404) return@withContext Resource.Success(emptyList())
+            if (!response.isSuccessful) {
+                return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            }
+            val obj = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Invalid response from server.")
+            val success = obj.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            // notFound() ("No installment details found…") is an empty report.
+            if (success == false) return@withContext Resource.Success(emptyList())
+            val rows = obj.getAsJsonObject("data")
+                ?.getAsJsonObject("data")
+                ?.get("installments")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?: return@withContext Resource.Success(emptyList())
+            Resource.Success(
+                rows.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject?.toInstallmentRow() }
+            )
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: HttpException) {
+            if (e.code() == HTTP_UNAUTHORIZED) {
+                Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            } else {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * Receives one installment (`accounts/installment/received`).
+     *
+     * ⚠️ Posts a REAL receipt voucher server-side — never auto-retry.
+     */
+    suspend fun receiveInstallment(
+        installmentId: String,
+        amount: Double,
+        remarks: String,
+    ): Resource<String> = postForMessage {
+        api.postObject(
+            "accounts/installment/received",
+            JsonObject().apply {
+                addProperty("installment_id", installmentId)
+                addProperty("amount", amount)
+                addProperty("remarks", remarks)
+            },
+        )
+    }
+
+    /** Applies an invoice's early-payment discount (`accounts/installment/early-payment/apply`). */
+    suspend fun applyInstallmentEarlyPayment(installmentId: String): Resource<String> =
+        postForMessage {
+            api.postObject(
+                "accounts/installment/early-payment/apply",
+                JsonObject().apply { addProperty("installment_id", installmentId) },
+            )
+        }
+
+    private fun JsonObject.toInstallmentRow(): InstallmentRow = InstallmentRow(
+        slNumber = text("sl_number"),
+        invoiceNo = text("invoice_no"),
+        installmentId = text("installment_id"),
+        installmentNo = text("installment_no"),
+        dueDate = text("due_date"),
+        amount = number("amount"),
+        paidAmount = number("paid_amount"),
+        paidAt = text("paid_at").ifBlank { null },
+        dueAmount = number("due_amount"),
+        status = text("status"),
+        receivedDate = text("received_date"),
+        earlyPaymentDiscount = number("early_payment_discount"),
+        earlyPaymentDate = text("early_payment_date").ifBlank { null },
+        earlyPaymentApplied = number("early_payment_applied") == 1.0,
+        payments = get("payments")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { el ->
+                val p = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                InstallmentPayment(
+                    vrNo = p.text("vr_no"),
+                    // Some rows carry `paid_at`, some `date` — same fallback as the web.
+                    date = p.text("paid_at").ifBlank { p.text("date") },
+                    amount = p.number("amount"),
+                )
+            }
+            .orEmpty(),
+        customerName = text("customer_name"),
+        father = text("father"),
+        customerAddress = text("customer_address"),
+        customerMobile = text("customer_mobile"),
+        employee = text("employee"),
+    )
+
+    /** The primitive at [key] as trimmed text; "" when absent/null/non-primitive. */
+    private fun JsonObject.text(key: String): String =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString?.trim().orEmpty()
+
+    /** The primitive at [key] as a number (string amounts included); 0.0 otherwise. */
+    private fun JsonObject.number(key: String): Double =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.replace(",", "")?.trim()?.toDoubleOrNull() ?: 0.0
 
     /** A Cash Received/Payment row, as the web forms shape it. */
     private fun cashVoucherRow(line: CashVoucherLine, index: Int, trading: Boolean): JsonObject =

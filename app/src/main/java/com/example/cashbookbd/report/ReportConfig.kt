@@ -583,12 +583,12 @@ object ReportMenu {
             endpointKey = "dueInstallments",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
-            // camelCase date keys; payload at data.data.installments (see repo).
+            // Rendered by the bespoke DueInstallmentsScreen (web-style customer
+            // rows + per-row Receive); the params live in its repository call.
+            native = true,
             startParam = "startDate",
             endParam = "endDate",
             choiceParam = INSTALLMENT_STATUS_CHOICE,
-            extraParams = mapOf("due_only" to "true", "upcoming_day" to "7"),
-            hiddenColumns = listOf("installment_id", "payments"),
         ),
         ReportConfig(
             key = "employeeInstallments",
@@ -610,7 +610,8 @@ object ReportMenu {
                     required = false,
                 ),
             ),
-            extraParams = mapOf("due_only" to "true", "upcoming_day" to "7"),
+            // "1" not "true"; no upcoming_day — see dueInstallments above.
+            extraParams = mapOf("due_only" to "1"),
             hiddenColumns = listOf("installment_id", "payments"),
         ),
         ReportConfig(

@@ -35,6 +35,7 @@ import com.example.cashbookbd.ui.reports.BalanceSheetReportScreen
 import com.example.cashbookbd.ui.reports.BankBookScreen
 import com.example.cashbookbd.ui.reports.CashBankScreen
 import com.example.cashbookbd.ui.reports.CashBookScreen
+import com.example.cashbookbd.ui.reports.DueInstallmentsScreen
 import com.example.cashbookbd.ui.reports.DueListScreen
 import com.example.cashbookbd.ui.reports.GenericReportScreen
 import com.example.cashbookbd.ui.reports.LedgerScreen
@@ -59,6 +60,7 @@ import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.CashVoucherForms
 import com.example.cashbookbd.ui.transaction.CashVoucherScreen
+import com.example.cashbookbd.ui.transaction.InstallmentsScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
@@ -80,6 +82,7 @@ object Routes {
     const val PROFIT_LOSS = "reports/profit_loss"
     const val BALANCE_SHEET = "reports/balance_sheet"
     const val DUE_LIST = "reports/due_list"
+    const val DUE_INSTALLMENTS = "reports/due_installments"
 
     // Generic report flow: reports/view/{key}
     const val REPORT_VIEW = "reports/view/{key}"
@@ -93,6 +96,9 @@ object Routes {
     const val TXN_KEY_ARG = "key"
 
     fun txnView(key: String): String = "transactions/view/$key"
+
+    /** The customer installment schedule (the web's Installments page), not the Due Installments report. */
+    const val INSTALLMENTS = "transactions/installments"
 
     // Invoice section
     const val INVOICES = "invoices/home"
@@ -304,6 +310,17 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                         onLogout = backToLogin,
                     )
                 }
+            }
+        }
+
+        composable(Routes.INSTALLMENTS) {
+            // The web's Transaction → Installments page (customer schedule +
+            // receive), gated like its menu entry.
+            PermissionGate(anyOf = TransactionMenu.byKey("installments")?.anyOf ?: emptyList()) {
+                InstallmentsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
             }
         }
 
@@ -590,6 +607,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.DUE_LIST) {
             PermissionGate(anyOf = ReportMenu.permissionsFor("dueList")) {
                 DueListScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.DUE_INSTALLMENTS) {
+            PermissionGate(anyOf = ReportMenu.permissionsFor("dueInstallments")) {
+                DueInstallmentsScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
