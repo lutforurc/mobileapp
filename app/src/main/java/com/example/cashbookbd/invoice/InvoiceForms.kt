@@ -1,26 +1,26 @@
 package com.example.cashbookbd.invoice
 
 /**
- * The branch business type that gets the "Electronics" (Computer and Accessories)
- * sales form — a separate endpoint and a per-line serial number. Mirrors the web
- * `SalesIndex`, which hardcodes business_type_id 4 for the Electronics form (and 8
- * for Trading, which otherwise shares the General/Trading endpoint).
+ * The inventory systems a branch can run (`com_branches.inventory_system_id`,
+ * fixed ids ↔ slugs). This — not the business type — is what selects the
+ * Purchase/Sales invoice variant, exactly like the web's `PurchaseIndex` /
+ * `SalesIndex` switching on `currentBranch.inventory_system_id`:
+ *
+ *  - Purchase: 2 → Electronics, 3 → Construction, 4 → Trading, anything else
+ *    (1/general included) → Construction (the default).
+ *  - Sales: 2 → Electronics, 4 → Trading, anything else (1/3 included) → General.
  */
-const val ELECTRONICS_BUSINESS_TYPE_ID = 4
+const val GENERAL_INVENTORY_SYSTEM_ID = 1
+const val ELECTRONICS_INVENTORY_SYSTEM_ID = 2
+const val CONSTRUCTION_INVENTORY_SYSTEM_ID = 3
+const val TRADING_INVENTORY_SYSTEM_ID = 4
 
 /**
- * The branch business type that gets the "Trading" sales form — vehicle number,
- * purchase/sales order pickers, and per-line warehouse, bag and weight-variance.
- * The endpoint is shared with General (`trading/sales/api-store`); only the extra
- * inputs differ (web `SalesIndex` hardcodes business_type_id 8 for Trading).
- */
-const val TRADING_BUSINESS_TYPE_ID = 8
-
-/**
- * Construction business. Only affects the dashboard today: the web serves
+ * Construction business type. Only affects the dashboard: the web serves
  * business_type 7 its own dashboard (Top Purchase from `dashboard/data` plus the
  * head-office receive panel) while every other type gets the ComputerAccessories
- * layout — see the web's `DashboardIndex`.
+ * layout — see the web's `DashboardIndex`. The invoice variants no longer read
+ * the business type.
  */
 const val CONSTRUCTION_BUSINESS_TYPE_ID = 7
 
@@ -52,11 +52,18 @@ data class InvoiceSpec(
     /** Body key prefix for a return's invoice number/date ("sales"/"purchase"). */
     val returnPrefix: String? = null,
     /**
-     * Sales only: the endpoint used when the current branch is an Electronics
-     * (Computer and Accessories) business. When set, such branches also get a
-     * per-line serial-number field and send `serial_no` on each product line.
+     * The endpoint used when the current branch runs the Electronics inventory
+     * system (id 2). When set, such branches also get a per-line serial-number
+     * field and send `serial_no` on each product line.
      */
     val electronicsEndpoint: String? = null,
+    /**
+     * The endpoint used when the current branch runs the Trading inventory
+     * system (id 4). Sales leaves this null because General and Trading share
+     * one endpoint (`trading/sales/api-store`) — only the extra inputs differ;
+     * Purchase sets it, since Trading purchases post to their own store.
+     */
+    val tradingEndpoint: String? = null,
 )
 
 /** Registry of the buildable invoice forms (General/Trading + default Purchase). */
@@ -67,8 +74,8 @@ object InvoiceForms {
             key = "sales",
             title = "Sales",
             kind = InvoiceKind.SALES,
-            // General/Trading/etc. businesses; Electronics branches use
-            // [electronicsEndpoint] instead (see the web's SalesIndex).
+            // General/Trading/Construction inventory systems; Electronics
+            // branches use [electronicsEndpoint] instead (web SalesIndex).
             endpoint = "trading/sales/api-store",
             partyLabel = "Select Customer",
             amountLabel = "Received Amount",
@@ -81,12 +88,16 @@ object InvoiceForms {
             key = "purchase",
             title = "Purchase",
             kind = InvoiceKind.PURCHASE,
+            // Construction is the web PurchaseIndex's default — id 3 AND every
+            // id without its own entry (1/general included) land here.
             endpoint = "construction/purchase/api-store",
             partyLabel = "Select Supplier",
             amountLabel = "Payment Amount",
             amountKey = "paymentAmt",
             autoFillPrice = true,
             showInvoiceNo = true,
+            electronicsEndpoint = "electronics/purchase/store",
+            tradingEndpoint = "trading/purchase/api-store",
         ),
         InvoiceSpec(
             key = "salesReturn",

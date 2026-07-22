@@ -24,10 +24,14 @@ data class InvoiceFormUiState(
     val autoFillPrice: Boolean = false,
     val showInvoiceNo: Boolean = false,
     val showInvoiceDate: Boolean = false,
-    /** Electronics (Computer and Accessories) sales: adds a per-line serial field. */
+    /** Electronics-inventory branch (id 2): adds a per-line serial field. */
     val isElectronics: Boolean = false,
-    /** Trading sales: adds vehicle/order pickers and per-line warehouse/bag/variance. */
+    /** Trading-inventory branch (id 4): adds vehicle/order pickers and per-line warehouse/bag/variance. */
     val isTrading: Boolean = false,
+    /** Installment plan — Electronics sales only, never a purchase. */
+    val showInstallment: Boolean = false,
+    /** Sales-order picker — Trading sales only; a Trading purchase links a purchase order alone. */
+    val showSalesOrderPicker: Boolean = false,
 
     val party: TxnSelection? = null,
 
