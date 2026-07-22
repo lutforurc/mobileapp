@@ -26,6 +26,7 @@ import com.example.cashbookbd.data.repository.RegistrationRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.SessionRepository
+import com.example.cashbookbd.data.repository.NotificationRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.DeviceRepository
@@ -34,6 +35,7 @@ import com.example.cashbookbd.data.repository.CashBankRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
+import com.example.cashbookbd.notifications.NotificationCenter
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.theme.FullScreenManager
 import com.example.cashbookbd.ui.theme.ThemeManager
@@ -153,6 +155,12 @@ object ServiceLocator {
 
     @Volatile
     private var deviceIdManager: DeviceIdManager? = null
+
+    @Volatile
+    private var notificationRepository: NotificationRepository? = null
+
+    @Volatile
+    private var notificationCenter: NotificationCenter? = null
 
     fun provideTokenManager(context: Context): TokenManager =
         tokenManager ?: synchronized(this) {
@@ -406,5 +414,20 @@ object ServiceLocator {
             deviceRepository ?: DeviceRepository(
                 api = provideApiService(context),
             ).also { deviceRepository = it }
+        }
+
+    fun provideNotificationRepository(context: Context): NotificationRepository =
+        notificationRepository ?: synchronized(this) {
+            notificationRepository ?: NotificationRepository(
+                api = provideApiService(context),
+            ).also { notificationRepository = it }
+        }
+
+    /** Shared, app-wide holder of the notification-center items and badge count. */
+    fun provideNotificationCenter(context: Context): NotificationCenter =
+        notificationCenter ?: synchronized(this) {
+            notificationCenter ?: NotificationCenter(
+                repository = provideNotificationRepository(context),
+            ).also { notificationCenter = it }
         }
 }

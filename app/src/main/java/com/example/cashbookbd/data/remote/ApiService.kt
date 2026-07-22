@@ -8,6 +8,8 @@ import com.example.cashbookbd.data.remote.dto.DevicesResponse
 import com.example.cashbookbd.data.remote.dto.MonthlyTopProductsResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
+import com.example.cashbookbd.data.remote.dto.NotificationDismissResponse
+import com.example.cashbookbd.data.remote.dto.NotificationSummaryResponse
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.remote.dto.ReceiveResponse
 import com.example.cashbookbd.data.remote.dto.RegisterOtpRequest
@@ -125,6 +127,24 @@ interface ApiService {
      */
     @POST("accounts/payment/specific-item")
     suspend fun receiveSpecificItem(@Body request: ReceiveRequest): Response<ReceiveResponse>
+
+    /**
+     * GET {BASE_URL}/notifications/summary — the notification center's items.
+     *
+     * No params: the backend defaults branch/date to the authenticated user's,
+     * which is what the app wants. Returns derived business alerts (low stock,
+     * due installments, …) and, once merged server-side, admin broadcasts too.
+     */
+    @GET("notifications/summary")
+    suspend fun getNotificationSummary(): Response<NotificationSummaryResponse>
+
+    /**
+     * POST {BASE_URL}/notifications/dismiss — marks one notification read/dismissed
+     * for the current user. Body: `notification_key` (required), `notification_id`.
+     * branch_id is omitted so the backend uses the user's branch, matching summary.
+     */
+    @POST("notifications/dismiss")
+    suspend fun dismissNotification(@Body body: Map<String, String>): Response<NotificationDismissResponse>
 
     /** GET {BASE_URL}/devices — the user's active sessions and their plan's device limit. */
     @GET("devices")

@@ -42,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,10 +62,22 @@ import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.components.AccountMenu
+import com.example.cashbookbd.ui.components.NotificationBell
 import com.example.cashbookbd.ui.components.accountMenuItems
 import com.example.cashbookbd.ui.theme.ThemeMode
 import com.example.cashbookbd.ui.theme.brand
 import kotlinx.coroutines.launch
+
+/**
+ * Maps a notification's web target path to a mobile route, or null when the app
+ * has no screen for it (the item then just opens/reads without navigating). More
+ * mappings can be added as those screens land on mobile.
+ */
+private fun notificationRoute(to: String): String? = when {
+    to.startsWith("/reports/due-installments") -> Routes.reportView("dueInstallments")
+    to.startsWith("/subscription/my-plan") -> Routes.SUBSCRIPTION_MY_PLAN
+    else -> null
+}
 
 /**
  * Shared chrome for every authenticated screen: a navigation drawer plus a top
@@ -88,6 +101,14 @@ fun AuthenticatedShell(
     val context = LocalContext.current
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+
+    // The in-app notification center, shared app-wide so the badge is consistent
+    // on every screen. Loads once, then refreshes when the bell is opened.
+    val notificationCenter = remember { ServiceLocator.provideNotificationCenter(context) }
+    val notificationState by notificationCenter.state.collectAsStateWithLifecycle()
+    LaunchedEffect(sessionState.permissions) {
+        notificationCenter.ensureLoaded(sessionState.permissions)
+    }
 
     // The single "Reports" section is shown when the user has any report permission.
     val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
@@ -172,6 +193,19 @@ fun AuthenticatedShell(
                         modifier = Modifier.weight(1f),
                     )
                     actions()
+                    // The in-app notification center (web's DropdownNotification),
+                    // to the left of the account menu.
+                    NotificationBell(
+                        state = notificationState,
+                        onRefresh = { notificationCenter.refresh(sessionState.permissions) },
+                        onOpen = { item ->
+                            notificationRoute(item.to)?.let { navigateTo(it) }
+                            // Admin broadcasts are read once opened; derived alerts
+                            // stay until the situation clears or the user dismisses.
+                            if (item.id.startsWith("admin")) notificationCenter.dismiss(item)
+                        },
+                        onDismiss = { notificationCenter.dismiss(it) },
+                    )
                     // Right-hand account menu, matching the web's DropdownUser:
                     // the drawer stays module navigation, this stays "me".
                     AccountMenu(
