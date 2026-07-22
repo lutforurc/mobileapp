@@ -156,7 +156,7 @@ fun InvoiceFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (state.isElectronics) {
+            if (state.showInstallment) {
                 InstallmentSection(state = state, viewModel = viewModel)
             }
 
@@ -217,14 +217,16 @@ private fun TradingHeaderFields(state: InvoiceFormUiState, viewModel: InvoiceFor
         placeholder = "Type 3+ chars to search…",
         emptyText = "No order found",
     )
-    SearchableSelectDropdown(
-        selected = state.salesOrder?.let { SelectorOption(it.id, it.orderNumber, it.customerName) },
-        onSelected = viewModel::onSalesOrderSelected,
-        search = viewModel::searchSalesOrders,
-        label = "Sales Order",
-        placeholder = "Type 3+ chars to search…",
-        emptyText = "No order found",
-    )
+    if (state.showSalesOrderPicker) {
+        SearchableSelectDropdown(
+            selected = state.salesOrder?.let { SelectorOption(it.id, it.orderNumber, it.customerName) },
+            onSelected = viewModel::onSalesOrderSelected,
+            search = viewModel::searchSalesOrders,
+            label = "Sales Order",
+            placeholder = "Type 3+ chars to search…",
+            emptyText = "No order found",
+        )
+    }
 }
 
 /**

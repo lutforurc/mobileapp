@@ -64,6 +64,15 @@ data class SettingsBranchDto(
     @SerializedName("id") val id: Long? = null,
     @SerializedName("business_type_id") val businessTypeId: Int? = null,
     /**
+     * Which inventory system the branch runs (1 general, 2 electronics,
+     * 3 construction, 4 trading) — the key the invoice variants switch on.
+     * The settings `branch` is the same `Branch::find()` row the web reads via
+     * `user/current-branch`, so no separate call is needed.
+     */
+    @SerializedName("inventory_system_id") val inventorySystemId: Int? = null,
+    /** Branch category: 1 = head office — forces the Head Office cash payment variant. */
+    @SerializedName("branch_types_id") val branchTypesId: Int? = null,
+    /**
      * Read as a string, not an Int: it comes from `meta()`, which returns "" for
      * a branch that never set it, and an empty string coerced to Int would fail
      * the whole settings parse. The mapper turns it into an Int or null.

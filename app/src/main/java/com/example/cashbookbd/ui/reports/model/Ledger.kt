@@ -32,6 +32,8 @@ data class LedgerRow(
     val date: String,
     val voucherNo: String,
     val description: String,
+    /** Free-text voucher note ("-" from the API means none); highlight rules match on it. */
+    val remarks: String,
     val debit: Double,
     val credit: Double,
 )
@@ -49,15 +51,16 @@ fun LedgerSearchItemDto.toLedgerDropdownItem(): LedgerDropdownItem? {
 
 fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
     val rows = details.orEmpty().map { dto ->
+        // "-" is the backend's empty-remarks placeholder.
+        val remarks = dto.remarks?.trim().orEmpty().takeUnless { it == "-" }.orEmpty()
         LedgerRow(
             date = dto.vrDate?.trim().orEmpty(),
             voucherNo = dto.vrNo?.trim().orEmpty(),
             // The web ledger's DESCRIPTION column renders `name` — the opposite
-            // side of the entry ("Sales, Sales Discount (<items>)"). `remarks` is
-            // a free-text note that is null on most rows, and the web only shows
-            // it as a tooltip, so reading it alone left the column blank.
-            description = dto.name?.trim().orEmpty()
-                .ifBlank { dto.remarks?.trim().orEmpty() },
+            // side of the entry ("Sales, Sales Discount (<items>)") — with the
+            // free-text remarks on a second line beneath it.
+            description = dto.name?.trim().orEmpty().ifBlank { remarks },
+            remarks = remarks,
             debit = dto.debit ?: 0.0,
             credit = dto.credit ?: 0.0,
         )

@@ -5,6 +5,9 @@ import com.example.cashbookbd.data.remote.dto.BankBookResponse
 import com.example.cashbookbd.data.remote.dto.CashBookResponse
 import com.example.cashbookbd.data.remote.dto.DashboardResponse
 import com.example.cashbookbd.data.remote.dto.DevicesResponse
+import com.example.cashbookbd.data.remote.dto.HighlightRuleWriteRequest
+import com.example.cashbookbd.data.remote.dto.HighlightRuleWriteResponse
+import com.example.cashbookbd.data.remote.dto.HighlightRulesResponse
 import com.example.cashbookbd.data.remote.dto.MonthlyTopProductsResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
@@ -23,6 +26,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -115,6 +119,33 @@ interface ApiService {
         @Query("start_date") startDate: String,
         @Query("end_date") endDate: String,
     ): Response<BankBookResponse>
+
+    /**
+     * GET {BASE_URL}/highlight-rules/active — the company's active "phrase →
+     * coloured border" rules, sorted priority DESC, id ASC. Company scoping is
+     * done server-side from the auth token.
+     */
+    @GET("highlight-rules/active")
+    suspend fun getActiveHighlightRules(): Response<HighlightRulesResponse>
+
+    /** GET {BASE_URL}/admin/highlight-rules — every rule (any status), for the admin screen. */
+    @GET("admin/highlight-rules")
+    suspend fun getHighlightRules(): Response<HighlightRulesResponse>
+
+    /** POST {BASE_URL}/admin/highlight-rules — create a rule (HTTP 201; a 422 carries the validation message). */
+    @POST("admin/highlight-rules")
+    suspend fun createHighlightRule(@Body body: HighlightRuleWriteRequest): Response<HighlightRuleWriteResponse>
+
+    /** PUT {BASE_URL}/admin/highlight-rules/{id} — update one of the company's rules. */
+    @PUT("admin/highlight-rules/{id}")
+    suspend fun updateHighlightRule(
+        @Path("id") id: Long,
+        @Body body: HighlightRuleWriteRequest,
+    ): Response<HighlightRuleWriteResponse>
+
+    /** DELETE {BASE_URL}/admin/highlight-rules/{id} — remove one of the company's rules. */
+    @DELETE("admin/highlight-rules/{id}")
+    suspend fun deleteHighlightRule(@Path("id") id: Long): Response<HighlightRuleWriteResponse>
 
     /**
      * POST {BASE_URL}/accounts/payment/specific-item — confirms ("receives") one

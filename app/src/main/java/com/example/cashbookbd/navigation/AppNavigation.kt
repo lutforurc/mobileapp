@@ -44,6 +44,7 @@ import com.example.cashbookbd.ui.reports.TrialBalanceScreen
 import com.example.cashbookbd.ui.account.MyDevicesScreen
 import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
+import com.example.cashbookbd.ui.admin.HighlightRulesScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
@@ -56,6 +57,8 @@ import com.example.cashbookbd.ui.hrm.HrmFormScreen
 import com.example.cashbookbd.ui.hrm.HrmHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
+import com.example.cashbookbd.ui.transaction.CashVoucherForms
+import com.example.cashbookbd.ui.transaction.CashVoucherScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
@@ -111,6 +114,9 @@ object Routes {
     const val ADMIN_KEY_ARG = "key"
 
     fun adminView(key: String): String = "admin/view/$key"
+
+    /** Highlight-rules management (form + list on one screen, like the web). */
+    const val HIGHLIGHT_RULES = "admin/highlight-rules"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -281,12 +287,23 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         ) { backStackEntry ->
             val key = backStackEntry.arguments?.getString(Routes.TXN_KEY_ARG).orEmpty()
             val item = TransactionMenu.byKey(key)
+            // Cash Received/Payment have business-type variants (Head Office /
+            // Trading / General), so they get their own multi-line screen.
+            val cashVoucher = CashVoucherForms.byKey(key)
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
-                TransactionFormScreen(
-                    txnKey = key,
-                    navController = navController,
-                    onLogout = backToLogin,
-                )
+                if (cashVoucher != null) {
+                    CashVoucherScreen(
+                        spec = cashVoucher,
+                        navController = navController,
+                        onLogout = backToLogin,
+                    )
+                } else {
+                    TransactionFormScreen(
+                        txnKey = key,
+                        navController = navController,
+                        onLogout = backToLogin,
+                    )
+                }
             }
         }
 
@@ -341,6 +358,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.ADMIN) {
             PermissionGate(anyOf = AdminMenu.all.flatMap { it.anyOf }) {
                 AdminHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.HIGHLIGHT_RULES) {
+            // Same gate as the web sidebar's Highlight Rules entry.
+            PermissionGate(anyOf = listOf("branch.view")) {
+                HighlightRulesScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

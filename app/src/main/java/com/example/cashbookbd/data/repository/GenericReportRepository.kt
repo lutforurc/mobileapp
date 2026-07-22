@@ -174,12 +174,14 @@ class GenericReportRepository(
         val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
         val unitKey = config.unitColumn?.lowercase(Locale.US)
         val labels = config.columnLabels.mapKeys { it.key.lowercase(Locale.US) }
-        val text = config.textColumns.map { it.lowercase(Locale.US) }.toSet()
+        val highlightKey = config.highlightColumn?.lowercase(Locale.US)
+        // The highlight column holds free text (a note), never an amount.
+        val text = (config.textColumns.map { it.lowercase(Locale.US) } + listOfNotNull(highlightKey)).toSet()
         val months = config.monthColumns.map { it.lowercase(Locale.US) }.toSet()
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
         }
     }
 
@@ -264,6 +266,8 @@ class GenericReportRepository(
         labels: Map<String, String> = emptyMap(),
         text: Set<String> = emptySet(),
         months: Set<String> = emptySet(),
+        highlightPaths: List<String> = emptyList(),
+        highlightKey: String? = null,
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -272,23 +276,73 @@ class GenericReportRepository(
                 ?.takeUnless { it.isJsonNull }
                 ?.asString?.trim()
                 .orEmpty()
-            ReportRow(
-                obj.entrySet()
-                    .filterNot { it.key.lowercase(Locale.US) in hidden }
-                    .map { entry ->
-                        val keyLower = entry.key.lowercase(Locale.US)
-                        val value = when {
-                            keyLower in months -> formatMonthCode(entry.value)
-                            keyLower in text -> rawText(entry.value)
-                            keyLower in zeroDash -> formatAmount(entry.value, unit)
-                            else -> formatValue(entry.value)
-                        }
-                        val header = labels[keyLower] ?: humanize(entry.key)
-                        ReportCell(header, value)
+            val highlightText = extractHighlightText(this, highlightPaths)
+            var highlightLabel: String? = null
+            val cells = obj.entrySet()
+                .filterNot { it.key.lowercase(Locale.US) in hidden }
+                .map { entry ->
+                    val keyLower = entry.key.lowercase(Locale.US)
+                    var value = when {
+                        keyLower in months -> formatMonthCode(entry.value)
+                        keyLower in text -> rawText(entry.value)
+                        keyLower in zeroDash -> formatAmount(entry.value, unit)
+                        else -> formatValue(entry.value)
                     }
-            )
+                    val header = labels[keyLower] ?: humanize(entry.key)
+                    if (keyLower == highlightKey) {
+                        highlightLabel = header
+                        // The boxed cell must show the matched text even when
+                        // the flat key is blank and it came from a fallback path.
+                        if (value.isBlank() && highlightText.isNotEmpty()) value = highlightText
+                    }
+                    ReportCell(header, value)
+                }
+            // A row with only a nested note (Purchase Ledger) has no flat cell
+            // to box — append one so the text is visible and highlightable.
+            val allCells = if (highlightKey != null && highlightLabel == null && highlightText.isNotEmpty()) {
+                val header = labels[highlightKey] ?: humanize(highlightKey)
+                highlightLabel = header
+                cells + ReportCell(header, highlightText)
+            } else {
+                cells
+            }
+            ReportRow(allCells, highlightText = highlightText, highlightLabel = highlightLabel)
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /**
+     * The first non-blank value at [paths] within a raw row, for highlight-rule
+     * matching. A path is dot-separated; numeric segments index arrays
+     * ("acc_transaction_master.0.acc_transaction_details.0.remarks"). "-" counts
+     * as blank — the ledger endpoints use it as an empty-remarks placeholder.
+     */
+    private fun extractHighlightText(row: JsonElement, paths: List<String>): String {
+        for (path in paths) {
+            var node: JsonElement? = row
+            for (segment in path.split('.')) {
+                val current = node?.takeUnless { it.isJsonNull } ?: break
+                node = when {
+                    current.isJsonObject -> current.asJsonObject.get(segment)
+                    current.isJsonArray -> {
+                        val index = segment.toIntOrNull()
+                        if (index != null && index >= 0 && index < current.asJsonArray.size()) {
+                            current.asJsonArray.get(index)
+                        } else {
+                            null
+                        }
+                    }
+                    else -> null
+                }
+            }
+            val value = node
+                ?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }
+                ?.asString?.trim()
+                .orEmpty()
+            if (value.isNotEmpty() && value != "-") return value
+        }
+        return ""
     }
 
     /** The primitive's text exactly as sent — for digit-only codes, not amounts. */

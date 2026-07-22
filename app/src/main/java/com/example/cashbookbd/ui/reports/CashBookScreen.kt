@@ -49,11 +49,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.HighlightedText
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.highlightBorderColor
+import com.example.cashbookbd.ui.components.rememberHighlightRules
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.report.HighlightRule
+import com.example.cashbookbd.report.matchHighlightRule
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.CashBookRow
 import com.example.cashbookbd.ui.reports.model.SimpleDate
@@ -250,7 +255,7 @@ private fun CenterBox(content: @Composable () -> Unit) {
 
 // Columns for the horizontally-scrollable table.
 // Order: Date | VR No | Description | Received (credit) | Payment (debit)
-private val cashBookColumns = listOf(
+private fun cashBookColumns(rules: List<HighlightRule>) = listOf(
     ReportColumn<CashBookRow>("Date", ReportColWidth.Fixed(96.dp)) { r, _ ->
         cellText(r.date, bold = r.isSummary)
     },
@@ -258,7 +263,13 @@ private val cashBookColumns = listOf(
         cellText(r.voucherNo, bold = r.isSummary)
     },
     ReportColumn<CashBookRow>("Description", ReportColWidth.Fixed(210.dp)) { r, _ ->
-        cellText(r.particulars, bold = r.isSummary, maxLines = 3)
+        if (r.remarks.isBlank()) {
+            cellText(r.particulars, bold = r.isSummary, maxLines = 3)
+        } else {
+            ReportTableCell.Slot {
+                CashBookDescriptionCell(row = r, rule = matchHighlightRule(r.remarks, rules))
+            }
+        }
     },
     ReportColumn<CashBookRow>("Received", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
         cellText(amountOrDash(r.credit), align = TextAlign.End, bold = r.isSummary)
@@ -268,11 +279,43 @@ private val cashBookColumns = listOf(
     },
 )
 
+/**
+ * Description plus the voucher's free-text remarks beneath it (as on the web
+ * report), the remarks boxed in a highlight rule's colour when one matches.
+ */
+@Composable
+private fun CashBookDescriptionCell(row: CashBookRow, rule: HighlightRule?) {
+    // The row draws on the screen backdrop, so the muted remarks line takes a
+    // faded on-background — onSurfaceVariant is unreadable on the teal.
+    val onScreen = MaterialTheme.colorScheme.onBackground
+    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+        if (row.particulars.isNotBlank()) {
+            Text(
+                text = row.particulars,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal,
+                color = onScreen,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+        }
+        HighlightedText(
+            text = row.remarks,
+            borderColor = highlightBorderColor(rule),
+            color = onScreen.copy(alpha = 0.75f),
+            maxLines = 3,
+        )
+    }
+}
+
 @Composable
 private fun CashBookTable(rows: List<CashBookRow>) {
+    val rules = rememberHighlightRules()
+    val columns = remember(rules) { cashBookColumns(rules) }
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     ReportTable(
-        columns = cashBookColumns,
+        columns = columns,
         data = rows,
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
     )

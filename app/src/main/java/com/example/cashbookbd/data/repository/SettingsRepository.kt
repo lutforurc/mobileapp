@@ -55,6 +55,9 @@ class SettingsRepository(
                 Settings(
                     permissions = permissions,
                     businessTypeId = payload?.branch?.businessTypeId,
+                    inventorySystemId = payload?.branch?.inventorySystemId,
+                    branchId = payload?.branch?.id,
+                    branchTypesId = payload?.branch?.branchTypesId,
                     userName = payload?.user?.name?.takeIf { it.isNotBlank() },
                     userEmail = payload?.user?.email?.takeIf { it.isNotBlank() },
                     userPhotoUrl = payload?.user?.profilePhoto?.takeIf { it.isNotBlank() },

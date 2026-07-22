@@ -191,6 +191,20 @@ data class ReportConfig(
      * value doesn't match either pattern.
      */
     val monthColumns: List<String> = emptyList(),
+    /**
+     * Highlight rules (the "phrase → coloured border" list): ordered fallback
+     * dot-paths into the raw row JSON whose first non-blank value is the text
+     * the rules match against. Numeric segments index arrays, e.g.
+     * "acc_transaction_master.0.acc_transaction_details.0.remarks".
+     */
+    val highlightPaths: List<String> = emptyList(),
+    /**
+     * Raw row key of the column that shows the matched text and receives the
+     * coloured box. When a row lacks this key but a [highlightPaths] value
+     * exists (Purchase Ledger's nested notes), a cell is appended so the text
+     * is visible. Also rendered verbatim, like [textColumns].
+     */
+    val highlightColumn: String? = null,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -557,6 +571,8 @@ object ReportMenu {
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
             ledgerParam = "party_id",
+            highlightPaths = listOf("remarks"),
+            highlightColumn = "remarks",
         ),
         ReportConfig(
             key = "dueInstallments",
@@ -665,6 +681,10 @@ object ReportMenu {
             endParam = "enddate",
             ledgerParam = "ledger_id",
             extraParams = mapOf("delay" to "1"),
+            // The purchase voucher's note lives only inside the nested master;
+            // it is surfaced as a "Notes" column and highlight-rule matched.
+            highlightPaths = listOf("purchase_master.notes"),
+            highlightColumn = "notes",
         ),
         ReportConfig(
             key = "salesLedger",
@@ -679,6 +699,14 @@ object ReportMenu {
             endParam = "enddate",
             ledgerParam = "ledger_id",
             extraParams = mapOf("delay" to "1"),
+            // Same fallback order the web uses: the sales note, the flat copy
+            // the API appends, then the journal detail's remarks.
+            highlightPaths = listOf(
+                "sales_master.notes",
+                "notes",
+                "acc_transaction_master.0.acc_transaction_details.0.remarks",
+            ),
+            highlightColumn = "notes",
         ),
         ReportConfig(
             key = "mitchMatch",

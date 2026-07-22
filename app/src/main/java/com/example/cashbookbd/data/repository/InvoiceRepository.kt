@@ -76,18 +76,22 @@ class InvoiceRepository(
     }
 
     /**
-     * Searches purchase ([orderType] "1") or sales ("2") orders for the Trading
-     * form (`invoice/order/search`). Blank/short (<3-char) queries return empty,
+     * Searches purchase ([orderType] "1") or sales ("2") orders — or, when
+     * [orderType] is null, every order (the Cash Received picker) — via
+     * `invoice/order/search`. Blank/short (<3-char) queries return empty,
      * matching the web picker.
      */
-    suspend fun searchOrders(query: String, orderType: String): Resource<List<OrderOption>> =
+    suspend fun searchOrders(query: String, orderType: String? = null): Resource<List<OrderOption>> =
         withContext(ioDispatcher) {
             val q = query.trim()
             if (q.length < 3) return@withContext Resource.Success(emptyList())
             try {
                 val response = reportApi.get(
                     "invoice/order/search",
-                    mapOf("q" to q, "order_type" to orderType),
+                    buildMap {
+                        put("q", q)
+                        orderType?.let { put("order_type", it) }
+                    },
                 )
                 if (response.code() == HTTP_UNAUTHORIZED) {
                     return@withContext Resource.Error(
@@ -140,7 +144,15 @@ class InvoiceRepository(
         } else {
             invoiceBody(spec, party, lines, amount, discount, notes, invoiceNo, useElectronics, installment, trading)
         }
-        val endpoint = if (useElectronics) spec.electronicsEndpoint!! else spec.endpoint
+        // Variant → store endpoint, as the web's PurchaseIndex/SalesIndex resolve
+        // it: Electronics has its own store for both kinds; Trading only for
+        // Purchase (Trading/General sales share spec.endpoint); the spec default
+        // covers everyone else (Construction purchase, General sales, returns).
+        val endpoint = when {
+            useElectronics -> spec.electronicsEndpoint!!
+            trading != null && spec.tradingEndpoint != null -> spec.tradingEndpoint
+            else -> spec.endpoint
+        }
 
         try {
             val response = transactionApi.postObject(endpoint, body)
@@ -184,23 +196,30 @@ class InvoiceRepository(
         addProperty("accountName", party.name)
         addProperty(spec.amountKey, amount)
         addProperty("discountAmt", discount)
-        // Electronics uses no vehicle field; the others send one — Trading's real
-        // value, or an empty one (the server reads it unconditionally).
-        if (!electronics) addProperty("vehicleNumber", trading?.vehicleNumber.orEmpty())
+        // Electronics SALES is the one variant with no vehicle field; every other
+        // form sends one — Trading's real value, or an empty one (the server
+        // reads it unconditionally; the electronics purchase form posts it too).
+        if (!(electronics && spec.kind == InvoiceKind.SALES)) {
+            addProperty("vehicleNumber", trading?.vehicleNumber.orEmpty())
+        }
         addProperty("notes", notes)
         if (spec.showInvoiceNo) {
             addProperty("invoice_no", invoiceNo)
             addProperty("invoice_date", "")
         }
         if (trading != null) {
-            addProperty("salesOrderNumber", trading.salesOrderNumber)
-            addProperty("salesOrderText", trading.salesOrderText)
+            // A Trading purchase links a purchase order only; sales sends both.
+            if (spec.kind == InvoiceKind.SALES) {
+                addProperty("salesOrderNumber", trading.salesOrderNumber)
+                addProperty("salesOrderText", trading.salesOrderText)
+            }
             addProperty("purchaseOrderNumber", trading.purchaseOrderNumber)
             addProperty("purchaseOrderText", trading.purchaseOrderText)
         }
         add("products", JsonArray().apply { lines.forEach { add(productJson(it, electronics, trading != null)) } })
-        if (electronics) {
-            // The web always sends isInstallment; installmentData is null when off.
+        if (electronics && spec.kind == InvoiceKind.SALES) {
+            // The web always sends isInstallment; installmentData is null when
+            // off. Purchases have no installment plan at all.
             addProperty("isInstallment", installment != null)
             if (installment != null) add("installmentData", installmentJson(installment))
         }

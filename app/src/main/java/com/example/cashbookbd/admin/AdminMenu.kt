@@ -19,6 +19,9 @@ data class AdminItem(
 /** The Admin menu registry and its permission rules. */
 object AdminMenu {
 
+    /** Routes to the dedicated Highlight Rules screen (see AdminHomeScreen). */
+    const val HIGHLIGHT_RULES_KEY = "highlightRules"
+
     private val USER_VIEW = listOf("all.user.view", "user.view")
 
     val all: List<AdminItem> = listOf(
@@ -32,6 +35,8 @@ object AdminMenu {
             "resellers", "Resellers",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = false,
         ),
+        // Same slot and gate as the web sidebar (just before Roles, branch.view).
+        AdminItem(HIGHLIGHT_RULES_KEY, "Highlight Rules", listOf("branch.view"), supported = true),
         AdminItem("roles", "Roles", listOf("roles.view"), supported = true),
         AdminItem("addRoles", "Add Roles", listOf("roles.create"), supported = false),
         AdminItem("dayClose", "Day Close", listOf("dayclose.create"), supported = true),

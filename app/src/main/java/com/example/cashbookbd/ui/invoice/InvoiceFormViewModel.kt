@@ -11,10 +11,10 @@ import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.di.ServiceLocator
-import com.example.cashbookbd.invoice.ELECTRONICS_BUSINESS_TYPE_ID
+import com.example.cashbookbd.invoice.ELECTRONICS_INVENTORY_SYSTEM_ID
 import com.example.cashbookbd.invoice.InvoiceForms
 import com.example.cashbookbd.invoice.InvoiceKind
-import com.example.cashbookbd.invoice.TRADING_BUSINESS_TYPE_ID
+import com.example.cashbookbd.invoice.TRADING_INVENTORY_SYSTEM_ID
 import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -42,19 +42,30 @@ class InvoiceFormViewModel(
 
     private val spec = InvoiceForms.byKey(invoiceKey)
 
-    private val businessTypeId: Int? = sessionManager.state.value.settings?.businessTypeId
+    /**
+     * The current branch's inventory system — the key the web's PurchaseIndex/
+     * SalesIndex switch on. The settings `branch` is the same row the web reads
+     * via `user/current-branch`. Resolved once from the loaded settings.
+     */
+    private val inventorySystemId: Int? = sessionManager.state.value.settings?.inventorySystemId
 
     /**
-     * True when this sales form should submit as an Electronics (Computer and
-     * Accessories) invoice: the branch's business type matches and the spec
-     * offers an electronics endpoint. Resolved once from the loaded settings.
+     * True when this form should submit as an Electronics invoice: the branch
+     * runs the Electronics inventory system (id 2) and the spec offers an
+     * electronics endpoint — adds a per-line serial number (both kinds) and the
+     * installment plan (sales only).
      */
     private val isElectronics: Boolean =
-        spec?.electronicsEndpoint != null && businessTypeId == ELECTRONICS_BUSINESS_TYPE_ID
+        spec?.electronicsEndpoint != null && inventorySystemId == ELECTRONICS_INVENTORY_SYSTEM_ID
 
-    /** True for a Trading-business sales form — adds vehicle/order/warehouse/variance. */
+    /**
+     * True for a Trading-branch (inventory system 4) form — adds vehicle/order
+     * pickers and per-line warehouse/bag/variance. Sales (returns included)
+     * keeps the shared endpoint; a purchase posts to [InvoiceSpec.tradingEndpoint].
+     */
     private val isTrading: Boolean =
-        spec?.kind == InvoiceKind.SALES && businessTypeId == TRADING_BUSINESS_TYPE_ID
+        inventorySystemId == TRADING_INVENTORY_SYSTEM_ID &&
+            (spec?.kind == InvoiceKind.SALES || spec?.tradingEndpoint != null)
 
     /** Last product search results, so a picked option maps back to its unit/price. */
     private var productCache: Map<String, com.example.cashbookbd.ui.invoice.model.InvoiceProduct> = emptyMap()
@@ -73,6 +84,10 @@ class InvoiceFormViewModel(
             showInvoiceDate = spec?.showInvoiceDate == true,
             isElectronics = isElectronics,
             isTrading = isTrading,
+            // The installment plan and the sales-order picker are sales-side
+            // features; an Electronics/Trading purchase must not show them.
+            showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
+            showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
         )
     )
     val uiState: StateFlow<InvoiceFormUiState> = _uiState.asStateFlow()
@@ -293,7 +308,7 @@ class InvoiceFormViewModel(
                 invoiceNo = state.invoiceNo.trim(),
                 invoiceDate = if (state.showInvoiceDate) state.invoiceDate.toApi() else "",
                 electronics = isElectronics,
-                installment = if (isElectronics && state.isInstallment) state.toInstallmentInput() else null,
+                installment = if (state.showInstallment && state.isInstallment) state.toInstallmentInput() else null,
                 trading = if (isTrading) state.toTradingExtras() else null,
             )
             when (result) {

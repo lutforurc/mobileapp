@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.cashbookbd.ui.components.HighlightedText
 
 /**
  * The single, shared table used by every report screen — a Compose port of the
@@ -70,6 +71,8 @@ sealed interface ReportTableCell {
         val maxLines: Int = 1,
         /** Extra leading indent, added to the cell's normal start padding. */
         val startPadding: Dp = 0.dp,
+        /** When set, the text is boxed in this highlight-rule border colour. */
+        val highlight: Color? = null,
     ) : ReportTableCell
 
     /** An arbitrary composable cell (the template only supplies the column width). */
@@ -117,7 +120,8 @@ fun cellText(
     color: Color = Color.Unspecified,
     maxLines: Int = 1,
     startPadding: Dp = 0.dp,
-): ReportTableCell.Text = ReportTableCell.Text(text, align, bold, color, maxLines, startPadding)
+    highlight: Color? = null,
+): ReportTableCell.Text = ReportTableCell.Text(text, align, bold, color, maxLines, startPadding, highlight)
 
 @Composable
 fun <T> ReportTable(
@@ -268,21 +272,49 @@ private fun RowScope.RenderCell(
         ReportTableCell.Empty ->
             Box(modifier = base.padding(horizontal = 8.dp, vertical = 10.dp)) {}
 
-        is ReportTableCell.Text -> Text(
-            text = cell.text,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-            color = cell.color,
-            textAlign = cell.align ?: columnAlign,
-            maxLines = cell.maxLines,
-            overflow = TextOverflow.Ellipsis,
-            modifier = base.padding(
-                start = 8.dp + cell.startPadding,
-                end = 8.dp,
-                top = 10.dp,
-                bottom = 10.dp,
-            ),
-        )
+        is ReportTableCell.Text -> if (cell.highlight != null) {
+            // The box hugs the text, so the Box carries the cell padding and the
+            // alignment, and the bordered text sizes to its content. Vertical
+            // padding drops to 8 so the border's inner 2dp keeps the row rhythm.
+            Box(
+                modifier = base.padding(
+                    start = 8.dp + cell.startPadding,
+                    end = 8.dp,
+                    top = 8.dp,
+                    bottom = 8.dp,
+                ),
+                contentAlignment = when (cell.align ?: columnAlign) {
+                    TextAlign.End -> Alignment.CenterEnd
+                    TextAlign.Center -> Alignment.Center
+                    else -> Alignment.CenterStart
+                },
+            ) {
+                HighlightedText(
+                    text = cell.text,
+                    borderColor = cell.highlight,
+                    color = cell.color,
+                    fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                    textAlign = cell.align ?: columnAlign,
+                    maxLines = cell.maxLines,
+                )
+            }
+        } else {
+            Text(
+                text = cell.text,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                color = cell.color,
+                textAlign = cell.align ?: columnAlign,
+                maxLines = cell.maxLines,
+                overflow = TextOverflow.Ellipsis,
+                modifier = base.padding(
+                    start = 8.dp + cell.startPadding,
+                    end = 8.dp,
+                    top = 10.dp,
+                    bottom = 10.dp,
+                ),
+            )
+        }
     }
 }
 
