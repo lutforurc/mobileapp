@@ -14,9 +14,20 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
+import java.net.URLEncoder
 
 /** The chosen account for one form field: its id (sent) and display name. */
 data class TxnSelection(val id: String, val name: String)
+
+/** One pending line of a multi-row Cash Received/Payment batch. */
+data class CashVoucherLine(
+    val account: TxnSelection,
+    val remarks: String,
+    val amount: Double,
+    /** Trading only: the linked order's id and display number ("" = none). */
+    val orderNumber: String = "",
+    val orderText: String = "",
+)
 
 /**
  * Backs the transaction (voucher) entry forms. Builds the per-form request body
@@ -75,6 +86,142 @@ class TransactionRepository(
                 )
             }
 
+            when (response.code()) {
+                HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.",
+                    isUnauthorized = true,
+                )
+                HTTP_FORBIDDEN -> return@withContext Resource.Error(
+                    "You do not have permission for this action."
+                )
+            }
+            parseResult(response.body())
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: HttpException) {
+            if (e.code() == HTTP_UNAUTHORIZED) {
+                Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            } else {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * General/Trading Cash Received/Payment: POSTs the pending lines as the
+     * bare rows array the web variants send ([endpoint] is the kind's trading
+     * store). [trading] adds the linked-order keys each Trading row carries.
+     */
+    suspend fun submitCashVoucherRows(
+        endpoint: String,
+        lines: List<CashVoucherLine>,
+        trading: Boolean,
+    ): Resource<String> = postForMessage {
+        api.postArray(
+            endpoint,
+            JsonArray().apply {
+                lines.forEachIndexed { index, line -> add(cashVoucherRow(line, index, trading)) }
+            },
+        )
+    }
+
+    /**
+     * Head Office Cash Received/Payment: the rows wrapped with the chosen
+     * branch/project meta, POSTed to [endpoint] (`accounts/received|payment`).
+     * The web's buildReceivedPayload/buildPaymentPayload repeat the rows under
+     * rows/details/transactions and mirror the branch as the project — kept
+     * identical here.
+     */
+    suspend fun submitHeadOfficeCashVoucher(
+        endpoint: String,
+        branch: TxnSelection,
+        lines: List<CashVoucherLine>,
+    ): Resource<String> = postForMessage {
+        val rows = JsonArray().apply {
+            lines.forEachIndexed { index, line ->
+                add(cashVoucherRow(line, index, trading = false).apply {
+                    addProperty("branchId", branch.id)
+                    addProperty("branchName", branch.name)
+                })
+            }
+        }
+        api.postObject(
+            endpoint,
+            JsonObject().apply {
+                addProperty("mtmId", "")
+                addProperty("branchId", branch.id)
+                addProperty("branchName", branch.name)
+                addProperty("projectId", branch.id)
+                addProperty("projectName", branch.name)
+                add("meta", JsonObject().apply {
+                    addProperty("project_id", branch.id)
+                    addProperty("project_name", branch.name)
+                    addProperty("branch_id", branch.id)
+                    addProperty("branch_name", branch.name)
+                })
+                add("metas", JsonArray().apply {
+                    add(JsonObject().apply {
+                        addProperty("key", "project_id")
+                        addProperty("value", branch.id)
+                        addProperty("label", branch.name)
+                    })
+                })
+                add("rows", rows)
+                add("details", rows)
+                add("transactions", rows)
+            },
+        )
+    }
+
+    /**
+     * Live remark suggestions while typing (`cash/remarks/suggestions`), as on
+     * the web's cash received/payment forms. Decorative — failures are empty.
+     */
+    suspend fun fetchRemarkSuggestions(query: String): List<String> = withContext(ioDispatcher) {
+        val q = query.trim()
+        if (q.isEmpty()) return@withContext emptyList()
+        try {
+            val response = api.get(
+                "cash/remarks/suggestions?field=remarks&q=" + URLEncoder.encode(q, "UTF-8"),
+            )
+            val body = response.takeIf { it.isSuccessful }?.body()
+                ?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext emptyList()
+            val array = body.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("data")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?: return@withContext emptyList()
+            array.mapNotNull { el ->
+                el.takeIf { it.isJsonPrimitive }?.asString?.trim()?.ifBlank { null }
+            }.distinct()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /** A Cash Received/Payment row, as the web forms shape it. */
+    private fun cashVoucherRow(line: CashVoucherLine, index: Int, trading: Boolean): JsonObject =
+        JsonObject().apply {
+            // Distinct per-row client ids, like the web's Date.now() keys.
+            addProperty("id", System.currentTimeMillis() + index)
+            addProperty("mtmId", "")
+            addProperty("account", line.account.id)
+            addProperty("accountName", line.account.name)
+            addProperty("remarks", line.remarks)
+            addProperty("amount", line.amount)
+            if (trading) {
+                addProperty("purchaseOrderNumber", line.orderNumber)
+                addProperty("purchaseOrderText", line.orderText)
+            }
+        }
+
+    /** Shared POST → [parseResult] flow with the same error mapping as [submit]. */
+    private suspend fun postForMessage(
+        call: suspend () -> Response<JsonElement>,
+    ): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val response = call()
             when (response.code()) {
                 HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                     "Your session has expired. Please log in again.",

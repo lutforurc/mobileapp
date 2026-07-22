@@ -76,18 +76,22 @@ class InvoiceRepository(
     }
 
     /**
-     * Searches purchase ([orderType] "1") or sales ("2") orders for the Trading
-     * form (`invoice/order/search`). Blank/short (<3-char) queries return empty,
+     * Searches purchase ([orderType] "1") or sales ("2") orders — or, when
+     * [orderType] is null, every order (the Cash Received picker) — via
+     * `invoice/order/search`. Blank/short (<3-char) queries return empty,
      * matching the web picker.
      */
-    suspend fun searchOrders(query: String, orderType: String): Resource<List<OrderOption>> =
+    suspend fun searchOrders(query: String, orderType: String? = null): Resource<List<OrderOption>> =
         withContext(ioDispatcher) {
             val q = query.trim()
             if (q.length < 3) return@withContext Resource.Success(emptyList())
             try {
                 val response = reportApi.get(
                     "invoice/order/search",
-                    mapOf("q" to q, "order_type" to orderType),
+                    buildMap {
+                        put("q", q)
+                        orderType?.let { put("order_type", it) }
+                    },
                 )
                 if (response.code() == HTTP_UNAUTHORIZED) {
                     return@withContext Resource.Error(

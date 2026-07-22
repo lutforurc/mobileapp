@@ -55,6 +55,8 @@ import com.example.cashbookbd.ui.hrm.HrmFormScreen
 import com.example.cashbookbd.ui.hrm.HrmHomeScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
+import com.example.cashbookbd.ui.transaction.CashVoucherForms
+import com.example.cashbookbd.ui.transaction.CashVoucherScreen
 import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
@@ -281,12 +283,23 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         ) { backStackEntry ->
             val key = backStackEntry.arguments?.getString(Routes.TXN_KEY_ARG).orEmpty()
             val item = TransactionMenu.byKey(key)
+            // Cash Received/Payment have business-type variants (Head Office /
+            // Trading / General), so they get their own multi-line screen.
+            val cashVoucher = CashVoucherForms.byKey(key)
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
-                TransactionFormScreen(
-                    txnKey = key,
-                    navController = navController,
-                    onLogout = backToLogin,
-                )
+                if (cashVoucher != null) {
+                    CashVoucherScreen(
+                        spec = cashVoucher,
+                        navController = navController,
+                        onLogout = backToLogin,
+                    )
+                } else {
+                    TransactionFormScreen(
+                        txnKey = key,
+                        navController = navController,
+                        onLogout = backToLogin,
+                    )
+                }
             }
         }
 

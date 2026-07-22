@@ -55,25 +55,12 @@ data class TxnFormSpec(
  * (General variant). Amounts, cash/bank contra legs, dates and voucher numbers
  * are all derived server-side — the client only sends the account(s), amount and
  * remarks. "Installments" is handled by navigation (the Due Installments screen),
- * not a form here.
+ * not a form here. Cash Received/Payment aren't here either: they have their
+ * own business-type-variant screen (see `ui/transaction/CashVoucherScreen`).
  */
 object TransactionForms {
 
     val all: List<TxnFormSpec> = listOf(
-        TxnFormSpec(
-            key = "cashReceived",
-            title = "Cash Received",
-            kind = TxnKind.CASH_RECEIVED,
-            endpoint = "trading/cash/received",
-            fields = listOf(TxnField("account", "Cash Received Account", TxnPicker.LEDGER)),
-        ),
-        TxnFormSpec(
-            key = "cashPayment",
-            title = "Cash Payment",
-            kind = TxnKind.CASH_PAYMENT,
-            endpoint = "trading/cash/payment",
-            fields = listOf(TxnField("account", "Select Account", TxnPicker.LEDGER)),
-        ),
         TxnFormSpec(
             key = "bankReceived",
             title = "Bank Received",
