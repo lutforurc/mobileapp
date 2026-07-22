@@ -1,12 +1,15 @@
 package com.example.cashbookbd.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.dp
 
 /**
  * Maps one [BrandPalette] onto Material's ColorScheme.
@@ -77,6 +80,10 @@ fun CashBookbdTheme(
         MaterialTheme(
             colorScheme = if (darkTheme) DarkScheme else LightScheme,
             typography = Typography,
+            // Dialogs (and date pickers) draw with extraLarge, whose M3 default
+            // of 28dp reads as overdone beside the app's 10-12dp fields and
+            // buttons — rein it in so every surface shares one radius family.
+            shapes = Shapes(extraLarge = RoundedCornerShape(16.dp)),
             content = content,
         )
     }

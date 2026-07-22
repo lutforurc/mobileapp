@@ -64,7 +64,9 @@ private val CompactPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
 
 private val CompactShape = RoundedCornerShape(4.dp)
 
-private val ButtonShape = RoundedCornerShape(24.dp)
+// Gently rounded, not a full pill — 24dp on a 48dp button read as overdone
+// next to the 10dp form fields; this keeps the whole family in one radius.
+private val ButtonShape = RoundedCornerShape(12.dp)
 private val IconSize = 18.dp
 
 /**
@@ -171,7 +173,13 @@ fun LinkButton(
     } else {
         ButtonDefaults.textButtonColors()
     }
-    TextButton(onClick = onClick, enabled = enabled, modifier = modifier, colors = colors) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = ButtonShape,
+        modifier = modifier,
+        colors = colors,
+    ) {
         if (icon != null) {
             Icon(icon, contentDescription = iconDescription, modifier = Modifier.size(IconSize))
             Spacer(Modifier.width(4.dp))
