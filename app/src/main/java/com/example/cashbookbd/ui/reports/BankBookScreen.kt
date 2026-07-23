@@ -287,13 +287,20 @@ private fun BankBookRow.summaryInk(summaryColor: Color): Color =
  */
 @Composable
 private fun DescriptionCell(row: BankBookRow) {
+    // Normal rows draw on the teal backdrop, summary rows on the pale band; take
+    // the matching on-colour so the title and the muted sub-lines both stay
+    // readable. onSurfaceVariant is a card ink and washes out on the teal.
+    val onScreen = if (row.isSummary) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
         Text(
             text = row.title.ifBlank { "-" },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal,
-            // Summary rows sit on the pale band and need its dark on-colour.
-            color = if (row.isSummary) MaterialTheme.colorScheme.onSecondaryContainer else Color.Unspecified,
+            color = onScreen,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -301,7 +308,7 @@ private fun DescriptionCell(row: BankBookRow) {
             Text(
                 text = row.subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onScreen.copy(alpha = 0.75f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -310,7 +317,7 @@ private fun DescriptionCell(row: BankBookRow) {
             Text(
                 text = row.remarks,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onScreen.copy(alpha = 0.75f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

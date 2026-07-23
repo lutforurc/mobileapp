@@ -286,6 +286,10 @@ private fun dueFooterRow(label: String, debit: Double, credit: Double): List<Rep
 /** The party column's stacked name / phone / address block. */
 @Composable
 private fun PartyCell(row: DueRow) {
+    // The cell draws on the teal screen backdrop, so every line takes an on-teal
+    // ink: full-strength for the name, a faded on-background for the sub-lines.
+    // onSurface/onSurfaceVariant are the card inks and wash out on the teal.
+    val onScreen = MaterialTheme.colorScheme.onBackground
     Column(
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
     ) {
@@ -293,7 +297,7 @@ private fun PartyCell(row: DueRow) {
             text = row.customer,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = onScreen,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -301,7 +305,7 @@ private fun PartyCell(row: DueRow) {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onScreen.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -310,7 +314,7 @@ private fun PartyCell(row: DueRow) {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onScreen.copy(alpha = 0.75f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
