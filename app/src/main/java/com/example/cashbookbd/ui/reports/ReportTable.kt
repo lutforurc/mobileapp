@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
@@ -217,15 +218,18 @@ fun <T> ReportTable(
             } else {
                 data.forEachIndexed { index, row ->
                     val bg = rowBackground?.invoke(row, index)
+                    // Tinted rows (summary/total bands) rule in their own on-colour
+                    // so the lines stay visible; plain rows keep the white body rule.
+                    val lineColor = gridLineColorFor(bg)
                     var rowMod = rowWidth(fixed)
                     if (bg != null) rowMod = rowMod.background(bg)
                     Row(modifier = rowMod.height(IntrinsicSize.Min)) {
                         columns.forEachIndexed { i, col ->
-                            if (i > 0) GridVDivider()
+                            if (i > 0) GridVDivider(color = lineColor)
                             RenderCell(col.width, col.align, col.render(row, index))
                         }
                     }
-                    HorizontalDivider(modifier = dividerModifier, color = gridLineColor())
+                    HorizontalDivider(modifier = dividerModifier, color = lineColor)
                 }
 
                 if (footerRows.isNotEmpty()) {
@@ -235,6 +239,7 @@ fun <T> ReportTable(
                         color = MaterialTheme.colorScheme.outline,
                     )
                     val footerBg = MaterialTheme.colorScheme.surfaceVariant
+                    val footerLine = gridLineColorFor(footerBg)
                     footerRows.forEach { footer ->
                         Row(
                             modifier = rowWidth(fixed)
@@ -243,12 +248,12 @@ fun <T> ReportTable(
                         ) {
                             var colIndex = 0
                             footer.forEachIndexed { i, fc ->
-                                if (i > 0) GridVDivider()
+                                if (i > 0) GridVDivider(color = footerLine)
                                 RenderFooterCell(columns, colIndex, fc, fixed)
                                 colIndex += fc.colSpan
                             }
                         }
-                        HorizontalDivider(modifier = dividerModifier, color = gridLineColor())
+                        HorizontalDivider(modifier = dividerModifier, color = footerLine)
                     }
                 }
             }
@@ -476,23 +481,35 @@ private fun rowWidth(fixed: Boolean): Modifier =
     if (fixed) Modifier else Modifier.fillMaxWidth()
 
 /**
- * The grid line colour: a fixed, clearly-visible light grey derived from the
- * on-surface colour, so it reads the same regardless of the (possibly dynamic)
- * palette — [MaterialTheme.colorScheme.outlineVariant] can render near-invisible
- * on some devices.
+ * The grid line colour: the backdrop's on-colour (white on the brand teal) at a
+ * low alpha, so the lines read as clean white rules that match the theme instead
+ * of a near-invisible dark hairline. Matches the header's onPrimary dividers.
  */
 @Composable
-private fun gridLineColor(): Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+private fun gridLineColor(): Color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+
+/**
+ * The grid-line colour for a row on a tinted band (summary / total / footer
+ * rows): the band's own on-colour, so the lines read as a visible theme rule
+ * instead of the white body rule that vanishes on a pale band. Falls back to the
+ * body colour for untinted rows (or a background outside the colour scheme).
+ */
+@Composable
+private fun gridLineColorFor(rowBackground: Color?): Color {
+    if (rowBackground == null) return gridLineColor()
+    val on = contentColorFor(rowBackground)
+    return if (on == Color.Unspecified) gridLineColor() else on.copy(alpha = 0.3f)
+}
 
 /** Vertical grid line spanning the full height of a table row. */
 @Composable
-private fun GridVDivider(onHeader: Boolean = false) {
+private fun GridVDivider(onHeader: Boolean = false, color: Color? = null) {
     VerticalDivider(
         thickness = GridLine,
-        color = if (onHeader) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-        } else {
-            gridLineColor()
+        color = when {
+            onHeader -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+            color != null -> color
+            else -> gridLineColor()
         },
     )
 }

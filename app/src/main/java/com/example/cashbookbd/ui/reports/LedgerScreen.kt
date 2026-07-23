@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -255,19 +256,21 @@ private val COL_DESCRIPTION = 220.dp
 private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
 
-private fun ledgerColumns(rules: List<HighlightRule>) = listOf(
+// [summaryColor] inks the opening-balance / summary rows, which draw on a pale
+// secondaryContainer band where the body's on-teal ink washes out.
+private fun ledgerColumns(rules: List<HighlightRule>, summaryColor: Color) = listOf(
     ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
-        cellText(r.sl, bold = r.isSummary, align = TextAlign.Center)
+        cellText(r.sl, bold = r.isSummary, align = TextAlign.Center, color = r.summaryInk(summaryColor))
     },
     ReportColumn<LedgerDisplayRow>("VR DATE", ReportColWidth.Fixed(COL_DATE)) { r, _ ->
-        cellText(r.date, bold = r.isSummary)
+        cellText(r.date, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<LedgerDisplayRow>("VR NO", ReportColWidth.Fixed(COL_VR)) { r, _ ->
-        cellText(r.voucherNo, bold = r.isSummary)
+        cellText(r.voucherNo, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<LedgerDisplayRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESCRIPTION)) { r, _ ->
         if (r.remarks.isBlank()) {
-            cellText(r.description, bold = r.isSummary, maxLines = 3)
+            cellText(r.description, bold = r.isSummary, maxLines = 3, color = r.summaryInk(summaryColor))
         } else {
             ReportTableCell.Slot {
                 LedgerDescriptionCell(row = r, rule = matchHighlightRule(r.remarks, rules))
@@ -275,12 +278,16 @@ private fun ledgerColumns(rules: List<HighlightRule>) = listOf(
         }
     },
     ReportColumn<LedgerDisplayRow>("DEBIT", ReportColWidth.Fixed(COL_DEBIT), TextAlign.End) { r, _ ->
-        cellText(r.debit, align = TextAlign.End, bold = r.isSummary)
+        cellText(r.debit, align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<LedgerDisplayRow>("CREDIT", ReportColWidth.Fixed(COL_CREDIT), TextAlign.End) { r, _ ->
-        cellText(r.credit, align = TextAlign.End, bold = r.isSummary)
+        cellText(r.credit, align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
 )
+
+/** Summary rows take the band's on-colour; normal rows keep the default ink. */
+private fun LedgerDisplayRow.summaryInk(summaryColor: Color): Color =
+    if (isSummary) summaryColor else Color.Unspecified
 
 /**
  * Description plus the voucher's free-text remarks beneath it (as on the web
@@ -290,9 +297,14 @@ private fun ledgerColumns(rules: List<HighlightRule>) = listOf(
 @Composable
 private fun LedgerDescriptionCell(row: LedgerDisplayRow, rule: HighlightRule?) {
     val remarksOnly = row.description == row.remarks
-    // The row draws on the screen backdrop, so the muted remarks line takes a
-    // faded on-background — onSurfaceVariant is unreadable on the teal.
-    val onScreen = MaterialTheme.colorScheme.onBackground
+    // Normal rows draw on the screen backdrop (light on-teal ink); summary rows
+    // draw on the pale secondaryContainer band and need its dark on-colour, or
+    // the on-teal ink washes out. onSurfaceVariant is unreadable on the teal.
+    val onScreen = if (row.isSummary) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
         if (!remarksOnly && row.description.isNotBlank()) {
             Text(
@@ -356,8 +368,9 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
 @Composable
 private fun LedgerTable(statement: LedgerStatement) {
     val rules = rememberHighlightRules()
-    val columns = remember(rules) { ledgerColumns(rules) }
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
+    val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
+    val columns = remember(rules, summaryInk) { ledgerColumns(rules, summaryInk) }
     ReportTable(
         columns = columns,
         data = statement.toDisplayRows(),

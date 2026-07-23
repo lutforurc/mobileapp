@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -255,16 +256,20 @@ private fun CenterBox(content: @Composable () -> Unit) {
 
 // Columns for the horizontally-scrollable table.
 // Order: Date | VR No | Description | Received (credit) | Payment (debit)
-private fun cashBookColumns(rules: List<HighlightRule>) = listOf(
+//
+// [summaryColor] is the ink for the total/balance rows, which draw on a pale
+// secondaryContainer band — the body's on-teal ink washes out there, so summary
+// cells take the band's own on-colour (normal rows keep the backdrop default).
+private fun cashBookColumns(rules: List<HighlightRule>, summaryColor: Color) = listOf(
     ReportColumn<CashBookRow>("Date", ReportColWidth.Fixed(96.dp)) { r, _ ->
-        cellText(r.date, bold = r.isSummary)
+        cellText(r.date, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<CashBookRow>("VR No", ReportColWidth.Fixed(100.dp)) { r, _ ->
-        cellText(r.voucherNo, bold = r.isSummary)
+        cellText(r.voucherNo, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<CashBookRow>("Description", ReportColWidth.Fixed(210.dp)) { r, _ ->
         if (r.remarks.isBlank()) {
-            cellText(r.particulars, bold = r.isSummary, maxLines = 3)
+            cellText(r.particulars, bold = r.isSummary, maxLines = 3, color = r.summaryInk(summaryColor))
         } else {
             ReportTableCell.Slot {
                 CashBookDescriptionCell(row = r, rule = matchHighlightRule(r.remarks, rules))
@@ -272,12 +277,16 @@ private fun cashBookColumns(rules: List<HighlightRule>) = listOf(
         }
     },
     ReportColumn<CashBookRow>("Received", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
-        cellText(amountOrDash(r.credit), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.credit), align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<CashBookRow>("Payment", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
-        cellText(amountOrDash(r.debit), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.debit), align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
 )
+
+/** Summary rows take the band's on-colour; normal rows keep the default ink. */
+private fun CashBookRow.summaryInk(summaryColor: Color): Color =
+    if (isSummary) summaryColor else Color.Unspecified
 
 /**
  * Description plus the voucher's free-text remarks beneath it (as on the web
@@ -285,9 +294,14 @@ private fun cashBookColumns(rules: List<HighlightRule>) = listOf(
  */
 @Composable
 private fun CashBookDescriptionCell(row: CashBookRow, rule: HighlightRule?) {
-    // The row draws on the screen backdrop, so the muted remarks line takes a
-    // faded on-background — onSurfaceVariant is unreadable on the teal.
-    val onScreen = MaterialTheme.colorScheme.onBackground
+    // Normal rows draw on the screen backdrop (light on-teal ink); summary rows
+    // draw on the pale secondaryContainer band and need its dark on-colour, or
+    // the on-teal ink washes out. onSurfaceVariant is unreadable on the teal.
+    val onScreen = if (row.isSummary) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
         if (row.particulars.isNotBlank()) {
             Text(
@@ -312,8 +326,9 @@ private fun CashBookDescriptionCell(row: CashBookRow, rule: HighlightRule?) {
 @Composable
 private fun CashBookTable(rows: List<CashBookRow>) {
     val rules = rememberHighlightRules()
-    val columns = remember(rules) { cashBookColumns(rules) }
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
+    val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
+    val columns = remember(rules, summaryInk) { cashBookColumns(rules, summaryInk) }
     ReportTable(
         columns = columns,
         data = rows,

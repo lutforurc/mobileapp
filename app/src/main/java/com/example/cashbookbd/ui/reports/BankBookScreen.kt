@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -247,31 +248,37 @@ private val COL_DESC = 210.dp
 private val COL_BANK = 150.dp
 private val COL_AMOUNT = 116.dp
 
-private val bankBookColumns = listOf(
+// [summaryColor] inks the opening-balance and total rows, which draw on a pale
+// secondaryContainer band where the body's on-teal ink washes out.
+private fun bankBookColumns(summaryColor: Color) = listOf(
     ReportColumn<BankBookRow>("Sl. No.", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
         // The opening row's serial is 0 and the summary rows have none; both
         // read as a dash rather than a meaningless number.
-        cellText(r.serial.ifBlank { "-" }, align = TextAlign.Center, bold = r.isSummary)
+        cellText(r.serial.ifBlank { "-" }, align = TextAlign.Center, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<BankBookRow>("Vr Date", ReportColWidth.Fixed(COL_DATE)) { r, _ ->
-        cellText(r.date.ifBlank { "-" }, bold = r.isSummary)
+        cellText(r.date.ifBlank { "-" }, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<BankBookRow>("Vr No", ReportColWidth.Fixed(COL_VR)) { r, _ ->
-        cellText(r.voucherNo.ifBlank { "-" }, bold = r.isSummary)
+        cellText(r.voucherNo.ifBlank { "-" }, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<BankBookRow>("Description", ReportColWidth.Fixed(COL_DESC)) { r, _ ->
         ReportTableCell.Slot { DescriptionCell(row = r) }
     },
     ReportColumn<BankBookRow>("Transaction Bank", ReportColWidth.Fixed(COL_BANK)) { r, _ ->
-        cellText(r.bank.ifBlank { "-" }, bold = r.isSummary, maxLines = 2)
+        cellText(r.bank.ifBlank { "-" }, bold = r.isSummary, maxLines = 2, color = r.summaryInk(summaryColor))
     },
     ReportColumn<BankBookRow>("Received", ReportColWidth.Fixed(COL_AMOUNT), TextAlign.End) { r, _ ->
-        cellText(amountOrDash(r.received), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.received), align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<BankBookRow>("Payment", ReportColWidth.Fixed(COL_AMOUNT), TextAlign.End) { r, _ ->
-        cellText(amountOrDash(r.payment), align = TextAlign.End, bold = r.isSummary)
+        cellText(amountOrDash(r.payment), align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
 )
+
+/** Summary rows take the band's on-colour; normal rows keep the default ink. */
+private fun BankBookRow.summaryInk(summaryColor: Color): Color =
+    if (isSummary) summaryColor else Color.Unspecified
 
 /**
  * The name, plus the lines the backend packs around it: the second half of an
@@ -285,6 +292,8 @@ private fun DescriptionCell(row: BankBookRow) {
             text = row.title.ifBlank { "-" },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal,
+            // Summary rows sit on the pale band and need its dark on-colour.
+            color = if (row.isSummary) MaterialTheme.colorScheme.onSecondaryContainer else Color.Unspecified,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -324,8 +333,10 @@ private fun BankBookTable(rows: List<BankBookRow>) {
     // rows — never recomputed here — and are tinted so they read apart from the
     // transactions between them.
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
+    val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
+    val columns = remember(summaryInk) { bankBookColumns(summaryInk) }
     ReportTable(
-        columns = bankBookColumns,
+        columns = columns,
         data = rows,
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
         noDataMessage = "No transactions found for this period.",

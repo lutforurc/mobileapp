@@ -98,6 +98,17 @@ fun UserListScreen(
         viewModel.onActionMessageShown()
     }
 
+    // A load/refresh failure while rows are already on screen has no empty state
+    // to fall back on, so surface it as a snackbar instead of silently keeping
+    // the stale page (the empty-list case still shows the full error + Retry).
+    LaunchedEffect(state.error) {
+        val message = state.error ?: return@LaunchedEffect
+        if (state.rows.isNotEmpty()) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.onErrorShown()
+        }
+    }
+
     // Coming back from a successful create/edit: reload so the change shows.
     val savedHandle = navController.currentBackStackEntry?.savedStateHandle
     val savedMessage by savedHandle

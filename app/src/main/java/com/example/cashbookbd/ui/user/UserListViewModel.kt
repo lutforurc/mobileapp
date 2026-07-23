@@ -88,6 +88,8 @@ class UserListViewModel(
 
     fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
 
+    fun onErrorShown() = _uiState.update { it.copy(error = null) }
+
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
