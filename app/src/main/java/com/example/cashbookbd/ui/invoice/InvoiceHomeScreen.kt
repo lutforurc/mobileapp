@@ -47,7 +47,10 @@ fun InvoiceHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = InvoiceMenu.visible(sessionState.permissions)
+    val items = InvoiceMenu.visible(
+        sessionState.permissions,
+        businessTypeId = sessionState.settings?.businessTypeId,
+    )
 
     AuthenticatedShell(
         title = "Invoice",
@@ -75,7 +78,14 @@ fun InvoiceHomeScreen(
             items(items) { item ->
                 InvoiceRowItem(
                     item = item,
-                    onClick = { navController.navigate(Routes.invoiceView(item.key)) },
+                    onClick = {
+                        val route = if (item.key == InvoiceMenu.COMBINED_KEY) {
+                            Routes.COMBINED_INVOICE
+                        } else {
+                            Routes.invoiceView(item.key)
+                        }
+                        navController.navigate(route)
+                    },
                 )
             }
         }

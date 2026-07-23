@@ -15,16 +15,33 @@ data class InvoiceItem(
     val title: String,
     val anyOf: List<String>,
     val supported: Boolean,
+    /** Every one of these is also required (the web ANDs some sidebar gates). */
+    val allOf: List<String> = emptyList(),
+    /** Shown only to branches of this business type (web sidebar condition). */
+    val businessTypeId: Int? = null,
 )
 
 /** The Invoice menu registry and its permission rules. */
 object InvoiceMenu {
+
+    /** Routes to the dedicated Combined Invoice screen (see InvoiceHomeScreen). */
+    const val COMBINED_KEY = "tradingCombined"
 
     val all: List<InvoiceItem> = listOf(
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
         InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.create"), supported = false),
         InvoiceItem("sales", "Sales", listOf("sales.create"), supported = true),
         InvoiceItem("salesImport", "Sales Import", listOf("sales.create"), supported = false),
+        // The web sidebar shows this to Trading (business type 8) branches whose
+        // user holds BOTH purchase.create and sales.create.
+        InvoiceItem(
+            COMBINED_KEY,
+            "Combined Invoice",
+            listOf("purchase.create", "sales.create"),
+            supported = true,
+            allOf = listOf("purchase.create", "sales.create"),
+            businessTypeId = 8,
+        ),
         InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.create"), supported = true),
         InvoiceItem("salesReturn", "Sales Return", listOf("sales.create"), supported = true),
         InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = false),
@@ -46,6 +63,10 @@ object InvoiceMenu {
             Permissions.hasAny(permissions, listOf("branch.transfer.create"))
 
     /** Invoice entries the user is allowed to open, in registry order. */
-    fun visible(permissions: List<Permission>?): List<InvoiceItem> =
-        all.filter { Permissions.hasAny(permissions, it.anyOf) }
+    fun visible(permissions: List<Permission>?, businessTypeId: Int? = null): List<InvoiceItem> =
+        all.filter { item ->
+            Permissions.hasAny(permissions, item.anyOf) &&
+                item.allOf.all { Permissions.has(permissions, it) } &&
+                (item.businessTypeId == null || item.businessTypeId == businessTypeId)
+        }
 }

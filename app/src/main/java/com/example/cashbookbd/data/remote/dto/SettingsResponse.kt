@@ -73,6 +73,11 @@ data class SettingsBranchDto(
     /** Branch category: 1 = head office — forces the Head Office cash payment variant. */
     @SerializedName("branch_types_id") val branchTypesId: Int? = null,
     /**
+     * Branch meta flag: shows the Combined Invoice's Both/Purchase/Sales notes
+     * switch. A meta() string — "" when never set; the mapper derives a Boolean.
+     */
+    @SerializedName("combined_invoice_note") val combinedInvoiceNote: String? = null,
+    /**
      * Read as a string, not an Int: it comes from `meta()`, which returns "" for
      * a branch that never set it, and an empty string coerced to Int would fail
      * the whole settings parse. The mapper turns it into an Int or null.

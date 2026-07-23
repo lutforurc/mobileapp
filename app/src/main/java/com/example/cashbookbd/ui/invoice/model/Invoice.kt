@@ -21,7 +21,35 @@ data class InvoiceProduct(
     val unit: String,
     /** Purchase price, used to pre-fill a purchase line (null when unknown). */
     val purchasePrice: Double?,
+    /** Sale price — pre-fills the Combined Invoice's sales rate (null when unknown). */
+    val salesPrice: Double? = null,
 )
+
+/** One added line of the Combined (purchase + sales) invoice. */
+data class CombinedLine(
+    val product: InvoiceProduct,
+    val qty: Double,
+    val purchasePrice: Double,
+    val salesPrice: Double,
+    val bag: String = "",
+    val variance: String = "",
+    /** Weight-variance direction code: "" none, "+" increase, "-" decrease. */
+    val varianceType: String = "",
+) {
+    val purchaseTotal: Double get() = qty * purchasePrice
+    val salesTotal: Double get() = qty * salesPrice
+
+    /** Variance-adjusted quantity — the basis of the web's profit figure. */
+    val adjustedQty: Double
+        get() {
+            val v = variance.toDoubleOrNull() ?: 0.0
+            return when (varianceType) {
+                "+" -> qty + v
+                "-" -> qty - v
+                else -> qty
+            }
+        }
+}
 
 /**
  * An Electronics sale's installment plan (only when the customer isn't Cash).

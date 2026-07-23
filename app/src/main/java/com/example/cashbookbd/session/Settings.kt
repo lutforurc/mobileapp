@@ -18,6 +18,8 @@ data class Settings(
     val branchId: Long? = null,
     /** Branch category (`branch_types_id`): 1 = head office (forces the Head Office cash payment variant). */
     val branchTypesId: Int? = null,
+    /** Branch setting: the Combined Invoice shows its notes apply-to (Both/Purchase/Sales) switch. */
+    val combinedInvoiceNote: Boolean = false,
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,

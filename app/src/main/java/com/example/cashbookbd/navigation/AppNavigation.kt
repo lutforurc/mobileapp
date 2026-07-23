@@ -56,6 +56,7 @@ import com.example.cashbookbd.ui.hrm.EmployeeFormScreen
 import com.example.cashbookbd.ui.hrm.HrmCrudFormScreen
 import com.example.cashbookbd.ui.hrm.HrmFormScreen
 import com.example.cashbookbd.ui.hrm.HrmHomeScreen
+import com.example.cashbookbd.ui.invoice.CombinedInvoiceScreen
 import com.example.cashbookbd.ui.invoice.InvoiceFormScreen
 import com.example.cashbookbd.ui.invoice.InvoiceHomeScreen
 import com.example.cashbookbd.ui.transaction.CashVoucherForms
@@ -106,6 +107,9 @@ object Routes {
     const val INVOICE_KEY_ARG = "key"
 
     fun invoiceView(key: String): String = "invoices/view/$key"
+
+    /** Combined Invoice (purchase + sales in one form) — its own screen. */
+    const val COMBINED_INVOICE = "invoices/combined"
 
     // VR Settings section
     const val VR_SETTINGS = "vr-settings/home"
@@ -327,6 +331,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.INVOICES) {
             PermissionGate(anyOf = InvoiceMenu.all.flatMap { it.anyOf }) {
                 InvoiceHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.COMBINED_INVOICE) {
+            // Trading branches with both purchase and sales create permissions.
+            PermissionGate(anyOf = listOf("purchase.create", "sales.create")) {
+                CombinedInvoiceScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

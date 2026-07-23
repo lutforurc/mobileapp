@@ -17,14 +17,14 @@ val devLoginProps = Properties().apply {
 
 // Single source of truth for the backend API base URL. Change it here to
 // repoint every build type (must end with a trailing slash for Retrofit).
-// val baseUrl = "https://aft.cashbookbd.com/api/"
+val baseUrl = "https://aft.cashbookbd.com/api/"
 // val baseUrl = "https://eworld.cashbookbd.com/api/"
 // val baseUrl = "https://sinthia.cashbookbd.com/api/" 
 // val baseUrl = "https://nibirnirman.cashbookbd.com/api/" 
 // val baseUrl = "https://gme.cashbookbd.com/api/" 
 // val baseUrl = "https://krf.cashbookbd.com/api/" 
 // val baseUrl = "https://scn.cashbookbd.com/api/" 
-val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
+// val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
 // val baseUrl = "https://kps.cashbookbd.com/api/" 
 // val baseUrl = "https://kbr.cashbookbd.com/api/" 
 // val baseUrl = "https://my.cashbookbd.com/api/" 
