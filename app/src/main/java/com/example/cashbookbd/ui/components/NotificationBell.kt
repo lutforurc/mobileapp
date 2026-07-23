@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -106,7 +107,12 @@ fun NotificationBell(
 
             when {
                 state.isLoading && state.items.isEmpty() -> EmptyRow("Loading notifications…")
-                state.items.isEmpty() -> EmptyRow("No important notification right now.")
+                state.items.isEmpty() -> EmptyRow(
+                    text = "No important notification right now.",
+                    // All clear — a green check so the empty inbox reads as good
+                    // news rather than a dead end.
+                    icon = Icons.Filled.CheckCircle,
+                )
                 else -> Column(modifier = Modifier.heightIn(max = 420.dp)) {
                     state.items.forEach { item ->
                         NotificationRow(
@@ -167,11 +173,28 @@ private fun NotificationHeader(totalCount: Int, isLoading: Boolean, onRefresh: (
 }
 
 @Composable
-private fun EmptyRow(text: String) {
-    Box(
+private fun EmptyRow(text: String, icon: ImageVector? = null) {
+    Column(
         modifier = Modifier.fillMaxWidth().padding(24.dp),
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (icon != null) {
+            val green = MaterialTheme.accents.green
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(green.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = green,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
