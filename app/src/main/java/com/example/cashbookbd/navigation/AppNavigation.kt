@@ -52,6 +52,8 @@ import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
+import com.example.cashbookbd.ui.user.EditUserScreen
+import com.example.cashbookbd.ui.user.UserListScreen
 import com.example.cashbookbd.ui.hrm.EmployeeFormScreen
 import com.example.cashbookbd.ui.hrm.HrmCrudFormScreen
 import com.example.cashbookbd.ui.hrm.HrmFormScreen
@@ -128,6 +130,9 @@ object Routes {
     /** Highlight-rules management (form + list on one screen, like the web). */
     const val HIGHLIGHT_RULES = "admin/highlight-rules"
 
+    /** User List (search + paginated list with per-row edit and temp-password). */
+    const val USER_LIST = "admin/user-list"
+
     // HRM section
     const val HRM = "hrm/home"
     const val HRM_VIEW = "hrm/view/{key}"
@@ -143,6 +148,10 @@ object Routes {
     // the list, so the base is stored bare and the pattern adds the argument.
     const val BRANCH_EDIT = "branch/edit"
     const val BRANCH_ID_ARG = "branchId"
+
+    // User edit, opened from the User List row pencil. The hashed id is appended.
+    const val USER_EDIT = "user/edit"
+    const val USER_ID_ARG = "userId"
 
     // Employee create/edit (HRM), opened from the Employees list.
     const val EMPLOYEE_ADD = "employee/add"
@@ -401,6 +410,25 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 HighlightRulesScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.USER_LIST) {
+            PermissionGate(anyOf = listOf("all.user.view", "user.view")) {
+                UserListScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.USER_EDIT}/{${Routes.USER_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("all.user.view", "user.view")) {
+                EditUserScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    userId = entry.arguments?.getString(Routes.USER_ID_ARG),
                 )
             }
         }

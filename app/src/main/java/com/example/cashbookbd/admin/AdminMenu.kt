@@ -22,6 +22,9 @@ object AdminMenu {
     /** Routes to the dedicated Highlight Rules screen (see AdminHomeScreen). */
     const val HIGHLIGHT_RULES_KEY = "highlightRules"
 
+    /** Routes to the dedicated User List screen (list + edit + temp password). */
+    const val USER_LIST_KEY = "userList"
+
     private val USER_VIEW = listOf("all.user.view", "user.view")
 
     val all: List<AdminItem> = listOf(

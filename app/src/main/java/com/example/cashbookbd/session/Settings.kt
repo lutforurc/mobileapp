@@ -12,6 +12,11 @@ package com.example.cashbookbd.session
  */
 data class Settings(
     val permissions: List<Permission> = emptyList(),
+    /**
+     * The signed-in user's numeric id. Gates the User List's temporary-password
+     * action, which the web shows only for the global super admin (`user.id === 1`).
+     */
+    val userId: Long? = null,
     val businessTypeId: Int? = null,
     val inventorySystemId: Int? = null,
     /** The signed-in user's branch id — e.g. the Head Office cash received form's default receiving branch. */

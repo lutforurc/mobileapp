@@ -79,6 +79,9 @@ fun AdminHomeScreen(
                     onClick = {
                         val route = when {
                             item.key == AdminMenu.HIGHLIGHT_RULES_KEY -> Routes.HIGHLIGHT_RULES
+                            // Bespoke User List (list + edit + temp password); wins
+                            // over the shared read-only list its key also matches.
+                            item.key == AdminMenu.USER_LIST_KEY -> Routes.USER_LIST
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> Routes.adminView(item.key)
                         }

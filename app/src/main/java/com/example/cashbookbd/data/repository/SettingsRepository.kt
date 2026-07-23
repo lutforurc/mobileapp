@@ -54,6 +54,7 @@ class SettingsRepository(
             Resource.Success(
                 Settings(
                     permissions = permissions,
+                    userId = payload?.user?.id,
                     businessTypeId = payload?.branch?.businessTypeId,
                     inventorySystemId = payload?.branch?.inventorySystemId,
                     branchId = payload?.branch?.id,
