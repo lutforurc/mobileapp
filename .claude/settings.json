@@ -1,9 +1,13 @@
 {
-  "model": "fable",
   "permissions": {
     "allow": [
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb shell monkey -p com.example.cashbookbd -c android.intent.category.LAUNCHER 1 2>&1 | Out-Null; Start-Sleep -Seconds 9; & $adb shell input tap 869 82; Start-Sleep -Seconds 3; $sp = \"C:\\\\Users\\\\lutfo\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--mobileapp\\\\55ebcf82-3339-4943-9305-0484118c755f\\\\scratchpad\"; & $adb shell screencap -p /sdcard/scr.png; & $adb pull /sdcard/scr.png \"$sp\\\\bell3.png\" 2>&1 | Out-Null; & $adb shell rm /sdcard/scr.png)"
+    ],
+    "additionalDirectories": [
+      "D:\\www\\admin-cashbook\\src\\components\\modules\\notifications"
     ]
-  }
+  },
+  "model": "fable"
 }
