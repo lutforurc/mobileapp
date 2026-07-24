@@ -117,6 +117,25 @@ object AppLists {
         ),
 
         // ---- Admin ----
+
+        AppListSpec(
+            key = "companyList",
+            title = "Company List",
+            endpoint = "company/company-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Company"),
+                AppListColumn("contact_person", "Contact Person"),
+                AppListColumn("phone", "Phone"),
+                AppListColumn("mobile", "Mobile"),
+            ),
+            // Company List is gated on company.view in the web sidebar, matching
+            // its Admin menu entry (not branch.view).
+            anyOf = listOf("company.view"),
+            paginated = true,
+        ),
+        
         AppListSpec(
             key = "branchList",
             title = "Branch List",
@@ -136,21 +155,7 @@ object AppLists {
             addAction = ListAddAction(label = "Add Branch", route = Routes.BRANCH_ADD),
             editAction = ListEditAction(route = Routes.BRANCH_EDIT, idKey = "branch_id"),
         ),
-        AppListSpec(
-            key = "companyList",
-            title = "Company List",
-            endpoint = "company/company-list",
-            method = ListMethod.GET,
-            params = mapOf("search" to ""),
-            columns = listOf(
-                AppListColumn("name", "Company"),
-                AppListColumn("contact_person", "Contact Person"),
-                AppListColumn("phone", "Phone"),
-                AppListColumn("mobile", "Mobile"),
-            ),
-            anyOf = listOf("branch.view"),
-            paginated = true,
-        ),
+        
         AppListSpec(
             key = "userList",
             title = "User List",
@@ -179,7 +184,9 @@ object AppLists {
                 AppListColumn("branch", "Branch"),
                 AppListColumn("email", "Email"),
             ),
-            anyOf = listOf("all.user.view", "user.view"),
+            // Company User is gated on company.user in the web sidebar, matching
+            // its Admin menu entry.
+            anyOf = listOf("company.user", "user.view"),
             paginated = true,
         ),
         AppListSpec(
@@ -193,7 +200,9 @@ object AppLists {
                 AppListColumn("email", "Email"),
                 AppListColumn("last_seen_at", "Last Seen"),
             ),
-            anyOf = listOf("all.user.view", "user.view"),
+            // Online Users is gated on online.users in the web sidebar, matching
+            // its Admin menu entry.
+            anyOf = listOf("online.users", "user.view"),
         ),
         AppListSpec(
             key = "orders",

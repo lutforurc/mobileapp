@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.QueryMap
 import retrofit2.http.Url
 
@@ -28,5 +29,16 @@ interface ReportApiService {
     suspend fun post(
         @Url url: String,
         @Body body: Map<String, String>,
+    ): Response<JsonElement>
+
+    /**
+     * A PUT whose body may hold non-string values (e.g. an array of ids), for
+     * endpoints like role permission assignment. [JvmSuppressWildcards] keeps
+     * Retrofit from generating a wildcard body type Gson can't serialize.
+     */
+    @PUT
+    suspend fun put(
+        @Url url: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): Response<JsonElement>
 }

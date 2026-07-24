@@ -51,6 +51,8 @@ import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
+import com.example.cashbookbd.ui.roles.AddRoleScreen
+import com.example.cashbookbd.ui.roles.RolePermissionScreen
 import com.example.cashbookbd.ui.user.AddUserScreen
 import com.example.cashbookbd.ui.user.EditUserScreen
 import com.example.cashbookbd.ui.user.UserListScreen
@@ -132,6 +134,12 @@ object Routes {
 
     /** User List (search + paginated list with per-row edit and temp-password). */
     const val USER_LIST = "admin/user-list"
+
+    /** Role & Permission management (role picker + grouped permission toggles). */
+    const val ROLES = "admin/roles"
+
+    /** Add Role form, opened from the Roles screen or the Admin menu. */
+    const val ADD_ROLE = "admin/roles/add"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -406,7 +414,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
         composable(Routes.HIGHLIGHT_RULES) {
             // Same gate as the web sidebar's Highlight Rules entry.
-            PermissionGate(anyOf = listOf("branch.view")) {
+            PermissionGate(anyOf = listOf("highlight.rules")) {
                 HighlightRulesScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -429,6 +437,24 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                     userId = entry.arguments?.getString(Routes.USER_ID_ARG),
+                )
+            }
+        }
+
+        composable(Routes.ROLES) {
+            PermissionGate(anyOf = listOf("roles.view")) {
+                RolePermissionScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.ADD_ROLE) {
+            PermissionGate(anyOf = listOf("roles.create")) {
+                AddRoleScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
                 )
             }
         }

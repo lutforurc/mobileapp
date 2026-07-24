@@ -25,29 +25,37 @@ object AdminMenu {
     /** Routes to the dedicated User List screen (list + edit + temp password). */
     const val USER_LIST_KEY = "userList"
 
+    /** Routes to the dedicated Role & Permission screen (role picker + toggles). */
+    const val ROLES_KEY = "roles"
+
+    /** Routes to the Add Role form. */
+    const val ADD_ROLES_KEY = "addRoles"
+
     private val USER_VIEW = listOf("all.user.view", "user.view")
 
     val all: List<AdminItem> = listOf(
+        // Each item is gated on its OWN web-sidebar permission, not a broad
+        // branch.view / all.user.view (which was leaking items into the menu).
         AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
-        AdminItem("companyList", "Company List", listOf("branch.view"), supported = true),
-        AdminItem("softwareInfo", "Software Information", listOf("branch.view"), supported = false),
+        AdminItem("companyList", "Company List", listOf("company.view"), supported = true),
+        AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = false),
         AdminItem("userList", "User List", USER_VIEW, supported = true),
-        AdminItem("onlineUsers", "Online Users", USER_VIEW, supported = true),
-        AdminItem("companyUser", "Company User", USER_VIEW, supported = true),
+        AdminItem("onlineUsers", "Online Users", listOf("online.users", "user.view"), supported = true),
+        AdminItem("companyUser", "Company User", listOf("company.user", "user.view"), supported = true),
         AdminItem(
             "resellers", "Resellers",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = false,
         ),
-        // Same slot and gate as the web sidebar (just before Roles, branch.view).
-        AdminItem(HIGHLIGHT_RULES_KEY, "Highlight Rules", listOf("branch.view"), supported = true),
+        // Same slot as the web sidebar (just before Roles); gated on highlight.rules.
+        AdminItem(HIGHLIGHT_RULES_KEY, "Highlight Rules", listOf("highlight.rules"), supported = true),
         AdminItem("roles", "Roles", listOf("roles.view"), supported = true),
-        AdminItem("addRoles", "Add Roles", listOf("roles.create"), supported = false),
+        AdminItem("addRoles", "Add Roles", listOf("roles.create"), supported = true),
         AdminItem("dayClose", "Day Close", listOf("dayclose.create"), supported = true),
         AdminItem("addGroupReport", "Add Group Report", listOf("group.report"), supported = false),
         AdminItem("orders", "Orders", listOf("order.view"), supported = true),
         AdminItem("orderWithTransaction", "Order With Transaction", listOf("order.view"), supported = false),
         AdminItem("averagePrice", "Average Price", listOf("order.avg.price"), supported = false),
-        AdminItem("approvalCenter", "Approval Center", listOf("voucher.approval", "attendance.view"), supported = false),
+        AdminItem("approvalCenter", "Approval Center", listOf("approval.center"), supported = false),
         AdminItem("voucherApproval", "Voucher Approval", listOf("voucher.approval"), supported = true),
         AdminItem("approvalRemove", "Approval Remove", listOf("remove.approval"), supported = true),
         AdminItem("changeVoucherType", "Change Voucher Type", listOf("change.vourcher.type"), supported = true),

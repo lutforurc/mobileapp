@@ -347,29 +347,39 @@ private val INSTALLMENT_STATUS_CHOICE = ReportChoiceParam(
  */
 object ReportMenu {
 
-    /** Any of these grants access to the Reports parent section. */
+    /**
+     * Any of these grants access to the Reports parent section. Kept as the union
+     * of every report's own gate (below) so the section shows iff the user can
+     * open at least one report — matching the web sidebar's per-item permissions.
+     */
     val PARENT_PERMISSIONS = listOf(
-        "date.wise.total",
         "cashbook.view",
-        "bankbook.view",
+        "bank.book",
+        "cash.bank.summery",
         "profit.loss",
+        "productwise.profit",
+        "bank.information",
+        "connected.member.view",
         "balancesheet.view",
         "trial.balance.l3",
         "trial.balance.l4",
-        "bank.information",
-        "connected.member.view",
-        "productwise.profit",
-        "ledger.customer",
         "installment.create",
-        "ledger.due.view",
         "ledger.view",
+        "ledger.customer",
+        "ledger.details",
+        "product.in.out",
         "ledger.labour",
+        "due.list",
+        "collection.sheet",
+        "monthly.report",
+        "date.wise.total",
+        "product.stock.view",
+        "product.stock.details",
+        "imei.stock",
         "purchase.ledger",
         "sales.ledger",
-        "mitch.match",
         "group.report",
-        "product.stock.view",
-        "product.in.out",
+        "mitch.match",
     )
 
     val all: List<ReportConfig> = listOf(
@@ -392,10 +402,8 @@ object ReportMenu {
             title = "Bank Book",
             routeName = "ReportBankBook",
             webPath = "/reports/bankbook",
-            // The web page is gated on bankbook.view, the React sidebar on
-            // cashbook.view — accept either rather than hide it from someone
-            // the web would let in.
-            anyOf = listOf("bankbook.view", "cashbook.view"),
+            // The web sidebar gates Bank Book on `bank.book` (not cashbook.view).
+            anyOf = listOf("bank.book"),
             endpointKey = "bankbook",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -423,7 +431,8 @@ object ReportMenu {
             title = "Cash & Bank Summary",
             routeName = "ReportCashBankReceivedPayment",
             webPath = "/reports/cash-bank-received-payment",
-            anyOf = listOf("cashbook.view"),
+            // The web sidebar gates this on its own `cash.bank.summery`.
+            anyOf = listOf("cash.bank.summery"),
             endpointKey = "cashBankReceivedPayment",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -566,7 +575,8 @@ object ReportMenu {
             title = "Customer Supplier Statement",
             routeName = "ReportCustomerSupplierStatement",
             webPath = "/reports/ledger-with-product",
-            anyOf = listOf("ledger.customer"),
+            // The web sidebar's "Ledger Details" item is gated on `ledger.details`.
+            anyOf = listOf("ledger.details"),
             endpointKey = "customerSupplierStatement",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
@@ -619,7 +629,8 @@ object ReportMenu {
             title = "Due List",
             routeName = "ReportDueList",
             webPath = "/reports/due-list",
-            anyOf = listOf("ledger.due.view"),
+            // The web sidebar gates Due List on its own `due.list`.
+            anyOf = listOf("due.list"),
             endpointKey = "dueList",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_END_DATE,
@@ -741,7 +752,8 @@ object ReportMenu {
             title = "Collection Sheet",
             routeName = "ReportCollectionSheet",
             webPath = "/somity-report/collection-sheet",
-            anyOf = listOf("group.report", "ledger.due.view", "cashbook.view"),
+            // The web sidebar gates Collection Sheet on its own `collection.sheet`.
+            anyOf = listOf("collection.sheet"),
             endpointKey = "collectionSheet",
             method = ReportMethod.POST,
             filterType = ReportFilterType.COLLECTION_SHEET,
@@ -773,7 +785,8 @@ object ReportMenu {
             title = "Monthly Report",
             routeName = "ReportMonthly",
             webPath = "/somity-report/monthly-report",
-            anyOf = listOf("group.report", "ledger.due.view", "cashbook.view"),
+            // The web sidebar gates Monthly Report on its own `monthly.report`.
+            anyOf = listOf("monthly.report"),
             endpointKey = "monthlyReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -786,7 +799,9 @@ object ReportMenu {
             title = "Closing Stock",
             routeName = "ReportClosingStock",
             webPath = "/reports/closing-stock",
-            anyOf = listOf("product.stock.view"),
+            // The web has no Closing Stock sidebar item; gate it like the detailed
+            // stock report so it no longer leaks to plain product.stock.view roles.
+            anyOf = listOf("product.stock.details"),
             endpointKey = "closingStock",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -801,7 +816,8 @@ object ReportMenu {
             title = "Stock Details",
             routeName = "ReportStockDetails",
             webPath = "/somity-report/stock-details",
-            anyOf = listOf("product.stock.view"),
+            // The web sidebar gates Stock Details on `product.stock.details`.
+            anyOf = listOf("product.stock.details"),
             endpointKey = "closingStock",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -855,7 +871,8 @@ object ReportMenu {
             title = "IMEI Stock",
             routeName = "ReportImeiStock",
             webPath = "/reports/stock-imei",
-            anyOf = listOf("product.stock.view"),
+            // The web sidebar gates IMEI Stock on its own `imei.stock`.
+            anyOf = listOf("imei.stock"),
             endpointKey = "imeiStock",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_PRODUCT_ONLY,

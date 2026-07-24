@@ -34,6 +34,7 @@ import com.example.cashbookbd.data.repository.DeviceRepository
 import com.example.cashbookbd.data.repository.SubscriptionRepository
 import com.example.cashbookbd.data.repository.CashBankRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
+import com.example.cashbookbd.data.repository.RoleRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
 import com.example.cashbookbd.notifications.NotificationCenter
@@ -123,6 +124,8 @@ object ServiceLocator {
 
     @Volatile
     private var userRepository: UserRepository? = null
+    @Volatile
+    private var roleRepository: RoleRepository? = null
 
     @Volatile
     private var subscriptionRepository: SubscriptionRepository? = null
@@ -413,6 +416,13 @@ object ServiceLocator {
             userRepository ?: UserRepository(
                 api = provideReportApiService(context),
             ).also { userRepository = it }
+        }
+
+    fun provideRoleRepository(context: Context): RoleRepository =
+        roleRepository ?: synchronized(this) {
+            roleRepository ?: RoleRepository(
+                api = provideReportApiService(context),
+            ).also { roleRepository = it }
         }
 
     fun provideSubscriptionRepository(context: Context): SubscriptionRepository =

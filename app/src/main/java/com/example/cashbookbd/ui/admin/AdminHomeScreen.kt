@@ -82,6 +82,9 @@ fun AdminHomeScreen(
                             // Bespoke User List (list + edit + temp password); wins
                             // over the shared read-only list its key also matches.
                             item.key == AdminMenu.USER_LIST_KEY -> Routes.USER_LIST
+                            // Bespoke Role & Permission management (picker + toggles).
+                            item.key == AdminMenu.ROLES_KEY -> Routes.ROLES
+                            item.key == AdminMenu.ADD_ROLES_KEY -> Routes.ADD_ROLE
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> Routes.adminView(item.key)
                         }

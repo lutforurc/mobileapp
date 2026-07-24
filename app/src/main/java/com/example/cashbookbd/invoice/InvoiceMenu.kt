@@ -29,9 +29,11 @@ object InvoiceMenu {
 
     val all: List<InvoiceItem> = listOf(
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
-        InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.create"), supported = false),
+        // Import/return items are gated on their OWN permission in the web sidebar,
+        // not on purchase.create/sales.create.
+        InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.import"), supported = false),
         InvoiceItem("sales", "Sales", listOf("sales.create"), supported = true),
-        InvoiceItem("salesImport", "Sales Import", listOf("sales.create"), supported = false),
+        InvoiceItem("salesImport", "Sales Import", listOf("sales.import"), supported = false),
         // The web sidebar shows this to Trading (business type 8) branches whose
         // user holds BOTH purchase.create and sales.create.
         InvoiceItem(
@@ -42,8 +44,8 @@ object InvoiceMenu {
             allOf = listOf("purchase.create", "sales.create"),
             businessTypeId = 8,
         ),
-        InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.create"), supported = true),
-        InvoiceItem("salesReturn", "Sales Return", listOf("sales.create"), supported = true),
+        InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.return.view"), supported = true),
+        InvoiceItem("salesReturn", "Sales Return", listOf("sales.return"), supported = true),
         InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = false),
         InvoiceItem(
             "branchIssue",
