@@ -135,7 +135,7 @@ object AppLists {
             anyOf = listOf("company.view"),
             paginated = true,
         ),
-        
+
         AppListSpec(
             key = "branchList",
             title = "Branch List",
