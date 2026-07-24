@@ -152,11 +152,9 @@ fun AdminFormScreen(
                 null -> Unit
             }
 
-            // The Day Close screen shows Day Close + Jump Date side by side in the
-            // same colour; every other action (and Jump Date's own screen) keeps a
-            // single full-width button.
-            if (state.kind == AdminKind.DAY_CLOSE && canJumpDate) {
-                Row(
+            when {
+                // Day Close: the day-close action + a Jump Date shortcut, one row.
+                state.kind == AdminKind.DAY_CLOSE && canJumpDate -> Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -173,8 +171,27 @@ fun AdminFormScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
-            } else {
-                PrimaryButton(
+
+                // Jump Date: the jump action + a Back button (returns to Day Close).
+                state.kind == AdminKind.JUMP_DATE -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    PrimaryButton(
+                        text = state.actionLabel,
+                        onClick = viewModel::submit,
+                        enabled = state.canSubmit,
+                        isLoading = state.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        text = "Back",
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                else -> PrimaryButton(
                     text = state.actionLabel,
                     onClick = viewModel::submit,
                     enabled = state.canSubmit,
@@ -186,7 +203,8 @@ fun AdminFormScreen(
             state.message?.let { message ->
                 Text(
                     text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
+                    // White on the teal backdrop, so the outcome reads in both themes.
+                    color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )

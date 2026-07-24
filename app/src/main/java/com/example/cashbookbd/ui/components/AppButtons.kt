@@ -230,10 +230,16 @@ fun FieldButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
 ) {
+    // These date pickers sit on the teal screen backdrop, so the text, icon and
+    // border take the on-teal ink — the default OutlinedButton uses primary/outline,
+    // which wash out on the teal in light mode.
+    val onScreen = MaterialTheme.colorScheme.onBackground
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         shape = ButtonShape,
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = onScreen),
+        border = BorderStroke(1.dp, onScreen.copy(alpha = 0.5f)),
         modifier = modifier.height(FieldHeight),
     ) {
         if (icon != null) {

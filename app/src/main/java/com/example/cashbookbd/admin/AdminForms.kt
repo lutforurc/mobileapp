@@ -44,7 +44,7 @@ object AdminForms {
             title = "Jump Date",
             kind = AdminKind.JUMP_DATE,
             endpoint = "admin/dayclose",
-            actionLabel = "Day Close",
+            actionLabel = "Jump Date",
         ),
         AdminFormSpec(
             key = "voucherApproval",

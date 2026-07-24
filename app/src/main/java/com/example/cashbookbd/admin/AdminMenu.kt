@@ -36,8 +36,8 @@ object AdminMenu {
     val all: List<AdminItem> = listOf(
         // Each item is gated on its OWN web-sidebar permission, not a broad
         // branch.view / all.user.view (which was leaking items into the menu).
-        AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
         AdminItem("companyList", "Company List", listOf("company.view"), supported = true),
+        AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
         AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = false),
         AdminItem("userList", "User List", USER_VIEW, supported = true),
         AdminItem("onlineUsers", "Online Users", listOf("online.users", "user.view"), supported = true),
