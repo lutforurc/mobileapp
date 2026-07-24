@@ -36,7 +36,7 @@ object AdminForms {
             title = "Day Close",
             kind = AdminKind.DAY_CLOSE,
             endpoint = "admin/dayclose",
-            actionLabel = "Update",
+            actionLabel = "Day Close",
         ),
         // Reached from the Day Close screen's "Jump Date" button, not the Admin menu.
         AdminFormSpec(
@@ -44,7 +44,7 @@ object AdminForms {
             title = "Jump Date",
             kind = AdminKind.JUMP_DATE,
             endpoint = "admin/dayclose",
-            actionLabel = "Update",
+            actionLabel = "Day Close",
         ),
         AdminFormSpec(
             key = "voucherApproval",

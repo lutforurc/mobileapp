@@ -36,7 +36,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.PrimaryButton
-import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.DropdownAnchorField
@@ -153,19 +152,33 @@ fun AdminFormScreen(
                 null -> Unit
             }
 
-            PrimaryButton(
-                text = state.actionLabel,
-                onClick = viewModel::submit,
-                enabled = state.canSubmit,
-                isLoading = state.isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // The Day Close screen offers Jump Date as a second action, like the web.
+            // The Day Close screen shows Day Close + Jump Date side by side in the
+            // same colour; every other action (and Jump Date's own screen) keeps a
+            // single full-width button.
             if (state.kind == AdminKind.DAY_CLOSE && canJumpDate) {
-                SecondaryButton(
-                    text = "Jump Date",
-                    onClick = { navController.navigate(Routes.JUMP_DATE) },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    PrimaryButton(
+                        text = state.actionLabel,
+                        onClick = viewModel::submit,
+                        enabled = state.canSubmit,
+                        isLoading = state.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        text = "Jump Date",
+                        onClick = { navController.navigate(Routes.JUMP_DATE) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            } else {
+                PrimaryButton(
+                    text = state.actionLabel,
+                    onClick = viewModel::submit,
+                    enabled = state.canSubmit,
+                    isLoading = state.isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
