@@ -55,6 +55,7 @@ import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.hrm.HrmMenu
+import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
@@ -124,6 +125,8 @@ fun AuthenticatedShell(
     val canHrm = HrmMenu.hasParentAccess(sessionState.permissions)
     // The "Customers" section is shown when the user has any customer permission.
     val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
+    // The "Products" section is shown when the user has any products-list permission.
+    val canProducts = ProductsMenu.hasParentAccess(sessionState.permissions)
     // "Subscription" shows for any authenticated user (My Plan is universal).
     val canSubscription = SubscriptionMenu.hasParentAccess(sessionState.permissions)
 
@@ -164,6 +167,7 @@ fun AuthenticatedShell(
                 canAdmin = canAdmin,
                 canHrm = canHrm,
                 canCustomers = canCustomers,
+                canProducts = canProducts,
                 canSubscription = canSubscription,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
@@ -249,6 +253,7 @@ private fun AppDrawerContent(
     canAdmin: Boolean,
     canHrm: Boolean,
     canCustomers: Boolean,
+    canProducts: Boolean,
     canSubscription: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
@@ -303,6 +308,11 @@ private fun AppDrawerContent(
                         currentRoute == Routes.LEDGER,
                 ) {
                     onDestinationClick(Routes.REPORTS)
+                }
+            }
+            if (canProducts) {
+                DrawerItem("Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS) {
+                    onDestinationClick(Routes.PRODUCTS)
                 }
             }
             if (canVrSettings) {

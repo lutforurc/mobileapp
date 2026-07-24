@@ -370,6 +370,9 @@ object ReportMenu {
         "product.in.out",
         "ledger.labour",
         "due.list",
+        // The web sidebar's Reports parent is gated on ledger.due.view too — keep
+        // it here so a holder of it sees the section like the web does.
+        "ledger.due.view",
         "collection.sheet",
         "monthly.report",
         "date.wise.total",

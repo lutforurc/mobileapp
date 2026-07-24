@@ -241,6 +241,7 @@ object AppLists {
             columns = listOf(
                 AppListColumn("name", "Name"),
                 AppListColumn("national_id", "National ID"),
+                AppListColumn("openingbalance", "Opening", numeric = true),
                 AppListColumn("manual_address", "Address"),
                 AppListColumn("ledger_page", "Ledger Page"),
                 AppListColumn("mobile", "Mobile"),
@@ -248,6 +249,8 @@ object AppLists {
             anyOf = MenuPermissions.map["customer"].orEmpty(),
             paginated = true,
             addAction = ListAddAction(label = "Add Customer", route = Routes.CUSTOMER_ADD),
+            // Row pencil → set the customer's opening balance / ledger page.
+            editAction = ListEditAction(route = Routes.CUSTOMER_EDIT, idKey = "id"),
         ),
         AppListSpec(
             key = "coaL4",
@@ -261,6 +264,69 @@ object AppLists {
                 AppListColumn("l2_name", "CoA L2"),
             ),
             anyOf = listOf("coa.l4.view"),
+            paginated = true,
+        ),
+
+        // ---- Products (master lists) ----
+        AppListSpec(
+            key = "brandList",
+            title = "Brand List",
+            endpoint = "product/brand/list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Brand"),
+                AppListColumn("contacts", "Contact"),
+                AppListColumn("email", "Email"),
+                AppListColumn("address", "Address"),
+            ),
+            anyOf = listOf("brand.list"),
+            paginated = true,
+        ),
+        AppListSpec(
+            key = "categoryList",
+            title = "Category List",
+            endpoint = "category/category-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Category"),
+                AppListColumn("products", "Products", numeric = true),
+                AppListColumn("description", "Description"),
+            ),
+            anyOf = listOf("category.view"),
+            paginated = true,
+        ),
+        AppListSpec(
+            key = "productList",
+            title = "Product List",
+            endpoint = "product/product-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Product"),
+                AppListColumn("category", "Category"),
+                AppListColumn("brand", "Brand"),
+                AppListColumn("unit", "Unit"),
+                AppListColumn("purchase", "Purchase", numeric = true),
+                AppListColumn("sales", "Sales", numeric = true),
+            ),
+            anyOf = listOf("products.view"),
+            paginated = true,
+        ),
+        AppListSpec(
+            key = "productUnit",
+            title = "Product Unit",
+            endpoint = "product/unit/list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            // Unit aliases: `name` = full name, `short_name` = the short code.
+            columns = listOf(
+                AppListColumn("name", "Unit Name"),
+                AppListColumn("short_name", "Short Name"),
+                AppListColumn("description", "Description"),
+            ),
+            anyOf = listOf("product.unit"),
             paginated = true,
         ),
 

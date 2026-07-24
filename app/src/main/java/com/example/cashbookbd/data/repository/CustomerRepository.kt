@@ -12,6 +12,29 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 
+/** One row of the Customers list (`contact/details`). */
+data class CustomerRow(
+    /** Raw PartyInfo id — the update endpoint resolves it. */
+    val id: String,
+    val name: String,
+    val opening: String,
+    val address: String,
+    val ledgerPage: String,
+    val mobile: String,
+    val nationalId: String,
+) {
+    /** Opening is one-time: once a non-zero value is set it can't be changed. */
+    val isOpeningSet: Boolean get() = (opening.toDoubleOrNull() ?: 0.0) != 0.0
+}
+
+/** A page of [CustomerRow]s plus the paginator meta. */
+data class CustomerPage(
+    val rows: List<CustomerRow>,
+    val currentPage: Int,
+    val lastPage: Int,
+    val total: Int,
+)
+
 /** The fields the (essential) Add Customer form collects. */
 data class NewCustomer(
     /** Party type: 1 Customer, 2 Supplier, 3 Supplier & Customer, 4 Advance. */
@@ -37,6 +60,46 @@ class CustomerRepository(
         private const val HTTP_UNAUTHORIZED = 401
         private const val SESSION_EXPIRED = "Your session has expired. Please log in again."
         private const val NO_NETWORK = "No internet connection. Please check your network and try again."
+    }
+
+    /** A page of the Customers list (`contact/details`, paginated). */
+    suspend fun loadCustomers(page: Int, perPage: Int, search: String): Resource<CustomerPage> = withContext(ioDispatcher) {
+        try {
+            val response = api.post(
+                "contact/details",
+                mapOf("page" to page.toString(), "per_page" to perPage.toString(), "search" to search.trim()),
+            )
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            if (!response.isSuccessful && response.code() != 201) {
+                return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            }
+            val json = response.jsonBody()
+            // notFound() ("No data found!") arrives as success:false at 201.
+            if (json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Success(CustomerPage(emptyList(), 1, 1, 0))
+            }
+            val paginator = json?.getAsJsonObject("data")
+                ?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+            val rows = paginator?.get("data")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.mapNotNull { element -> element.takeIf { it.isJsonObject }?.asJsonObject?.toCustomerRow() }
+                .orEmpty()
+            Resource.Success(
+                CustomerPage(
+                    rows = rows,
+                    currentPage = paginator.intOr("current_page", 1),
+                    lastPage = paginator.intOr("last_page", 1),
+                    total = paginator.intOr("total", rows.size),
+                )
+            )
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
     }
 
     suspend fun storeCustomer(customer: NewCustomer): Resource<String> = withContext(ioDispatcher) {
@@ -72,6 +135,66 @@ class CustomerRepository(
             Resource.Error("Something went wrong. Please try again.")
         }
     }
+
+    /**
+     * Sets a customer's opening balance and/or ledger page from the list
+     * (`contact/customer/update/ui/{id}`). Only non-blank fields are sent, so a
+     * blank input never clears an existing value. The opening balance is one-time:
+     * the server rejects a change once it is already set.
+     */
+    suspend fun updateOpeningLedger(
+        id: String,
+        opening: String?,
+        ledgerPage: String?,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = buildMap {
+            opening?.trim()?.takeIf { it.isNotEmpty() }?.let { put("openingbalance", it) }
+            ledgerPage?.trim()?.takeIf { it.isNotEmpty() }?.let { put("ledger_page", it) }
+        }
+        if (body.isEmpty()) {
+            return@withContext Resource.Error("Enter an opening balance or a ledger page to save.")
+        }
+        try {
+            val response = api.post("contact/customer/update/ui/$id", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Customer updated successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    private fun JsonObject.toCustomerRow(): CustomerRow? {
+        val id = str("id") ?: return null
+        return CustomerRow(
+            id = id,
+            name = str("name").orEmpty(),
+            opening = str("openingbalance") ?: "0",
+            address = str("manual_address").orEmpty(),
+            ledgerPage = str("ledger_page").orEmpty(),
+            mobile = str("mobile").orEmpty(),
+            nationalId = str("national_id").orEmpty(),
+        )
+    }
+
+    private fun JsonObject.str(key: String): String? =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+
+    private fun JsonObject?.intOr(key: String, default: Int): Int =
+        this?.get(key)?.takeUnless { it.isJsonNull }?.asString?.toDoubleOrNull()?.toInt() ?: default
 
     /** The response JSON, from body() or a non-2xx errorBody(). */
     private fun Response<JsonElement>.jsonBody(): JsonObject? {

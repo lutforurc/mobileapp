@@ -23,6 +23,7 @@ import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.hrm.HrmCrudForms
 import com.example.cashbookbd.hrm.HrmMenu
+import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
@@ -49,6 +50,9 @@ import com.example.cashbookbd.ui.admin.HighlightRulesScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
 import com.example.cashbookbd.ui.customer.AddCustomerScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
+import com.example.cashbookbd.ui.customer.CustomerListScreen
+import com.example.cashbookbd.ui.customer.EditCustomerScreen
+import com.example.cashbookbd.ui.products.ProductsHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionHomeScreen
@@ -187,8 +191,18 @@ object Routes {
     // Customers section
     const val CUSTOMERS = "customers/home"
 
+    /** The bespoke Customers list (search + inline opening/ledger edit + Add). */
+    const val CUSTOMERS_LIST = "customers/list"
+
     /** Add Customer form, opened from the Customers list's "+ Add" button. */
     const val CUSTOMER_ADD = "customers/add"
+
+    /** Set a customer's opening/ledger, opened from the Customers list row pencil. */
+    const val CUSTOMER_EDIT = "customer/edit"
+    const val CUSTOMER_ID_ARG = "customerId"
+
+    // Products section (master lists: Brand / Category / Product / Unit)
+    const val PRODUCTS = "products/home"
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
@@ -486,6 +500,25 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable("${Routes.CUSTOMER_EDIT}/{${Routes.CUSTOMER_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = com.example.cashbookbd.session.MenuPermissions.map["customer"].orEmpty()) {
+                EditCustomerScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    customerId = entry.arguments?.getString(Routes.CUSTOMER_ID_ARG),
+                )
+            }
+        }
+
+        composable(Routes.CUSTOMERS_LIST) {
+            PermissionGate(anyOf = com.example.cashbookbd.session.MenuPermissions.map["customer"].orEmpty()) {
+                CustomerListScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
         composable(Routes.HRM) {
             PermissionGate(anyOf = HrmMenu.all.flatMap { it.anyOf }) {
                 HrmHomeScreen(
@@ -608,6 +641,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.CUSTOMERS) {
             PermissionGate(anyOf = CustomerMenu.all.flatMap { it.anyOf }) {
                 CustomerHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PRODUCTS) {
+            PermissionGate(anyOf = ProductsMenu.all.flatMap { it.anyOf }) {
+                ProductsHomeScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

@@ -43,7 +43,11 @@ object MenuPermissions {
             "requisition.create",
             "requisition.comparison",
         ),
-        "products" to listOf("products.view"),
+        // The web gates the Products menu on products.view alone, but its sidebar
+        // items (Brand/Category/Product/Unit) each carry their own permission. The
+        // mobile Products section surfaces all four, so the parent is the union —
+        // a superset of the web gate — to avoid orphaning an item the user can open.
+        "products" to listOf("products.view", "brand.list", "category.view", "product.unit"),
         "admin" to listOf(
             "check.register.view",
             "branch.view",

@@ -1,9 +1,8 @@
-package com.example.cashbookbd.ui.customer
+package com.example.cashbookbd.ui.products
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,18 +26,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.example.cashbookbd.customer.CustomerItem
-import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.products.ProductItem
+import com.example.cashbookbd.products.ProductsMenu
 
 /**
- * The "Customers" parent section. Lists every customer screen the user is
- * permitted to open (from [CustomerMenu.visible]); each routes to its list.
+ * The "Products" parent section. Lists every products master-data screen the user
+ * is permitted to open (from [ProductsMenu.visible]); each routes to its read-only
+ * list via the shared list engine.
  */
 @Composable
-fun CustomerHomeScreen(
+fun ProductsHomeScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,11 +47,11 @@ fun CustomerHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = CustomerMenu.visible(sessionState.permissions)
+    val items = ProductsMenu.visible(sessionState.permissions)
 
     AuthenticatedShell(
-        title = "Customers",
-        currentRoute = Routes.CUSTOMERS,
+        title = "Products",
+        currentRoute = Routes.PRODUCTS,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
@@ -59,7 +59,7 @@ fun CustomerHomeScreen(
         if (items.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "You don't have access to any customer screens.",
+                    text = "You don't have access to any products screens.",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
@@ -73,18 +73,9 @@ fun CustomerHomeScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(items) { item ->
-                CustomerRowItem(
+                ProductRowItem(
                     item = item,
-                    onClick = {
-                        // The customer list is the bespoke screen (inline opening/ledger
-                        // edit); the rest use the shared read-only list.
-                        val route = if (item.key == "customers") {
-                            Routes.CUSTOMERS_LIST
-                        } else {
-                            Routes.appListView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
+                    onClick = { navController.navigate(Routes.appListView(item.key)) },
                 )
             }
         }
@@ -92,7 +83,7 @@ fun CustomerHomeScreen(
 }
 
 @Composable
-private fun CustomerRowItem(item: CustomerItem, onClick: () -> Unit) {
+private fun ProductRowItem(item: ProductItem, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
