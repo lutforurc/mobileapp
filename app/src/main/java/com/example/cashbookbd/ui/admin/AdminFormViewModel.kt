@@ -11,6 +11,7 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AdminRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.ReportRepository
+import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
@@ -20,7 +21,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 /**
  * Drives an admin action form (resolved from [adminKey]): day close, voucher
@@ -32,6 +32,7 @@ class AdminFormViewModel(
     private val repository: AdminRepository,
     private val reportRepository: ReportRepository,
     private val dashboardRepository: DashboardRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val spec = AdminForms.byKey(adminKey)
@@ -48,7 +49,8 @@ class AdminFormViewModel(
 
     init {
         when (spec?.kind) {
-            AdminKind.DAY_CLOSE, AdminKind.VOUCHER_APPROVAL -> applyDashboardDate()
+            AdminKind.DAY_CLOSE, AdminKind.VOUCHER_APPROVAL, AdminKind.JUMP_DATE ->
+                viewModelScope.launch { applyDashboardDate() }
             AdminKind.CHANGE_VOUCHER_TYPE -> {
                 loadBranches()
                 loadVoucherTypes()
@@ -57,19 +59,25 @@ class AdminFormViewModel(
         }
     }
 
-    private fun applyDashboardDate() {
-        viewModelScope.launch {
-            val dashboard = dashboardRepository.getCachedDashboard()
+    /**
+     * Seeds the current/next transaction dates from the dashboard. [forceRefresh]
+     * bypasses the cache — used after a day close, when the cached date is stale.
+     */
+    private suspend fun applyDashboardDate(forceRefresh: Boolean = false) {
+        val dashboard = if (forceRefresh) {
+            (dashboardRepository.getDashboard() as? Resource.Success)?.data
+        } else {
+            dashboardRepository.getCachedDashboard()
                 ?: (dashboardRepository.getDashboard() as? Resource.Success)?.data
-            val trDate = SimpleDate.fromDisplay(dashboard?.transactionDate) ?: return@launch
-            _uiState.update {
-                it.copy(
-                    currentDate = trDate,
-                    nextDate = trDate.plusDays(1),
-                    startDate = trDate,
-                    endDate = trDate,
-                )
-            }
+        }
+        val trDate = SimpleDate.fromDisplay(dashboard?.transactionDate) ?: return
+        _uiState.update {
+            it.copy(
+                currentDate = trDate,
+                nextDate = trDate.plusDays(1),
+                startDate = trDate,
+                endDate = trDate,
+            )
         }
     }
 
@@ -117,6 +125,8 @@ class AdminFormViewModel(
     fun onVoucherNoChange(value: String) = _uiState.update { it.copy(voucherNo = value, message = null) }
     fun onBranchSelected(branch: BranchOption) = _uiState.update { it.copy(selectedBranch = branch) }
     fun onTypeSelected(type: SelectorOption) = _uiState.update { it.copy(selectedType = type) }
+    /** The Jump Date picker: set both dates to the chosen day (web sends both = picked). */
+    fun onCurrentDate(date: SimpleDate) = _uiState.update { it.copy(currentDate = date, nextDate = date) }
     fun onStartDate(date: SimpleDate) = _uiState.update { it.copy(startDate = date) }
     fun onEndDate(date: SimpleDate) = _uiState.update { it.copy(endDate = date) }
 
@@ -130,6 +140,9 @@ class AdminFormViewModel(
             val result = when (currentSpec.kind) {
                 AdminKind.DAY_CLOSE ->
                     repository.dayClose(state.currentDate.toDisplay(), state.nextDate.toDisplay())
+                AdminKind.JUMP_DATE ->
+                    // Jump: both dates are the picked day, so the transaction date moves to it.
+                    repository.dayClose(state.currentDate.toDisplay(), state.currentDate.toDisplay())
                 AdminKind.VOUCHER_APPROVAL ->
                     repository.approveVouchers(state.startDate.toApi(), state.endDate.toApi())
                 AdminKind.APPROVAL_REMOVE ->
@@ -142,6 +155,15 @@ class AdminFormViewModel(
                     )
             }
             applyResult(result, currentSpec.kind)
+            // After a day close, refresh the app-wide transaction date (mirroring
+            // the web's getSettings()) and re-seed this screen's dates from the
+            // new day — so both here and the rest of the app move forward.
+            if ((currentSpec.kind == AdminKind.DAY_CLOSE || currentSpec.kind == AdminKind.JUMP_DATE) &&
+                result is Resource.Success
+            ) {
+                sessionRepository.refresh()
+                applyDashboardDate(forceRefresh = true)
+            }
         }
     }
 
@@ -174,17 +196,6 @@ class AdminFormViewModel(
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
-    private fun SimpleDate.plusDays(days: Int): SimpleDate {
-        val c = Calendar.getInstance()
-        c.set(year, month - 1, day)
-        c.add(Calendar.DAY_OF_MONTH, days)
-        return SimpleDate(
-            year = c.get(Calendar.YEAR),
-            month = c.get(Calendar.MONTH) + 1,
-            day = c.get(Calendar.DAY_OF_MONTH),
-        )
-    }
-
     companion object {
         fun provideFactory(context: Context, adminKey: String) = viewModelFactory {
             initializer {
@@ -194,6 +205,7 @@ class AdminFormViewModel(
                     repository = ServiceLocator.provideAdminRepository(appContext),
                     reportRepository = ServiceLocator.provideReportRepository(appContext),
                     dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
+                    sessionRepository = ServiceLocator.provideSessionRepository(appContext),
                 )
             }
         }

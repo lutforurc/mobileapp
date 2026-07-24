@@ -5,6 +5,9 @@ enum class AdminKind {
     /** `{current_date, next_date}` (dd/MM/yyyy) — close the day, advance the date. */
     DAY_CLOSE,
 
+    /** Same `admin/dayclose` call, but both dates set to a chosen date — jump the transaction date to it. */
+    JUMP_DATE,
+
     /** `{start_date, end_date}` (yyyy-MM-dd) — approve all vouchers in a range. */
     VOUCHER_APPROVAL,
 
@@ -33,7 +36,15 @@ object AdminForms {
             title = "Day Close",
             kind = AdminKind.DAY_CLOSE,
             endpoint = "admin/dayclose",
-            actionLabel = "Close Day",
+            actionLabel = "Update",
+        ),
+        // Reached from the Day Close screen's "Jump Date" button, not the Admin menu.
+        AdminFormSpec(
+            key = "jumpDate",
+            title = "Jump Date",
+            kind = AdminKind.JUMP_DATE,
+            endpoint = "admin/dayclose",
+            actionLabel = "Update",
         ),
         AdminFormSpec(
             key = "voucherApproval",

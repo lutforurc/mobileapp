@@ -36,13 +36,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.DropdownAnchorField
 import com.example.cashbookbd.ui.components.FieldButton
 import com.example.cashbookbd.admin.AdminKind
+import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.session.Permissions
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
@@ -63,6 +66,10 @@ fun AdminFormScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+    val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+    // The web shows Jump Date only to holders of dayclose.jumpdate.
+    val canJumpDate = Permissions.hasAny(sessionState.permissions, listOf("dayclose.jumpdate"))
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -102,6 +109,21 @@ fun AdminFormScreen(
                     ReadOnlyField("Next Transaction Date", state.nextDate.toDisplay())
                 }
 
+                AdminKind.JUMP_DATE -> {
+                    Text(
+                        text = "Pick the date to jump the transaction date to.",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    DateField(
+                        "Current Date (Transaction Date)",
+                        state.currentDate,
+                        Modifier.fillMaxWidth(),
+                        viewModel::onCurrentDate,
+                        context,
+                    )
+                }
+
                 AdminKind.VOUCHER_APPROVAL -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     DateField("Start Date", state.startDate, Modifier.weight(1f), viewModel::onStartDate, context)
                     DateField("End Date", state.endDate, Modifier.weight(1f), viewModel::onEndDate, context)
@@ -138,6 +160,15 @@ fun AdminFormScreen(
                 isLoading = state.isSubmitting,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            // The Day Close screen offers Jump Date as a second action, like the web.
+            if (state.kind == AdminKind.DAY_CLOSE && canJumpDate) {
+                SecondaryButton(
+                    text = "Jump Date",
+                    onClick = { navController.navigate(Routes.JUMP_DATE) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             state.message?.let { message ->
                 Text(

@@ -141,6 +141,9 @@ object Routes {
     /** Add Role form, opened from the Roles screen or the Admin menu. */
     const val ADD_ROLE = "admin/roles/add"
 
+    /** Jump Date, opened from the Day Close screen — jumps the transaction date to a chosen day. */
+    const val JUMP_DATE = "admin/jumpdate"
+
     // HRM section
     const val HRM = "hrm/home"
     const val HRM_VIEW = "hrm/view/{key}"
@@ -453,6 +456,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.ADD_ROLE) {
             PermissionGate(anyOf = listOf("roles.create")) {
                 AddRoleScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.JUMP_DATE) {
+            PermissionGate(anyOf = listOf("dayclose.jumpdate")) {
+                AdminFormScreen(
+                    adminKey = "jumpDate",
                     navController = navController,
                     onLogout = backToLogin,
                 )

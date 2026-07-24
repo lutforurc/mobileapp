@@ -38,7 +38,7 @@ data class AdminFormUiState(
 ) {
     val canSubmit: Boolean
         get() = isSupported && !isSubmitting && when (kind) {
-            AdminKind.DAY_CLOSE, AdminKind.VOUCHER_APPROVAL -> true
+            AdminKind.DAY_CLOSE, AdminKind.VOUCHER_APPROVAL, AdminKind.JUMP_DATE -> true
             AdminKind.APPROVAL_REMOVE -> voucherNo.isNotBlank()
             AdminKind.CHANGE_VOUCHER_TYPE ->
                 selectedBranch != null && voucherNo.isNotBlank() && selectedType != null
