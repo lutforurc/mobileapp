@@ -15,6 +15,7 @@ import com.example.cashbookbd.data.remote.dto.NotificationDismissResponse
 import com.example.cashbookbd.data.remote.dto.NotificationSummaryResponse
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.remote.dto.ReceiveResponse
+import com.example.cashbookbd.data.remote.dto.ReleaseDeviceRequest
 import com.example.cashbookbd.data.remote.dto.RegisterOtpRequest
 import com.example.cashbookbd.data.remote.dto.RequestOtpResponse
 import com.example.cashbookbd.data.remote.dto.RevokeDeviceResponse
@@ -40,6 +41,14 @@ interface ApiService {
      */
     @POST("login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    /**
+     * POST {BASE_URL}/login/release-device — signs a device out from the login
+     * screen (pre-auth) when the plan's device limit is full. Credentials are
+     * re-verified server-side; returns a plain success/message envelope.
+     */
+    @POST("login/release-device")
+    suspend fun releaseDeviceAtLogin(@Body request: ReleaseDeviceRequest): Response<RevokeDeviceResponse>
 
     /**
      * POST {BASE_URL}/register/request-otp — public company sign-up, step 1.

@@ -45,3 +45,21 @@ data class ApiError(
     @SerializedName("code") val code: Int? = null,
     @SerializedName("message") val message: String? = null,
 )
+
+/** Body of `POST /login/release-device` — frees a device slot pre-auth. */
+data class ReleaseDeviceRequest(
+    @SerializedName("login") val login: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("token_id") val tokenId: Long,
+)
+
+/**
+ * The 403 body login returns when the plan's device limit is full
+ * (`error.code` 10010): it carries the active devices under `data` (reusing
+ * [DevicesPayload]) so the user can sign one out and retry.
+ */
+data class LoginDeviceLimitBody(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: DevicesPayload? = null,
+    @SerializedName("error") val error: ApiError? = null,
+)

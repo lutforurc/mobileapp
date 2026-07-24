@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -44,8 +45,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.cashbookbd.data.repository.DeviceLimitBlock
+import com.example.cashbookbd.data.repository.LoginDevice
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.theme.accents
 import kotlinx.coroutines.launch
 
 @Composable
@@ -182,6 +195,19 @@ fun LoginScreen(
                 )
             }
 
+            // Plan device limit reached: sign a device out here, then retry — a
+            // port of the web sign-in's DeviceLimitNotice.
+            uiState.deviceLimit?.let { block ->
+                Spacer(Modifier.height(16.dp))
+                DeviceLimitPanel(
+                    block = block,
+                    releasingId = uiState.releasingDeviceId,
+                    error = uiState.deviceLimitError,
+                    onSignOut = viewModel::releaseDevice,
+                    onDismiss = viewModel::dismissDeviceLimit,
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
 
             PrimaryButton(
@@ -214,4 +240,128 @@ fun LoginScreen(
             }
         }
     }
+}
+
+@Composable
+private fun DeviceLimitPanel(
+    block: DeviceLimitBlock,
+    releasingId: Long?,
+    error: String?,
+    onSignOut: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val amber = MaterialTheme.accents.amber
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .background(amber.copy(alpha = 0.10f))
+            .padding(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                text = "Device limit reached",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Dismiss",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        val limitSuffix = block.deviceLimit?.let {
+            " Your plan allows $it device${if (it == 1) "" else "s"} per user."
+        }.orEmpty()
+        Text(
+            text = block.message + limitSuffix,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        error?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        block.devices.forEach { device ->
+            DeviceRow(
+                device = device,
+                releasing = releasingId == device.id,
+                enabled = releasingId == null,
+                onSignOut = { onSignOut(device.id) },
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        Text(
+            text = "Sign out of one device to continue, or upgrade your plan for more devices.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun DeviceRow(
+    device: LoginDevice,
+    releasing: Boolean,
+    enabled: Boolean,
+    onSignOut: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = device.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = deviceSubtitle(device),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        if (releasing) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            LinkButton(
+                text = "Sign out",
+                onClick = onSignOut,
+                enabled = enabled,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+private fun deviceSubtitle(device: LoginDevice): String {
+    val prefix = device.ip?.takeIf { it.isNotBlank() }?.let { "$it · " }.orEmpty()
+    val used = device.lastUsed?.takeIf { it.isNotBlank() } ?: "Never used"
+    return "${prefix}Last used $used"
 }

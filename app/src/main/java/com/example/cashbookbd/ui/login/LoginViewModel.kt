@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AuthRepository
+import com.example.cashbookbd.data.repository.LoginResult
 import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,11 +50,11 @@ class LoginViewModel(
         val state = _uiState.value
         if (!state.isSubmitEnabled) return
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, deviceLimit = null, deviceLimitError = null) }
 
         viewModelScope.launch {
             when (val result = authRepository.login(state.identifier, state.password, state.rememberMe)) {
-                is Resource.Success -> {
+                is LoginResult.Success -> {
                     // Load the user's permissions before entering the app so menus
                     // and screens gate correctly. A settings failure here isn't fatal:
                     // the token is valid, so continue with no permissions (the user
@@ -64,14 +65,39 @@ class LoginViewModel(
                     }
                 }
 
-                is Resource.Error -> _uiState.update {
-                    it.copy(isLoading = false, errorMessage = result.message)
+                // Plan device limit full — show the sign-out panel instead of an error.
+                is LoginResult.Blocked -> _uiState.update {
+                    it.copy(isLoading = false, deviceLimit = result.block)
                 }
 
-                Resource.Loading -> Unit // Not emitted by the repository; nothing to do.
+                is LoginResult.Failure -> _uiState.update {
+                    it.copy(isLoading = false, errorMessage = result.message)
+                }
             }
         }
     }
+
+    /** Signs a device out from the device-limit panel, then retries login (like the web). */
+    fun releaseDevice(tokenId: Long) {
+        val state = _uiState.value
+        if (state.releasingDeviceId != null) return
+        _uiState.update { it.copy(releasingDeviceId = tokenId, deviceLimitError = null) }
+        viewModelScope.launch {
+            when (val result = authRepository.releaseDeviceAtLogin(state.identifier, state.password, tokenId)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(releasingDeviceId = null) }
+                    // A slot is free now — retry the login automatically.
+                    login()
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(releasingDeviceId = null, deviceLimitError = result.message)
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun dismissDeviceLimit() = _uiState.update { it.copy(deviceLimit = null, deviceLimitError = null) }
 
     companion object {
         // Login prefill comes from BuildConfig, which is sourced from

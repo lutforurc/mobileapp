@@ -5,6 +5,7 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.local.TokenManager
 import com.example.cashbookbd.data.remote.dto.LoginData
 import com.example.cashbookbd.data.repository.AuthRepository
+import com.example.cashbookbd.data.repository.LoginResult
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.di.ServiceLocator
@@ -80,7 +81,12 @@ class CashbookSdk internal constructor(
         password: String,
         rememberMe: Boolean = true,
     ): Resource<LoginData> =
-        authRepository.login(identifier, password, rememberMe)
+        when (val result = authRepository.login(identifier, password, rememberMe)) {
+            is LoginResult.Success -> Resource.Success(result.data)
+            // The device-limit panel is a UI concern; the SDK surfaces the reason.
+            is LoginResult.Blocked -> Resource.Error(result.block.message)
+            is LoginResult.Failure -> Resource.Error(result.message)
+        }
 
     /**
      * `GET /dashboard/data`. A 401 comes back as
