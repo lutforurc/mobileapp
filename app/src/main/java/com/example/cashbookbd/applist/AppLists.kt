@@ -247,6 +247,7 @@ object AppLists {
             ),
             anyOf = MenuPermissions.map["customer"].orEmpty(),
             paginated = true,
+            addAction = ListAddAction(label = "Add Customer", route = Routes.CUSTOMER_ADD),
         ),
         AppListSpec(
             key = "coaL4",

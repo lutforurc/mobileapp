@@ -47,6 +47,7 @@ import com.example.cashbookbd.ui.admin.AdminFormScreen
 import com.example.cashbookbd.ui.admin.AdminHomeScreen
 import com.example.cashbookbd.ui.admin.HighlightRulesScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
+import com.example.cashbookbd.ui.customer.AddCustomerScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
@@ -185,6 +186,9 @@ object Routes {
 
     // Customers section
     const val CUSTOMERS = "customers/home"
+
+    /** Add Customer form, opened from the Customers list's "+ Add" button. */
+    const val CUSTOMER_ADD = "customers/add"
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
@@ -466,6 +470,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = listOf("dayclose.jumpdate")) {
                 AdminFormScreen(
                     adminKey = "jumpDate",
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.CUSTOMER_ADD) {
+            // Same gate as the Customers list this form is reached from.
+            PermissionGate(anyOf = com.example.cashbookbd.session.MenuPermissions.map["customer"].orEmpty()) {
+                AddCustomerScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
