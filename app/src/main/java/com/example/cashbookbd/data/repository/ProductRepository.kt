@@ -246,6 +246,51 @@ class ProductRepository(
         }
     }
 
+    /**
+     * Posts a product's opening stock from the Product List's per-row entry
+     * (`product/update-qty-rate`), a port of the web's inline IMEI/qty/rate save.
+     * Books a REAL opening purchase voucher and sets the item's opening balance.
+     * [productId] is the hashed `product_id` the list returns; when [serialNo]
+     * has IMEI/serial lines the server counts them as the qty.
+     */
+    suspend fun updateOpeningStock(
+        productId: String,
+        branchId: String,
+        qty: String,
+        rate: String,
+        serialNo: String,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = mapOf(
+            "product_id" to productId,
+            "branch_id" to branchId,
+            "qty" to qty,
+            "rate" to rate,
+            "serial_no" to serialNo,
+        )
+        try {
+            val response = api.post("product/update-qty-rate", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            // Missing qty / lookup failures arrive as notFound() — success:false.
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Opening stock saved successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     /** Maps the `[key]` array of a DDL payload to dropdown options ({id, name}). */
     private fun JsonObject?.optionsAt(key: String): List<SelectorOption> =
         this?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()

@@ -66,6 +66,8 @@ class SettingsRepository(
                     userPhotoUrl = payload?.user?.profilePhoto?.takeIf { it.isNotBlank() },
                     transactionDate = payload?.trxDt?.takeIf { it.isNotBlank() },
                     decimalPlaces = payload?.branch?.decimalPlaces?.trim()?.toIntOrNull(),
+                    // The web gates the Product List's opening columns on == 1.
+                    openingOngoing = payload?.branch?.isOpening?.trim()?.toDoubleOrNull() == 1.0,
                 )
             )
         } catch (e: IOException) {

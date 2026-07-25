@@ -15,6 +15,8 @@ import androidx.compose.ui.text.input.VisualTransformation
  * @param label shown inside the box while empty (the field's name).
  * @param caption optional small caption above the box, like the dropdowns'
  *   "Select Supplier"; blank means no caption row at all.
+ * @param multiline textarea-style: the box grows with its lines (e.g. the
+ *   Product List's IMEI/serial entry, one serial per line).
  */
 @Composable
 fun AppTextField(
@@ -24,16 +26,18 @@ fun AppTextField(
     modifier: Modifier = Modifier,
     caption: String = "",
     enabled: Boolean = true,
+    multiline: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
-    FieldFrame(label = caption, modifier = modifier, trailingIcon = trailingIcon) {
+    FieldFrame(label = caption, modifier = modifier, multiline = multiline, trailingIcon = trailingIcon) {
         FieldTextInput(
             value = value,
             onValueChange = onValueChange,
             placeholder = label,
             enabled = enabled,
+            singleLine = !multiline,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = visualTransformation,
         )

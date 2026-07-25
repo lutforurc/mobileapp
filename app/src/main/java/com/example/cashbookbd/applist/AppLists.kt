@@ -71,6 +71,13 @@ data class AppListSpec(
     val addAction: ListAddAction? = null,
     /** When set, each row gets an edit pencil in the Action column. */
     val editAction: ListEditAction? = null,
+    /**
+     * Product List only: while the branch's "Opening ongoing" flag is on, each
+     * row gets an opening stock entry (IMEI/qty/rate → `product/update-qty-rate`),
+     * mirroring the web's inline columns. Rows must carry `product_id`,
+     * `openingbalance` and `purchase` for the dialog to pre-fill.
+     */
+    val openingStock: Boolean = false,
 )
 
 /**
@@ -316,6 +323,7 @@ object AppLists {
             anyOf = listOf("products.view"),
             paginated = true,
             addAction = ListAddAction(label = "New Product", route = Routes.PRODUCT_ADD),
+            openingStock = true,
         ),
         AppListSpec(
             key = "productUnit",

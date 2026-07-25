@@ -25,6 +25,13 @@ data class Settings(
     val branchTypesId: Int? = null,
     /** Branch setting: the Combined Invoice shows its notes apply-to (Both/Purchase/Sales) switch. */
     val combinedInvoiceNote: Boolean = false,
+    /**
+     * Branch flag `is_opening` ("Opening ongoing"): the business is still keying
+     * in its opening balances. The Product List then offers the per-row opening
+     * stock entry (IMEI/qty/rate), exactly as the web shows its inline columns
+     * only while `branch.is_opening == 1`.
+     */
+    val openingOngoing: Boolean = false,
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,

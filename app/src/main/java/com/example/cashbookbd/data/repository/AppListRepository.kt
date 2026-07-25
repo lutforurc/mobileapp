@@ -28,6 +28,21 @@ data class AppListRow(
      * posts the raw numeric id while the edit endpoints resolve a hashed one.
      */
     val editId: String? = null,
+    /** The opening-stock entry's raw fields, when the spec declares it. */
+    val opening: OpeningStockRow? = null,
+)
+
+/**
+ * What the Product List's opening stock dialog needs from a row: the hashed
+ * `product_id` the update endpoint resolves, plus the current opening qty
+ * (`openingbalance`) and rate (`purchase`) to pre-fill, exactly the fallbacks
+ * the web's inline inputs use.
+ */
+data class OpeningStockRow(
+    val productId: String,
+    val name: String,
+    val qty: String,
+    val rate: String,
 )
 
 /** A page of list rows plus the server-side pagination meta. */
@@ -165,6 +180,7 @@ class AppListRepository(
                 id = toggle?.let { dotGet(obj, it.idKey)?.asString },
                 statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,
                 editId = edit?.let { dotGet(obj, it.idKey)?.asString },
+                opening = if (spec.openingStock) obj.toOpeningStockRow() else null,
             )
         }
         return if (paginator != null) {
@@ -177,6 +193,17 @@ class AppListRepository(
         } else {
             AppListResult(rows = rows, total = rows.size)
         }
+    }
+
+    /** The opening-stock fields, or null when the row carries no `product_id`. */
+    private fun JsonObject.toOpeningStockRow(): OpeningStockRow? {
+        val productId = dotGet(this, "product_id")?.asString?.takeIf { it.isNotBlank() } ?: return null
+        return OpeningStockRow(
+            productId = productId,
+            name = dotGet(this, "name")?.asString.orEmpty(),
+            qty = dotGet(this, "openingbalance")?.asString ?: "0",
+            rate = dotGet(this, "purchase")?.asString ?: "0",
+        )
     }
 
     private fun JsonObject.int(key: String, default: Int): Int =

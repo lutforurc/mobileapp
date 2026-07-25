@@ -83,6 +83,12 @@ data class SettingsBranchDto(
      * the whole settings parse. The mapper turns it into an Int or null.
      */
     @SerializedName("decimal_places") val decimalPlaces: String? = null,
+    /**
+     * "Opening ongoing" branch flag — 1 while the business is still entering
+     * opening balances. Kept a string for the same lenient-parse reason as
+     * [decimalPlaces]; the mapper derives a Boolean.
+     */
+    @SerializedName("is_opening") val isOpening: String? = null,
 )
 
 /**

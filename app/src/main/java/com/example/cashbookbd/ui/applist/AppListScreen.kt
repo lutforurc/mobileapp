@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,6 +53,7 @@ import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.ui.components.AddButton
+import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -139,6 +143,7 @@ fun AppListScreen(
                         val id = row.editId ?: return@ListBody
                         navController.navigate("${edit.route}/$id")
                     },
+                    onOpeningEdit = viewModel::startOpeningEdit,
                 )
                 SnackbarHost(
                     hostState = snackbarHostState,
@@ -150,6 +155,82 @@ fun AppListScreen(
             }
         }
     }
+
+    if (state.openingEdit != null) {
+        OpeningStockDialog(state = state, viewModel = viewModel)
+    }
+}
+
+/**
+ * The Product List's opening stock entry — the web's inline IMEI/Qty/Rate
+ * columns as a dialog. Serial lines drive the qty; Save books the opening
+ * purchase voucher via `product/update-qty-rate`.
+ */
+@Composable
+private fun OpeningStockDialog(state: AppListUiState, viewModel: AppListViewModel) {
+    val opening = state.openingEdit?.opening ?: return
+    val hasSerials = state.openingSerial.isNotBlank()
+    AlertDialog(
+        onDismissRequest = viewModel::cancelOpeningEdit,
+        title = { Text(opening.name.ifBlank { "Opening stock" }) },
+        text = {
+            Column {
+                DialogLabel("IMEI / Serial (one per line)")
+                AppTextField(
+                    value = state.openingSerial,
+                    onValueChange = viewModel::onOpeningSerial,
+                    label = "IMEI Number",
+                    multiline = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                DialogLabel("Qty")
+                AppTextField(
+                    value = state.openingQty,
+                    onValueChange = viewModel::onOpeningQty,
+                    label = "Qty",
+                    // With serials the qty is their count, like the web's recount.
+                    enabled = !hasSerials,
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                DialogLabel("Rate")
+                AppTextField(
+                    value = state.openingRate,
+                    onValueChange = viewModel::onOpeningRate,
+                    label = "Rate",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            PrimaryButton(
+                text = "Save",
+                onClick = viewModel::saveOpeningStock,
+                enabled = !state.openingSaving,
+                isLoading = state.openingSaving,
+                compact = true,
+            )
+        },
+        dismissButton = {
+            LinkButton(text = "Cancel", onClick = viewModel::cancelOpeningEdit)
+        },
+    )
+}
+
+/** A field caption inside the dialog — dark on the dialog surface (the shared
+ *  field caption uses the on-teal ink, which is faint here). */
+@Composable
+private fun DialogLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
+    )
 }
 
 /**
@@ -239,6 +320,7 @@ private fun ListBody(
     onRetry: () -> Unit,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
     onEdit: (AppListRow) -> Unit,
+    onOpeningEdit: (AppListRow) -> Unit,
 ) {
     when {
         state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
@@ -262,8 +344,9 @@ private fun ListBody(
         else -> {
             val columns = remember(
                 state.columns, state.hasStatusToggle, state.editAction, state.togglingIds,
+                state.openingEnabled,
             ) {
-                buildColumns(state, onToggleStatus, onEdit)
+                buildColumns(state, onToggleStatus, onEdit, onOpeningEdit)
             }
             ReportTable(columns = columns, data = state.rows)
         }
@@ -278,6 +361,7 @@ private fun buildColumns(
     state: AppListUiState,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
     onEdit: (AppListRow) -> Unit,
+    onOpeningEdit: (AppListRow) -> Unit,
 ): List<ReportColumn<AppListRow>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
@@ -295,7 +379,7 @@ private fun buildColumns(
         )
     }
     val hasEdit = state.editAction != null
-    if (state.hasStatusToggle || hasEdit) {
+    if (state.hasStatusToggle || hasEdit || state.openingEnabled) {
         val width = if (hasEdit && state.hasStatusToggle) COL_ACTION_WITH_EDIT else COL_ACTION
         add(
             ReportColumn("Action", ReportColWidth.Fixed(width), TextAlign.Center) { row, _ ->
@@ -315,6 +399,21 @@ private fun buildColumns(
                                 Icon(
                                     imageVector = Icons.Filled.Edit,
                                     contentDescription = "Edit",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (state.openingEnabled) {
+                            // Opening stock entry (Product List while the branch
+                            // is "Opening ongoing") — opens the IMEI/Qty/Rate dialog.
+                            IconButton(
+                                onClick = { onOpeningEdit(row) },
+                                enabled = row.opening != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Set opening stock",
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }

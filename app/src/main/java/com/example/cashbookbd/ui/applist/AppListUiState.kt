@@ -36,6 +36,19 @@ data class AppListUiState(
     val togglingIds: Set<String> = emptySet(),
     /** One-shot message for a status change (success or failure). */
     val actionMessage: String? = null,
+    /**
+     * True when this list offers the per-row opening stock entry — the spec
+     * declares it AND the branch's "Opening ongoing" flag is on (the same
+     * `is_opening == 1` gate the web's inline columns use).
+     */
+    val openingEnabled: Boolean = false,
+    /** The row whose opening stock dialog is open; null when closed. */
+    val openingEdit: AppListRow? = null,
+    /** Dialog fields: IMEI/serial lines, quantity and rate. */
+    val openingSerial: String = "",
+    val openingQty: String = "",
+    val openingRate: String = "",
+    val openingSaving: Boolean = false,
 ) {
     val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading
     val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading

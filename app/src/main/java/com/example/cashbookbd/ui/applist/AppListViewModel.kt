@@ -5,11 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.cashbookbd.applist.AppListColumn
 import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.AppListRepository
 import com.example.cashbookbd.data.repository.AppListRow
+import com.example.cashbookbd.data.repository.ProductRepository
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.session.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,9 +23,35 @@ import kotlinx.coroutines.launch
 class AppListViewModel(
     listKey: String,
     private val repository: AppListRepository,
+    private val productRepository: ProductRepository,
+    private val settings: Settings?,
 ) : ViewModel() {
 
-    private val spec = AppLists.byKey(listKey)
+    /**
+     * True when this list shows the per-row opening stock entry: the spec
+     * declares it and the branch is still "Opening ongoing" — the web's
+     * `branch.is_opening == 1` gate for the Product List's inline columns.
+     */
+    private val openingEnabled =
+        AppLists.byKey(listKey)?.openingStock == true && settings?.openingOngoing == true
+
+    /**
+     * The spec as this branch sees it. With the opening entry active the columns
+     * mirror the web's opening layout: Category is hidden (its inline inputs
+     * take the room) and the current Opening qty shows after Unit.
+     */
+    private val spec = AppLists.byKey(listKey)?.let { base ->
+        if (!openingEnabled) base
+        else base.copy(
+            columns = buildList {
+                base.columns.forEach { col ->
+                    if (col.key == "category") return@forEach
+                    add(col)
+                    if (col.key == "unit") add(AppListColumn("openingbalance", "Opening", numeric = true))
+                }
+            },
+        )
+    }
 
     private val _uiState = MutableStateFlow(
         AppListUiState(
@@ -34,6 +63,7 @@ class AppListViewModel(
             hasStatusToggle = spec?.statusToggle != null,
             addAction = spec?.addAction,
             editAction = spec?.editAction,
+            openingEnabled = openingEnabled,
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
@@ -125,6 +155,95 @@ class AppListViewModel(
         }
     }
 
+    // ---- Opening stock entry (Product List, "Opening ongoing" branches) ----
+
+    /** Opens the dialog pre-filled the way the web's inline inputs are. */
+    fun startOpeningEdit(row: AppListRow) {
+        val opening = row.opening ?: return
+        _uiState.update {
+            it.copy(
+                openingEdit = row,
+                openingSerial = "",
+                // Zero means "not set yet" — leave the field empty, like the web
+                // rendering 0 as an empty input.
+                openingQty = opening.qty.takeIf { q -> (q.toDoubleOrNull() ?: 0.0) != 0.0 }.orEmpty(),
+                openingRate = opening.rate.takeIf { r -> (r.toDoubleOrNull() ?: 0.0) != 0.0 }.orEmpty(),
+            )
+        }
+    }
+
+    /**
+     * IMEI/serial lines drive the qty (the web's serial-blur recount): one unit
+     * per non-blank line, comma also accepted as a separator like the server.
+     */
+    fun onOpeningSerial(value: String) = _uiState.update {
+        val count = serialLines(value).size
+        it.copy(
+            openingSerial = value,
+            openingQty = if (count > 0) count.toString() else it.openingQty,
+        )
+    }
+
+    fun onOpeningQty(value: String) = _uiState.update { it.copy(openingQty = value) }
+    fun onOpeningRate(value: String) = _uiState.update { it.copy(openingRate = value) }
+    fun cancelOpeningEdit() = _uiState.update { it.copy(openingEdit = null, openingSaving = false) }
+
+    /**
+     * Posts the opening stock — a REAL opening purchase voucher, the same
+     * `product/update-qty-rate` call as the web's inline Save.
+     */
+    fun saveOpeningStock() {
+        val state = _uiState.value
+        val opening = state.openingEdit?.opening ?: return
+        if (state.openingSaving) return
+
+        val branchId = settings?.branchId
+        if (branchId == null) {
+            _uiState.update { it.copy(actionMessage = "Branch not resolved — please re-login and try again.") }
+            return
+        }
+        val serials = serialLines(state.openingSerial)
+        // With serials the server counts them; otherwise qty must be entered.
+        val qty = if (serials.isNotEmpty()) serials.size else state.openingQty.trim().toDoubleOrNull()?.toInt() ?: 0
+        if (qty <= 0) {
+            _uiState.update { it.copy(actionMessage = "Enter a quantity (or IMEI/serial numbers) first.") }
+            return
+        }
+        // The web falls back to the row's purchase price when rate is untouched.
+        val rate = state.openingRate.trim().ifEmpty { opening.rate }.ifEmpty { "0" }
+
+        _uiState.update { it.copy(openingSaving = true) }
+        viewModelScope.launch {
+            val result = productRepository.updateOpeningStock(
+                productId = opening.productId,
+                branchId = branchId.toString(),
+                qty = qty.toString(),
+                rate = rate,
+                serialNo = serials.joinToString("\n"),
+            )
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(openingSaving = false, openingEdit = null, actionMessage = result.data)
+                    }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        openingSaving = false,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    /** Non-blank IMEI/serial entries — newline or comma separated, like the server splits. */
+    private fun serialLines(value: String): List<String> =
+        value.split('\n', '\r', ',').map(String::trim).filter(String::isNotEmpty)
+
     fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
@@ -135,6 +254,9 @@ class AppListViewModel(
                 AppListViewModel(
                     listKey = listKey,
                     repository = ServiceLocator.provideAppListRepository(context.applicationContext),
+                    productRepository = ServiceLocator.provideProductRepository(context.applicationContext),
+                    settings = ServiceLocator.provideSessionManager(context.applicationContext)
+                        .state.value.settings,
                 )
             }
         }

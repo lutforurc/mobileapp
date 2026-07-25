@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -40,6 +41,8 @@ private val FieldShape = RoundedCornerShape(10.dp)
  *
  * @param onClick when set, the whole box becomes tappable. Read-only fields use
  *   this; editable ones leave it null so the text field owns the taps.
+ * @param multiline when true the box grows with its content ([FormFieldHeight]
+ *   stays the minimum) and the body is top-aligned — for textarea-style fields.
  * @param trailingIcon drawn at the end of the row (chevron, calendar, spinner…).
  * @param content the field's body, laid out in the remaining width.
  */
@@ -48,6 +51,7 @@ fun FieldFrame(
     label: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    multiline: Boolean = false,
     trailingIcon: (@Composable () -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -64,7 +68,10 @@ fun FieldFrame(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(FormFieldHeight)
+                .then(
+                    if (multiline) Modifier.heightIn(min = FormFieldHeight)
+                    else Modifier.height(FormFieldHeight)
+                )
                 .clip(FieldShape)
                 // Solid surface, not a translucent tint: the screen behind is
                 // the brand teal, and a see-through box melts into it.
@@ -75,8 +82,9 @@ fun FieldFrame(
                     shape = FieldShape,
                 )
                 .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 12.dp)
+                .then(if (multiline) Modifier.padding(vertical = 12.dp) else Modifier),
+            verticalAlignment = if (multiline) Alignment.Top else Alignment.CenterVertically,
         ) {
             content()
             trailingIcon?.invoke()
@@ -106,6 +114,7 @@ fun RowScope.FieldTextInput(
     placeholder: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
@@ -113,7 +122,7 @@ fun RowScope.FieldTextInput(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
+        singleLine = singleLine,
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
         textStyle = fieldValueTextStyle(),
