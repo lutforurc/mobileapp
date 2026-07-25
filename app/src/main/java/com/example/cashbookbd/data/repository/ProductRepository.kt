@@ -2,6 +2,8 @@ package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
+import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -33,6 +35,27 @@ data class NewUnit(
     val name: String,
     val shortName: String,
     val description: String,
+)
+
+/** The dropdown choices the Add Product form needs, loaded from the DDLs. */
+data class ProductFormOptions(
+    val categories: List<SelectorOption>,
+    val units: List<SelectorOption>,
+    val productTypes: List<SelectorOption>,
+    val brands: List<SelectorOption>,
+)
+
+/** The fields the Add Product form collects (web's "New Product"). */
+data class NewProduct(
+    val categoryId: String,
+    val productType: String,
+    val name: String,
+    val description: String,
+    val purchasePrice: String,
+    val salesPrice: String,
+    val unitId: String,
+    /** Brand (manufacturer) — optional; blank means none. */
+    val brandId: String,
 )
 
 /**
@@ -143,6 +166,96 @@ class ProductRepository(
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }
+    }
+
+    /**
+     * Loads the Add Product dropdowns: category, unit and product-type from the
+     * category DDL (which bundles all three), and brands from the brand DDL.
+     * Brands are best-effort — the product's brand is optional, so a brand-DDL
+     * failure still yields a usable form.
+     */
+    suspend fun loadProductFormOptions(): Resource<ProductFormOptions> = withContext(ioDispatcher) {
+        try {
+            val ddl = api.get("category/category-ddl", emptyMap())
+            if (ddl.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val ddlJson = ddl.jsonBody()
+            if (ddlJson?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!ddl.isSuccessful && ddl.code() != 201)
+            ) {
+                return@withContext Resource.Error(
+                    ddlJson?.message() ?: "Server error (${ddl.code()}). Please try again later."
+                )
+            }
+            val payload = ddlJson?.getAsJsonObject("data")?.getAsJsonObject("data")
+            val categories = payload.optionsAt("category")
+            val units = payload.optionsAt("unit")
+            val productTypes = payload.optionsAt("product_type")
+
+            // Brands: separate DDL, whose payload is an array at data.data.
+            val brands = runCatching {
+                val brandResp = api.get("product/brand/ddl", emptyMap())
+                brandResp.jsonBody()?.getAsJsonObject("data")?.get("data")
+                    ?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()
+            }.getOrDefault(emptyList())
+
+            Resource.Success(ProductFormOptions(categories, units, productTypes, brands))
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** Creates a product (`product/store`). Brand and description are optional. */
+    suspend fun storeProduct(product: NewProduct): Resource<String> = withContext(ioDispatcher) {
+        val body = buildMap {
+            put("category_id", product.categoryId)
+            put("product_type", product.productType)
+            put("name", product.name.trim())
+            put("purchase_price", product.purchasePrice.trim())
+            put("sales_price", product.salesPrice.trim())
+            put("unit_id", product.unitId)
+            product.description.trim().takeIf { it.isNotEmpty() }?.let { put("description", it) }
+            product.brandId.takeIf { it.isNotBlank() }?.let { put("manufacture_id", it) }
+        }
+        try {
+            val response = api.post("product/store", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            // A duplicate name / validation failure arrives as success:false.
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Product saved successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** Maps the `[key]` array of a DDL payload to dropdown options ({id, name}). */
+    private fun JsonObject?.optionsAt(key: String): List<SelectorOption> =
+        this?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()
+
+    /** Maps a DDL array of `{id, name}` rows to [SelectorOption]s. */
+    private fun JsonArray.toOptions(): List<SelectorOption> = mapNotNull { element ->
+        val obj = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+        val id = obj.get("id")?.takeUnless { it.isJsonNull }?.asString ?: return@mapNotNull null
+        val label = obj.get("name")?.takeUnless { it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } ?: id
+        SelectorOption(id, label)
     }
 
     /** The response JSON, from body() or a non-2xx errorBody(). */

@@ -315,6 +315,7 @@ object AppLists {
             ),
             anyOf = listOf("products.view"),
             paginated = true,
+            addAction = ListAddAction(label = "New Product", route = Routes.PRODUCT_ADD),
         ),
         AppListSpec(
             key = "productUnit",
