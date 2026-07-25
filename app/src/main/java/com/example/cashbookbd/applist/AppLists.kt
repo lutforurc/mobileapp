@@ -282,6 +282,7 @@ object AppLists {
             ),
             anyOf = listOf("brand.list"),
             paginated = true,
+            addAction = ListAddAction(label = "New Brand", route = Routes.BRAND_ADD),
         ),
         AppListSpec(
             key = "categoryList",
@@ -296,6 +297,7 @@ object AppLists {
             ),
             anyOf = listOf("category.view"),
             paginated = true,
+            addAction = ListAddAction(label = "New Category", route = Routes.CATEGORY_ADD),
         ),
         AppListSpec(
             key = "productList",
@@ -328,6 +330,7 @@ object AppLists {
             ),
             anyOf = listOf("product.unit"),
             paginated = true,
+            addAction = ListAddAction(label = "New Unit", route = Routes.UNIT_ADD),
         ),
 
         // ---- Subscription ----

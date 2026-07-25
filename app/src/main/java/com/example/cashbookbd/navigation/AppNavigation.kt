@@ -52,6 +52,9 @@ import com.example.cashbookbd.ui.customer.AddCustomerScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.customer.CustomerListScreen
 import com.example.cashbookbd.ui.customer.EditCustomerScreen
+import com.example.cashbookbd.ui.products.AddBrandScreen
+import com.example.cashbookbd.ui.products.AddCategoryScreen
+import com.example.cashbookbd.ui.products.AddUnitScreen
 import com.example.cashbookbd.ui.products.ProductsHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
@@ -203,6 +206,15 @@ object Routes {
 
     // Products section (master lists: Brand / Category / Product / Unit)
     const val PRODUCTS = "products/home"
+
+    /** Add Brand form, opened from the Brand List's "New Brand" button. */
+    const val BRAND_ADD = "products/brand/add"
+
+    /** Add Category form, opened from the Category List's "New Category" button. */
+    const val CATEGORY_ADD = "products/category/add"
+
+    /** Add Unit form, opened from the Product Unit list's "New Unit" button. */
+    const val UNIT_ADD = "products/unit/add"
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
@@ -650,6 +662,33 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.PRODUCTS) {
             PermissionGate(anyOf = ProductsMenu.all.flatMap { it.anyOf }) {
                 ProductsHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.BRAND_ADD) {
+            PermissionGate(anyOf = listOf("brand.list")) {
+                AddBrandScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.CATEGORY_ADD) {
+            PermissionGate(anyOf = listOf("category.view")) {
+                AddCategoryScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.UNIT_ADD) {
+            PermissionGate(anyOf = listOf("product.unit")) {
+                AddUnitScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
