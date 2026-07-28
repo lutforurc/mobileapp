@@ -105,6 +105,22 @@ data class BrandPalette(
      * the web report's CUSTOMER_COLORS cycle.
      */
     val customerCycle: List<Color>,
+    /**
+     * The Building Layout's unit-tile gradients by status (1 Available emerald,
+     * 2 Under Dev amber, 3 Completed sky, 4 Sold violet, 0 unknown slate) —
+     * the web viewer's tile colours, identical in both themes; tiles always
+     * carry [onGradient] ink.
+     */
+    val unitStatus: Map<Int, List<Color>>,
+)
+
+/** The web FlatLayout's tile gradients, shared by both palettes. */
+private val UnitStatusGradients: Map<Int, List<Color>> = mapOf(
+    1 to listOf(Color(0xFF34D399), Color(0xFF10B981), Color(0xFF0F766E)),
+    2 to listOf(Color(0xFFFBBF24), Color(0xFFF59E0B), Color(0xFFB45309)),
+    3 to listOf(Color(0xFF38BDF8), Color(0xFF0EA5E9), Color(0xFF1D4ED8)),
+    4 to listOf(Color(0xFFA78BFA), Color(0xFF7C3AED), Color(0xFF4C1D95)),
+    0 to listOf(Color(0xFF94A3B8), Color(0xFF64748B), Color(0xFF334155)),
 )
 
 /**
@@ -168,6 +184,7 @@ val LightPalette = BrandPalette(
         Color(0xFF65A30D),
         Color(0xFFE11D48),
     ),
+    unitStatus = UnitStatusGradients,
 )
 
 /**
@@ -233,6 +250,7 @@ val DarkPalette = BrandPalette(
         Color(0xFFA3E635),
         Color(0xFFFB7185),
     ),
+    unitStatus = UnitStatusGradients,
 )
 
 /**

@@ -2,6 +2,9 @@ package com.example.cashbookbd.ui.realestate
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +17,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +61,8 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SummaryTile
+import com.example.cashbookbd.ui.theme.accents
+import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -86,17 +95,27 @@ data class LayoutSummary(
     val completed: Int = 0,
 )
 
+/** The web's Building/Grid switch — building elevation vs per-floor cards. */
+enum class LayoutViewMode { BUILDING, GRID }
+
 data class FlatLayoutUiState(
     val building: SelectorOption? = null,
     val layout: BuildingLayout? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val selectedUnit: BuildingUnit? = null,
+    val viewMode: LayoutViewMode = LayoutViewMode.BUILDING,
+    /** The floor tab strip's pick; null = All Floors. */
+    val selectedFloor: Int? = null,
     val sessionExpired: Boolean = false,
 ) {
     /** Floors top-down: highest floor first, ground (1) last — like a building. */
     val sortedFloors: List<LayoutFloor>
         get() = layout?.floors.orEmpty().sortedByDescending { it.floorNo }
+
+    /** The floors the tab strip lets through. */
+    val floorsToShow: List<LayoutFloor>
+        get() = sortedFloors.filter { selectedFloor == null || it.floorNo == selectedFloor }
 
     val summary: LayoutSummary
         get() {
@@ -143,7 +162,10 @@ class FlatLayoutViewModel(
         val id = option.id.toIntOrNull() ?: return
         if (_uiState.value.building?.id == option.id) return
         _uiState.update {
-            it.copy(building = option, layout = null, error = null, selectedUnit = null, isLoading = true)
+            it.copy(
+                building = option, layout = null, error = null, selectedUnit = null,
+                selectedFloor = null, isLoading = true,
+            )
         }
         viewModelScope.launch {
             when (val result = repository.getBuildingLayout(id)) {
@@ -165,6 +187,8 @@ class FlatLayoutViewModel(
 
     fun onUnitClicked(unit: BuildingUnit) = _uiState.update { it.copy(selectedUnit = unit) }
     fun onUnitDialogDismissed() = _uiState.update { it.copy(selectedUnit = null) }
+    fun onViewModeChange(mode: LayoutViewMode) = _uiState.update { it.copy(viewMode = mode) }
+    fun onFloorSelected(floorNo: Int?) = _uiState.update { it.copy(selectedFloor = floorNo) }
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
@@ -247,7 +271,22 @@ fun FlatLayoutScreen(
 
                 else -> {
                     SummaryTiles(state.summary)
-                    state.sortedFloors.forEach { floor -> FloorCard(floor, viewModel::onUnitClicked) }
+                    FloorTabStrip(
+                        floors = state.sortedFloors,
+                        totalUnits = state.summary.units,
+                        selectedFloor = state.selectedFloor,
+                        onFloorSelected = viewModel::onFloorSelected,
+                    )
+                    ViewModeToggle(mode = state.viewMode, onChange = viewModel::onViewModeChange)
+                    when (state.viewMode) {
+                        LayoutViewMode.BUILDING -> BuildingElevation(
+                            buildingName = state.layout?.building.orEmpty(),
+                            floors = state.floorsToShow,
+                            onUnitClick = viewModel::onUnitClicked,
+                        )
+                        LayoutViewMode.GRID ->
+                            state.floorsToShow.forEach { floor -> FloorCard(floor, viewModel::onUnitClicked) }
+                    }
                 }
             }
         }
@@ -258,25 +297,34 @@ fun FlatLayoutScreen(
     }
 }
 
-/** Floors / Units / Available / Sold / Under Dev / Completed, two rows of three. */
+/**
+ * Floors / Total Units / Available / Sold / Under Dev / Completed — the web's
+ * six stat cards, each figure in its own accent colour.
+ */
 @Composable
 private fun SummaryTiles(summary: LayoutSummary) {
+    val accents = MaterialTheme.accents
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CountTile("Floors", summary.floors, Modifier.weight(1f))
-            CountTile("Units", summary.units, Modifier.weight(1f))
-            CountTile("Available", summary.available, Modifier.weight(1f))
+            CountTile("Floors", summary.floors, accents.purple, Modifier.weight(1f))
+            CountTile("Total Units", summary.units, accents.blue, Modifier.weight(1f))
+            CountTile("Available", summary.available, accents.green, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CountTile("Sold", summary.sold, Modifier.weight(1f))
-            CountTile("Under Dev", summary.underDev, Modifier.weight(1f))
-            CountTile("Completed", summary.completed, Modifier.weight(1f))
+            CountTile("Sold", summary.sold, accents.red, Modifier.weight(1f))
+            CountTile("Under Dev", summary.underDev, accents.amber, Modifier.weight(1f))
+            CountTile("Completed", summary.completed, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun CountTile(label: String, count: Int, modifier: Modifier = Modifier) {
+private fun CountTile(
+    label: String,
+    count: Int,
+    tint: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
     SummaryTile(modifier = modifier) {
         Text(
             text = label,
@@ -289,6 +337,263 @@ private fun CountTile(label: String, count: Int, modifier: Modifier = Modifier) 
             text = count.toString(),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
+            color = tint,
+        )
+    }
+}
+
+/**
+ * The web's floor tab strip: "All Floors" plus one pill per floor, each with a
+ * unit-count badge; scrolls sideways on a phone.
+ */
+@Composable
+private fun FloorTabStrip(
+    floors: List<LayoutFloor>,
+    totalUnits: Int,
+    selectedFloor: Int?,
+    onFloorSelected: (Int?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FloorTab(
+            label = "All Floors",
+            count = totalUnits,
+            selected = selectedFloor == null,
+            onClick = { onFloorSelected(null) },
+        )
+        // Tabs run ground-up like the web strip.
+        floors.sortedBy { it.floorNo }.forEach { floor ->
+            FloorTab(
+                label = "Floor ${floor.floorNo}",
+                count = floor.flats.sumOf { it.units.size },
+                selected = selectedFloor == floor.floorNo,
+                onClick = { onFloorSelected(floor.floorNo) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FloorTab(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = if (selected) scheme.primary else scheme.surfaceContainerHigh,
+        contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = LocalContentColorFraction(),
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+            }
+        }
+    }
+}
+
+/** The count badge's soft backdrop, derived from the pill's own ink. */
+@Composable
+private fun LocalContentColorFraction() =
+    androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.15f)
+
+/** The web's Building / Grid segmented switch, right-aligned. */
+@Composable
+private fun ViewModeToggle(mode: LayoutViewMode, onChange: (LayoutViewMode) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = scheme.surfaceContainerHigh,
+        ) {
+            Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                ViewModeSegment("Building", mode == LayoutViewMode.BUILDING) {
+                    onChange(LayoutViewMode.BUILDING)
+                }
+                ViewModeSegment("Grid", mode == LayoutViewMode.GRID) {
+                    onChange(LayoutViewMode.GRID)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ViewModeSegment(label: String, selected: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) scheme.primary else scheme.surfaceContainerHigh,
+        contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Building view — the web's elevation: nameplate, rooftop, floors stacked
+// top-down, each with its numbered left rail and gradient unit tiles.
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BuildingElevation(
+    buildingName: String,
+    floors: List<LayoutFloor>,
+    onUnitClick: (BuildingUnit) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Nameplate + rooftop.
+            if (buildingName.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = scheme.secondaryContainer,
+                    contentColor = scheme.onSecondaryContainer,
+                ) {
+                    Text(
+                        text = buildingName.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .background(scheme.surfaceContainerHighest),
+            )
+
+            floors.forEachIndexed { index, floor ->
+                if (index > 0) {
+                    HorizontalDivider(
+                        color = scheme.outlineVariant,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+                FloorRow(floor = floor, onUnitClick = onUnitClick)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FloorRow(floor: LayoutFloor, onUnitClick: (BuildingUnit) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val units = floor.flats.flatMap { it.units }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The numbered left rail: floor circle, caption and unit-count badge.
+        Column(
+            modifier = Modifier.width(56.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Surface(shape = CircleShape, color = scheme.surfaceContainerHighest) {
+                Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = floor.floorNo.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Text(
+                text = if (floor.floorNo == 1) "GROUND" else "FLOOR",
+                style = MaterialTheme.typography.labelSmall,
+                color = scheme.onSurfaceVariant,
+            )
+            Surface(shape = CircleShape, color = MaterialTheme.accents.green) {
+                Text(
+                    text = units.size.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.brand.onGradient,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            units.forEach { unit -> GradientUnitTile(unit, onUnitClick) }
+        }
+    }
+}
+
+/**
+ * A gradient unit tile — the web viewer's status colours from
+ * [com.example.cashbookbd.ui.theme.BrandPalette.unitStatus], always with the
+ * on-gradient ink; parking swaps the status caption for "Parking".
+ */
+@Composable
+private fun GradientUnitTile(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit) {
+    val brand = MaterialTheme.brand
+    val colors = brand.unitStatus[unit.status] ?: brand.unitStatus.getValue(0)
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Brush.verticalGradient(colors))
+            .clickable { onClick(unit) }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = unit.unitNo,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = brand.onGradient,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = if (unit.isParking) "PARKING" else statusLabel(unit.status).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = brand.onGradient.copy(alpha = 0.85f),
+            maxLines = 1,
         )
     }
 }
