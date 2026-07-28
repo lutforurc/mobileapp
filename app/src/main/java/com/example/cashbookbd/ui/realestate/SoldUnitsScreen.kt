@@ -2,15 +2,21 @@ package com.example.cashbookbd.ui.realestate
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,12 +43,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.SoldUnitCustomer
 import com.example.cashbookbd.data.repository.SoldUnitsReport
 import com.example.cashbookbd.data.repository.SoldUnitsTotals
+import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -338,10 +347,7 @@ fun SoldUnitsScreen(
                 else -> {
                     val report = state.report!!
                     SoldUnitsSummaryTiles(report.totals)
-                    report.customers.forEach { customer ->
-                        SoldUnitCustomerCard(customer)
-                    }
-                    SoldUnitsGrandTotal(report.totals)
+                    SoldUnitsTable(report)
                 }
             }
         }
@@ -352,7 +358,7 @@ fun SoldUnitsScreen(
 // Summary tiles
 // ---------------------------------------------------------------------------
 
-/** Customers / Sold Units / Sold Parking / Sale Value / Received / Due. */
+/** The web's 7 cards: counts, then Parking/Sale Value, then Received/Due. */
 @Composable
 private fun SoldUnitsSummaryTiles(totals: SoldUnitsTotals) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -362,7 +368,10 @@ private fun SoldUnitsSummaryTiles(totals: SoldUnitsTotals) {
             SummaryFigure("Sold Parking", countOrDash(totals.parkingCount), Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SummaryFigure("Parking Value", AmountFormat.formatOrDash(totals.parkingAmount), Modifier.weight(1f))
             SummaryFigure("Sale Value", AmountFormat.formatOrDash(totals.totalAmount), Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SummaryFigure("Received", AmountFormat.formatOrDash(totals.receivedAmount), Modifier.weight(1f))
             SummaryFigure("Due", AmountFormat.formatOrDash(totals.dueAmount), Modifier.weight(1f))
         }
@@ -390,28 +399,141 @@ private fun SummaryFigure(label: String, value: String, modifier: Modifier = Mod
 }
 
 // ---------------------------------------------------------------------------
-// Customer cards
+// Customer-wise table (the web's merged-cell report, colour-cycled per buyer)
 // ---------------------------------------------------------------------------
 
+// Fixed column widths; the table scrolls horizontally like the other reports.
+private val COL_SL = 40.dp
+private val COL_CUSTOMER = 170.dp
+private val COL_LINE = 190.dp
+private val COL_AMOUNT = 100.dp
+private val COL_TOTAL = 120.dp
+private val COL_RECEIVED = 100.dp
+private val COL_DUE = 100.dp
+
+// Five 1dp vertical grid rules sit between the body cells; the header and
+// footer rows carry matching spacers so every column lines up.
+private val TABLE_WIDTH =
+    COL_SL + COL_CUSTOMER + COL_LINE + COL_AMOUNT + COL_TOTAL + COL_RECEIVED + COL_DUE + 5.dp
+
 /**
- * One customer's block: the stacked header (name / address / mobile), a compact
- * row per priced line, and the Total / Received / Due footer. Drawn on the
- * screen backdrop with the same faded grid lines the report tables use.
+ * The web report verbatim: a Sl | Customer | Unit / Parking | Amount | Total |
+ * Received | Due table where each buyer's rows form one block outlined in the
+ * cycling customer colour, the Sl/Customer cells are tinted with it, and each
+ * sale's Total/Received/Due merge over that sale's charge lines.
  */
 @Composable
-private fun SoldUnitCustomerCard(customer: SoldUnitCustomer) {
-    val onScreen = MaterialTheme.colorScheme.onBackground
-    val gridLine = onScreen.copy(alpha = 0.3f)
+private fun SoldUnitsTable(report: SoldUnitsReport) {
+    val hScroll = rememberScrollState()
+    val gridLine = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+    val cycle = MaterialTheme.brand.customerCycle
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // Header
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(hScroll),
+    ) {
+        SoldUnitsHeaderRow()
+        report.customers.forEachIndexed { index, customer ->
+            SoldUnitCustomerBlock(
+                customer = customer,
+                index = index,
+                accent = cycle[index % cycle.size],
+                gridLine = gridLine,
+            )
+        }
+        SoldUnitsGrandTotalRow(report.totals)
+    }
+}
+
+@Composable
+private fun SoldUnitsHeaderRow() {
+    Row(
+        modifier = Modifier
+            .width(TABLE_WIDTH)
+            .background(MaterialTheme.colorScheme.primary)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HeaderCell("Sl", COL_SL, TextAlign.Center)
+        Spacer(Modifier.width(1.dp))
+        HeaderCell("Customer", COL_CUSTOMER, TextAlign.Start)
+        Spacer(Modifier.width(1.dp))
+        HeaderCell("Unit / Parking", COL_LINE, TextAlign.Start)
+        HeaderCell("Amount", COL_AMOUNT, TextAlign.End)
+        Spacer(Modifier.width(1.dp))
+        HeaderCell("Total", COL_TOTAL, TextAlign.End)
+        Spacer(Modifier.width(1.dp))
+        HeaderCell("Received", COL_RECEIVED, TextAlign.End)
+        Spacer(Modifier.width(1.dp))
+        HeaderCell("Due", COL_DUE, TextAlign.End)
+    }
+}
+
+@Composable
+private fun HeaderCell(text: String, width: Dp, align: TextAlign) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onPrimary,
+        textAlign = align,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(width).padding(horizontal = 6.dp),
+    )
+}
+
+/**
+ * One buyer's block: Sl and Customer merge over every line, each sale's
+ * Total/Received/Due merge over its own lines, and the whole block wears the
+ * customer colour as its outline with a tint behind the merged cells.
+ */
+@Composable
+private fun SoldUnitCustomerBlock(
+    customer: SoldUnitCustomer,
+    index: Int,
+    accent: Color,
+    gridLine: Color,
+) {
+    val onScreen = MaterialTheme.colorScheme.onBackground
+    val tint = accent.copy(alpha = 0.10f)
+
+    Row(
+        modifier = Modifier
+            .width(TABLE_WIDTH)
+            .height(IntrinsicSize.Min)
+            .border(width = 2.dp, color = accent),
+    ) {
+        // Sl — merged, tinted, numbered in the block colour.
+        Box(
+            modifier = Modifier.width(COL_SL).fillMaxHeight().background(tint),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = (index + 1).toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = accent,
+            )
+        }
+        VLine(gridLine)
+
+        // Customer — merged: name / address / mobile.
+        Column(
+            modifier = Modifier
+                .width(COL_CUSTOMER)
+                .fillMaxHeight()
+                .background(tint)
+                .padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
             Text(
                 text = customer.customerName,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = onScreen,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
             if (customer.customerAddress.isNotBlank()) {
@@ -433,16 +555,35 @@ private fun SoldUnitCustomerCard(customer: SoldUnitCustomer) {
                 )
             }
         }
-        HorizontalDivider(color = gridLine)
+        VLine(gridLine)
 
-        // One row per priced line of every unit sale.
-        customer.units.forEach { unit ->
-            unit.lines.forEach { line ->
+        // One sale per band: its charge lines beside its merged totals.
+        Column(modifier = Modifier.fillMaxHeight()) {
+            customer.units.forEachIndexed { saleIndex, sale ->
+                if (saleIndex > 0) HorizontalDivider(color = gridLine, modifier = Modifier.fillMaxWidth())
+                SoldUnitSaleBand(sale = sale, gridLine = gridLine)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SoldUnitSaleBand(
+    sale: com.example.cashbookbd.data.repository.SoldUnitSale,
+    gridLine: Color,
+) {
+    val onScreen = MaterialTheme.colorScheme.onBackground
+
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        // Charge lines: caption + place | amount, a faded rule between lines.
+        Column(modifier = Modifier.width(COL_LINE + COL_AMOUNT)) {
+            sale.lines.forEachIndexed { lineIndex, line ->
+                if (lineIndex > 0) HorizontalDivider(color = gridLine)
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.width(COL_LINE).padding(horizontal = 6.dp)) {
                         Text(
                             text = line.caption.ifBlank { "-" },
                             style = MaterialTheme.typography.bodySmall,
@@ -465,100 +606,117 @@ private fun SoldUnitCustomerCard(customer: SoldUnitCustomer) {
                         style = MaterialTheme.typography.bodySmall,
                         color = onScreen,
                         textAlign = TextAlign.End,
+                        modifier = Modifier.width(COL_AMOUNT).padding(horizontal = 6.dp),
                     )
                 }
-                HorizontalDivider(color = gridLine)
             }
         }
+        VLine(gridLine)
 
-        // Footer: Total (sale date + receipt no) / Received / Due.
-        val saleInfo = customer.units
-            .map { unit ->
-                listOf(displayDate(unit.saleDate), unit.receiptNo)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" • ")
-            }
-            .filter { it.isNotBlank() }
-            .joinToString(", ")
-        CustomerFooterRow("Total", saleInfo, customer.totalAmount, onScreen)
-        HorizontalDivider(color = gridLine)
-        CustomerFooterRow("Received", null, customer.receivedAmount, onScreen)
-        HorizontalDivider(color = gridLine)
-        CustomerFooterRow("Due", null, customer.dueAmount, onScreen)
-        HorizontalDivider(color = gridLine, thickness = 2.dp)
-    }
-}
-
-@Composable
-private fun CustomerFooterRow(
-    label: String,
-    sub: String?,
-    amount: Double,
-    onScreen: androidx.compose.ui.graphics.Color,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
+        // Total — merged over the sale's lines, with sale date | receipt below.
+        Column(
+            modifier = Modifier.width(COL_TOTAL).fillMaxHeight().padding(horizontal = 6.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.End,
+        ) {
             Text(
-                text = label,
+                text = AmountFormat.formatOrDash(sale.totalAmount),
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold,
                 color = onScreen,
+                textAlign = TextAlign.End,
             )
-            if (!sub.isNullOrBlank()) {
+            val saleInfo = listOf(displayDate(sale.saleDate), sale.receiptNo)
+                .filter { it.isNotBlank() }
+                .joinToString(" | ")
+            if (saleInfo.isNotBlank()) {
                 Text(
-                    text = sub,
+                    text = saleInfo,
                     style = MaterialTheme.typography.labelSmall,
                     color = onScreen.copy(alpha = 0.75f),
-                    maxLines = 2,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        Text(
-            text = AmountFormat.formatOrDash(amount),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
-            color = onScreen,
-            textAlign = TextAlign.End,
-        )
+        VLine(gridLine)
+
+        Box(
+            modifier = Modifier.width(COL_RECEIVED).fillMaxHeight().padding(horizontal = 6.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Text(
+                text = AmountFormat.formatOrDash(sale.receivedAmount),
+                style = MaterialTheme.typography.bodySmall,
+                color = onScreen,
+                textAlign = TextAlign.End,
+            )
+        }
+        VLine(gridLine)
+
+        Box(
+            modifier = Modifier.width(COL_DUE).fillMaxHeight().padding(horizontal = 6.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Text(
+                text = AmountFormat.formatOrDash(sale.dueAmount),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = onScreen,
+                textAlign = TextAlign.End,
+            )
+        }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Grand total
-// ---------------------------------------------------------------------------
-
+/** The web's tfoot: label spanning the left columns, then the three totals. */
 @Composable
-private fun SoldUnitsGrandTotal(totals: SoldUnitsTotals) {
-    SummaryTile(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Grand Total",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        GrandTotalLine("Sale Value", totals.totalAmount)
-        GrandTotalLine("Received", totals.receivedAmount)
-        GrandTotalLine("Due", totals.dueAmount)
-    }
-}
-
-@Composable
-private fun GrandTotalLine(label: String, value: Double) {
+private fun SoldUnitsGrandTotalRow(totals: SoldUnitsTotals) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .width(TABLE_WIDTH)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall)
+        val ink = MaterialTheme.colorScheme.onSecondaryContainer
         Text(
-            text = AmountFormat.formatOrDash(value),
-            style = MaterialTheme.typography.bodySmall,
+            text = "Grand Total (${totals.customerCount} customer, ${totals.unitCount} unit, ${totals.parkingCount} parking)",
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
+            color = ink,
+            textAlign = TextAlign.End,
+            modifier = Modifier
+                .width(COL_SL + COL_CUSTOMER + COL_LINE + COL_AMOUNT + 2.dp)
+                .padding(horizontal = 6.dp),
         )
+        Spacer(Modifier.width(1.dp))
+        GrandTotalCell(AmountFormat.formatOrDash(totals.totalAmount), COL_TOTAL, ink)
+        Spacer(Modifier.width(1.dp))
+        GrandTotalCell(AmountFormat.formatOrDash(totals.receivedAmount), COL_RECEIVED, ink)
+        Spacer(Modifier.width(1.dp))
+        GrandTotalCell(AmountFormat.formatOrDash(totals.dueAmount), COL_DUE, ink)
     }
+}
+
+@Composable
+private fun GrandTotalCell(text: String, width: Dp, ink: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = ink,
+        textAlign = TextAlign.End,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(width).padding(horizontal = 6.dp),
+    )
+}
+
+/** A 1dp vertical grid rule inside an [IntrinsicSize.Min] row. */
+@Composable
+private fun VLine(color: Color) {
+    Box(Modifier.width(1.dp).fillMaxHeight().background(color))
 }
 
 // ---------------------------------------------------------------------------

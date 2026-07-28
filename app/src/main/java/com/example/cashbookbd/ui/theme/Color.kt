@@ -99,6 +99,12 @@ data class BrandPalette(
      * red stays the pure #FF0000 the owner asked for in either mode.
      */
     val highlight: Map<String, Color>,
+    /**
+     * Cycling outline colours for per-customer blocks in grouped reports (Sold
+     * Units): each buyer's rows read as one coloured group, colour by position —
+     * the web report's CUSTOMER_COLORS cycle.
+     */
+    val customerCycle: List<Color>,
 )
 
 /**
@@ -149,6 +155,18 @@ val LightPalette = BrandPalette(
         "purple" to Color(0xFFA855F7),
         "pink" to Color(0xFFEC4899),
         "gray" to Color(0xFF6B7280),
+    ),
+    // The web report's cycle verbatim: blue, emerald, amber, violet, pink,
+    // cyan, lime, rose.
+    customerCycle = listOf(
+        Color(0xFF2563EB),
+        Color(0xFF059669),
+        Color(0xFFD97706),
+        Color(0xFF7C3AED),
+        Color(0xFFDB2777),
+        Color(0xFF0891B2),
+        Color(0xFF65A30D),
+        Color(0xFFE11D48),
     ),
 )
 
@@ -203,6 +221,17 @@ val DarkPalette = BrandPalette(
         "purple" to Color(0xFFC084FC),
         "pink" to Color(0xFFF472B6),
         "gray" to Color(0xFF9CA3AF),
+    ),
+    // The same cycle, one step lighter so the outlines carry on dark surfaces.
+    customerCycle = listOf(
+        Color(0xFF60A5FA),
+        Color(0xFF34D399),
+        Color(0xFFFBBF24),
+        Color(0xFFA78BFA),
+        Color(0xFFF472B6),
+        Color(0xFF22D3EE),
+        Color(0xFFA3E635),
+        Color(0xFFFB7185),
     ),
 )
 
