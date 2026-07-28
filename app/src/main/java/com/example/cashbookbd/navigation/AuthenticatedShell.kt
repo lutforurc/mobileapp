@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -62,6 +63,7 @@ import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
+import com.example.cashbookbd.realestate.RealEstateMenu
 import com.example.cashbookbd.requisition.RequisitionMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
@@ -137,6 +139,10 @@ fun AuthenticatedShell(
     val canHrm = HrmMenu.hasParentAccess(sessionState.permissions)
     // The "Requisition" section is shown when the user has any requisition permission.
     val canRequisition = RequisitionMenu.hasParentAccess(sessionState.permissions)
+    // "Real Estate" shows only for business type 9 branches with the section
+    // permission — the same condition as the web sidebar.
+    val canRealEstate = RealEstateMenu.hasParentAccess(sessionState.permissions) &&
+        RealEstateMenu.visibleForBranch(sessionState.settings?.businessTypeId)
     // The "Customers" section is shown when the user has any customer permission.
     val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
     // The "Products" section is shown when the user has any products-list permission.
@@ -179,6 +185,7 @@ fun AuthenticatedShell(
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
                 canRequisition = canRequisition,
+                canRealEstate = canRealEstate,
                 canAdmin = canAdmin,
                 canHrm = canHrm,
                 canCustomers = canCustomers,
@@ -303,6 +310,7 @@ private fun AppDrawerContent(
     canInvoices: Boolean,
     canVrSettings: Boolean,
     canRequisition: Boolean,
+    canRealEstate: Boolean,
     canAdmin: Boolean,
     canHrm: Boolean,
     canCustomers: Boolean,
@@ -366,6 +374,11 @@ private fun AppDrawerContent(
             if (canRequisition) {
                 DrawerItem("Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS) {
                     onDestinationClick(Routes.REQUISITIONS)
+                }
+            }
+            if (canRealEstate) {
+                DrawerItem("Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE) {
+                    onDestinationClick(Routes.REAL_ESTATE)
                 }
             }
             if (canProducts) {

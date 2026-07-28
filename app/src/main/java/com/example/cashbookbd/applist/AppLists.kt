@@ -11,6 +11,11 @@ data class AppListColumn(
     val key: String,
     val label: String,
     val numeric: Boolean = false,
+    /**
+     * Maps a raw cell value to a display label ("1" -> "Active", "4" -> "Sold").
+     * A value with no entry falls through to the normal formatting.
+     */
+    val valueMap: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -49,6 +54,17 @@ data class ListEditAction(
 )
 
 /**
+ * A per-row delete bin, shown in the trailing "Action" column. Confirming posts
+ * an empty body to `{endpointBase}/{row [idKey]}` — the Real Estate module's
+ * POST-style delete endpoints. The server refuses deletes with dependants
+ * (e.g. an area that still has projects); its message is surfaced as-is.
+ */
+data class ListDeleteAction(
+    val endpointBase: String,
+    val idKey: String = "id",
+)
+
+/**
  * A list screen: fetch [endpoint] (with [params]) and render the returned rows as
  * a table of [columns]. The row array is located defensively (top-level array,
  * `data.data`, or a paginator's `data.data.data`). Read-only unless it declares a
@@ -71,6 +87,11 @@ data class AppListSpec(
     val addAction: ListAddAction? = null,
     /** When set, each row gets an edit pencil in the Action column. */
     val editAction: ListEditAction? = null,
+    /** When set, each row gets a delete bin (with confirm) in the Action column. */
+    val deleteAction: ListDeleteAction? = null,
+    /** Pagination key overrides — the check-register endpoint reads `perPage`. */
+    val pageParam: String = "page",
+    val perPageParam: String = "per_page",
     /**
      * Product List only: while the branch's "Opening ongoing" flag is on, each
      * row gets an opening stock entry (IMEI/qty/rate → `product/update-qty-rate`),
@@ -460,6 +481,161 @@ object AppLists {
             ),
             anyOf = listOf("warehouse.difference"),
             paginated = true,
+        ),
+
+        // ---- Real Estate (master data; every delete is refused server-side
+        // while dependants exist, and the message is shown verbatim) ----
+        AppListSpec(
+            key = "reAreas",
+            title = "Location",
+            endpoint = "real-estate/area/list",
+            method = ListMethod.GET,
+            // Plain root array — not paginated, no params.
+            columns = listOf(
+                AppListColumn("name", "Area Name"),
+                AppListColumn("branch.name", "Branch"),
+                AppListColumn("description", "Description"),
+            ),
+            anyOf = listOf("real.estate.view"),
+            addAction = ListAddAction(label = "New Location", route = Routes.reCrudAdd("reAreas")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reAreas"), idKey = "id"),
+            deleteAction = ListDeleteAction(endpointBase = "real-estate/area/delete"),
+        ),
+        AppListSpec(
+            key = "reProjects",
+            title = "Projects",
+            endpoint = "real-estate/projects/list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Project"),
+                AppListColumn("area_sqft", "Area (Sft)", numeric = true),
+                AppListColumn("area.name", "Location"),
+                AppListColumn("area.branch.name", "Branch"),
+            ),
+            anyOf = listOf("real.estate.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Project", route = Routes.reCrudAdd("reProjects")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reProjects"), idKey = "id"),
+            deleteAction = ListDeleteAction(endpointBase = "real-estate/projects/delete"),
+        ),
+        AppListSpec(
+            key = "reBuildings",
+            title = "Buildings",
+            endpoint = "real-estate/buildings/list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Building"),
+                AppListColumn("project.name", "Project"),
+                AppListColumn("project.area.name", "Location"),
+                AppListColumn("floors_count", "Floors", numeric = true),
+            ),
+            anyOf = listOf("real.estate.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Building", route = Routes.reCrudAdd("reBuildings")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reBuildings"), idKey = "id"),
+            deleteAction = ListDeleteAction(endpointBase = "real-estate/buildings/delete"),
+        ),
+        AppListSpec(
+            key = "reFloors",
+            title = "Floor List",
+            endpoint = "real-estate/flats/list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("floor_no", "Floor"),
+                AppListColumn("flat_name", "Flat Name"),
+                AppListColumn("building.name", "Building"),
+                AppListColumn("building.project.area.name", "Location"),
+                AppListColumn("total_units", "Units", numeric = true),
+                AppListColumn(
+                    "status", "Status",
+                    valueMap = mapOf("1" to "Active", "0" to "Inactive"),
+                ),
+            ),
+            anyOf = listOf("real.estate.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Floor", route = Routes.reCrudAdd("reFloors")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reFloors"), idKey = "id"),
+            deleteAction = ListDeleteAction(endpointBase = "real-estate/flats/delete"),
+        ),
+        AppListSpec(
+            key = "reUnits",
+            title = "Unit List",
+            endpoint = "real-estate/units/list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("unit_no", "Unit No"),
+                AppListColumn(
+                    "unit_type", "Type",
+                    valueMap = mapOf("unit" to "Unit", "parking" to "Parking"),
+                ),
+                AppListColumn("flat.flat_name", "Flat"),
+                AppListColumn("flat.building.name", "Building"),
+                AppListColumn("size_sqft", "Size (Sft)", numeric = true),
+                AppListColumn("sale_price", "Rate", numeric = true),
+                AppListColumn(
+                    "status", "Status",
+                    valueMap = mapOf(
+                        "0" to "Inactive",
+                        "1" to "Available",
+                        "2" to "Under Dev",
+                        "3" to "Completed",
+                        "4" to "Sold",
+                    ),
+                ),
+            ),
+            anyOf = listOf("real.estate.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Unit", route = Routes.reCrudAdd("reUnits")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reUnits"), idKey = "id"),
+            // The server refuses sold/allocated units with a clear message.
+            deleteAction = ListDeleteAction(endpointBase = "real-estate/units/delete"),
+        ),
+        AppListSpec(
+            key = "reChargeTypes",
+            title = "Charges",
+            endpoint = "real-estate/units/unit-charge-types/list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Charge Type"),
+                AppListColumn(
+                    "effect", "Effect",
+                    valueMap = mapOf("+" to "(+) Add", "-" to "(-) Subtract"),
+                ),
+                AppListColumn("notes", "Notes"),
+                AppListColumn(
+                    "is_active", "Status",
+                    valueMap = mapOf("true" to "Active", "false" to "Inactive"),
+                ),
+                AppListColumn("sort_order", "Sort", numeric = true),
+            ),
+            anyOf = listOf("real.estate.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Charge Type", route = Routes.reCrudAdd("reChargeTypes")),
+            editAction = ListEditAction(route = Routes.reCrudEditBase("reChargeTypes"), idKey = "id"),
+            // The backend has no charge-type delete endpoint.
+        ),
+        AppListSpec(
+            key = "reCheckRegister",
+            title = "Check Register",
+            endpoint = "real-estate/unit-sale/payments-list",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("payment_date", "Date"),
+                AppListColumn("receipt_no", "Receipt"),
+                AppListColumn("booking.payload.unit.label", "Unit"),
+                AppListColumn("booking.payload.customer.label", "Customer"),
+                AppListColumn("payment_mode", "Mode"),
+                AppListColumn("reference_no", "Ref No"),
+                AppListColumn("amount", "Amount", numeric = true),
+                AppListColumn("status", "Status"),
+                AppListColumn("cheque_collect_status", "Cheque"),
+            ),
+            anyOf = listOf("check.register.view"),
+            paginated = true,
+            // This endpoint reads camelCase `perPage` (and ignores per_page).
+            perPageParam = "perPage",
+            addAction = ListAddAction(label = "Add Payment", route = Routes.UNIT_PAYMENT_ADD),
+            editAction = ListEditAction(route = Routes.UNIT_PAYMENT_EDIT, idKey = "id"),
         ),
 
         // ---- Requisition ----

@@ -63,6 +63,7 @@ class AppListViewModel(
             hasStatusToggle = spec?.statusToggle != null,
             addAction = spec?.addAction,
             editAction = spec?.editAction,
+            deleteAction = spec?.deleteAction,
             openingEnabled = openingEnabled,
         )
     )
@@ -148,6 +149,48 @@ class AppListViewModel(
                         togglingIds = state.togglingIds - id,
                         actionMessage = result.message,
                         sessionExpired = state.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    // ---- Row delete (Real Estate master lists) ----
+
+    /** Opens the confirm dialog for [row]. */
+    fun requestDelete(row: AppListRow) {
+        if (row.deleteId == null) return
+        _uiState.update { it.copy(pendingDelete = row) }
+    }
+
+    fun cancelDelete() = _uiState.update { it.copy(pendingDelete = null) }
+
+    /**
+     * Deletes the pending row. The server may refuse (dependent rows) — its
+     * message is shown and the list is left untouched.
+     */
+    fun confirmDelete() {
+        val currentSpec = spec ?: return
+        val state = _uiState.value
+        val id = state.pendingDelete?.deleteId ?: return
+        if (state.isDeleting) return
+
+        _uiState.update { it.copy(isDeleting = true) }
+        viewModelScope.launch {
+            when (val result = repository.delete(currentSpec, id)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(isDeleting = false, pendingDelete = null, actionMessage = "Deleted.")
+                    }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isDeleting = false,
+                        pendingDelete = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
                     )
                 }
                 Resource.Loading -> Unit

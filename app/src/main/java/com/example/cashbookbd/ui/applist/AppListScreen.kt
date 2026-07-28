@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +51,8 @@ import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.products.ProductsMenu
+import com.example.cashbookbd.realestate.RealEstateMenu
+import com.example.cashbookbd.requisition.RequisitionMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.ui.components.AddButton
@@ -101,6 +104,8 @@ fun AppListScreen(
         ProductsMenu.byKey(listKey) != null -> Routes.PRODUCTS
         SubscriptionMenu.byKey(listKey) != null -> Routes.SUBSCRIPTION
         AdminMenu.byKey(listKey) != null -> Routes.ADMIN
+        RealEstateMenu.byKey(listKey) != null -> Routes.REAL_ESTATE
+        RequisitionMenu.byKey(listKey) != null -> Routes.REQUISITIONS
         else -> Routes.VR_SETTINGS
     }
 
@@ -143,6 +148,7 @@ fun AppListScreen(
                         val id = row.editId ?: return@ListBody
                         navController.navigate("${edit.route}/$id")
                     },
+                    onDelete = viewModel::requestDelete,
                     onOpeningEdit = viewModel::startOpeningEdit,
                 )
                 SnackbarHost(
@@ -158,6 +164,31 @@ fun AppListScreen(
 
     if (state.openingEdit != null) {
         OpeningStockDialog(state = state, viewModel = viewModel)
+    }
+
+    if (state.pendingDelete != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDelete,
+            title = { Text("Delete this record?") },
+            text = {
+                Text(
+                    // The first non-blank cell names the row being deleted.
+                    state.pendingDelete?.cells?.firstOrNull { it.isNotBlank() && it != "-" }
+                        ?.let { "\"$it\" will be deleted. This cannot be undone." }
+                        ?: "The record will be deleted. This cannot be undone.",
+                )
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Delete",
+                    onClick = viewModel::confirmDelete,
+                    enabled = !state.isDeleting,
+                    isLoading = state.isDeleting,
+                    compact = true,
+                )
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelDelete) },
+        )
     }
 }
 
@@ -320,6 +351,7 @@ private fun ListBody(
     onRetry: () -> Unit,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
     onEdit: (AppListRow) -> Unit,
+    onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
 ) {
     when {
@@ -343,10 +375,10 @@ private fun ListBody(
 
         else -> {
             val columns = remember(
-                state.columns, state.hasStatusToggle, state.editAction, state.togglingIds,
-                state.openingEnabled,
+                state.columns, state.hasStatusToggle, state.editAction, state.deleteAction,
+                state.togglingIds, state.openingEnabled,
             ) {
-                buildColumns(state, onToggleStatus, onEdit, onOpeningEdit)
+                buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit)
             }
             ReportTable(columns = columns, data = state.rows)
         }
@@ -361,6 +393,7 @@ private fun buildColumns(
     state: AppListUiState,
     onToggleStatus: (AppListRow, Boolean) -> Unit,
     onEdit: (AppListRow) -> Unit,
+    onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
 ): List<ReportColumn<AppListRow>> = buildList {
     add(
@@ -379,8 +412,12 @@ private fun buildColumns(
         )
     }
     val hasEdit = state.editAction != null
-    if (state.hasStatusToggle || hasEdit || state.openingEnabled) {
-        val width = if (hasEdit && state.hasStatusToggle) COL_ACTION_WITH_EDIT else COL_ACTION
+    val hasDelete = state.deleteAction != null
+    if (state.hasStatusToggle || hasEdit || hasDelete || state.openingEnabled) {
+        // Two icon buttons (or a button plus the toggle) need the wide column.
+        val actionCount = listOf(hasEdit, hasDelete, state.hasStatusToggle, state.openingEnabled)
+            .count { it }
+        val width = if (actionCount > 1) COL_ACTION_WITH_EDIT else COL_ACTION
         add(
             ReportColumn("Action", ReportColWidth.Fixed(width), TextAlign.Center) { row, _ ->
                 ReportTableCell.Slot {
@@ -415,6 +452,19 @@ private fun buildColumns(
                                     imageVector = Icons.Filled.Edit,
                                     contentDescription = "Set opening stock",
                                     tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (hasDelete) {
+                            IconButton(
+                                onClick = { onDelete(row) },
+                                enabled = row.deleteId != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = "Delete",
+                                    tint = MaterialTheme.colorScheme.error,
                                 )
                             }
                         }

@@ -28,6 +28,8 @@ data class AppListRow(
      * posts the raw numeric id while the edit endpoints resolve a hashed one.
      */
     val editId: String? = null,
+    /** The id the delete endpoint takes, when the spec declares a delete. */
+    val deleteId: String? = null,
     /** The opening-stock entry's raw fields, when the spec declares it. */
     val opening: OpeningStockRow? = null,
 )
@@ -76,7 +78,7 @@ class AppListRepository(
         perPage: Int = spec.perPage,
     ): Resource<AppListResult> = withContext(ioDispatcher) {
         val params = if (spec.paginated) {
-            spec.params + mapOf("page" to page.toString(), "per_page" to perPage.toString())
+            spec.params + mapOf(spec.pageParam to page.toString(), spec.perPageParam to perPage.toString())
         } else {
             spec.params
         }
@@ -159,6 +161,48 @@ class AppListRepository(
             }
         }
 
+    /**
+     * Deletes a row via the spec's [AppListSpec.deleteAction] — an empty POST to
+     * `{endpointBase}/{id}`. The server refuses dependent rows with a message
+     * ("There are N projects associated with this area…"), surfaced verbatim.
+     */
+    suspend fun delete(spec: AppListSpec, id: String): Resource<Unit> =
+        withContext(ioDispatcher) {
+            val action = spec.deleteAction
+                ?: return@withContext Resource.Error("This list has no delete action.")
+            try {
+                val response = api.post("${action.endpointBase}/$id", emptyMap())
+                when (response.code()) {
+                    HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.", isUnauthorized = true,
+                    )
+                    HTTP_FORBIDDEN -> return@withContext Resource.Error(
+                        "You do not have permission to delete this."
+                    )
+                }
+                if (!response.isSuccessful && response.code() != 201) {
+                    return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+                }
+                val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                val success = body?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+                if (success == false) {
+                    val message = body.get("message")?.takeUnless { it.isJsonNull }?.asString
+                    return@withContext Resource.Error(message ?: "Could not delete the record.")
+                }
+                Resource.Success(Unit)
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: HttpException) {
+                if (e.code() == HTTP_UNAUTHORIZED) {
+                    Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+                } else {
+                    Resource.Error("Server error (${e.code()}). Please try again later.")
+                }
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
     /** True when a non-2xx body is the backend's `notFound` envelope (empty result). */
     private fun isEmptyEnvelope(response: Response<JsonElement>): Boolean = try {
         val raw = response.errorBody()?.string()
@@ -192,13 +236,17 @@ class AppListRepository(
         val array = locateRows(payload) ?: return AppListResult(emptyList())
         val toggle = spec.statusToggle
         val edit = spec.editAction
+        val delete = spec.deleteAction
         val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             AppListRow(
-                cells = spec.columns.map { col -> format(dotGet(obj, col.key), numeric = col.numeric) },
+                cells = spec.columns.map { col ->
+                    format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap)
+                },
                 id = toggle?.let { dotGet(obj, it.idKey)?.asString },
                 statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,
                 editId = edit?.let { dotGet(obj, it.idKey)?.asString },
+                deleteId = delete?.let { dotGet(obj, it.idKey)?.asString },
                 opening = if (spec.openingStock) obj.toOpeningStockRow() else null,
             )
         }
@@ -267,12 +315,20 @@ class AppListRepository(
      * column may hold digits that are an identifier rather than a quantity
      * (mobile number, national ID), and those must survive verbatim.
      */
-    private fun format(element: JsonElement?, numeric: Boolean): String = when {
+    private fun format(
+        element: JsonElement?,
+        numeric: Boolean,
+        valueMap: Map<String, String> = emptyMap(),
+    ): String = when {
         element == null || element.isJsonNull -> "-"
         element.isJsonPrimitive -> {
             val text = element.asString
+            // Status-style codes ("1" -> "Active", "true" -> "Active") first —
+            // they are labels, not amounts.
+            val mapped = valueMap[text]
             val number = text.replace(",", "").toDoubleOrNull()
             when {
+                mapped != null -> mapped
                 number == null -> text
                 number == 0.0 -> "-"
                 numeric -> AmountFormat.format(number)

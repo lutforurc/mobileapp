@@ -87,6 +87,14 @@ import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
 import com.example.cashbookbd.ui.requisition.RequisitionFormScreen
 import com.example.cashbookbd.ui.requisition.RequisitionHomeScreen
 import com.example.cashbookbd.requisition.RequisitionMenu
+import com.example.cashbookbd.realestate.RealEstateMenu
+import com.example.cashbookbd.ui.realestate.FlatLayoutScreen
+import com.example.cashbookbd.ui.realestate.InstallmentCreateScreen
+import com.example.cashbookbd.ui.realestate.RealEstateCrudFormScreen
+import com.example.cashbookbd.ui.realestate.RealEstateHomeScreen
+import com.example.cashbookbd.ui.realestate.SoldUnitsScreen
+import com.example.cashbookbd.ui.realestate.UnitPaymentScreen
+import com.example.cashbookbd.ui.realestate.UnitSaleScreen
 
 object Routes {
     const val LOGIN = "login"
@@ -145,6 +153,29 @@ object Routes {
     // Requisition section
     const val REQUISITIONS = "requisition/home"
     const val REQUISITION_CREATE = "requisition/create"
+
+    // Real Estate section (business type 9 branches)
+    const val REAL_ESTATE = "realestate/home"
+    const val UNIT_SALE = "realestate/unit-sales"
+    const val SOLD_UNITS = "realestate/sold-units"
+    const val RE_INSTALLMENT_CREATE = "realestate/installment-create"
+    const val FLAT_LAYOUT = "realestate/layout"
+
+    /** Check Register payment entry; edit appends the payment id. */
+    const val UNIT_PAYMENT_ADD = "realestate/payment/add"
+    const val UNIT_PAYMENT_EDIT = "realestate/payment/edit"
+    const val UNIT_PAYMENT_ID_ARG = "paymentId"
+
+    // Config-driven Real Estate add/edit forms (areas … charge types).
+    const val RE_CRUD_ADD = "realestate/crud/{crudKey}/add"
+    const val RE_CRUD_EDIT = "realestate/crud/{crudKey}/edit/{crudId}"
+    const val RE_CRUD_KEY_ARG = "crudKey"
+    const val RE_CRUD_ID_ARG = "crudId"
+
+    fun reCrudAdd(key: String): String = "realestate/crud/$key/add"
+
+    /** Base for a list's pencil — the list appends "/{id}" itself. */
+    fun reCrudEditBase(key: String): String = "realestate/crud/$key/edit"
 
     // VR Settings section
     const val VR_SETTINGS = "vr-settings/home"
@@ -487,6 +518,101 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.REQUISITION_CREATE) {
             PermissionGate(anyOf = listOf("requisition.create")) {
                 RequisitionFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.REAL_ESTATE) {
+            PermissionGate(anyOf = RealEstateMenu.all.flatMap { it.anyOf }) {
+                RealEstateHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.UNIT_SALE) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.UNIT_SALES_KEY)) {
+                UnitSaleScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.SOLD_UNITS) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.SOLD_UNITS_KEY)) {
+                SoldUnitsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.RE_INSTALLMENT_CREATE) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.INSTALLMENT_CREATE_KEY)) {
+                InstallmentCreateScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.FLAT_LAYOUT) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.FLAT_LAYOUT_KEY)) {
+                FlatLayoutScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.UNIT_PAYMENT_ADD) {
+            PermissionGate(anyOf = listOf("check.register.view")) {
+                UnitPaymentScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.UNIT_PAYMENT_EDIT}/{${Routes.UNIT_PAYMENT_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("check.register.view")) {
+                UnitPaymentScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    paymentId = entry.arguments?.getString(Routes.UNIT_PAYMENT_ID_ARG),
+                )
+            }
+        }
+
+        composable(
+            route = Routes.RE_CRUD_ADD,
+            arguments = listOf(navArgument(Routes.RE_CRUD_KEY_ARG) { type = NavType.StringType }),
+        ) { entry ->
+            PermissionGate(anyOf = listOf("real.estate.view")) {
+                RealEstateCrudFormScreen(
+                    crudKey = entry.arguments?.getString(Routes.RE_CRUD_KEY_ARG).orEmpty(),
+                    crudId = null,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.RE_CRUD_EDIT,
+            arguments = listOf(
+                navArgument(Routes.RE_CRUD_KEY_ARG) { type = NavType.StringType },
+                navArgument(Routes.RE_CRUD_ID_ARG) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            PermissionGate(anyOf = listOf("real.estate.view")) {
+                RealEstateCrudFormScreen(
+                    crudKey = entry.arguments?.getString(Routes.RE_CRUD_KEY_ARG).orEmpty(),
+                    crudId = entry.arguments?.getString(Routes.RE_CRUD_ID_ARG),
                     navController = navController,
                     onLogout = backToLogin,
                 )

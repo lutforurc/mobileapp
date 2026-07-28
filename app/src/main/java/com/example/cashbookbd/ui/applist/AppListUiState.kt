@@ -2,6 +2,7 @@ package com.example.cashbookbd.ui.applist
 
 import com.example.cashbookbd.applist.AppListColumn
 import com.example.cashbookbd.applist.ListAddAction
+import com.example.cashbookbd.applist.ListDeleteAction
 import com.example.cashbookbd.applist.ListEditAction
 import com.example.cashbookbd.data.repository.AppListRow
 
@@ -32,6 +33,12 @@ data class AppListUiState(
     val addAction: ListAddAction? = null,
     /** The per-row edit pencil, when this list has an edit screen. */
     val editAction: ListEditAction? = null,
+    /** The per-row delete bin (with confirm), when this list allows deletes. */
+    val deleteAction: ListDeleteAction? = null,
+    /** The row awaiting delete confirmation; null when no dialog is open. */
+    val pendingDelete: AppListRow? = null,
+    /** True while a confirmed delete is in flight. */
+    val isDeleting: Boolean = false,
     /** Row ids whose status change is still in flight; their switch is disabled. */
     val togglingIds: Set<String> = emptySet(),
     /** One-shot message for a status change (success or failure). */

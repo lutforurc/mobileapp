@@ -45,6 +45,11 @@ import com.example.cashbookbd.data.repository.VrSettingsRepository
 import com.example.cashbookbd.data.repository.LabourInvoiceRepository
 import com.example.cashbookbd.data.repository.RequisitionRepository
 import com.example.cashbookbd.data.repository.InventoryMovementRepository
+import com.example.cashbookbd.data.remote.RealEstateApiService
+import com.example.cashbookbd.data.repository.RealEstateCrudRepository
+import com.example.cashbookbd.data.repository.UnitSaleRepository
+import com.example.cashbookbd.data.repository.UnitSalePaymentRepository
+import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.CoaRepository
 import com.example.cashbookbd.data.repository.VoucherHistoryRepository
 import com.example.cashbookbd.data.repository.SoftwareInfoRepository
@@ -130,6 +135,21 @@ object ServiceLocator {
 
     @Volatile
     private var inventoryMovementRepository: InventoryMovementRepository? = null
+
+    @Volatile
+    private var realEstateApiService: RealEstateApiService? = null
+
+    @Volatile
+    private var realEstateCrudRepository: RealEstateCrudRepository? = null
+
+    @Volatile
+    private var unitSaleRepository: UnitSaleRepository? = null
+
+    @Volatile
+    private var unitSalePaymentRepository: UnitSalePaymentRepository? = null
+
+    @Volatile
+    private var realEstateSalesRepository: RealEstateSalesRepository? = null
 
     @Volatile
     private var coaRepository: CoaRepository? = null
@@ -427,6 +447,42 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { labourInvoiceRepository = it }
+        }
+
+    private fun provideRealEstateApiService(context: Context): RealEstateApiService =
+        realEstateApiService ?: synchronized(this) {
+            realEstateApiService ?: provideRetrofit(context).create(RealEstateApiService::class.java)
+                .also { realEstateApiService = it }
+        }
+
+    fun provideRealEstateCrudRepository(context: Context): RealEstateCrudRepository =
+        realEstateCrudRepository ?: synchronized(this) {
+            realEstateCrudRepository ?: RealEstateCrudRepository(
+                api = provideRealEstateApiService(context),
+            ).also { realEstateCrudRepository = it }
+        }
+
+    fun provideUnitSaleRepository(context: Context): UnitSaleRepository =
+        unitSaleRepository ?: synchronized(this) {
+            unitSaleRepository ?: UnitSaleRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { unitSaleRepository = it }
+        }
+
+    fun provideRealEstateSalesRepository(context: Context): RealEstateSalesRepository =
+        realEstateSalesRepository ?: synchronized(this) {
+            realEstateSalesRepository ?: RealEstateSalesRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { realEstateSalesRepository = it }
+        }
+
+    fun provideUnitSalePaymentRepository(context: Context): UnitSalePaymentRepository =
+        unitSalePaymentRepository ?: synchronized(this) {
+            unitSalePaymentRepository ?: UnitSalePaymentRepository(
+                api = provideHrmApiService(context),
+            ).also { unitSalePaymentRepository = it }
         }
 
     fun provideCoaRepository(context: Context): CoaRepository =
