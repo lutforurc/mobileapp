@@ -8,6 +8,9 @@ import com.example.cashbookbd.data.remote.dto.DevicesResponse
 import com.example.cashbookbd.data.remote.dto.HighlightRuleWriteRequest
 import com.example.cashbookbd.data.remote.dto.HighlightRuleWriteResponse
 import com.example.cashbookbd.data.remote.dto.HighlightRulesResponse
+import com.example.cashbookbd.data.remote.dto.InAppMessageEventRequest
+import com.example.cashbookbd.data.remote.dto.InAppMessageEventResponse
+import com.example.cashbookbd.data.remote.dto.InAppMessageSyncResponse
 import com.example.cashbookbd.data.remote.dto.MonthlyTopProductsResponse
 import com.example.cashbookbd.data.remote.dto.LoginRequest
 import com.example.cashbookbd.data.remote.dto.LoginResponse
@@ -185,6 +188,31 @@ interface ApiService {
      */
     @POST("notifications/dismiss")
     suspend fun dismissNotification(@Body body: Map<String, String>): Response<NotificationDismissResponse>
+
+    /**
+     * GET {BASE_URL}/in-app-messages/sync — admin-authored pop-up campaigns this
+     * user should see right now. Audience, schedule and frequency are all decided
+     * server-side, so whatever comes back is ready to show.
+     *
+     * `trigger` is deliberately not sent: on a phone, process start is both the
+     * app open and the start of the session, so both trigger kinds apply.
+     */
+    @GET("in-app-messages/sync")
+    suspend fun getInAppMessages(
+        @Query("platform") platform: String = "android",
+        @Query("device_id") deviceId: String? = null,
+        @Query("app_version") appVersion: String? = null,
+    ): Response<InAppMessageSyncResponse>
+
+    /**
+     * POST {BASE_URL}/in-app-messages/events — impressions, clicks, dismissals
+     * and acknowledgements, in one batch so a queue built offline can be flushed
+     * at once. The frequency cap is computed from these rows.
+     */
+    @POST("in-app-messages/events")
+    suspend fun postInAppMessageEvents(
+        @Body body: InAppMessageEventRequest,
+    ): Response<InAppMessageEventResponse>
 
     /** GET {BASE_URL}/devices — the user's active sessions and their plan's device limit. */
     @GET("devices")

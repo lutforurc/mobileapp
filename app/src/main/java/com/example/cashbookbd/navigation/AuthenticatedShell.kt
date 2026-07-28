@@ -1,5 +1,8 @@
 package com.example.cashbookbd.navigation
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +66,7 @@ import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.components.AccountMenu
+import com.example.cashbookbd.ui.components.InAppMessageOverlay
 import com.example.cashbookbd.ui.components.NotificationBell
 import com.example.cashbookbd.ui.components.accountMenuItems
 import com.example.cashbookbd.ui.theme.ThemeMode
@@ -110,6 +114,13 @@ fun AuthenticatedShell(
     LaunchedEffect(sessionState.permissions) {
         notificationCenter.ensureLoaded(sessionState.permissions)
     }
+
+    // Admin-authored pop-up campaigns. Fetched once per process — on a phone the
+    // app opening and the session starting are the same moment — then played one
+    // at a time over whatever screen is on top.
+    val inAppMessages = remember { ServiceLocator.provideInAppMessageManager(context) }
+    val inAppState by inAppMessages.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { inAppMessages.ensureLoaded() }
 
     // The single "Reports" section is shown when the user has any report permission.
     val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
@@ -237,9 +248,46 @@ fun AuthenticatedShell(
 
                 Box(modifier = Modifier.weight(1f)) {
                     content()
+
+                    // Drawn last so a banner sits above the screen's own content.
+                    inAppState.current?.let { message ->
+                        InAppMessageOverlay(
+                            message = message,
+                            onShown = inAppMessages::onShown,
+                            onPrimary = { shown ->
+                                inAppMessages.onPrimary(shown)
+                                openInAppAction(context, shown.primaryAction)
+                            },
+                            onSecondary = { shown ->
+                                inAppMessages.onSecondary(shown)
+                                openInAppAction(context, shown.secondaryAction)
+                            },
+                            onDismiss = inAppMessages::onDismiss,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Follows a campaign button's action.
+ *
+ * Campaign actions are authored once for every client, so they may carry a web
+ * path ("/dashboard") as well as a link. Only real links are actionable on the
+ * phone; a web path is ignored rather than guessing at a mobile route for it.
+ */
+private fun openInAppAction(context: Context, action: String?) {
+    val target = action?.trim().orEmpty()
+    if (!target.startsWith("http://", true) && !target.startsWith("https://", true)) return
+
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
     }
 }
 

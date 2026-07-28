@@ -1,8 +1,10 @@
 package com.example.cashbookbd.di
 
 import android.content.Context
+import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.data.local.DashboardCache
 import com.example.cashbookbd.data.local.DeviceIdManager
+import com.example.cashbookbd.data.local.InAppEventQueue
 import com.example.cashbookbd.data.local.TokenManager
 import com.example.cashbookbd.data.remote.ApiService
 import com.example.cashbookbd.data.remote.HrmApiService
@@ -27,6 +29,7 @@ import com.example.cashbookbd.data.repository.RegistrationRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.SessionRepository
+import com.example.cashbookbd.data.repository.InAppMessageRepository
 import com.example.cashbookbd.data.repository.NotificationRepository
 import com.example.cashbookbd.data.repository.SettingsRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
@@ -39,6 +42,7 @@ import com.example.cashbookbd.data.repository.ProductRepository
 import com.example.cashbookbd.data.repository.RoleRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
+import com.example.cashbookbd.inappmessage.InAppMessageManager
 import com.example.cashbookbd.notifications.NotificationCenter
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.theme.FullScreenManager
@@ -177,6 +181,9 @@ object ServiceLocator {
 
     @Volatile
     private var notificationCenter: NotificationCenter? = null
+    private var inAppEventQueue: InAppEventQueue? = null
+    private var inAppMessageRepository: InAppMessageRepository? = null
+    private var inAppMessageManager: InAppMessageManager? = null
 
     fun provideTokenManager(context: Context): TokenManager =
         tokenManager ?: synchronized(this) {
@@ -473,5 +480,28 @@ object ServiceLocator {
             notificationCenter ?: NotificationCenter(
                 repository = provideNotificationRepository(context),
             ).also { notificationCenter = it }
+        }
+
+    private fun provideInAppEventQueue(context: Context): InAppEventQueue =
+        inAppEventQueue ?: synchronized(this) {
+            inAppEventQueue ?: InAppEventQueue(context.applicationContext).also { inAppEventQueue = it }
+        }
+
+    private fun provideInAppMessageRepository(context: Context): InAppMessageRepository =
+        inAppMessageRepository ?: synchronized(this) {
+            inAppMessageRepository ?: InAppMessageRepository(
+                api = provideApiService(context),
+                deviceIdManager = provideDeviceIdManager(context),
+                queue = provideInAppEventQueue(context),
+                appVersion = BuildConfig.VERSION_NAME,
+            ).also { inAppMessageRepository = it }
+        }
+
+    /** Shared, app-wide queue of admin-authored pop-up campaigns. */
+    fun provideInAppMessageManager(context: Context): InAppMessageManager =
+        inAppMessageManager ?: synchronized(this) {
+            inAppMessageManager ?: InAppMessageManager(
+                repository = provideInAppMessageRepository(context),
+            ).also { inAppMessageManager = it }
         }
 }
