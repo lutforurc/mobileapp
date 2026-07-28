@@ -21,6 +21,12 @@ object ProductsMenu {
         ProductItem("brandList", "Brand List", listOf("brand.list")),
         ProductItem("categoryList", "Category List", listOf("category.view")),
         ProductItem("productList", "Product List", listOf("products.view")),
+        // The stock alert reports, each on its own web-sidebar permission. The
+        // endpoints are scoped to the signed-in user's branch server-side.
+        ProductItem("lowStock", "Low Stock", listOf("low.stock")),
+        ProductItem("negativeStock", "Negative Stock", listOf("negative.stock")),
+        ProductItem("slowMoving", "Slow Moving", listOf("slow.moving")),
+        ProductItem("warehouseDifference", "Warehouse Difference", listOf("warehouse.difference")),
         ProductItem("productUnit", "Product Unit", listOf("product.unit")),
     )
 

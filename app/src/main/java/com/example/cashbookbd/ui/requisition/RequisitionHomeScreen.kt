@@ -1,9 +1,8 @@
-package com.example.cashbookbd.ui.vrsettings
+package com.example.cashbookbd.ui.requisition
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,19 +26,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
-import com.example.cashbookbd.vrsettings.VrSettingsItem
-import com.example.cashbookbd.vrsettings.VrSettingsMenu
+import com.example.cashbookbd.requisition.RequisitionItem
+import com.example.cashbookbd.requisition.RequisitionMenu
 
 /**
- * The "VR Settings" parent section. Lists every voucher-settings screen the user
- * is permitted to open (from [VrSettingsMenu.visible]); each routes to its form.
+ * The "Requisition" parent section. Lists every requisition screen the current
+ * user is permitted to open (from [RequisitionMenu.visible]): the requisition
+ * list, the create form, and the comparison report.
  */
 @Composable
-fun VrSettingsHomeScreen(
+fun RequisitionHomeScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
@@ -48,11 +47,11 @@ fun VrSettingsHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = VrSettingsMenu.visible(sessionState.permissions)
+    val items = RequisitionMenu.visible(sessionState.permissions)
 
     AuthenticatedShell(
-        title = "VR Settings",
-        currentRoute = Routes.VR_SETTINGS,
+        title = "Requisition",
+        currentRoute = Routes.REQUISITIONS,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
@@ -60,7 +59,7 @@ fun VrSettingsHomeScreen(
         if (items.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "You don't have access to any voucher settings.",
+                    text = "You don't have access to any requisition screens.",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                 )
@@ -74,40 +73,24 @@ fun VrSettingsHomeScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(items) { item ->
-                VrSettingsRowItem(
-                    item = item,
-                    onClick = {
-                        val route = when {
-                            // Voucher History has its own screen (card feed).
-                            item.key == "history" -> Routes.VOUCHER_HISTORY
-                            AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
-                            else -> Routes.vrSettingsView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
+                RequisitionRowItem(item = item, onClick = { navController.openRequisition(item) })
             }
         }
     }
 }
 
 @Composable
-private fun VrSettingsRowItem(item: VrSettingsItem, onClick: () -> Unit) {
+private fun RequisitionRowItem(item: RequisitionItem, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
-                if (!item.supported) {
-                    Text(
-                        text = "Coming soon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
@@ -115,4 +98,15 @@ private fun VrSettingsRowItem(item: VrSettingsItem, onClick: () -> Unit) {
             )
         }
     }
+}
+
+/** The list opens the shared app-list view; the comparison a generic report. */
+private fun NavHostController.openRequisition(item: RequisitionItem) {
+    val route = when (item.key) {
+        "requisitions" -> Routes.appListView("requisitions")
+        "requisitionCreate" -> Routes.REQUISITION_CREATE
+        "requisitionComparison" -> Routes.reportView("requisitionComparison")
+        else -> return
+    }
+    navigate(route)
 }

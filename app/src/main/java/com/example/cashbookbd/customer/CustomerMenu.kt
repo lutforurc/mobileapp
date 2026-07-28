@@ -23,6 +23,9 @@ object CustomerMenu {
 
     val all: List<CustomerItem> = listOf(
         CustomerItem("customers", "Customers", SECTION_PERMISSIONS),
+        CustomerItem("coaL1", "CoA L1", listOf("coa.l1.view")),
+        CustomerItem("coaL2", "CoA L2", listOf("coa.l2.view")),
+        CustomerItem("coaL3", "CoA L3", listOf("coa.l3.view")),
         CustomerItem("coaL4", "CoA L4", listOf("coa.l4.view")),
     )
 

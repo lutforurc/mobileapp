@@ -62,6 +62,7 @@ import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
+import com.example.cashbookbd.requisition.RequisitionMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
@@ -134,6 +135,8 @@ fun AuthenticatedShell(
     val canAdmin = AdminMenu.hasParentAccess(sessionState.permissions)
     // The "HRM" section is shown when the user has any HRM permission.
     val canHrm = HrmMenu.hasParentAccess(sessionState.permissions)
+    // The "Requisition" section is shown when the user has any requisition permission.
+    val canRequisition = RequisitionMenu.hasParentAccess(sessionState.permissions)
     // The "Customers" section is shown when the user has any customer permission.
     val canCustomers = CustomerMenu.hasParentAccess(sessionState.permissions)
     // The "Products" section is shown when the user has any products-list permission.
@@ -175,6 +178,7 @@ fun AuthenticatedShell(
                 canTransactions = canTransactions,
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
+                canRequisition = canRequisition,
                 canAdmin = canAdmin,
                 canHrm = canHrm,
                 canCustomers = canCustomers,
@@ -298,6 +302,7 @@ private fun AppDrawerContent(
     canTransactions: Boolean,
     canInvoices: Boolean,
     canVrSettings: Boolean,
+    canRequisition: Boolean,
     canAdmin: Boolean,
     canHrm: Boolean,
     canCustomers: Boolean,
@@ -356,6 +361,11 @@ private fun AppDrawerContent(
                         currentRoute == Routes.LEDGER,
                 ) {
                     onDestinationClick(Routes.REPORTS)
+                }
+            }
+            if (canRequisition) {
+                DrawerItem("Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS) {
+                    onDestinationClick(Routes.REQUISITIONS)
                 }
             }
             if (canProducts) {

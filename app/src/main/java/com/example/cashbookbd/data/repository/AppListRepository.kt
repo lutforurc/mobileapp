@@ -94,6 +94,11 @@ class AppListRepository(
                 )
             }
             if (!response.isSuccessful && response.code() != 201) {
+                // The stock-alert endpoints answer an empty result as HTTP 404
+                // with the `notFound` envelope — an empty list, not a failure.
+                if (isEmptyEnvelope(response)) {
+                    return@withContext Resource.Success(AppListResult(emptyList()))
+                }
                 return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
             }
             Resource.Success(parse(response.body(), spec))
@@ -153,6 +158,20 @@ class AppListRepository(
                 Resource.Error("Something went wrong. Please try again.")
             }
         }
+
+    /** True when a non-2xx body is the backend's `notFound` envelope (empty result). */
+    private fun isEmptyEnvelope(response: Response<JsonElement>): Boolean = try {
+        val raw = response.errorBody()?.string()
+        if (raw.isNullOrBlank()) {
+            false
+        } else {
+            val obj = com.google.gson.JsonParser.parseString(raw)
+                .takeIf { it.isJsonObject }?.asJsonObject
+            obj?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false
+        }
+    } catch (_: Exception) {
+        false
+    }
 
     /** Reads a status field that may arrive as 1/0, "1"/"0" or true/false. */
     private fun isOn(element: JsonElement?): Boolean {

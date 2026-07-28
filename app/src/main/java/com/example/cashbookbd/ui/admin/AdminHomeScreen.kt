@@ -85,6 +85,8 @@ fun AdminHomeScreen(
                             // Bespoke Role & Permission management (picker + toggles).
                             item.key == AdminMenu.ROLES_KEY -> Routes.ROLES
                             item.key == AdminMenu.ADD_ROLES_KEY -> Routes.ADD_ROLE
+                            // Software Information's single-record form.
+                            item.key == "softwareInfo" -> Routes.SOFTWARE_INFO
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> Routes.adminView(item.key)
                         }

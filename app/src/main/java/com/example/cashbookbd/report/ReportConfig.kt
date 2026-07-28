@@ -26,6 +26,12 @@ enum class ReportResponseShape {
      * (Labour Ledger) — flattened into the underlying rows.
      */
     NESTED_GROUPS,
+
+    /**
+     * An object of `{ "<id>": {row}, … }` keyed by a dynamic id (Requisition
+     * Comparison) — each entry's object becomes one row. `[]` when empty.
+     */
+    KEYED_OBJECTS,
 }
 
 /** Date wire format expected by a report's API. */
@@ -236,6 +242,9 @@ data class ReportConfig(
         /** [section] of reports listed under the HRM parent menu. */
         const val SECTION_HRM = "hrm"
 
+        /** [section] of reports listed under the Requisition parent menu. */
+        const val SECTION_REQUISITION = "requisition"
+
         private val GENERIC_FILTER_TYPES = setOf(
             ReportFilterType.BRANCH_DATE_RANGE,
             ReportFilterType.BRANCH_END_DATE,
@@ -383,6 +392,9 @@ object ReportMenu {
         "sales.ledger",
         "group.report",
         "mitch.match",
+        // The three branch stock-movement reports (web sidebar item gates).
+        "branch.transfer.create",
+        "branch.received.create",
     )
 
     val all: List<ReportConfig> = listOf(
@@ -923,6 +935,81 @@ object ReportMenu {
             ),
         ),
         ReportConfig(
+            key = "branchTransferReport",
+            title = "Branch Transfer Report",
+            routeName = "ReportBranchTransfer",
+            webPath = "/reports/branch-transfer",
+            // The web sidebar gates this item on branch.transfer.create.
+            anyOf = listOf("branch.transfer.create"),
+            endpointKey = "branchTransferReport",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            hiddenColumns = listOf("product_id"),
+            columnLabels = mapOf(
+                "sl_number" to "Sl",
+                "product_name" to "Product",
+                // The web's Available column.
+                "balance" to "Available",
+            ),
+        ),
+        ReportConfig(
+            key = "branchReceiveReport",
+            title = "Branch Receive Report",
+            routeName = "ReportBranchReceive",
+            webPath = "/reports/branch-receive",
+            anyOf = listOf("branch.received.create"),
+            endpointKey = "branchReceiveReport",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            hiddenColumns = listOf("product_id"),
+            columnLabels = mapOf(
+                "sl_number" to "Sl",
+                "product_name" to "Product",
+                "shortage" to "Short",
+                "balance" to "Available",
+            ),
+        ),
+        ReportConfig(
+            key = "branchStockReport",
+            title = "Branch Stock",
+            routeName = "ReportBranchStock",
+            webPath = "/reports/branch-stock",
+            anyOf = listOf("product.stock.view"),
+            endpointKey = "branchStockReport",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
+            startParam = "startdate",
+            endParam = "enddate",
+            selectors = listOf(
+                ReportSelector(
+                    paramKey = "brand_id",
+                    label = "Select Brand (optional)",
+                    source = ReportSelectorSource.BRAND,
+                    required = false,
+                ),
+                ReportSelector(
+                    paramKey = "category_id",
+                    label = "Select Category (optional)",
+                    source = ReportSelectorSource.CATEGORY,
+                    required = false,
+                ),
+            ),
+            // Rows sit under data.data.rows; the sibling `branches` legend and
+            // the per-row `branches` qty map are the web's dynamic per-branch
+            // columns — with the filter fixed to one branch, `total` already is
+            // that branch's stock, so the map is hidden here.
+            hiddenColumns = listOf("product_id", "cat_name", "brand_name", "branches"),
+            columnLabels = mapOf(
+                "sl_number" to "Sl",
+                "product_name" to "Product",
+                "shortage" to "Short",
+            ),
+        ),
+        ReportConfig(
             key = "dateWiseInOut",
             title = "Date Wise In Out",
             routeName = "ReportDateWiseInOut",
@@ -1190,6 +1277,95 @@ object ReportMenu {
                 "branch_name" to "Branch",
                 "received_amt" to "Received",
                 "payment_amt" to "Payment",
+            ),
+        ),
+        ReportConfig(
+            key = "hrmSalaryMismatch",
+            title = "Salary Mismatch",
+            routeName = "HrmSalaryMismatch",
+            webPath = "/reports/hrm-mismatch-payment",
+            anyOf = listOf("salary.sheet.view"),
+            endpointKey = "hrmMismatchPayment",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // The date filter is optional server-side (applies only when both
+            // are sent); the defaults from the branch transaction date are fine.
+            startParam = "start_date",
+            endParam = "end_date",
+            section = ReportConfig.SECTION_HRM,
+            hiddenColumns = listOf("main_trx_id", "emp_id"),
+            columnLabels = mapOf(
+                "serial_number" to "Sl",
+                "vr_no" to "Vr No",
+                "vr_date" to "Vr Date",
+                "employee_name" to "Employee",
+                "remarks" to "Month",
+                "dup_count" to "Times",
+                "total_deducted" to "Total Deducted",
+            ),
+            // vr_no and the comma-joined amounts are labels, not amounts.
+            textColumns = listOf("vr_no", "amounts", "remarks"),
+            // The web's per-row "Clear" (delete duplicate deduction) is a
+            // destructive admin action and stays web-only for now.
+        ),
+        ReportConfig(
+            key = "hrmBonusReports",
+            title = "Bonus Reports",
+            routeName = "HrmBonusReports",
+            webPath = "/hrms/festival-bonus",
+            anyOf = listOf("salary.generate", "salary.sheet.view"),
+            endpointKey = "hrmBonusSheet",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_YEAR,
+            startParam = null,
+            endParam = null,
+            yearParam = "year_id",
+            section = ReportConfig.SECTION_HRM,
+            // main_trx is a nested relation object; payment_year duplicates the
+            // year filter. The Update/Payment actions stay web-only for now.
+            hiddenColumns = listOf("main_trx_id", "main_trx", "payment_year"),
+            monthColumns = listOf("payment_month"),
+            columnLabels = mapOf(
+                "serial_no" to "Sl",
+                "bonus_title" to "Bonus Title",
+                "payment_month" to "Month",
+                "total_employee" to "Employees",
+                "bonus_amount" to "Bonus",
+                "payment_amount" to "Paid",
+            ),
+        ),
+
+        // ---- Requisition section (listed by RequisitionMenu) ----
+        ReportConfig(
+            key = "requisitionComparison",
+            title = "Comparison",
+            routeName = "RequisitionComparison",
+            webPath = "/requisition/comparison",
+            anyOf = listOf("requisition.comparison"),
+            endpointKey = "requisitionComparison",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // The only requisition endpoint with real Laravel validation:
+            // branch_id + start_date + end_date, yyyy-MM-dd.
+            startParam = "start_date",
+            endParam = "end_date",
+            section = ReportConfig.SECTION_REQUISITION,
+            // data.data is `{ "<productId>": {row} }` — a map, not an array.
+            responseShape = ReportResponseShape.KEYED_OBJECTS,
+            hiddenColumns = listOf(
+                "product_id", "requisition_item_total", "requisition_direct_qty",
+                "requisition_direct_total", "direct_expense_qty",
+                "direct_expense_total", "total_expenditure",
+            ),
+            columnLabels = mapOf(
+                "serial_no" to "Sl",
+                "product_name" to "Product",
+                "requisition_qty" to "Req. Qty",
+                "purchase_qty" to "Pur. Qty",
+                "requisition_total" to "Requisition",
+                "approved_amt" to "Approved",
+                "purchase_total" to "Total Expense",
+                "difference" to "Balance",
             ),
         ),
         // Salary Reports is NOT here: it needs the web's Paid/Due action column

@@ -42,6 +42,12 @@ import com.example.cashbookbd.data.repository.ProductRepository
 import com.example.cashbookbd.data.repository.RoleRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.data.repository.VrSettingsRepository
+import com.example.cashbookbd.data.repository.LabourInvoiceRepository
+import com.example.cashbookbd.data.repository.RequisitionRepository
+import com.example.cashbookbd.data.repository.InventoryMovementRepository
+import com.example.cashbookbd.data.repository.CoaRepository
+import com.example.cashbookbd.data.repository.VoucherHistoryRepository
+import com.example.cashbookbd.data.repository.SoftwareInfoRepository
 import com.example.cashbookbd.inappmessage.InAppMessageManager
 import com.example.cashbookbd.notifications.NotificationCenter
 import com.example.cashbookbd.session.SessionManager
@@ -115,6 +121,24 @@ object ServiceLocator {
 
     @Volatile
     private var invoiceRepository: InvoiceRepository? = null
+
+    @Volatile
+    private var labourInvoiceRepository: LabourInvoiceRepository? = null
+
+    @Volatile
+    private var requisitionRepository: RequisitionRepository? = null
+
+    @Volatile
+    private var inventoryMovementRepository: InventoryMovementRepository? = null
+
+    @Volatile
+    private var coaRepository: CoaRepository? = null
+
+    @Volatile
+    private var voucherHistoryRepository: VoucherHistoryRepository? = null
+
+    @Volatile
+    private var softwareInfoRepository: SoftwareInfoRepository? = null
 
     @Volatile
     private var vrSettingsRepository: VrSettingsRepository? = null
@@ -395,6 +419,50 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { invoiceRepository = it }
+        }
+
+    fun provideLabourInvoiceRepository(context: Context): LabourInvoiceRepository =
+        labourInvoiceRepository ?: synchronized(this) {
+            labourInvoiceRepository ?: LabourInvoiceRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { labourInvoiceRepository = it }
+        }
+
+    fun provideCoaRepository(context: Context): CoaRepository =
+        coaRepository ?: synchronized(this) {
+            coaRepository ?: CoaRepository(
+                api = provideReportApiService(context),
+            ).also { coaRepository = it }
+        }
+
+    fun provideVoucherHistoryRepository(context: Context): VoucherHistoryRepository =
+        voucherHistoryRepository ?: synchronized(this) {
+            voucherHistoryRepository ?: VoucherHistoryRepository(
+                api = provideTransactionApiService(context),
+            ).also { voucherHistoryRepository = it }
+        }
+
+    fun provideSoftwareInfoRepository(context: Context): SoftwareInfoRepository =
+        softwareInfoRepository ?: synchronized(this) {
+            softwareInfoRepository ?: SoftwareInfoRepository(
+                api = provideReportApiService(context),
+            ).also { softwareInfoRepository = it }
+        }
+
+    fun provideInventoryMovementRepository(context: Context): InventoryMovementRepository =
+        inventoryMovementRepository ?: synchronized(this) {
+            inventoryMovementRepository ?: InventoryMovementRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { inventoryMovementRepository = it }
+        }
+
+    fun provideRequisitionRepository(context: Context): RequisitionRepository =
+        requisitionRepository ?: synchronized(this) {
+            requisitionRepository ?: RequisitionRepository(
+                api = provideTransactionApiService(context),
+            ).also { requisitionRepository = it }
         }
 
     fun provideVrSettingsRepository(context: Context): VrSettingsRepository =

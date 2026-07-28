@@ -79,10 +79,16 @@ fun InvoiceHomeScreen(
                 InvoiceRowItem(
                     item = item,
                     onClick = {
-                        val route = if (item.key == InvoiceMenu.COMBINED_KEY) {
-                            Routes.COMBINED_INVOICE
-                        } else {
-                            Routes.invoiceView(item.key)
+                        val route = when (item.key) {
+                            InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
+                            InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
+                            // The inventory movement forms share one screen,
+                            // parameterized by key.
+                            InvoiceMenu.BRANCH_RECEIVE_KEY,
+                            InvoiceMenu.BRANCH_ISSUE_KEY,
+                            InvoiceMenu.MATERIAL_ISSUE_KEY,
+                            -> Routes.inventoryView(item.key)
+                            else -> Routes.invoiceView(item.key)
                         }
                         navController.navigate(route)
                     },

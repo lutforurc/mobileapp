@@ -79,6 +79,14 @@ import com.example.cashbookbd.ui.transaction.TransactionFormScreen
 import com.example.cashbookbd.ui.transaction.TransactionHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsHomeScreen
+import com.example.cashbookbd.ui.vrsettings.VoucherHistoryScreen
+import com.example.cashbookbd.ui.admin.SoftwareInfoScreen
+import com.example.cashbookbd.ui.customer.AddCoaL3Screen
+import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
+import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
+import com.example.cashbookbd.ui.requisition.RequisitionFormScreen
+import com.example.cashbookbd.ui.requisition.RequisitionHomeScreen
+import com.example.cashbookbd.requisition.RequisitionMenu
 
 object Routes {
     const val LOGIN = "login"
@@ -124,8 +132,25 @@ object Routes {
     /** Combined Invoice (purchase + sales in one form) — its own screen. */
     const val COMBINED_INVOICE = "invoices/combined"
 
+    /** Labour Invoice (construction labour bill) — its own screen. */
+    const val LABOUR_INVOICE = "invoices/labour"
+
+    // Inventory movement forms (Branch Issue / Branch Receive / Material Issue),
+    // one screen parameterized by key.
+    const val INVENTORY_VIEW = "inventory/view/{key}"
+    const val INVENTORY_KEY_ARG = "key"
+
+    fun inventoryView(key: String): String = "inventory/view/$key"
+
+    // Requisition section
+    const val REQUISITIONS = "requisition/home"
+    const val REQUISITION_CREATE = "requisition/create"
+
     // VR Settings section
     const val VR_SETTINGS = "vr-settings/home"
+
+    /** Voucher History (branch + voucher no → change feed) — its own screen. */
+    const val VOUCHER_HISTORY = "vr-settings/history"
     const val VR_SETTINGS_VIEW = "vr-settings/view/{key}"
     const val VR_SETTINGS_KEY_ARG = "key"
 
@@ -152,6 +177,9 @@ object Routes {
 
     /** Jump Date, opened from the Day Close screen — jumps the transaction date to a chosen day. */
     const val JUMP_DATE = "admin/jumpdate"
+
+    /** Software Information (report-footer name/mobile), a single-record form. */
+    const val SOFTWARE_INFO = "admin/software-info"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -204,6 +232,13 @@ object Routes {
     /** Set a customer's opening/ledger, opened from the Customers list row pencil. */
     const val CUSTOMER_EDIT = "customer/edit"
     const val CUSTOMER_ID_ARG = "customerId"
+
+    /** Add CoA L3 form, opened from the CoA L3 list's "New COA L3" button. */
+    const val COA_L3_ADD = "coa/l3/add"
+
+    /** Edit CoA L3 — base route; the list appends "/{id}" itself. */
+    const val COA_L3_EDIT = "coa/l3/edit"
+    const val COA_L3_ID_ARG = "coaId"
 
     // Products section (master lists: Brand / Category / Product / Unit)
     const val PRODUCTS = "products/home"
@@ -412,6 +447,85 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     invoiceKey = key,
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.LABOUR_INVOICE) {
+            PermissionGate(anyOf = InvoiceMenu.byKey(InvoiceMenu.LABOUR_INVOICE_KEY)?.anyOf ?: emptyList()) {
+                LabourInvoiceScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.INVENTORY_VIEW,
+            arguments = listOf(navArgument(Routes.INVENTORY_KEY_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val key = backStackEntry.arguments?.getString(Routes.INVENTORY_KEY_ARG).orEmpty()
+            // The inventory forms live in the Invoice menu; gate like their entries.
+            PermissionGate(anyOf = InvoiceMenu.byKey(key)?.anyOf ?: emptyList()) {
+                InventoryMovementScreen(
+                    formKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.REQUISITIONS) {
+            PermissionGate(anyOf = RequisitionMenu.all.flatMap { it.anyOf }) {
+                RequisitionHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.REQUISITION_CREATE) {
+            PermissionGate(anyOf = listOf("requisition.create")) {
+                RequisitionFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.VOUCHER_HISTORY) {
+            PermissionGate(anyOf = listOf("voucher.history")) {
+                VoucherHistoryScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.SOFTWARE_INFO) {
+            PermissionGate(anyOf = listOf("software.information")) {
+                SoftwareInfoScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.COA_L3_ADD) {
+            PermissionGate(anyOf = listOf("coa.l3.view")) {
+                AddCoaL3Screen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.COA_L3_EDIT}/{${Routes.COA_L3_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("coa.l3.view")) {
+                AddCoaL3Screen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    coaId = entry.arguments?.getString(Routes.COA_L3_ID_ARG),
                 )
             }
         }

@@ -185,8 +185,21 @@ class GenericReportRepository(
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
             ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
         }
+    }
+
+    /**
+     * Requisition Comparison: an object `{ "<id>": {row}, … }` keyed by a
+     * dynamic id — each entry's object is one row. `[]` when empty.
+     */
+    private fun keyedObjectRows(payload: JsonElement): List<JsonElement> = when {
+        payload.isJsonArray -> payload.asJsonArray.filter { it.isJsonObject }
+        payload.isJsonObject -> payload.asJsonObject.entrySet()
+            .map { it.value }
+            .filter { it.isJsonObject }
+        else -> emptyList()
     }
 
     /**

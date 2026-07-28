@@ -42,6 +42,12 @@ object ReportEndpoints {
         "categoryWiseInOut" to "reports/category-wise-in-out",
         "dateWiseInOut" to "reports/in-out/date-wise/data",
         "dateWiseInOutDetails" to "reports/in-out/date-wise/details",
+        "branchTransferReport" to "reports/branch-transfer",
+        "branchReceiveReport" to "reports/branch-receive",
+        "branchStockReport" to "reports/branch-stock",
+
+        // Requisition section (RequisitionController in the Laravel api.php).
+        "requisitionComparison" to "requisition/comparison",
 
         // HRM section (see the hrms route group in the Laravel api.php).
         "hrmAttendanceReport" to "hrms/attendance/entries/report",
@@ -51,6 +57,8 @@ object ReportEndpoints {
         "hrmLoanBalance" to "hrms/loan/balance",
         "hrmLoanLedger" to "hrms/loan/ledger",
         "hrmSalarySheet" to "hrms/salary-sheet",
+        "hrmMismatchPayment" to "reports/hrm-mismatch-payment/data",
+        "hrmBonusSheet" to "hrms/festival-bonus-sheet",
     )
 
     fun path(endpointKey: String): String? = map[endpointKey]

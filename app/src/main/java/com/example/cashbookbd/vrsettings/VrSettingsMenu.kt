@@ -24,7 +24,7 @@ object VrSettingsMenu {
         VrSettingsItem("installmentDelete", "Installment Delete", listOf("installment.delete"), supported = true),
         VrSettingsItem("voucherDateChange", "Voucher Date Change", listOf("voucher.date.change"), supported = true),
         VrSettingsItem("recycleBin", "Recycle Bin", listOf("voucher.recycle"), supported = true),
-        VrSettingsItem("history", "History", listOf("voucher.history"), supported = false),
+        VrSettingsItem("history", "History", listOf("voucher.history"), supported = true),
         VrSettingsItem("logChanges", "Log Changes", listOf("voucher.changes"), supported = true),
     )
 

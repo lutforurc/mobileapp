@@ -46,6 +46,10 @@ object HrmMenu {
         HrmItem("hrmLoanBalance", "Loan Balance", listOf("hrm.loan.create")),
         HrmItem("hrmLoanLedger", "Loan Ledger", listOf("employee.loan.ledger.view")),
         HrmItem("hrmSalarySheet", "Salary Reports", listOf("salary.sheet.view")),
+        // Generic reports (keys resolve in ReportMenu): duplicate loan-deduction
+        // detector and the festival bonus sheet list.
+        HrmItem("hrmSalaryMismatch", "Salary Mismatch", listOf("salary.sheet.view")),
+        HrmItem("hrmBonusReports", "Bonus Reports", listOf("salary.generate", "salary.sheet.view")),
     )
 
     private val byKey: Map<String, HrmItem> = all.associateBy { it.key }

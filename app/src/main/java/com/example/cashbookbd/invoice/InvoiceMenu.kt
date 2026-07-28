@@ -27,6 +27,14 @@ object InvoiceMenu {
     /** Routes to the dedicated Combined Invoice screen (see InvoiceHomeScreen). */
     const val COMBINED_KEY = "tradingCombined"
 
+    /** Routes to the Labour Invoice screen (see InvoiceHomeScreen). */
+    const val LABOUR_INVOICE_KEY = "labourInvoice"
+
+    // The three inventory-movement forms, each on its own screen variant.
+    const val BRANCH_RECEIVE_KEY = "branchReceive"
+    const val BRANCH_ISSUE_KEY = "branchIssue"
+    const val MATERIAL_ISSUE_KEY = "materialIssue"
+
     val all: List<InvoiceItem> = listOf(
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
         // Import/return items are gated on their OWN permission in the web sidebar,
@@ -46,12 +54,24 @@ object InvoiceMenu {
         ),
         InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.return.view"), supported = true),
         InvoiceItem("salesReturn", "Sales Return", listOf("sales.return"), supported = true),
-        InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = false),
+        InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = true),
         InvoiceItem(
-            "branchIssue",
+            BRANCH_RECEIVE_KEY,
+            "Branch Receive",
+            listOf("branch.received.create", "inventory.received.create", "product.received.create"),
+            supported = true,
+        ),
+        InvoiceItem(
+            BRANCH_ISSUE_KEY,
             "Branch Issue",
             listOf("branch.transfer.create", "inventory.transfer.create", "product.transfer.create"),
-            supported = false,
+            supported = true,
+        ),
+        InvoiceItem(
+            MATERIAL_ISSUE_KEY,
+            "Material Issue",
+            listOf("material.issue.create", "inventory.issue.create", "purchase.create"),
+            supported = true,
         ),
     )
 
