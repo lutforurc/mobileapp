@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.reports.model
 
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.core.VoucherImages
 import com.example.cashbookbd.data.remote.dto.ApiLedgerStatementDto
 import com.example.cashbookbd.data.remote.dto.LedgerSearchItemDto
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -36,6 +38,8 @@ data class LedgerRow(
     val remarks: String,
     val debit: Double,
     val credit: Double,
+    /** The voucher's photo/document attachments — the flag-gated Voucher column. */
+    val attachments: List<VoucherAttachment> = emptyList(),
 )
 
 fun LedgerSearchItemDto.toLedgerDropdownItem(): LedgerDropdownItem? {
@@ -63,6 +67,10 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
             remarks = remarks,
             debit = dto.debit ?: 0.0,
             credit = dto.credit ?: 0.0,
+            attachments = VoucherImages.attachments(
+                dto.voucherImage,
+                VoucherImages.branchPad(dto.branchId),
+            ),
         )
     }
 

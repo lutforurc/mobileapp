@@ -68,6 +68,11 @@ import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.LedgerStatement
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.core.AmountFormat
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.ui.components.VoucherAttachmentsCell
+import com.example.cashbookbd.ui.components.VoucherImageViewerDialog
+import com.example.cashbookbd.ui.components.openVoucherAttachment
 
 @Composable
 fun LedgerScreen(
@@ -256,9 +261,19 @@ private val COL_DESCRIPTION = 220.dp
 private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
 
+/** The trailing thumbnail column's context, captured outside the render lambdas. */
+private data class LedgerVoucherColumn(
+    val isLocalEnv: Boolean,
+    val onOpen: (VoucherAttachment) -> Unit,
+)
+
 // [summaryColor] inks the opening-balance / summary rows, which draw on a pale
 // secondaryContainer band where the body's on-teal ink washes out.
-private fun ledgerColumns(rules: List<HighlightRule>, summaryColor: Color) = listOf(
+private fun ledgerColumns(
+    rules: List<HighlightRule>,
+    summaryColor: Color,
+    voucherColumn: LedgerVoucherColumn? = null,
+) = listOf(
     ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
         cellText(r.sl, bold = r.isSummary, align = TextAlign.Center, color = r.summaryInk(summaryColor))
     },
@@ -282,6 +297,22 @@ private fun ledgerColumns(rules: List<HighlightRule>, summaryColor: Color) = lis
     },
     ReportColumn<LedgerDisplayRow>("CREDIT", ReportColWidth.Fixed(COL_CREDIT), TextAlign.End) { r, _ ->
         cellText(r.credit, align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
+    },
+) + listOfNotNull(
+    voucherColumn?.let { vc ->
+        ReportColumn<LedgerDisplayRow>("VOUCHER", ReportColWidth.Fixed(96.dp), TextAlign.Center) { r, _ ->
+            if (r.attachments.isEmpty()) {
+                ReportTableCell.Empty
+            } else {
+                ReportTableCell.Slot {
+                    VoucherAttachmentsCell(
+                        attachments = r.attachments,
+                        isLocalEnv = vc.isLocalEnv,
+                        onOpen = vc.onOpen,
+                    )
+                }
+            }
+        }
     },
 )
 
@@ -335,6 +366,8 @@ private data class LedgerDisplayRow(
     val debit: String,
     val credit: String,
     val isSummary: Boolean,
+    /** The voucher's attachments — the flag-gated VOUCHER column. */
+    val attachments: List<VoucherAttachment> = emptyList(),
 )
 
 /** Opening Balance line first, then the transaction rows numbered from 1. */
@@ -360,6 +393,7 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
             debit = amountOrDash(r.debit),
             credit = amountOrDash(r.credit),
             isSummary = false,
+            attachments = r.attachments,
         )
     }
     return list
@@ -370,7 +404,32 @@ private fun LedgerTable(statement: LedgerStatement) {
     val rules = rememberHighlightRules()
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
-    val columns = remember(rules, summaryInk) { ledgerColumns(rules, summaryInk) }
+
+    // The voucher-image column, behind the same branch switch as the web.
+    val context = LocalContext.current
+    val settings = remember { ServiceLocator.provideSessionManager(context).state.value.settings }
+    val showVouchers = settings?.showVoucherImage == true &&
+        statement.rows.any { it.attachments.isNotEmpty() }
+    val isLocalEnv = settings?.isLocalEnv == true
+    var viewing by remember { mutableStateOf<VoucherAttachment?>(null) }
+
+    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv) {
+        ledgerColumns(
+            rules = rules,
+            summaryColor = summaryInk,
+            voucherColumn = if (showVouchers) {
+                LedgerVoucherColumn(isLocalEnv = isLocalEnv) { attachment ->
+                    if (attachment.isImage) {
+                        viewing = attachment
+                    } else {
+                        openVoucherAttachment(context, attachment, isLocalEnv)
+                    }
+                }
+            } else {
+                null
+            },
+        )
+    }
     ReportTable(
         columns = columns,
         data = statement.toDisplayRows(),
@@ -378,6 +437,14 @@ private fun LedgerTable(statement: LedgerStatement) {
         // The Opening Balance line is styled like the summary rows.
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
     )
+
+    viewing?.let { attachment ->
+        VoucherImageViewerDialog(
+            attachment = attachment,
+            isLocalEnv = isLocalEnv,
+            onDismiss = { viewing = null },
+        )
+    }
 }
 
 /** Range Total, Total, and the net Balance line — each label sits under DESCRIPTION. */

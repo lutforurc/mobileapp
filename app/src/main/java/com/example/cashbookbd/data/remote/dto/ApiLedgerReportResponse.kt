@@ -75,4 +75,8 @@ data class ApiLedgerRowDto(
     @SerializedName("remarks") val remarks: String? = null,
     @SerializedName("debit") val debit: Double? = null,
     @SerializedName("credit") val credit: Double? = null,
+    /** Pipe-separated voucher attachment file names, or null. */
+    @SerializedName("voucher_image") val voucherImage: String? = null,
+    /** Raw branch id — padded to 4 for the attachment URLs. */
+    @SerializedName("branch_id") val branchId: String? = null,
 )
