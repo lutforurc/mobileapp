@@ -183,7 +183,7 @@ private fun EmptyRow(text: String, icon: ImageVector? = null) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (icon != null) {
-            val green = MaterialTheme.accents.green
+            val green = MaterialTheme.appColors.success
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -336,7 +336,7 @@ private fun toneColor(tone: NotificationTone): Color = when (tone) {
     NotificationTone.DANGER -> MaterialTheme.accents.red
     NotificationTone.WARNING -> MaterialTheme.accents.amber
     NotificationTone.INFO -> MaterialTheme.accents.blue
-    NotificationTone.SUCCESS -> MaterialTheme.accents.green
+    NotificationTone.SUCCESS -> MaterialTheme.appColors.success
 }
 
 private fun toneIcon(tone: NotificationTone): ImageVector = when (tone) {

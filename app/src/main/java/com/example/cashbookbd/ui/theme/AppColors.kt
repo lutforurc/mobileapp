@@ -190,7 +190,9 @@ fun appColorsOf(p: BrandPalette) = AppColors(
     gridLine = p.onScreen.asGridLine(),
     gridLineOnPrimary = p.onPrimary.asGridLine(),
 
-    success = p.accents.green,
+    // Fixed across themes, like `action`: a paid amount is the same green
+    // wherever it appears, rather than shifting shade with the theme.
+    success = BrandSheet.SuccessStrong,
     danger = p.accents.red,
     warning = p.accents.amber,
     info = p.accents.blue,

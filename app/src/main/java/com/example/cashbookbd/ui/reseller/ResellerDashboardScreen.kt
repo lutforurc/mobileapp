@@ -208,7 +208,7 @@ private fun KpiGrid(overview: ResellerOverview) {
     val tiles = listOf(
         KpiTileData("Clients", overview.clients.toString(), accents.blue),
         KpiTileData("Approved Payments", overview.approvedPayments.toString(), accents.purple),
-        KpiTileData("Approved Amount", formatMoney(overview.approvedAmount), accents.green),
+        KpiTileData("Approved Amount", formatMoney(overview.approvedAmount), MaterialTheme.appColors.success),
         KpiTileData("Commission", formatMoney(overview.commission), accents.amber),
         KpiTileData("Paid", formatMoney(overview.paid), accents.rose),
         KpiTileData("Payable", formatMoney(overview.payable), accents.red),
@@ -274,7 +274,7 @@ private fun DataTableCard(
     rows: List<List<String>>,
     emptyText: String,
 ) {
-    val accent = MaterialTheme.accents.green
+    val accent = MaterialTheme.appColors.success
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
             SectionHeader(title = title, count = count)
@@ -362,7 +362,7 @@ private fun PaymentDetailsCard(rows: List<ResellerPaymentRow>) {
                                 text = money(row.amount, row.currency),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = AppFontWeight.Bold,
-                                color = accents.green,
+                                color = MaterialTheme.appColors.success,
                             )
                         }
                         Spacer(Modifier.height(2.dp))

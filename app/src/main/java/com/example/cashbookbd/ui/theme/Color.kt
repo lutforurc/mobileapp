@@ -33,6 +33,15 @@ object BrandSheet {
     val Success = Color(0xFF4BAE4F)
     val Danger = Color(0xFFEA4335)
 
+    /**
+     * The success green every theme shares — paid amounts, the Paid pill, a
+     * present/approved status. Deeper and more saturated than [Success], which
+     * was too pale to read as text on the light theme's white page (2.8:1);
+     * this clears 4.5:1 on the dark card and carries far better on white, and
+     * it is the green the web already uses for the same states.
+     */
+    val SuccessStrong = Color(0xFF16A34A)
+
     // Ink & Neutrals
     val Ink = Color(0xFF1F2935)
     val Ink500 = Color(0xFF5A6470)

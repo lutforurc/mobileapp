@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.PillShape
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
@@ -49,7 +50,7 @@ fun InstallmentStatusPill(status: String) {
         status.lowercase().startsWith("upcoming") ||
             status.equals("due today", ignoreCase = true) ||
             status.equals("partial", ignoreCase = true) -> accents.amber
-        else -> accents.green
+        else -> MaterialTheme.appColors.success
     }
     Box(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),

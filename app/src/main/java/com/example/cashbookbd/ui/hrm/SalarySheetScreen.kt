@@ -623,22 +623,24 @@ private fun SalaryDetailView(
 }
 
 /**
- * The web's green "Paid" pill. The colour is the theme's success accent, so it
- * follows the palette in both themes — a translucent wash would re-tint itself
- * against whatever card sits behind it.
+ * The web's green "Paid" pill, in the shared success green.
+ *
+ * The label is the fixed on-accent white, not the theme's surface colour: on
+ * the dark theme that surface is nearly black, which put dark text on a green
+ * pill.
  */
 @Composable
 private fun PaidBadge() {
     Box(
         modifier = Modifier
-            .background(MaterialTheme.accents.green, PillShape)
+            .background(MaterialTheme.appColors.success, PillShape)
             .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(
             text = "Paid",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = AppFontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.appColors.textOnAccent,
         )
     }
 }

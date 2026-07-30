@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
@@ -508,7 +509,7 @@ private fun EarlyPaymentDialog(state: InstallmentsUiState, viewModel: Installmen
                 Text(
                     text = summary.message,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (summary.canApply) MaterialTheme.accents.green else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (summary.canApply) MaterialTheme.appColors.success else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },

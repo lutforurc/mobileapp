@@ -229,7 +229,7 @@ private fun DashboardContent(
                         title = "Top Sales",
                         products = dashboard.topSales,
                         days = dashboard.topPurchaseDays,
-                        accent = MaterialTheme.accents.green,
+                        accent = MaterialTheme.appColors.success,
                         showTotal = true,
                         periodPrefix = "",
                     )
@@ -297,7 +297,7 @@ private fun SummaryCard(dashboard: Dashboard) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
                 iconRes = R.drawable.ic_stat_received,
-                tint = accents.green,
+                tint = MaterialTheme.appColors.success,
                 label = "TODAY RECEIVED",
                 value = formatMoney(dashboard.todayReceived),
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -634,7 +634,7 @@ private fun ReceivedRow(
                 processed -> Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = "Received",
-                    tint = accents.green,
+                    tint = MaterialTheme.appColors.success,
                     modifier = Modifier.size(22.dp),
                 )
 

@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
@@ -502,7 +503,7 @@ private fun ruleColumns(
     state: HighlightRulesUiState,
     viewModel: HighlightRulesViewModel,
 ): List<ReportColumn<HighlightRuleRow>> {
-    val active = MaterialTheme.accents.green
+    val active = MaterialTheme.appColors.success
     // The rows draw straight on the screen backdrop, so cell text carries the
     // background's on-colour explicitly — legible in both themes.
     val onScreen = MaterialTheme.colorScheme.onBackground

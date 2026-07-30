@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.asTint
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -312,7 +313,7 @@ private fun SummaryTiles(summary: LayoutSummary) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CountTile("Floors", summary.floors, accents.purple, Modifier.weight(1f))
             CountTile("Total Units", summary.units, accents.blue, Modifier.weight(1f))
-            CountTile("Available", summary.available, accents.green, Modifier.weight(1f))
+            CountTile("Available", summary.available, MaterialTheme.appColors.success, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CountTile("Sold", summary.sold, accents.red, Modifier.weight(1f))
@@ -547,7 +548,7 @@ private fun FloorRow(floor: LayoutFloor, onUnitClick: (BuildingUnit) -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onSurfaceVariant,
             )
-            Surface(shape = CircleShape, color = MaterialTheme.accents.green) {
+            Surface(shape = CircleShape, color = MaterialTheme.appColors.success) {
                 Text(
                     text = units.size.toString(),
                     style = MaterialTheme.typography.labelSmall,

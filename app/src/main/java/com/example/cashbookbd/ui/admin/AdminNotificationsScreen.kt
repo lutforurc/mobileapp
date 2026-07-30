@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.PillShape
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -614,7 +615,7 @@ private fun ToneBadge(tone: String) {
     val color = when (tone.lowercase(Locale.US)) {
         "warning" -> MaterialTheme.accents.amber
         "danger" -> MaterialTheme.accents.red
-        "success" -> MaterialTheme.accents.green
+        "success" -> MaterialTheme.appColors.success
         else -> MaterialTheme.accents.blue
     }
     Box(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
