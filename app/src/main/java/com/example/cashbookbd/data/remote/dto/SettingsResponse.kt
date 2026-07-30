@@ -105,6 +105,10 @@ data class SettingsBranchDto(
     @SerializedName("multi_product_order") val multiProductOrder: String? = null,
     /** Ledger/cashbook reports show the voucher image column. */
     @SerializedName("show_voucher_image") val showVoucherImage: String? = null,
+    /** Allotment-letter reference prefix (e.g. "BST/ALLOT"); text meta. */
+    @SerializedName("letter_ref_prefix") val letterRefPrefix: String? = null,
+    /** The date the branch's letters carry (yyyy-MM-dd); text meta. */
+    @SerializedName("letter_ref_date") val letterRefDate: String? = null,
 )
 
 /**

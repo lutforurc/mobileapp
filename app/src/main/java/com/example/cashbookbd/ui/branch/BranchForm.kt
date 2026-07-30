@@ -145,6 +145,12 @@ object BranchForm {
                     "Delay Charge (% per annum)",
                     KeyboardType.Number,
                 ),
+                // What the letter's reference number starts with (year + sale
+                // serial are appended, e.g. BST/ALLOT/2026/036).
+                BranchField.Text("letter_ref_prefix", "Letter Reference Prefix (e.g. BST/ALLOT)"),
+                // The date the branch's letters carry, yyyy-MM-dd; blank offers
+                // the day the letter is issued.
+                BranchField.Text("letter_ref_date", "Letter Reference Date (yyyy-MM-dd)"),
             ),
         ),
         BranchStep(

@@ -58,4 +58,15 @@ data class Settings(
      * the `/public` path segment, matching the web's ImagePopup rule.
      */
     val isLocalEnv: Boolean = false,
+    /**
+     * Branch meta: what an allotment letter's reference number starts with
+     * (e.g. "BST/ALLOT") — the Generate dialog suggests prefix/year/serial.
+     * Null when unset (the server derives from the project's initials).
+     */
+    val letterRefPrefix: String? = null,
+    /**
+     * Branch meta: the date the branch's letters carry (yyyy-MM-dd). Null
+     * offers the day the letter is issued instead.
+     */
+    val letterRefDate: String? = null,
 )

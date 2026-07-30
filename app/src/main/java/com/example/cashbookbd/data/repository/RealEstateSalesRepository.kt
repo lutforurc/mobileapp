@@ -497,15 +497,24 @@ class RealEstateSalesRepository(
     /**
      * `POST real-estate/unit-sale/allotment-letter/generate/{saleId}` — renders
      * and APPENDS one immutable allotment-letter snapshot (L-{n}) to the sale.
-     * No payload; the success message names the new version. Printing the saved
-     * versions is a PDF stream and stays web-only.
+     * [refNo]/[refDate] head the letter (the office's register number and the
+     * day it goes out); blank ones are omitted so the server keeps deriving
+     * what it always did. Printing the saved versions stays web-only.
      */
-    suspend fun generateAllotmentLetter(saleId: String): Resource<String> =
+    suspend fun generateAllotmentLetter(
+        saleId: String,
+        refNo: String? = null,
+        refDate: String? = null,
+    ): Resource<String> =
         withContext(ioDispatcher) {
+            val body = JsonObject().apply {
+                refNo?.trim()?.takeIf { it.isNotEmpty() }?.let { addProperty("ref_no", it) }
+                refDate?.trim()?.takeIf { it.isNotEmpty() }?.let { addProperty("ref_date", it) }
+            }
             guarded {
                 val response = transactionApi.postObject(
                     "real-estate/unit-sale/allotment-letter/generate/$saleId",
-                    JsonObject(),
+                    body,
                 )
                 envelope(response) { json ->
                     Resource.Success(json.message() ?: "Allotment letter generated.")

@@ -109,6 +109,11 @@ data class SoldUnitsUiState(
     // whose snapshot save is in flight (its button shows the spinner).
     val pendingGenerate: com.example.cashbookbd.data.repository.SoldUnitSale? = null,
     val generatingSaleId: String? = null,
+    /** What the letter will be headed with — the office's to overwrite. */
+    val refNo: String = "",
+    val refDate: SimpleDate? = null,
+    /** The suggestion this screen offered; a clerk-typed ref survives date changes. */
+    val suggestedRefNo: String = "",
     val actionMessage: String? = null,
 
     val sessionExpired: Boolean = false,
@@ -116,6 +121,7 @@ data class SoldUnitsUiState(
 
 class SoldUnitsViewModel(
     private val repository: RealEstateSalesRepository,
+    private val settings: com.example.cashbookbd.session.Settings?,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SoldUnitsUiState())
@@ -203,18 +209,62 @@ class SoldUnitsViewModel(
 
     // ---- Allotment letter Generate (saves an immutable L-{n} snapshot) ----
 
-    fun requestGenerate(sale: com.example.cashbookbd.data.repository.SoldUnitSale) =
-        _uiState.update { it.copy(pendingGenerate = sale) }
+    /**
+     * The reference this screen offers: the branch's prefix, the year of the
+     * letter's own date, and the sale's serial padded to 3 — blank when the
+     * branch has set no prefix (the server then derives one), like the web.
+     */
+    private fun suggestRefNo(sale: com.example.cashbookbd.data.repository.SoldUnitSale, on: SimpleDate): String {
+        val prefix = settings?.letterRefPrefix?.trimEnd('/') ?: return ""
+        val serial = sale.saleId.padStart(3, '0')
+        return "$prefix/${on.year}/$serial"
+    }
+
+    /** Opens the confirmation with the reference/date the letter will carry. */
+    fun requestGenerate(sale: com.example.cashbookbd.data.repository.SoldUnitSale) {
+        // The branch's letter date when it keeps one, else today — an offer the
+        // clerk sees and can overwrite, never a silent default.
+        val on = settings?.letterRefDate?.let { SimpleDate.fromApi(it) } ?: SimpleDate.today()
+        val suggestion = suggestRefNo(sale, on)
+        _uiState.update {
+            it.copy(
+                pendingGenerate = sale,
+                refDate = on,
+                refNo = suggestion,
+                suggestedRefNo = suggestion,
+            )
+        }
+    }
+
+    fun onRefNoChange(value: String) = _uiState.update { it.copy(refNo = value) }
+
+    /** The year belongs to the reference, so it follows the date — unless the
+     *  clerk has already written a reference of their own. */
+    fun onRefDateSelected(date: SimpleDate) {
+        val state = _uiState.value
+        val sale = state.pendingGenerate ?: return
+        val next = suggestRefNo(sale, date)
+        _uiState.update {
+            it.copy(
+                refDate = date,
+                refNo = if (it.refNo == it.suggestedRefNo) next else it.refNo,
+                suggestedRefNo = next,
+            )
+        }
+    }
 
     fun cancelGenerate() = _uiState.update { it.copy(pendingGenerate = null) }
 
     /** Confirms the snapshot save, then silently refreshes so L-counts update. */
     fun confirmGenerate() {
-        val sale = _uiState.value.pendingGenerate ?: return
-        if (_uiState.value.generatingSaleId != null) return
+        val state = _uiState.value
+        val sale = state.pendingGenerate ?: return
+        if (state.generatingSaleId != null) return
+        val refNo = state.refNo
+        val refDate = state.refDate?.toApi()
         _uiState.update { it.copy(pendingGenerate = null, generatingSaleId = sale.saleId) }
         viewModelScope.launch {
-            when (val result = repository.generateAllotmentLetter(sale.saleId)) {
+            when (val result = repository.generateAllotmentLetter(sale.saleId, refNo, refDate)) {
                 is Resource.Success -> {
                     _uiState.update { it.copy(actionMessage = result.data) }
                     refreshSilently()
@@ -260,6 +310,7 @@ class SoldUnitsViewModel(
                 val appContext = context.applicationContext
                 SoldUnitsViewModel(
                     repository = ServiceLocator.provideRealEstateSalesRepository(appContext),
+                    settings = ServiceLocator.provideSessionManager(appContext).state.value.settings,
                 )
             }
         }
@@ -430,17 +481,42 @@ fun SoldUnitsScreen(
         }
     }
 
-    // The web's Generate confirmation: a snapshot is immutable once saved.
+    // The web's Generate confirmation: a snapshot is immutable once saved. The
+    // reference and date head the letter — both the office's to overwrite
+    // (the register's number, and the day the letter actually goes out).
     state.pendingGenerate?.let { sale ->
         AlertDialog(
             onDismissRequest = viewModel::cancelGenerate,
             title = { Text("Generate allotment letter?") },
             text = {
-                Text(
-                    "This saves letter L-${sale.letterCount + 1} for receipt " +
-                        "${sale.receiptNo.ifBlank { "(no receipt)" }} as a permanent snapshot. " +
-                        "Saved versions can be printed from the web.",
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "This saves letter L-${sale.letterCount + 1} for receipt " +
+                            "${sale.receiptNo.ifBlank { "(no receipt)" }} as a permanent snapshot. " +
+                            "Saved versions can be printed from the web.",
+                    )
+                    AppTextField(
+                        value = state.refNo,
+                        onValueChange = viewModel::onRefNoChange,
+                        label = "Reference No",
+                        caption = "Reference No (blank = server derives one)",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    PickerField(
+                        label = "Letter Date",
+                        value = state.refDate?.toDisplay() ?: "",
+                        placeholder = "Today",
+                        trailingIcon = Icons.Filled.DateRange,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showSoldUnitsDatePicker(
+                                context,
+                                state.refDate ?: SimpleDate.today(),
+                                viewModel::onRefDateSelected,
+                            )
+                        },
+                    )
+                }
             },
             confirmButton = {
                 PrimaryButton(text = "Generate", onClick = viewModel::confirmGenerate, compact = true)

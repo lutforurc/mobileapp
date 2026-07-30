@@ -74,6 +74,14 @@ class SettingsRepository(
                     multiProductOrder = payload?.branch?.multiProductOrder?.trim() == "1",
                     showVoucherImage = payload?.branch?.showVoucherImage?.trim() == "1",
                     isLocalEnv = payload?.env?.trim().equals("local", ignoreCase = true),
+                    // Text metas arrive as the string, or boolean false when the
+                    // branch never wrote them (Gson reads that into "false").
+                    letterRefPrefix = payload?.branch?.letterRefPrefix?.trim()
+                        ?.takeUnless { it.isEmpty() || it == "false" },
+                    letterRefDate = payload?.branch?.letterRefDate?.trim()
+                        ?.takeUnless { it.isEmpty() || it == "false" }
+                        // A native date field only holds yyyy-MM-dd; cut like the web.
+                        ?.take(10),
                 )
             )
         } catch (e: IOException) {
