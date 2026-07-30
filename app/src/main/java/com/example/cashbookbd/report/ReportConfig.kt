@@ -78,6 +78,20 @@ data class ReportChoice(
 )
 
 /**
+ * Where a report's rows carry their voucher attachments. [imageKey] holds the
+ * pipe-separated file names (`main_trx_master.voucher_image`); the branch
+ * context comes from [branchPadKey] (already zero-padded, Cash Book style) or,
+ * failing that, [branchIdKey] (a raw id the client pads to 4). The raw keys are
+ * hidden from the text table — the thumbnails column replaces them, gated on
+ * the branch's `show_voucher_image` switch like the web.
+ */
+data class ReportVoucherImages(
+    val imageKey: String = "voucher_image",
+    val branchIdKey: String? = "branch_id",
+    val branchPadKey: String? = null,
+)
+
+/**
  * A single-select dropdown filter some reports need (e.g. Bank Information's
  * balance/loan type). The chosen [ReportChoice.value] is sent under [paramKey].
  */
@@ -211,6 +225,11 @@ data class ReportConfig(
      * is visible. Also rendered verbatim, like [textColumns].
      */
     val highlightColumn: String? = null,
+    /**
+     * When set, the rows' voucher attachments become a tappable thumbnail
+     * column (shown only while the branch's `show_voucher_image` is on).
+     */
+    val voucherImages: ReportVoucherImages? = null,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -712,6 +731,7 @@ object ReportMenu {
             // it is surfaced as a "Notes" column and highlight-rule matched.
             highlightPaths = listOf("purchase_master.notes"),
             highlightColumn = "notes",
+            voucherImages = ReportVoucherImages(),
         ),
         ReportConfig(
             key = "salesLedger",
@@ -734,6 +754,7 @@ object ReportMenu {
                 "acc_transaction_master.0.acc_transaction_details.0.remarks",
             ),
             highlightColumn = "notes",
+            voucherImages = ReportVoucherImages(),
         ),
         ReportConfig(
             key = "mitchMatch",
@@ -1278,6 +1299,8 @@ object ReportMenu {
                 "received_amt" to "Received",
                 "payment_amt" to "Payment",
             ),
+            // Loan rows arrive with the branch already padded (`branch_pad`).
+            voucherImages = ReportVoucherImages(branchPadKey = "branch_pad"),
         ),
         ReportConfig(
             key = "hrmSalaryMismatch",

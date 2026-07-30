@@ -1,5 +1,7 @@
 package com.example.cashbookbd.report
 
+import com.example.cashbookbd.core.VoucherAttachment
+
 /**
  * One field of a report row: a humanized [label] and its display [value]. The
  * raw [key] is kept for summary cells so a report can colour its KPI cards by
@@ -18,6 +20,12 @@ data class ReportRow(
     val highlightText: String = "",
     /** Display label of the column whose cell gets the coloured box, when any. */
     val highlightLabel: String? = null,
+    /**
+     * The voucher's photo/document attachments, when the report declares a
+     * [ReportConfig.voucherImages] spec — rendered as a tappable thumbnail
+     * column behind the branch's `show_voucher_image` switch.
+     */
+    val voucherAttachments: List<VoucherAttachment> = emptyList(),
 )
 
 /**

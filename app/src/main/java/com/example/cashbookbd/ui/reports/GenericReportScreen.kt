@@ -62,8 +62,13 @@ import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.VoucherAttachmentsCell
+import com.example.cashbookbd.ui.components.VoucherImageViewerDialog
+import com.example.cashbookbd.ui.components.openVoucherAttachment
 import com.example.cashbookbd.report.ReportCell
 import com.example.cashbookbd.report.ReportRow
 import com.example.cashbookbd.report.ReportSelectorSource
@@ -700,12 +705,16 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
 /**
  * Renders the report through the shared [ReportTable]. Columns are derived from
  * the API row keys (numeric → right-aligned, narrower; text → left-aligned), with
- * a leading "Sl. No." column the table numbers itself.
+ * a leading "Sl. No." column the table numbers itself. Reports that carry
+ * voucher attachments also get a trailing tappable thumbnail column while the
+ * branch's `show_voucher_image` switch is on, like the web ledgers.
  */
 @Composable
 private fun GenericReportTable(table: TableModel) {
     val rules = rememberHighlightRules()
     val brand = MaterialTheme.brand
+    val context = LocalContext.current
+    val settings = remember { ServiceLocator.provideSessionManager(context).state.value.settings }
     // One matched border colour per row (null = no box), resolved up front so
     // the (non-composable) column render lambdas only look it up.
     val rowHighlights = remember(table, rules, brand) {
@@ -715,15 +724,54 @@ private fun GenericReportTable(table: TableModel) {
             table.highlightTexts.map { text -> brand.highlightColor(matchHighlightRule(text, rules)) }
         }
     }
-    val columns = remember(table, rowHighlights) { buildGenericColumns(table, rowHighlights) }
+
+    val showVouchers = settings?.showVoucherImage == true &&
+        table.attachments.any { it.isNotEmpty() }
+    val isLocalEnv = settings?.isLocalEnv == true
+    var viewing by remember { mutableStateOf<VoucherAttachment?>(null) }
+    val onOpenAttachment: (VoucherAttachment) -> Unit = { attachment ->
+        if (attachment.isImage) {
+            viewing = attachment
+        } else {
+            openVoucherAttachment(context, attachment, isLocalEnv)
+        }
+    }
+
+    val columns = remember(table, rowHighlights, showVouchers, isLocalEnv) {
+        buildGenericColumns(
+            table = table,
+            rowHighlights = rowHighlights,
+            voucherColumn = if (showVouchers) {
+                VoucherColumn(isLocalEnv = isLocalEnv, onOpen = onOpenAttachment)
+            } else {
+                null
+            },
+        )
+    }
     ReportTable(columns = columns, data = table.rows)
+
+    viewing?.let { attachment ->
+        VoucherImageViewerDialog(
+            attachment = attachment,
+            isLocalEnv = isLocalEnv,
+            onDismiss = { viewing = null },
+        )
+    }
 }
 
 private val COL_SL = 48.dp
+private val COL_VOUCHER = 96.dp
+
+/** The trailing thumbnail column's context, captured outside the render lambdas. */
+private data class VoucherColumn(
+    val isLocalEnv: Boolean,
+    val onOpen: (VoucherAttachment) -> Unit,
+)
 
 private fun buildGenericColumns(
     table: TableModel,
     rowHighlights: List<Color?>,
+    voucherColumn: VoucherColumn? = null,
 ): List<ReportColumn<List<String>>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
@@ -745,6 +793,24 @@ private fun buildGenericColumns(
                     maxLines = 2,
                     highlight = if (ci == table.highlightCol) rowHighlights.getOrNull(index) else null,
                 )
+            },
+        )
+    }
+    if (voucherColumn != null) {
+        add(
+            ReportColumn("Voucher", ReportColWidth.Fixed(COL_VOUCHER), TextAlign.Center) { _, index ->
+                val attachments = table.attachments.getOrNull(index).orEmpty()
+                if (attachments.isEmpty()) {
+                    ReportTableCell.Empty
+                } else {
+                    ReportTableCell.Slot {
+                        VoucherAttachmentsCell(
+                            attachments = attachments,
+                            isLocalEnv = voucherColumn.isLocalEnv,
+                            onOpen = voucherColumn.onOpen,
+                        )
+                    }
+                }
             },
         )
     }
@@ -778,6 +844,8 @@ private data class TableModel(
     val highlightTexts: List<String> = emptyList(),
     /** Index in [columns] of the cell that gets the coloured box; -1 = none. */
     val highlightCol: Int = -1,
+    /** Per row, the voucher attachments for the flag-gated thumbnail column. */
+    val attachments: List<List<VoucherAttachment>> = emptyList(),
 )
 
 /**
@@ -808,6 +876,7 @@ private fun buildTable(rows: List<ReportRow>): TableModel {
         rows = matrix,
         highlightTexts = rows.map { it.highlightText },
         highlightCol = highlightLabel?.let { columns.indexOf(it) } ?: -1,
+        attachments = rows.map { it.voucherAttachments },
     )
 }
 

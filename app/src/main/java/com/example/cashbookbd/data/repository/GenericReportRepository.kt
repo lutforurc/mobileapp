@@ -1,6 +1,8 @@
 package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.core.VoucherImages
 import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.report.ReportCell
 import com.example.cashbookbd.report.ReportConfig
@@ -174,7 +176,12 @@ class GenericReportRepository(
 
     /** Turns the payload into display rows, honouring the report's [ReportResponseShape]. */
     private fun buildRows(payload: JsonElement, config: ReportConfig): List<ReportRow> {
-        val hidden = config.hiddenColumns.map { it.lowercase(Locale.US) }.toSet()
+        // The attachment keys never render as text — the thumbnail column
+        // (gated on the branch switch) replaces them.
+        val voucherKeys = config.voucherImages?.let {
+            listOfNotNull(it.imageKey, it.branchIdKey, it.branchPadKey)
+        }.orEmpty()
+        val hidden = (config.hiddenColumns + voucherKeys).map { it.lowercase(Locale.US) }.toSet()
         val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
         val unitKey = config.unitColumn?.lowercase(Locale.US)
         val labels = config.columnLabels.mapKeys { it.key.lowercase(Locale.US) }
@@ -182,11 +189,12 @@ class GenericReportRepository(
         // The highlight column holds free text (a note), never an amount.
         val text = (config.textColumns.map { it.lowercase(Locale.US) } + listOfNotNull(highlightKey)).toSet()
         val months = config.monthColumns.map { it.lowercase(Locale.US) }.toSet()
+        val voucherSpec = config.voucherImages
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
         }
     }
 
@@ -302,6 +310,7 @@ class GenericReportRepository(
         months: Set<String> = emptySet(),
         highlightPaths: List<String> = emptyList(),
         highlightKey: String? = null,
+        voucherSpec: com.example.cashbookbd.report.ReportVoucherImages? = null,
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -340,9 +349,35 @@ class GenericReportRepository(
             } else {
                 cells
             }
-            ReportRow(allCells, highlightText = highlightText, highlightLabel = highlightLabel)
+            ReportRow(
+                allCells,
+                highlightText = highlightText,
+                highlightLabel = highlightLabel,
+                voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
+            )
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /**
+     * The row's voucher attachments per the report's [voucherSpec]: the
+     * pipe-separated file names plus their branch pad (pre-padded key first,
+     * else the raw id padded to 4) — see [VoucherImages].
+     */
+    private fun extractVoucherAttachments(
+        obj: com.google.gson.JsonObject,
+        voucherSpec: com.example.cashbookbd.report.ReportVoucherImages?,
+    ): List<VoucherAttachment> {
+        val spec = voucherSpec ?: return emptyList()
+        fun raw(key: String?): String? = key
+            ?.let { obj.get(it) }
+            ?.takeUnless { it.isJsonNull }
+            ?.takeIf { it.isJsonPrimitive }
+            ?.asString
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        val pad = raw(spec.branchPadKey) ?: VoucherImages.branchPad(raw(spec.branchIdKey))
+        return VoucherImages.attachments(raw(spec.imageKey), pad)
     }
 
     /**

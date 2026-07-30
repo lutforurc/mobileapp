@@ -31,4 +31,8 @@ data class CashBookRowDto(
     @SerializedName("debit") val debit: String? = null,
     @SerializedName("credit") val credit: String? = null,
     @SerializedName("balance") val balance: String? = null,
+    /** Pipe-separated voucher attachment file names, or null. */
+    @SerializedName("voucher_image") val voucherImage: String? = null,
+    /** The branch id already zero-padded to 4 by the endpoint ("0007"). */
+    @SerializedName("branchPad") val branchPad: String? = null,
 )

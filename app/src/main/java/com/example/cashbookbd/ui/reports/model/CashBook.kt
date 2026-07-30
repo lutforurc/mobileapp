@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.reports.model
 
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.core.VoucherImages
 import com.example.cashbookbd.data.remote.dto.BranchOptionDto
 import com.example.cashbookbd.data.remote.dto.CashBookRowDto
 import java.util.Calendar
@@ -106,6 +108,8 @@ data class CashBookRow(
     val balance: Double?,
     /** True for the trailing Total / Balance summary rows (styled distinctly). */
     val isSummary: Boolean,
+    /** The voucher's photo/document attachments — the flag-gated Voucher column. */
+    val attachments: List<VoucherAttachment> = emptyList(),
 )
 
 data class CashBookReport(
@@ -151,5 +155,6 @@ fun CashBookRowDto.toCashBookRow(): CashBookRow {
         credit = credit.toAmount(),
         balance = balance?.trim()?.toDoubleOrNull(),
         isSummary = isSummary,
+        attachments = VoucherImages.attachments(voucherImage, branchPad),
     )
 }

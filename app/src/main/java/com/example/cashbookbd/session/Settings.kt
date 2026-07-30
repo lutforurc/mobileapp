@@ -53,4 +53,9 @@ data class Settings(
     val multiProductOrder: Boolean = false,
     /** Branch meta: ledger/cashbook reports show the voucher image column. */
     val showVoucherImage: Boolean = false,
+    /**
+     * True when the API runs with APP_ENV=local — voucher-image URLs then skip
+     * the `/public` path segment, matching the web's ImagePopup rule.
+     */
+    val isLocalEnv: Boolean = false,
 )

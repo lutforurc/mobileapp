@@ -73,6 +73,7 @@ class SettingsRepository(
                     needCustomerSex = payload?.branch?.needCustomerSex?.trim() == "1",
                     multiProductOrder = payload?.branch?.multiProductOrder?.trim() == "1",
                     showVoucherImage = payload?.branch?.showVoucherImage?.trim() == "1",
+                    isLocalEnv = payload?.env?.trim().equals("local", ignoreCase = true),
                 )
             )
         } catch (e: IOException) {

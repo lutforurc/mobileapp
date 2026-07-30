@@ -64,6 +64,11 @@ import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.CashBookRow
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.core.AmountFormat
+import com.example.cashbookbd.core.VoucherAttachment
+import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.ui.components.VoucherAttachmentsCell
+import com.example.cashbookbd.ui.components.VoucherImageViewerDialog
+import com.example.cashbookbd.ui.components.openVoucherAttachment
 
 @Composable
 fun CashBookScreen(
@@ -254,13 +259,24 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
+/** The trailing thumbnail column's context, captured outside the render lambdas. */
+private data class CashBookVoucherColumn(
+    val isLocalEnv: Boolean,
+    val onOpen: (VoucherAttachment) -> Unit,
+)
+
 // Columns for the horizontally-scrollable table.
 // Order: Date | VR No | Description | Received (credit) | Payment (debit)
+// [+ Voucher thumbnails while the branch's show_voucher_image switch is on]
 //
 // [summaryColor] is the ink for the total/balance rows, which draw on a pale
 // secondaryContainer band — the body's on-teal ink washes out there, so summary
 // cells take the band's own on-colour (normal rows keep the backdrop default).
-private fun cashBookColumns(rules: List<HighlightRule>, summaryColor: Color) = listOf(
+private fun cashBookColumns(
+    rules: List<HighlightRule>,
+    summaryColor: Color,
+    voucherColumn: CashBookVoucherColumn? = null,
+) = listOf(
     ReportColumn<CashBookRow>("Date", ReportColWidth.Fixed(96.dp)) { r, _ ->
         cellText(r.date, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
@@ -281,6 +297,22 @@ private fun cashBookColumns(rules: List<HighlightRule>, summaryColor: Color) = l
     },
     ReportColumn<CashBookRow>("Payment", ReportColWidth.Fixed(116.dp), TextAlign.End) { r, _ ->
         cellText(amountOrDash(r.debit), align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
+    },
+) + listOfNotNull(
+    voucherColumn?.let { vc ->
+        ReportColumn<CashBookRow>("Voucher", ReportColWidth.Fixed(96.dp), TextAlign.Center) { r, _ ->
+            if (r.attachments.isEmpty()) {
+                ReportTableCell.Empty
+            } else {
+                ReportTableCell.Slot {
+                    VoucherAttachmentsCell(
+                        attachments = r.attachments,
+                        isLocalEnv = vc.isLocalEnv,
+                        onOpen = vc.onOpen,
+                    )
+                }
+            }
+        }
     },
 )
 
@@ -328,12 +360,44 @@ private fun CashBookTable(rows: List<CashBookRow>) {
     val rules = rememberHighlightRules()
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
-    val columns = remember(rules, summaryInk) { cashBookColumns(rules, summaryInk) }
+
+    // The voucher-image column, behind the same branch switch as the web.
+    val context = LocalContext.current
+    val settings = remember { ServiceLocator.provideSessionManager(context).state.value.settings }
+    val showVouchers = settings?.showVoucherImage == true && rows.any { it.attachments.isNotEmpty() }
+    val isLocalEnv = settings?.isLocalEnv == true
+    var viewing by remember { mutableStateOf<VoucherAttachment?>(null) }
+
+    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv) {
+        cashBookColumns(
+            rules = rules,
+            summaryColor = summaryInk,
+            voucherColumn = if (showVouchers) {
+                CashBookVoucherColumn(isLocalEnv = isLocalEnv) { attachment ->
+                    if (attachment.isImage) {
+                        viewing = attachment
+                    } else {
+                        openVoucherAttachment(context, attachment, isLocalEnv)
+                    }
+                }
+            } else {
+                null
+            },
+        )
+    }
     ReportTable(
         columns = columns,
         data = rows,
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
     )
+
+    viewing?.let { attachment ->
+        VoucherImageViewerDialog(
+            attachment = attachment,
+            isLocalEnv = isLocalEnv,
+            onDismiss = { viewing = null },
+        )
+    }
 }
 
 /** Received/Payment cells read cleaner when zeros show as a dash. */

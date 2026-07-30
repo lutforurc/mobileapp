@@ -43,6 +43,11 @@ data class SettingsPayload(
      * as the web's DropdownUser reads `settings.data.trx_dt`.
      */
     @SerializedName("trx_dt") val trxDt: String? = null,
+    /**
+     * The server's APP_ENV ("local"/"production"). The voucher-image URLs skip
+     * the `/public` prefix on a local server, exactly like the web's ImagePopup.
+     */
+    @SerializedName("env") val env: String? = null,
 )
 
 /** The signed-in user, from `settings/get-settings`. Only the fields the app reads. */
