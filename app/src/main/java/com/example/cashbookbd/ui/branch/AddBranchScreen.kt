@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.branch
 
+import com.example.cashbookbd.ui.components.AppStepBar
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -113,7 +114,7 @@ fun AddBranchScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                StepBar(
+                AppStepBar(
                     steps = state.steps.map { it.title },
                     currentStep = state.currentStep,
                     onStepClick = viewModel::goToStep,
@@ -204,81 +205,6 @@ private const val PRINT_STEP = 1
 private const val CUSTOM_PAD = "3"
 
 /**
- * The step indicator. Steps are tappable so a user editing one setting can jump
- * straight to it rather than paging through, which is how the web behaves.
- */
-@Composable
-private fun StepBar(
-    steps: List<String>,
-    currentStep: Int,
-    onStepClick: (Int) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        steps.forEachIndexed { index, title ->
-            val isCurrent = index == currentStep
-            val isDone = index < currentStep
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onStepClick(index) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(StepMarkerSize)
-                        .background(
-                            color = when {
-                                isCurrent -> MaterialTheme.colorScheme.primary
-                                isDone -> MaterialTheme.colorScheme.primaryContainer
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            shape = CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isDone) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    } else {
-                        Text(
-                            text = (index + 1).toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isCurrent) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    color = if (isCurrent) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.appColors.textOnScreenMuted
-                    },
-                    fontWeight = if (isCurrent) AppFontWeight.SemiBold else AppFontWeight.Normal,
-                )
-            }
-        }
-    }
-}
-
-/**
  * Back / Next, with Save replacing Next on the last step.
  *
  * Save is disabled until every required field is filled, and names the first
@@ -346,7 +272,11 @@ private fun Field(
     AppTextField(
         value = value,
         onValueChange = onChange,
-        label = label,
+        // The name goes on the border, as the dropdowns on this form already do
+        // — as an in-box hint it vanished the moment the field was filled, and
+        // a form of half-labelled, half-anonymous boxes is what read as a mess.
+        caption = label,
+        label = "",
         keyboardType = keyboard,
         multiline = multiline,
         modifier = Modifier.fillMaxWidth(),
