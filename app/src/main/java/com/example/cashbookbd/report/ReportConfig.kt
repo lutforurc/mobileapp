@@ -92,6 +92,20 @@ data class ReportVoucherImages(
 )
 
 /**
+ * Two adjacent data columns rendered as ONE stacked cell — the [topKey] value on
+ * top, the [bottomKey] value beneath — mirroring the web's combined column (e.g.
+ * the Loan Ledger's "Vr No & Date": the voucher number over its date). The merged
+ * column takes the [topKey]'s position and [header]; the [bottomKey] column drops.
+ */
+data class ReportStackedColumn(
+    val header: String,
+    val topKey: String,
+    val bottomKey: String,
+    /** Reformat the bottom value from a yyyy-MM-dd wire date to dd/MM/yyyy. */
+    val bottomIsDate: Boolean = false,
+)
+
+/**
  * A single-select dropdown filter some reports need (e.g. Bank Information's
  * balance/loan type). The chosen [ReportChoice.value] is sent under [paramKey].
  */
@@ -230,6 +244,11 @@ data class ReportConfig(
      * column (shown only while the branch's `show_voucher_image` is on).
      */
     val voucherImages: ReportVoucherImages? = null,
+    /**
+     * Adjacent column pairs to render as ONE stacked cell (top value over bottom),
+     * e.g. the Loan Ledger's "Vr No & Date". Empty = no merging.
+     */
+    val stackedColumns: List<ReportStackedColumn> = emptyList(),
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -1292,17 +1311,27 @@ object ReportMenu {
             ),
             section = ReportConfig.SECTION_HRM,
             hiddenColumns = listOf(
-                "id", "loan_detail_id", "branch_id", "branch_pad", "voucher_image",
+                // branch_name is hidden too: the report is always scoped to one
+                // selected branch, so the column is redundant — like the web, which
+                // shows the branch under Remarks rather than as its own column.
+                "id", "loan_detail_id", "branch_id", "branch_name", "branch_pad", "voucher_image",
             ),
             columnLabels = mapOf(
                 "employee_name" to "Employee",
-                "vr_no" to "Vr No",
-                "vr_date" to "Vr Date",
-                "branch_name" to "Branch",
                 "received_amt" to "Received",
                 "payment_amt" to "Payment",
             ),
-            // Loan rows arrive with the branch already padded (`branch_pad`).
+            // vr_no over vr_date in a single "Vr No & Date" column, like the web.
+            stackedColumns = listOf(
+                ReportStackedColumn(
+                    header = "Vr No & Date",
+                    topKey = "vr_no",
+                    bottomKey = "vr_date",
+                    bottomIsDate = true,
+                ),
+            ),
+            // Loan rows arrive with the branch already padded (`branch_pad`); the
+            // thumbnail column trails the data, like the web ledger.
             voucherImages = ReportVoucherImages(branchPadKey = "branch_pad"),
         ),
         ReportConfig(

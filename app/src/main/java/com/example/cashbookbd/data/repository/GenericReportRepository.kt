@@ -192,9 +192,9 @@ class GenericReportRepository(
         val voucherSpec = config.voucherImages
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
         }
     }
 
@@ -311,6 +311,7 @@ class GenericReportRepository(
         highlightPaths: List<String> = emptyList(),
         highlightKey: String? = null,
         voucherSpec: com.example.cashbookbd.report.ReportVoucherImages? = null,
+        stacked: List<com.example.cashbookbd.report.ReportStackedColumn> = emptyList(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -338,7 +339,8 @@ class GenericReportRepository(
                         // the flat key is blank and it came from a fallback path.
                         if (value.isBlank() && highlightText.isNotEmpty()) value = highlightText
                     }
-                    ReportCell(header, value)
+                    // Keep the raw key so stacked-column merging can find the pair.
+                    ReportCell(header, value, key = keyLower)
                 }
             // A row with only a nested note (Purchase Ledger) has no flat cell
             // to box — append one so the text is visible and highlightable.
@@ -350,7 +352,7 @@ class GenericReportRepository(
                 cells
             }
             ReportRow(
-                allCells,
+                mergeStackedColumns(allCells, stacked),
                 highlightText = highlightText,
                 highlightLabel = highlightLabel,
                 voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
@@ -378,6 +380,57 @@ class GenericReportRepository(
             ?.takeIf { it.isNotEmpty() }
         val pad = raw(spec.branchPadKey) ?: VoucherImages.branchPad(raw(spec.branchIdKey))
         return VoucherImages.attachments(raw(spec.imageKey), pad)
+    }
+
+    /**
+     * Folds each [ReportStackedColumn] pair into one cell: the top key's value over
+     * the bottom key's (optionally date-reformatted). The merged cell keeps the top
+     * key's position and [ReportStackedColumn.header]; the bottom cell is dropped. A
+     * row missing the top key is left untouched.
+     */
+    private fun mergeStackedColumns(
+        cells: List<ReportCell>,
+        specs: List<com.example.cashbookbd.report.ReportStackedColumn>,
+    ): List<ReportCell> {
+        if (specs.isEmpty()) return cells
+        var result = cells
+        for (spec in specs) {
+            val topKey = spec.topKey.lowercase(Locale.US)
+            val bottomKey = spec.bottomKey.lowercase(Locale.US)
+            val topIdx = result.indexOfFirst { it.key == topKey }
+            if (topIdx < 0) continue
+            val bottomIdx = result.indexOfFirst { it.key == bottomKey }
+            val top = result[topIdx].value
+            val bottom = when {
+                bottomIdx < 0 -> ""
+                spec.bottomIsDate -> reformatIsoDate(result[bottomIdx].value)
+                else -> result[bottomIdx].value
+            }
+            val merged = ReportCell(
+                label = spec.header,
+                value = listOf(top, bottom).filter { it.isNotBlank() }.joinToString("\n"),
+                key = topKey,
+            )
+            result = result.mapIndexedNotNull { i, cell ->
+                when (i) {
+                    topIdx -> merged
+                    bottomIdx -> null
+                    else -> cell
+                }
+            }
+        }
+        return result
+    }
+
+    /** yyyy-MM-dd (or an ISO datetime) -> dd/MM/yyyy; anything else passes through. */
+    private fun reformatIsoDate(raw: String): String {
+        val datePart = raw.trim().substringBefore('T').substringBefore(' ')
+        val parts = datePart.split('-')
+        if (parts.size == 3 && parts[0].length == 4 && parts.all { it.toIntOrNull() != null }) {
+            val (y, m, d) = parts
+            return "${d.padStart(2, '0')}/${m.padStart(2, '0')}/$y"
+        }
+        return raw
     }
 
     /**

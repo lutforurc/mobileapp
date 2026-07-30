@@ -804,11 +804,17 @@ private fun buildGenericColumns(
                     ReportTableCell.Empty
                 } else {
                     ReportTableCell.Slot {
-                        VoucherAttachmentsCell(
-                            attachments = attachments,
-                            isLocalEnv = voucherColumn.isLocalEnv,
-                            onOpen = voucherColumn.onOpen,
-                        )
+                        // Centre the thumbnail(s) within the column width.
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            VoucherAttachmentsCell(
+                                attachments = attachments,
+                                isLocalEnv = voucherColumn.isLocalEnv,
+                                onOpen = voucherColumn.onOpen,
+                            )
+                        }
                     }
                 }
             },
