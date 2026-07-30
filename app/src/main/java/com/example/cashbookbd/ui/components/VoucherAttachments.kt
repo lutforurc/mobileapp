@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.cashbookbd.core.VoucherAttachment
@@ -116,16 +115,9 @@ fun VoucherImageViewerDialog(
     onDismiss: () -> Unit,
 ) {
     val fullUrl = VoucherImages.fullUrl(attachment, isLocalEnv)
+    // No title — the photo itself is the content; the file name is noise.
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = attachment.fileName,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
         text = {
             Column(
                 modifier = Modifier
