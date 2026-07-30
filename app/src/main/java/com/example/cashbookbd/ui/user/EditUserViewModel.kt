@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.EditUser
+import com.example.cashbookbd.data.repository.SessionRepository
 import com.example.cashbookbd.data.repository.UserRepository
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
  * values together, then submits the update.
  */
 class EditUserViewModel(
+    private val sessionRepository: SessionRepository,
     private val userId: String,
     private val repository: UserRepository,
 ) : ViewModel() {
@@ -113,8 +115,14 @@ class EditUserViewModel(
                 )
             )
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(isSaving = false, savedMessage = result.data)
+                is Resource.Success -> {
+                    // The web re-dispatches getSettings() after a user update:
+                    // editing your own account (role, branch, feature flags)
+                    // must show app-wide at once, not after a re-login.
+                    sessionRepository.refresh()
+                    _uiState.update {
+                        it.copy(isSaving = false, savedMessage = result.data)
+                    }
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(
@@ -136,6 +144,7 @@ class EditUserViewModel(
         fun provideFactory(context: Context, userId: String) = viewModelFactory {
             initializer {
                 EditUserViewModel(
+                    sessionRepository = ServiceLocator.provideSessionRepository(context.applicationContext),
                     userId = userId,
                     repository = ServiceLocator.provideUserRepository(context.applicationContext),
                 )
