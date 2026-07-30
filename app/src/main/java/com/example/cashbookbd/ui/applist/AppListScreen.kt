@@ -109,6 +109,10 @@ fun AppListScreen(
         else -> Routes.VR_SETTINGS
     }
 
+    // Coming back to this list (from an add/edit screen or elsewhere): always
+    // refresh — the saved-message reload below can lose the pop-transition race.
+    com.example.cashbookbd.ui.common.ReloadOnResume(onReload = viewModel::reloadCurrent)
+
     // Coming back from a successful create: reload so the new row shows.
     val savedHandle = navController.currentBackStackEntry?.savedStateHandle
     val savedMessage by savedHandle

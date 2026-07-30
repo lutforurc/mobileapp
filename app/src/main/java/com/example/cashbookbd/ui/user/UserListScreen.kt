@@ -109,6 +109,9 @@ fun UserListScreen(
         }
     }
 
+    // Coming back to this screen (from edit/add or elsewhere): always refresh.
+    com.example.cashbookbd.ui.common.ReloadOnResume(onReload = viewModel::reloadCurrent)
+
     // Coming back from a successful create/edit: reload so the change shows.
     val savedHandle = navController.currentBackStackEntry?.savedStateHandle
     val savedMessage by savedHandle

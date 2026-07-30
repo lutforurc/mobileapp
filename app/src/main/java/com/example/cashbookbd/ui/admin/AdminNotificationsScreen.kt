@@ -262,6 +262,9 @@ class AdminNotificationsViewModel(
 
     fun confirmDelete() {
         val row = _uiState.value.confirmDelete ?: return
+        // One delete at a time — deletingId is a single slot, and a second
+        // confirm mid-flight would silently lose the first spinner/result.
+        if (_uiState.value.deletingId != null) return
         _uiState.update { it.copy(confirmDelete = null, deletingId = row.id) }
         viewModelScope.launch {
             when (val result = repository.deleteNotification(row.id)) {

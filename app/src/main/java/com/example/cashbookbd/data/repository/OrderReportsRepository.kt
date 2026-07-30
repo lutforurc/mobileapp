@@ -67,6 +67,11 @@ data class OrderTransactionReport(
     val totalPayment: Double,
     /** The last row's running balance (0 when there are no rows). */
     val finalBalance: Double,
+    /**
+     * The web renames the Payment column only when EVERY fetched voucher is a
+     * sales invoice — a money receipt in the mix flips it back to PAYMENT.
+     */
+    val allSalesVouchers: Boolean = false,
 ) {
     val orderTypeLabel: String
         get() = when (orderType) {
@@ -76,8 +81,7 @@ data class OrderTransactionReport(
             else -> "Order"
         }
 
-    /** The web renames the Payment column for a sales order. */
-    val paymentHeader: String get() = if (orderType == "2") "RECEIVED" else "PAYMENT"
+    val paymentHeader: String get() = if (allSalesVouchers) "RECEIVED" else "PAYMENT"
 }
 
 /** One `others_expense` line of the Average Price report. */
@@ -296,9 +300,10 @@ class OrderReportsRepository(
                 if (creditTotal > 0.0) -creditTotal else debitTotal
             }
 
-            // qty = Σ details.quantity of the active master; rate = the first
-            // detail's price, falling back to the order's own rate.
-            val quantity = details.sumOfObj { it.num("quantity") }
+            // qty = the FIRST active detail's quantity (the web reads only
+            // activeDetail?.quantity — never a sum); rate = the same line's
+            // price, falling back to the order's own rate.
+            val quantity = (firstSales ?: firstPurchase)?.num("quantity").orZero()
             val rate = firstSales?.num("sales_price").orZero().takeIf { it != 0.0 }
                 ?: firstPurchase?.num("purchase_price").orZero().takeIf { it != 0.0 }
                 ?: orderRate
@@ -340,11 +345,18 @@ class OrderReportsRepository(
             r.copy(balance = cumulative)
         }
 
+        // The web's header rule: RECEIVED only when the distinct per-voucher
+        // types are exactly ["Sales"] (sales_master present on every row).
+        val allSales = unique.isNotEmpty() && unique.all { trx ->
+            trx.obj("main_transaction_master")?.obj("sales_master") != null
+        }
+
         return OrderTransactionReport(
             orderNumber = order.str("order_number").orEmpty(),
             orderRate = orderRate,
             totalOrder = order.num("total_order"),
             orderType = order.str("order_type").orEmpty(),
+            allSalesVouchers = allSales,
             productName = productName,
             unitName = unitName,
             customerName = order.obj("customer")?.str("name").orEmpty(),

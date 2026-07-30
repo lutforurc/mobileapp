@@ -105,8 +105,12 @@ data class PaymentSubmitUiState(
         }
 
     val canSubmit: Boolean
-        get() = !isSubmitting && selectedPlan != null && months != null &&
-            paidAt.isNotBlank() && transactionId.isNotBlank() && senderNumber.isNotBlank()
+        get() = !isSubmitting && submittedMessage == null && selectedPlan != null &&
+            months != null && paidAt.isNotBlank() && transactionId.isNotBlank() &&
+            senderNumber.isNotBlank()
+    // submittedMessage == null closes the double-submit window: the button
+    // stays dead while the success snackbar shows and the screen navigates
+    // away — a second tap there would post a second REAL payment.
 }
 
 class PaymentSubmitViewModel(

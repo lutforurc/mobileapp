@@ -123,10 +123,16 @@ class GroupReportSetupViewModel(
         load()
     }
 
+    // One in-flight load at a time — switching Operating↔Purchase Cost must
+    // cancel the previous group's request or its late response would land on
+    // the newly selected group.
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     fun load() {
         val group = _uiState.value.groupId ?: return
         _uiState.update { it.copy(isLoading = true, loadError = null) }
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             when (val result = repository.loadGroupReportSetup(group)) {
                 is Resource.Success -> _uiState.update { state ->
                     state.copy(

@@ -113,9 +113,14 @@ class SmsLogsViewModel(
         }
     }
 
+    // One in-flight page fetch at a time — a stale response must not land
+    // after a newer page/filter has been requested.
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     fun load(page: Int) {
         _uiState.update { it.copy(isLoading = true, error = null) }
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val state = _uiState.value
             val result = repository.loadLogs(
                 page = page,

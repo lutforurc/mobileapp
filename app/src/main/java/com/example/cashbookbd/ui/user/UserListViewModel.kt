@@ -26,8 +26,11 @@ class UserListViewModel(
         load(page = 1)
     }
 
-    fun load(page: Int) {
-        _uiState.update { it.copy(isLoading = true, error = null) }
+    /** Refreshes the current page without the spinner — the on-resume reload. */
+    fun reloadCurrent() = load(page = _uiState.value.currentPage, silent = true)
+
+    fun load(page: Int, silent: Boolean = false) {
+        if (!silent) _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             when (val result = repository.loadUsers(page, USERS_PER_PAGE, _uiState.value.searchQuery)) {
                 is Resource.Success -> _uiState.update {

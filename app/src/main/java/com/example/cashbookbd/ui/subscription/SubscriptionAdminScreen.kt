@@ -148,10 +148,15 @@ class SubscriptionAdminViewModel(
         refreshPayments()
     }
 
+    // One in-flight list fetch at a time — a slow "All" response must not
+    // overwrite a newer status-filtered one.
+    private var paymentsJob: kotlinx.coroutines.Job? = null
+
     /** Refetches the request list (and counters) without blanking the screen. */
     private fun refreshPayments(alsoOverview: Boolean = false) {
         _uiState.update { it.copy(isLoadingPayments = true) }
-        viewModelScope.launch {
+        paymentsJob?.cancel()
+        paymentsJob = viewModelScope.launch {
             when (val payments = repository.getPaymentRequests(_uiState.value.statusFilter.ifBlank { null })) {
                 is Resource.Success -> _uiState.update { it.copy(isLoadingPayments = false, payments = payments.data) }
                 is Resource.Error -> _uiState.update {

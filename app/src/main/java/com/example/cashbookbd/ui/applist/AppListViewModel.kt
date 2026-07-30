@@ -73,6 +73,9 @@ class AppListViewModel(
         if (spec != null) load(1)
     }
 
+    /** Refreshes the current page without the spinner — the on-resume reload. */
+    fun reloadCurrent() = load(page = _uiState.value.currentPage, silent = true)
+
     /**
      * Loads [page]. A [silent] load skips the spinner so the table stays on
      * screen — used to reconcile rows after a status toggle.

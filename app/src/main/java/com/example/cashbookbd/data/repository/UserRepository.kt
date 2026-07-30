@@ -426,13 +426,20 @@ class UserRepository(
      */
     private fun JsonObject.message(): String? =
         get("message")?.takeUnless { it.isJsonNull }?.asString?.takeIf { it.isNotBlank() }
-            ?: getAsJsonObject("error")?.get("message")?.takeUnless { it.isJsonNull }?.asString
+            // `user/store` answers `error: []` (a JSON ARRAY) with the message
+            // nested at data.message — an unguarded getAsJsonObject here threw
+            // on every SUCCESSFUL save.
+            ?: get("error")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() }
+            ?: get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("message")?.takeUnless { it.isJsonNull }?.asString
                 ?.takeIf { it.isNotBlank() }
             ?: firstFieldError()
 
     /** Reads `errors: {field: ["reason", …]}` — Laravel's per-field validation. */
     private fun JsonObject.firstFieldError(): String? {
-        val errors = getAsJsonObject("errors") ?: return null
+        val errors = get("errors")?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
         return errors.keySet()
             .asSequence()
             .mapNotNull { key -> errors.get(key)?.takeIf { it.isJsonArray }?.asJsonArray }
