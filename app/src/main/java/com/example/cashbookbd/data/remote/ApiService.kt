@@ -21,6 +21,10 @@ import com.example.cashbookbd.data.remote.dto.ReceiveResponse
 import com.example.cashbookbd.data.remote.dto.ReleaseDeviceRequest
 import com.example.cashbookbd.data.remote.dto.RegisterOtpRequest
 import com.example.cashbookbd.data.remote.dto.RequestOtpResponse
+import com.example.cashbookbd.data.remote.dto.ResellerCompaniesResponse
+import com.example.cashbookbd.data.remote.dto.ResellerLedgersResponse
+import com.example.cashbookbd.data.remote.dto.ResellerOverviewResponse
+import com.example.cashbookbd.data.remote.dto.ResellerPaymentsResponse
 import com.example.cashbookbd.data.remote.dto.RevokeDeviceResponse
 import com.example.cashbookbd.data.remote.dto.SettingsResponse
 import com.example.cashbookbd.data.remote.dto.VerifyOtpRequest
@@ -89,6 +93,25 @@ interface ApiService {
      */
     @GET("dashboard/branch/monthly-purchase-sales")
     suspend fun getMonthlyTopProducts(): Response<MonthlyTopProductsResponse>
+
+    /**
+     * Reseller SELF-SERVICE dashboard (the `reseller/` route prefix self-scopes to
+     * the caller's own reseller_id server-side). These four back the web
+     * ResellerDashboard: KPI overview, assigned companies, client payments, and
+     * the commission ledger. Payloads sit DIRECTLY under `data` (no foundData()
+     * double-nesting); the ledger call omits `per_page` so it returns a plain array.
+     */
+    @GET("reseller/dashboard")
+    suspend fun getResellerOverview(): Response<ResellerOverviewResponse>
+
+    @GET("reseller/companies")
+    suspend fun getResellerCompanies(): Response<ResellerCompaniesResponse>
+
+    @GET("reseller/payments")
+    suspend fun getResellerPayments(): Response<ResellerPaymentsResponse>
+
+    @GET("reseller/commission-ledgers")
+    suspend fun getResellerCommissionLedgers(): Response<ResellerLedgersResponse>
 
     /**
      * GET {BASE_URL}/branch/ddl/protected-branch — branches for the report filter,

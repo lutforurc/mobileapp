@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.DrawerValue
@@ -149,6 +150,10 @@ fun AuthenticatedShell(
     val canProducts = ProductsMenu.hasParentAccess(sessionState.permissions)
     // "Subscription" shows for any authenticated user (My Plan is universal).
     val canSubscription = SubscriptionMenu.hasParentAccess(sessionState.permissions)
+    // "Reseller Dashboard" shows only for reseller accounts (reseller.dashboard.view),
+    // mirroring the web's top-level Reseller Dashboard sidebar link.
+    val canReseller = com.example.cashbookbd.session.MenuPermissions
+        .hasMenu(sessionState.permissions, "reseller")
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -191,6 +196,7 @@ fun AuthenticatedShell(
                 canCustomers = canCustomers,
                 canProducts = canProducts,
                 canSubscription = canSubscription,
+                canReseller = canReseller,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -316,6 +322,7 @@ private fun AppDrawerContent(
     canCustomers: Boolean,
     canProducts: Boolean,
     canSubscription: Boolean,
+    canReseller: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -409,6 +416,11 @@ private fun AppDrawerContent(
             if (canSubscription) {
                 DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
                     onDestinationClick(Routes.SUBSCRIPTION)
+                }
+            }
+            if (canReseller) {
+                DrawerItem("Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD) {
+                    onDestinationClick(Routes.RESELLER_DASHBOARD)
                 }
             }
 

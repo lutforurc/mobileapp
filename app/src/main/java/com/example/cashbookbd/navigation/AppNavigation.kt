@@ -30,6 +30,7 @@ import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
 import com.example.cashbookbd.ui.common.PermissionGate
 import com.example.cashbookbd.ui.dashboard.DashboardScreen
+import com.example.cashbookbd.ui.reseller.ResellerDashboardScreen
 import com.example.cashbookbd.ui.login.LoginScreen
 import com.example.cashbookbd.ui.register.RegisterScreen
 import com.example.cashbookbd.ui.reports.BalanceSheetReportScreen
@@ -331,6 +332,9 @@ object Routes {
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
+
+    // Reseller self-service dashboard (top-level; gated by reseller.dashboard.view)
+    const val RESELLER_DASHBOARD = "reseller/dashboard"
 
     // Subscription section
     const val SUBSCRIPTION = "subscription/home"
@@ -1200,6 +1204,17 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 navController = navController,
                 onLogout = backToLogin,
             )
+        }
+
+        composable(Routes.RESELLER_DASHBOARD) {
+            PermissionGate(anyOf = listOf("reseller.dashboard.view")) {
+                ResellerDashboardScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    // Token expired / rejected (401): clear it and force re-login.
+                    onSessionExpired = backToLogin,
+                )
+            }
         }
     }
 }
