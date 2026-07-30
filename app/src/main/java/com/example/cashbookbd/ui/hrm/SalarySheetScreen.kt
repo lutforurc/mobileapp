@@ -363,7 +363,10 @@ fun SalarySheetScreen(
                     // same columns, same colours, action column at the end.
                     // Covers Payment Month, Loan Ded., Payment and Due in one place.
                     val errorColor = MaterialTheme.appColors.danger
-                    val paidColor = MaterialTheme.appColors.success
+                    // A settled amount is shown in the brand colour, not a
+                    // status green: it is the sheet's own subject, so it reads
+                    // with the rest of the app rather than as a signal.
+                    val paidColor = MaterialTheme.appColors.action
                     val primaryColor = MaterialTheme.appColors.textLink
                     val columns = listOf(
                         ReportColumn<SalarySheetSummary>(
@@ -507,7 +510,7 @@ private fun SalaryDetailView(
             }
         }
 
-        val paidColor = MaterialTheme.appColors.success
+        val paidColor = MaterialTheme.appColors.action
         // Every body cell is centre-aligned in this table.
         val columns = listOf(
             ReportColumn<com.example.cashbookbd.ui.hrm.model.SalaryDetailRow>(
@@ -623,17 +626,16 @@ private fun SalaryDetailView(
 }
 
 /**
- * The web's green "Paid" pill, in the shared success green.
+ * The "Paid" pill, in the app's brand action colour.
  *
  * The label is the fixed on-accent white, not the theme's surface colour: on
- * the dark theme that surface is nearly black, which put dark text on a green
- * pill.
+ * the dark theme that surface is nearly black, which put dark text on the pill.
  */
 @Composable
 private fun PaidBadge() {
     Box(
         modifier = Modifier
-            .background(MaterialTheme.appColors.success, PillShape)
+            .background(MaterialTheme.appColors.action, PillShape)
             .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(
