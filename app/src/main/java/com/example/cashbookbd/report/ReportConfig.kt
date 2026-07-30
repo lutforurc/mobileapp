@@ -1285,7 +1285,9 @@ object ReportMenu {
                     paramKey = "ledgerId",
                     label = "Select Employee",
                     source = ReportSelectorSource.EMPLOYEE,
-                    required = true,
+                    // Optional: empty runs the whole branch (every employee), a
+                    // choice narrows it to one — the backend keys off ledgerId.
+                    required = false,
                 ),
             ),
             section = ReportConfig.SECTION_HRM,
@@ -1293,6 +1295,7 @@ object ReportMenu {
                 "id", "loan_detail_id", "branch_id", "branch_pad", "voucher_image",
             ),
             columnLabels = mapOf(
+                "employee_name" to "Employee",
                 "vr_no" to "Vr No",
                 "vr_date" to "Vr Date",
                 "branch_name" to "Branch",
