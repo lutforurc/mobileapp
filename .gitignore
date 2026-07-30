@@ -13,3 +13,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Built artefacts. APKs are 10-16 MB each and belong on a release page, not in
+# the history: once committed they stay in every future clone forever.
+*.apk
+*.aab
+*.idsig
+
+# Kotlin compiler crash dumps.
+/.kotlin
