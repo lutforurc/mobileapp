@@ -46,15 +46,24 @@ object AdminMenu {
             "resellers", "Resellers",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = false,
         ),
+        // Platform broadcasts; the server additionally restricts to company 1.
+        AdminItem(
+            "adminNotifications", "Admin Notifications",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
+        ),
+        AdminItem("smsLogs", "SMS Logs", listOf("sms.logs"), supported = true),
+        AdminItem("smsTemplates", "SMS Templates", listOf("sms.templates"), supported = true),
         // Same slot as the web sidebar (just before Roles); gated on highlight.rules.
         AdminItem(HIGHLIGHT_RULES_KEY, "Highlight Rules", listOf("highlight.rules"), supported = true),
         AdminItem("roles", "Roles", listOf("roles.view"), supported = true),
         AdminItem("addRoles", "Add Roles", listOf("roles.create"), supported = true),
+        // Global Spatie permissions; the server restricts writes to company 1.
+        AdminItem("addPermission", "Add Permission", listOf("roles.create"), supported = true),
         AdminItem("dayClose", "Day Close", listOf("dayclose.create"), supported = true),
-        AdminItem("addGroupReport", "Add Group Report", listOf("group.report"), supported = false),
+        AdminItem("addGroupReport", "Add Group Report", listOf("group.report"), supported = true),
         AdminItem("orders", "Orders", listOf("order.view"), supported = true),
-        AdminItem("orderWithTransaction", "Order With Transaction", listOf("order.view"), supported = false),
-        AdminItem("averagePrice", "Average Price", listOf("order.avg.price"), supported = false),
+        AdminItem("orderWithTransaction", "Order With Transaction", listOf("order.view"), supported = true),
+        AdminItem("averagePrice", "Average Price", listOf("order.avg.price"), supported = true),
         AdminItem("approvalCenter", "Approval Center", listOf("approval.center"), supported = false),
         AdminItem("voucherApproval", "Voucher Approval", listOf("voucher.approval"), supported = true),
         AdminItem("approvalRemove", "Approval Remove", listOf("remove.approval"), supported = true),

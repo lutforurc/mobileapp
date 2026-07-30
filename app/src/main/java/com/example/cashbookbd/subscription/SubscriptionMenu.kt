@@ -20,7 +20,13 @@ object SubscriptionMenu {
     val all: List<SubscriptionItem> = listOf(
         SubscriptionItem("myPlan", "My Plan", emptyList()),
         SubscriptionItem("pricing", "Pricing", emptyList()),
+        // Manual payment submit — reachable for lapsed tenants, like the web's
+        // subscription-safe routes.
+        SubscriptionItem("paymentSubmit", "Payment Submit", emptyList()),
         SubscriptionItem("subscriptionBilling", "Billing History", emptyList()),
+        // The platform console (approve/reject payments); the server further
+        // restricts it to the platform company.
+        SubscriptionItem("subscriptionAdmin", "Subscription Admin", listOf("subscription.history")),
         SubscriptionItem("subscriptionAdminPlans", "Subscription Plans", listOf("subscription.plans")),
     )
 

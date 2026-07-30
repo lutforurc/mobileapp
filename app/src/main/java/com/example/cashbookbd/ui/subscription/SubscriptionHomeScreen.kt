@@ -71,10 +71,12 @@ fun SubscriptionHomeScreen(
     }
 }
 
-/** My Plan / Pricing open custom screens; the rest go through the list engine. */
+/** The custom screens open directly; the rest go through the list engine. */
 private fun routeFor(key: String): String = when (key) {
     "myPlan" -> Routes.SUBSCRIPTION_MY_PLAN
     "pricing" -> Routes.SUBSCRIPTION_PRICING
+    "paymentSubmit" -> Routes.PAYMENT_SUBMIT
+    "subscriptionAdmin" -> Routes.SUBSCRIPTION_ADMIN
     else -> Routes.appListView(key) // billing + admin plans (see AppLists)
 }
 

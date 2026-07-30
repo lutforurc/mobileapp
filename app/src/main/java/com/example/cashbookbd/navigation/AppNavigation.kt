@@ -82,6 +82,16 @@ import com.example.cashbookbd.ui.vrsettings.VrSettingsHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VoucherHistoryScreen
 import com.example.cashbookbd.ui.admin.SoftwareInfoScreen
 import com.example.cashbookbd.ui.orders.AddOrderScreen
+import com.example.cashbookbd.ui.orders.AveragePriceScreen
+import com.example.cashbookbd.ui.orders.OrderWithTransactionScreen
+import com.example.cashbookbd.ui.sms.SmsLogsScreen
+import com.example.cashbookbd.ui.sms.SmsTemplateFormScreen
+import com.example.cashbookbd.ui.admin.AdminNotificationsScreen
+import com.example.cashbookbd.ui.admin.EditCompanyScreen
+import com.example.cashbookbd.ui.admin.GroupReportSetupScreen
+import com.example.cashbookbd.ui.roles.AddPermissionScreen
+import com.example.cashbookbd.ui.subscription.PaymentSubmitScreen
+import com.example.cashbookbd.ui.subscription.SubscriptionAdminScreen
 import com.example.cashbookbd.ui.customer.AddCoaL3Screen
 import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
 import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
@@ -215,6 +225,35 @@ object Routes {
 
     /** Create Order form, opened from the Orders list's "Create Order" button. */
     const val ORDER_ADD = "orders/add"
+
+    /** Order-wise transaction statement (order picker → voucher rows + balance). */
+    const val ORDER_WITH_TRANSACTION = "orders/with-transaction"
+
+    /** Average landed price of an order (costs + other expenses per unit). */
+    const val AVERAGE_PRICE = "orders/avg-price"
+
+    // SMS module: the sent-log list and the template create/edit form.
+    const val SMS_LOGS = "admin/sms/logs"
+    const val SMS_TEMPLATE_ADD = "admin/sms/templates/add"
+    const val SMS_TEMPLATE_EDIT = "admin/sms/templates/edit"
+    const val SMS_TEMPLATE_ID_ARG = "templateId"
+
+    /** Platform broadcasts (create + list); server allows company 1 only. */
+    const val ADMIN_NOTIFICATIONS = "admin/notifications"
+
+    /** Spatie permission create/rename (software-company admins only). */
+    const val ADD_PERMISSION = "admin/permissions/add"
+
+    /** Group Report's Operating/Purchase Cost ledger mapping. */
+    const val GROUP_REPORT_SETUP = "admin/group-report-setup"
+
+    /** Edit Company — base route; the list appends "/{id}" itself. */
+    const val COMPANY_EDIT = "company/edit"
+    const val COMPANY_ID_ARG = "companyId"
+
+    // Subscription: manual payment submit + the platform admin console.
+    const val PAYMENT_SUBMIT = "subscription/payment-submit"
+    const val SUBSCRIPTION_ADMIN = "subscription/admin"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -638,6 +677,79 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                 )
+            }
+        }
+
+        composable(Routes.ORDER_WITH_TRANSACTION) {
+            PermissionGate(anyOf = listOf("order.view")) {
+                OrderWithTransactionScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.AVERAGE_PRICE) {
+            PermissionGate(anyOf = listOf("order.avg.price")) {
+                AveragePriceScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.SMS_LOGS) {
+            PermissionGate(anyOf = listOf("sms.logs")) {
+                SmsLogsScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.SMS_TEMPLATE_ADD) {
+            PermissionGate(anyOf = listOf("sms.templates")) {
+                SmsTemplateFormScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable("${Routes.SMS_TEMPLATE_EDIT}/{${Routes.SMS_TEMPLATE_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("sms.templates")) {
+                SmsTemplateFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    templateId = entry.arguments?.getString(Routes.SMS_TEMPLATE_ID_ARG),
+                )
+            }
+        }
+
+        composable(Routes.ADMIN_NOTIFICATIONS) {
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                AdminNotificationsScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.ADD_PERMISSION) {
+            PermissionGate(anyOf = listOf("roles.create")) {
+                AddPermissionScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.GROUP_REPORT_SETUP) {
+            PermissionGate(anyOf = listOf("group.report")) {
+                GroupReportSetupScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable("${Routes.COMPANY_EDIT}/{${Routes.COMPANY_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("branch.view", "company.view")) {
+                EditCompanyScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    companyId = entry.arguments?.getString(Routes.COMPANY_ID_ARG),
+                )
+            }
+        }
+
+        // Reachable for lapsed tenants, like the web's subscription-safe routes.
+        composable(Routes.PAYMENT_SUBMIT) {
+            PaymentSubmitScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        composable(Routes.SUBSCRIPTION_ADMIN) {
+            PermissionGate(anyOf = listOf("subscription.history")) {
+                SubscriptionAdminScreen(navController = navController, onLogout = backToLogin)
             }
         }
 

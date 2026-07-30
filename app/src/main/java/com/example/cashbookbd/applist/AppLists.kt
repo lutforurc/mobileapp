@@ -162,6 +162,9 @@ object AppLists {
             // its Admin menu entry (not branch.view).
             anyOf = listOf("company.view"),
             paginated = true,
+            // Row pencil → the company edit form (name/contact/notes; the
+            // update endpoint accepts the raw id as well as the hashed one).
+            editAction = ListEditAction(route = Routes.COMPANY_EDIT, idKey = "id"),
         ),
 
         AppListSpec(
@@ -250,6 +253,26 @@ object AppLists {
             anyOf = listOf("order.view"),
             paginated = true,
             addAction = ListAddAction(label = "Create Order", route = Routes.ORDER_ADD),
+        ),
+        AppListSpec(
+            key = "smsTemplates",
+            title = "SMS Templates",
+            endpoint = "admin/sms/templates",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Template"),
+                AppListColumn("code", "Key"),
+                AppListColumn("body", "Message"),
+                AppListColumn(
+                    "status", "Status",
+                    valueMap = mapOf("1" to "Active", "0" to "Inactive"),
+                ),
+            ),
+            anyOf = listOf("sms.templates"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Template", route = Routes.SMS_TEMPLATE_ADD),
+            editAction = ListEditAction(route = Routes.SMS_TEMPLATE_EDIT, idKey = "id"),
         ),
         AppListSpec(
             key = "roles",

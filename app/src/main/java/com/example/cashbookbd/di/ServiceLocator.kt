@@ -51,6 +51,12 @@ import com.example.cashbookbd.data.repository.UnitSaleRepository
 import com.example.cashbookbd.data.repository.UnitSalePaymentRepository
 import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.OrderRepository
+import com.example.cashbookbd.data.repository.SmsRepository
+import com.example.cashbookbd.data.repository.CompanyRepository
+import com.example.cashbookbd.data.repository.OrderReportsRepository
+import com.example.cashbookbd.data.remote.AdminNotificationsApiService
+import com.example.cashbookbd.data.repository.AdminExtrasRepository
+import com.example.cashbookbd.data.repository.SubscriptionAdminRepository
 import com.example.cashbookbd.data.repository.CoaRepository
 import com.example.cashbookbd.data.repository.VoucherHistoryRepository
 import com.example.cashbookbd.data.repository.SoftwareInfoRepository
@@ -154,6 +160,24 @@ object ServiceLocator {
 
     @Volatile
     private var orderRepository: OrderRepository? = null
+
+    @Volatile
+    private var smsRepository: SmsRepository? = null
+
+    @Volatile
+    private var companyRepository: CompanyRepository? = null
+
+    @Volatile
+    private var orderReportsRepository: OrderReportsRepository? = null
+
+    @Volatile
+    private var adminNotificationsApiService: AdminNotificationsApiService? = null
+
+    @Volatile
+    private var adminExtrasRepository: AdminExtrasRepository? = null
+
+    @Volatile
+    private var subscriptionAdminRepository: SubscriptionAdminRepository? = null
 
     @Volatile
     private var coaRepository: CoaRepository? = null
@@ -472,6 +496,49 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { unitSaleRepository = it }
+        }
+
+    fun provideAdminExtrasRepository(context: Context): AdminExtrasRepository =
+        adminExtrasRepository ?: synchronized(this) {
+            adminExtrasRepository ?: AdminExtrasRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+                extrasApi = adminNotificationsApiService ?: provideRetrofit(context)
+                    .create(AdminNotificationsApiService::class.java)
+                    .also { adminNotificationsApiService = it },
+            ).also { adminExtrasRepository = it }
+        }
+
+    fun provideOrderReportsRepository(context: Context): OrderReportsRepository =
+        orderReportsRepository ?: synchronized(this) {
+            orderReportsRepository ?: OrderReportsRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { orderReportsRepository = it }
+        }
+
+    fun provideCompanyRepository(context: Context): CompanyRepository =
+        companyRepository ?: synchronized(this) {
+            companyRepository ?: CompanyRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { companyRepository = it }
+        }
+
+    fun provideSubscriptionAdminRepository(context: Context): SubscriptionAdminRepository =
+        subscriptionAdminRepository ?: synchronized(this) {
+            subscriptionAdminRepository ?: SubscriptionAdminRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { subscriptionAdminRepository = it }
+        }
+
+    fun provideSmsRepository(context: Context): SmsRepository =
+        smsRepository ?: synchronized(this) {
+            smsRepository ?: SmsRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { smsRepository = it }
         }
 
     fun provideOrderRepository(context: Context): OrderRepository =
