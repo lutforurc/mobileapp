@@ -23,6 +23,8 @@ sealed interface BranchField {
         override val key: String,
         override val label: String,
         val keyboard: KeyboardType = KeyboardType.Text,
+        /** A taller textarea (the letter signature block). */
+        val multiline: Boolean = false,
     ) : BranchField
 
     /** Pick one from [source]. */
@@ -52,6 +54,8 @@ enum class BranchOptions {
     PAD_HEADING,
     PRINT_SIZE,
     MONEY_FORMAT,
+    PAD_PRINT_MODE,
+    DOWN_PAYMENT_BASE,
 }
 
 /** One page of the wizard. */
@@ -86,6 +90,16 @@ object BranchForm {
                 BranchField.Choice("pad_heading_print", "Print Heading", BranchOptions.PAD_HEADING),
                 BranchField.Choice("print_size", "Printer Settings", BranchOptions.PRINT_SIZE),
                 BranchField.Choice("paper_size", "Invoice Page Size", BranchOptions.PAPER_SIZE),
+                // The web's "Pad Head" section: pre-printed pads skip the drawn
+                // letterhead and leave a measured blank space at the top.
+                BranchField.Choice("pad_print_mode", "Pad Head Printing", BranchOptions.PAD_PRINT_MODE),
+                BranchField.Text("preprinted_pad_height", "Blank Space at Top (px)", KeyboardType.Number),
+                BranchField.Text("salutation_male", "Salutation (Male)"),
+                BranchField.Text("salutation_female", "Salutation (Female)"),
+                BranchField.Text("salutation_other", "Salutation (Other / Not Set)"),
+                // The web edits this with a rich-text editor; the raw HTML is
+                // editable here so the block still saves from the phone.
+                BranchField.Text("letter_signature", "Letter Signature Block", multiline = true),
             ),
         ),
         BranchStep(
@@ -105,6 +119,32 @@ object BranchForm {
                 BranchField.Toggle("show_brand_in_invoice", "Show brand in invoice"),
                 BranchField.Toggle("show_category_in_invoice", "Show category in invoice"),
                 BranchField.Toggle("combined_invoice_note", "Show combined invoice note"),
+            ),
+        ),
+        BranchStep(
+            title = "Customer Setup",
+            summary = "Which extra fields the customer form asks for.",
+            fields = listOf(
+                BranchField.Toggle("need_customer_area", "Need Customer Area?"),
+                BranchField.Toggle("need_customer_sex", "Need Customer Sex?"),
+            ),
+        ),
+        BranchStep(
+            title = "Real Estate Setup",
+            summary = "Orders and the allotment letter's payment schedule.",
+            fields = listOf(
+                BranchField.Toggle("multi_product_order", "Multi Product Order?"),
+                BranchField.Choice(
+                    "down_payment_base",
+                    "Down Payment Calculated On",
+                    BranchOptions.DOWN_PAYMENT_BASE,
+                ),
+                BranchField.Text("down_payment_percent", "Down Payment (%)", KeyboardType.Number),
+                BranchField.Text(
+                    "delay_charge_percent",
+                    "Delay Charge (% per annum)",
+                    KeyboardType.Number,
+                ),
             ),
         ),
         BranchStep(
@@ -133,6 +173,7 @@ object BranchForm {
                 BranchField.Toggle("sales_sms", "Sales SMS"),
                 BranchField.Toggle("purchase_sms", "Purchase SMS"),
                 BranchField.Toggle("payment_sms", "Payment SMS"),
+                BranchField.Toggle("show_voucher_image", "Show Voucher Image?"),
             ),
         ),
     )
@@ -171,5 +212,15 @@ object BranchForm {
         SelectorOption(id = "2", label = "… Taka Only"),
         SelectorOption(id = "3", label = "Only … Taka"),
         SelectorOption(id = "4", label = "Only Taka …"),
+    )
+
+    val padPrintModeOptions = listOf(
+        SelectorOption(id = "software", label = "Software Generated Pad Head"),
+        SelectorOption(id = "preprinted", label = "Pre-printed Pad (leave blank space)"),
+    )
+
+    val downPaymentBaseOptions = listOf(
+        SelectorOption(id = "total", label = "Total Property Value"),
+        SelectorOption(id = "net_payable", label = "Net Payable Balance after Booking Money"),
     )
 }

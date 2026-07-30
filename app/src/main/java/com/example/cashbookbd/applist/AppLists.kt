@@ -249,6 +249,7 @@ object AppLists {
             ),
             anyOf = listOf("order.view"),
             paginated = true,
+            addAction = ListAddAction(label = "Create Order", route = Routes.ORDER_ADD),
         ),
         AppListSpec(
             key = "roles",

@@ -87,7 +87,10 @@ class AddBranchViewModel(
                             if (key in BranchForm.toggleKeys) {
                                 if (value.isOn()) "1" else "0"
                             } else {
-                                value
+                                // A meta the branch never wrote arrives as the
+                                // boolean false — an unset text field, not the
+                                // word "false".
+                                if (value == "false") "" else value
                             }
                         },
                     )

@@ -62,6 +62,8 @@ data class AddBranchUiState(
         BranchOptions.PAD_HEADING -> BranchForm.padHeadingOptions
         BranchOptions.PRINT_SIZE -> BranchForm.printSizeOptions
         BranchOptions.MONEY_FORMAT -> BranchForm.moneyFormatOptions
+        BranchOptions.PAD_PRINT_MODE -> BranchForm.padPrintModeOptions
+        BranchOptions.DOWN_PAYMENT_BASE -> BranchForm.downPaymentBaseOptions
     }
 
     /**

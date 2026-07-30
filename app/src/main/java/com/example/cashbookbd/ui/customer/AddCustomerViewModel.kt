@@ -19,12 +19,55 @@ import kotlinx.coroutines.launch
 /** Backs the (essential) Add Customer form: collects the fields and saves them. */
 class AddCustomerViewModel(
     private val repository: CustomerRepository,
+    settings: com.example.cashbookbd.session.Settings?,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddCustomerUiState())
+    private val _uiState = MutableStateFlow(
+        AddCustomerUiState(
+            showSex = settings?.needCustomerSex == true,
+            showArea = settings?.needCustomerArea == true,
+        )
+    )
     val uiState: StateFlow<AddCustomerUiState> = _uiState.asStateFlow()
 
+    init {
+        if (_uiState.value.showArea) loadAreas()
+    }
+
+    private fun loadAreas() {
+        _uiState.update { it.copy(isAreasLoading = true) }
+        viewModelScope.launch {
+            when (val result = repository.fetchAreas()) {
+                is Resource.Success -> _uiState.update { state ->
+                    state.copy(
+                        isAreasLoading = false,
+                        areas = result.data.map { area ->
+                            SelectorOption(
+                                id = area.id,
+                                label = area.name,
+                                sublabel = listOf(area.thana, area.district)
+                                    .filter { it.isNotBlank() }
+                                    .joinToString(", ")
+                                    .ifBlank { null },
+                            )
+                        },
+                    )
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isAreasLoading = false,
+                        error = it.error ?: result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun onType(option: SelectorOption) = _uiState.update { it.copy(type = option) }
+    fun onSex(option: SelectorOption) = _uiState.update { it.copy(sex = option) }
+    fun onArea(option: SelectorOption) = _uiState.update { it.copy(area = option) }
     fun onName(value: String) = _uiState.update { it.copy(name = value) }
     fun onAddress(value: String) = _uiState.update { it.copy(address = value) }
     fun onMobile(value: String) = _uiState.update { it.copy(mobile = value) }
@@ -45,6 +88,8 @@ class AddCustomerViewModel(
                     mobile = state.mobile,
                     ledgerPage = state.ledgerPage,
                     nationalId = state.nationalId,
+                    sex = state.sex?.id.orEmpty(),
+                    areaId = state.area?.id.orEmpty(),
                 )
             )
             when (result) {
@@ -69,7 +114,11 @@ class AddCustomerViewModel(
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
-                AddCustomerViewModel(ServiceLocator.provideCustomerRepository(context.applicationContext))
+                val appContext = context.applicationContext
+                AddCustomerViewModel(
+                    repository = ServiceLocator.provideCustomerRepository(appContext),
+                    settings = ServiceLocator.provideSessionManager(appContext).state.value.settings,
+                )
             }
         }
     }

@@ -79,6 +79,18 @@ fun AddCustomerScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                // Shown only when the branch collects customer areas; picking one
+                // makes the server compose the address from area/thana/district.
+                if (state.showArea) {
+                    AppSelectDropdown(
+                        label = "Select Area",
+                        options = state.areas,
+                        selected = state.area,
+                        onSelected = viewModel::onArea,
+                        placeholder = if (state.isAreasLoading) "Loading areas…" else "Select Area",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppSelectDropdown(
                     label = "Type",
                     options = CUSTOMER_TYPES,
@@ -93,11 +105,22 @@ fun AddCustomerScreen(
                     caption = "Name",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Shown only when the branch collects customer sex.
+                if (state.showSex) {
+                    AppSelectDropdown(
+                        label = "Sex",
+                        options = CUSTOMER_SEX_OPTIONS,
+                        selected = state.sex,
+                        onSelected = viewModel::onSex,
+                        placeholder = "Select Sex",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppTextField(
                     value = state.address,
                     onValueChange = viewModel::onAddress,
-                    label = "Enter address",
-                    caption = "Address",
+                    label = "Enter Present Address",
+                    caption = "Present Address",
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AppTextField(
@@ -124,7 +147,7 @@ fun AddCustomerScreen(
                 )
                 if (!state.canSave) {
                     Text(
-                        text = "Type, Name, Address and Mobile are required.",
+                        text = "Type, Name, Present Address and Mobile are required.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                     )

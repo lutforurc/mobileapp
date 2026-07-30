@@ -89,6 +89,17 @@ data class SettingsBranchDto(
      * [decimalPlaces]; the mapper derives a Boolean.
      */
     @SerializedName("is_opening") val isOpening: String? = null,
+    // The 2026-07 branch metas. Each arrives as "1"/"0", or the boolean `false`
+    // when the meta row was never written (Gson reads that into "false") — the
+    // mapper treats only "1" as on.
+    /** Customer form shows the Select Area field. */
+    @SerializedName("need_customer_area") val needCustomerArea: String? = null,
+    /** Customer form shows the Sex field. */
+    @SerializedName("need_customer_sex") val needCustomerSex: String? = null,
+    /** One order may carry several products (the multi-product order grid). */
+    @SerializedName("multi_product_order") val multiProductOrder: String? = null,
+    /** Ledger/cashbook reports show the voucher image column. */
+    @SerializedName("show_voucher_image") val showVoucherImage: String? = null,
 )
 
 /**

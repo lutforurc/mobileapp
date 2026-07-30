@@ -151,6 +151,7 @@ fun AddBranchScreen(
                                 value = state.text(field.key),
                                 onChange = { viewModel.onValue(field.key, it) },
                                 keyboard = field.keyboard,
+                                multiline = field.multiline,
                             )
 
                             is BranchField.Choice -> {
@@ -338,12 +339,14 @@ private fun Field(
     value: String,
     onChange: (String) -> Unit,
     keyboard: KeyboardType = KeyboardType.Text,
+    multiline: Boolean = false,
 ) {
     AppTextField(
         value = value,
         onValueChange = onChange,
         label = label,
         keyboardType = keyboard,
+        multiline = multiline,
         modifier = Modifier.fillMaxWidth(),
     )
 }

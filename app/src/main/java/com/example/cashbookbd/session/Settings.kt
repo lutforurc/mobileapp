@@ -45,4 +45,12 @@ data class Settings(
      * to its default. Drives every transaction figure in the app.
      */
     val decimalPlaces: Int? = null,
+    /** Branch meta: the customer form shows the Select Area field. */
+    val needCustomerArea: Boolean = false,
+    /** Branch meta: the customer form shows the Sex field. */
+    val needCustomerSex: Boolean = false,
+    /** Branch meta: one order may carry several products (multi-product grid). */
+    val multiProductOrder: Boolean = false,
+    /** Branch meta: ledger/cashbook reports show the voucher image column. */
+    val showVoucherImage: Boolean = false,
 )

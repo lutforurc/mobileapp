@@ -33,6 +33,10 @@ data class SoldUnitLine(
 data class SoldUnitSale(
     val saleId: String,
     val saleDate: String,
+    /** How many allotment-letter snapshots this sale has (the web's L-1…L-n). */
+    val letterCount: Int,
+    val unitPriceAmount: Double,
+    val parkingAmount: Double,
     val buildingName: String,
     val floorName: String,
     val receiptNo: String,
@@ -268,6 +272,9 @@ class RealEstateSalesRepository(
     private fun JsonObject.toSoldUnitSale(): SoldUnitSale = SoldUnitSale(
         saleId = str("sale_id").orEmpty(),
         saleDate = str("sale_date").orEmpty(),
+        letterCount = int("letter_count"),
+        unitPriceAmount = dbl("unit_price_amount"),
+        parkingAmount = dbl("parking_amount"),
         buildingName = str("building_name").orEmpty(),
         floorName = str("floor_name").orEmpty(),
         receiptNo = str("receipt_no").orEmpty(),
@@ -486,6 +493,25 @@ class RealEstateSalesRepository(
             }
         }
     }
+
+    /**
+     * `POST real-estate/unit-sale/allotment-letter/generate/{saleId}` — renders
+     * and APPENDS one immutable allotment-letter snapshot (L-{n}) to the sale.
+     * No payload; the success message names the new version. Printing the saved
+     * versions is a PDF stream and stays web-only.
+     */
+    suspend fun generateAllotmentLetter(saleId: String): Resource<String> =
+        withContext(ioDispatcher) {
+            guarded {
+                val response = transactionApi.postObject(
+                    "real-estate/unit-sale/allotment-letter/generate/$saleId",
+                    JsonObject(),
+                )
+                envelope(response) { json ->
+                    Resource.Success(json.message() ?: "Allotment letter generated.")
+                }
+            }
+        }
 
     // ---- Envelope / transport helpers -------------------------------------
 

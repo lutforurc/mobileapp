@@ -10,6 +10,13 @@ val CUSTOMER_TYPES = listOf(
     SelectorOption("4", "Advance"),
 )
 
+/** The web's sexType constant — values travel as the lowercase ids. */
+val CUSTOMER_SEX_OPTIONS = listOf(
+    SelectorOption("male", "Male"),
+    SelectorOption("female", "Female"),
+    SelectorOption("other", "Other"),
+)
+
 data class AddCustomerUiState(
     val type: SelectorOption? = null,
     val name: String = "",
@@ -17,6 +24,13 @@ data class AddCustomerUiState(
     val mobile: String = "",
     val ledgerPage: String = "",
     val nationalId: String = "",
+    // Branch-gated extras (need_customer_sex / need_customer_area metas).
+    val showSex: Boolean = false,
+    val sex: SelectorOption? = null,
+    val showArea: Boolean = false,
+    val areas: List<SelectorOption> = emptyList(),
+    val isAreasLoading: Boolean = false,
+    val area: SelectorOption? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMessage: String? = null,

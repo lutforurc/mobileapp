@@ -44,6 +44,19 @@ data class NewCustomer(
     val mobile: String,
     val ledgerPage: String,
     val nationalId: String,
+    /** "male"/"female"/"other", or blank — shown only when the branch needs it. */
+    val sex: String = "",
+    /** Area id, or blank — shown only when the branch needs it. Choosing an
+     *  area makes the server compose the address from area/thana/district. */
+    val areaId: String = "",
+)
+
+/** One customer area from `area/ddl-list` — the Select Area options. */
+data class CustomerArea(
+    val id: String,
+    val name: String,
+    val thana: String,
+    val district: String,
 )
 
 /**
@@ -102,6 +115,53 @@ class CustomerRepository(
         }
     }
 
+    /**
+     * Customer areas for the branch-gated "Select Area" field — the web's
+     * `POST area/ddl-list` (`{searchName: ""}` loads the whole list). Each row:
+     * `{id, name, thana_name, district_name}`; rows found defensively at
+     * `data.data`, `data`, or the root array.
+     */
+    suspend fun fetchAreas(): Resource<List<CustomerArea>> = withContext(ioDispatcher) {
+        try {
+            val response = api.post("area/ddl-list", mapOf("searchName" to ""))
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            if (json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Success(emptyList())
+            }
+            val data = json?.get("data")?.takeUnless { it.isJsonNull }
+            val rows = when {
+                data == null -> null
+                data.isJsonArray -> data.asJsonArray
+                data.isJsonObject -> data.asJsonObject.get("data")?.takeIf { it.isJsonArray }?.asJsonArray
+                else -> null
+            }
+            Resource.Success(
+                rows?.mapNotNull { element ->
+                    val obj = element?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?: return@mapNotNull null
+                    fun str(key: String): String =
+                        obj.get(key)?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+                    val id = str("id")
+                    if (id.isBlank()) null else CustomerArea(
+                        id = id,
+                        name = str("name"),
+                        thana = str("thana_name"),
+                        district = str("district_name"),
+                    )
+                }.orEmpty()
+            )
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     suspend fun storeCustomer(customer: NewCustomer): Resource<String> = withContext(ioDispatcher) {
         val body = mapOf(
             "type_id" to customer.typeId,
@@ -110,6 +170,10 @@ class CustomerRepository(
             "mobile" to customer.mobile.trim(),
             "ledger_page" to customer.ledgerPage.trim(),
             "national_id" to customer.nationalId.trim(),
+            // Branch-gated extras; blank when the branch doesn't collect them,
+            // exactly as the web sends the unused fields.
+            "sex" to customer.sex,
+            "area_id" to customer.areaId,
             // "Access Customer Login" is off for this essential form.
             "customerLogin" to "0",
         )

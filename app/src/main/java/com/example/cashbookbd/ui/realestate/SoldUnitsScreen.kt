@@ -21,14 +21,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,9 +59,11 @@ import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.data.repository.SoldUnitSale
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SummaryTile
 import com.example.cashbookbd.ui.reports.PickerField
@@ -98,6 +104,12 @@ data class SoldUnitsUiState(
     val loadError: String? = null,
     val hasApplied: Boolean = false,
     val report: SoldUnitsReport? = null,
+
+    // Allotment-letter Generate: the sale awaiting confirmation, and the one
+    // whose snapshot save is in flight (its button shows the spinner).
+    val pendingGenerate: com.example.cashbookbd.data.repository.SoldUnitSale? = null,
+    val generatingSaleId: String? = null,
+    val actionMessage: String? = null,
 
     val sessionExpired: Boolean = false,
 )
@@ -189,6 +201,57 @@ class SoldUnitsViewModel(
         )
     }
 
+    // ---- Allotment letter Generate (saves an immutable L-{n} snapshot) ----
+
+    fun requestGenerate(sale: com.example.cashbookbd.data.repository.SoldUnitSale) =
+        _uiState.update { it.copy(pendingGenerate = sale) }
+
+    fun cancelGenerate() = _uiState.update { it.copy(pendingGenerate = null) }
+
+    /** Confirms the snapshot save, then silently refreshes so L-counts update. */
+    fun confirmGenerate() {
+        val sale = _uiState.value.pendingGenerate ?: return
+        if (_uiState.value.generatingSaleId != null) return
+        _uiState.update { it.copy(pendingGenerate = null, generatingSaleId = sale.saleId) }
+        viewModelScope.launch {
+            when (val result = repository.generateAllotmentLetter(sale.saleId)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(actionMessage = result.data) }
+                    refreshSilently()
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        generatingSaleId = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    /** Re-runs the current filters without the full-screen spinner. */
+    private suspend fun refreshSilently() {
+        val state = _uiState.value
+        val result = repository.fetchSoldUnits(
+            projectId = state.selectedProject.id,
+            buildingId = state.selectedBuilding.id,
+            dateFrom = state.dateFrom?.toApi(),
+            dateTo = state.dateTo?.toApi(),
+            query = state.query,
+            dueOnly = state.dueOnly,
+        )
+        _uiState.update {
+            when (result) {
+                is Resource.Success -> it.copy(generatingSaleId = null, report = result.data)
+                else -> it.copy(generatingSaleId = null)
+            }
+        }
+    }
+
+    fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
+
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
@@ -214,12 +277,19 @@ fun SoldUnitsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
             viewModel.onSessionExpiredHandled()
             onLogout()
         }
+    }
+
+    LaunchedEffect(state.actionMessage) {
+        val message = state.actionMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.onActionMessageShown()
     }
 
     AuthenticatedShell(
@@ -230,6 +300,7 @@ fun SoldUnitsScreen(
         modifier = modifier,
     ) {
         val onScreen = MaterialTheme.colorScheme.onBackground
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -346,11 +417,36 @@ fun SoldUnitsScreen(
 
                 else -> {
                     val report = state.report!!
-                    SoldUnitsSummaryTiles(report.totals)
-                    SoldUnitsTable(report)
+                    SoldUnitsSummaryTiles(report)
+                    SoldUnitsTable(
+                        report = report,
+                        generatingSaleId = state.generatingSaleId,
+                        onGenerate = viewModel::requestGenerate,
+                    )
                 }
             }
         }
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+        }
+    }
+
+    // The web's Generate confirmation: a snapshot is immutable once saved.
+    state.pendingGenerate?.let { sale ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelGenerate,
+            title = { Text("Generate allotment letter?") },
+            text = {
+                Text(
+                    "This saves letter L-${sale.letterCount + 1} for receipt " +
+                        "${sale.receiptNo.ifBlank { "(no receipt)" }} as a permanent snapshot. " +
+                        "Saved versions can be printed from the web.",
+                )
+            },
+            confirmButton = {
+                PrimaryButton(text = "Generate", onClick = viewModel::confirmGenerate, compact = true)
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelGenerate) },
+        )
     }
 }
 
@@ -358,9 +454,44 @@ fun SoldUnitsScreen(
 // Summary tiles
 // ---------------------------------------------------------------------------
 
+/**
+ * Whole-taka display, the web's `wholeTaka`/`money` pair: truncate toward zero
+ * (100.99 → 100), "-" for zero. Report totals are re-summed from these floored
+ * per-sale figures so the columns always add up to the totals shown.
+ */
+private fun wholeTaka(value: Double): Long = value.toLong()
+
+private fun money(value: Double): String {
+    val whole = wholeTaka(value)
+    return if (whole == 0L) "-" else AmountFormat.format(whole.toDouble(), 0)
+}
+
+/** The money totals recomputed from the floored per-sale figures. */
+private data class FlooredTotals(
+    val parkingValue: Long,
+    val saleValue: Long,
+    val received: Long,
+    val due: Long,
+)
+
+private fun flooredTotals(report: SoldUnitsReport): FlooredTotals {
+    val sales = report.customers.flatMap { it.units }
+    return FlooredTotals(
+        parkingValue = sales.sumOf { wholeTaka(it.parkingAmount) },
+        saleValue = sales.sumOf { wholeTaka(it.totalAmount) },
+        received = sales.sumOf { wholeTaka(it.receivedAmount) },
+        due = sales.sumOf { wholeTaka(it.dueAmount) },
+    )
+}
+
+private fun moneyWhole(value: Long): String =
+    if (value == 0L) "-" else AmountFormat.format(value.toDouble(), 0)
+
 /** The web's 7 cards: counts, then Parking/Sale Value, then Received/Due. */
 @Composable
-private fun SoldUnitsSummaryTiles(totals: SoldUnitsTotals) {
+private fun SoldUnitsSummaryTiles(report: SoldUnitsReport) {
+    val totals = report.totals
+    val floored = flooredTotals(report)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SummaryFigure("Customers", countOrDash(totals.customerCount), Modifier.weight(1f))
@@ -368,12 +499,12 @@ private fun SoldUnitsSummaryTiles(totals: SoldUnitsTotals) {
             SummaryFigure("Sold Parking", countOrDash(totals.parkingCount), Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SummaryFigure("Parking Value", AmountFormat.formatOrDash(totals.parkingAmount), Modifier.weight(1f))
-            SummaryFigure("Sale Value", AmountFormat.formatOrDash(totals.totalAmount), Modifier.weight(1f))
+            SummaryFigure("Parking Value", moneyWhole(floored.parkingValue), Modifier.weight(1f))
+            SummaryFigure("Sale Value", moneyWhole(floored.saleValue), Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SummaryFigure("Received", AmountFormat.formatOrDash(totals.receivedAmount), Modifier.weight(1f))
-            SummaryFigure("Due", AmountFormat.formatOrDash(totals.dueAmount), Modifier.weight(1f))
+            SummaryFigure("Received", moneyWhole(floored.received), Modifier.weight(1f))
+            SummaryFigure("Due", moneyWhole(floored.due), Modifier.weight(1f))
         }
     }
 }
@@ -423,7 +554,11 @@ private val TABLE_WIDTH =
  * sale's Total/Received/Due merge over that sale's charge lines.
  */
 @Composable
-private fun SoldUnitsTable(report: SoldUnitsReport) {
+private fun SoldUnitsTable(
+    report: SoldUnitsReport,
+    generatingSaleId: String?,
+    onGenerate: (SoldUnitSale) -> Unit,
+) {
     val hScroll = rememberScrollState()
     val gridLine = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
     val cycle = MaterialTheme.brand.customerCycle
@@ -440,9 +575,11 @@ private fun SoldUnitsTable(report: SoldUnitsReport) {
                 index = index,
                 accent = cycle[index % cycle.size],
                 gridLine = gridLine,
+                generatingSaleId = generatingSaleId,
+                onGenerate = onGenerate,
             )
         }
-        SoldUnitsGrandTotalRow(report.totals)
+        SoldUnitsGrandTotalRow(report)
     }
 }
 
@@ -495,6 +632,8 @@ private fun SoldUnitCustomerBlock(
     index: Int,
     accent: Color,
     gridLine: Color,
+    generatingSaleId: String?,
+    onGenerate: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val tint = accent.copy(alpha = 0.10f)
@@ -561,7 +700,12 @@ private fun SoldUnitCustomerBlock(
         Column(modifier = Modifier.fillMaxHeight()) {
             customer.units.forEachIndexed { saleIndex, sale ->
                 if (saleIndex > 0) HorizontalDivider(color = gridLine, modifier = Modifier.fillMaxWidth())
-                SoldUnitSaleBand(sale = sale, gridLine = gridLine)
+                SoldUnitSaleBand(
+                    sale = sale,
+                    gridLine = gridLine,
+                    isGenerating = generatingSaleId == sale.saleId,
+                    onGenerate = onGenerate,
+                )
             }
         }
     }
@@ -569,8 +713,10 @@ private fun SoldUnitCustomerBlock(
 
 @Composable
 private fun SoldUnitSaleBand(
-    sale: com.example.cashbookbd.data.repository.SoldUnitSale,
+    sale: SoldUnitSale,
     gridLine: Color,
+    isGenerating: Boolean,
+    onGenerate: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
 
@@ -602,7 +748,7 @@ private fun SoldUnitSaleBand(
                         }
                     }
                     Text(
-                        text = AmountFormat.formatOrDash(line.amount),
+                        text = money(line.amount),
                         style = MaterialTheme.typography.bodySmall,
                         color = onScreen,
                         textAlign = TextAlign.End,
@@ -613,14 +759,15 @@ private fun SoldUnitSaleBand(
         }
         VLine(gridLine)
 
-        // Total — merged over the sale's lines, with sale date | receipt below.
+        // Total — merged over the sale's lines: amount, sale date | receipt,
+        // the saved-letter count, and the snapshot Generate action.
         Column(
-            modifier = Modifier.width(COL_TOTAL).fillMaxHeight().padding(horizontal = 6.dp),
+            modifier = Modifier.width(COL_TOTAL).fillMaxHeight().padding(horizontal = 6.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.End,
         ) {
             Text(
-                text = AmountFormat.formatOrDash(sale.totalAmount),
+                text = money(sale.totalAmount),
                 style = MaterialTheme.typography.bodySmall,
                 color = onScreen,
                 textAlign = TextAlign.End,
@@ -638,6 +785,22 @@ private fun SoldUnitSaleBand(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (sale.letterCount > 0) {
+                Text(
+                    text = "Letters: L-1…L-${sale.letterCount}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = onScreen.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (sale.saleId.isNotBlank()) {
+                LinkButton(
+                    text = if (isGenerating) "Generating…" else "Generate",
+                    onClick = { onGenerate(sale) },
+                    enabled = !isGenerating,
+                )
+            }
         }
         VLine(gridLine)
 
@@ -646,7 +809,7 @@ private fun SoldUnitSaleBand(
             contentAlignment = Alignment.CenterEnd,
         ) {
             Text(
-                text = AmountFormat.formatOrDash(sale.receivedAmount),
+                text = money(sale.receivedAmount),
                 style = MaterialTheme.typography.bodySmall,
                 color = onScreen,
                 textAlign = TextAlign.End,
@@ -659,7 +822,7 @@ private fun SoldUnitSaleBand(
             contentAlignment = Alignment.CenterEnd,
         ) {
             Text(
-                text = AmountFormat.formatOrDash(sale.dueAmount),
+                text = money(sale.dueAmount),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = onScreen,
@@ -669,9 +832,14 @@ private fun SoldUnitSaleBand(
     }
 }
 
-/** The web's tfoot: label spanning the left columns, then the three totals. */
+/**
+ * The web's tfoot: label spanning the left columns, then the three totals —
+ * re-summed from the floored per-sale figures so they match the cells above.
+ */
 @Composable
-private fun SoldUnitsGrandTotalRow(totals: SoldUnitsTotals) {
+private fun SoldUnitsGrandTotalRow(report: SoldUnitsReport) {
+    val totals = report.totals
+    val floored = flooredTotals(report)
     Row(
         modifier = Modifier
             .width(TABLE_WIDTH)
@@ -691,11 +859,11 @@ private fun SoldUnitsGrandTotalRow(totals: SoldUnitsTotals) {
                 .padding(horizontal = 6.dp),
         )
         Spacer(Modifier.width(1.dp))
-        GrandTotalCell(AmountFormat.formatOrDash(totals.totalAmount), COL_TOTAL, ink)
+        GrandTotalCell(moneyWhole(floored.saleValue), COL_TOTAL, ink)
         Spacer(Modifier.width(1.dp))
-        GrandTotalCell(AmountFormat.formatOrDash(totals.receivedAmount), COL_RECEIVED, ink)
+        GrandTotalCell(moneyWhole(floored.received), COL_RECEIVED, ink)
         Spacer(Modifier.width(1.dp))
-        GrandTotalCell(AmountFormat.formatOrDash(totals.dueAmount), COL_DUE, ink)
+        GrandTotalCell(moneyWhole(floored.due), COL_DUE, ink)
     }
 }
 

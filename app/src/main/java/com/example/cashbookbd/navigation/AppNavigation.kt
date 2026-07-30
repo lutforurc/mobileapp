@@ -81,6 +81,7 @@ import com.example.cashbookbd.ui.vrsettings.VrSettingsFormScreen
 import com.example.cashbookbd.ui.vrsettings.VrSettingsHomeScreen
 import com.example.cashbookbd.ui.vrsettings.VoucherHistoryScreen
 import com.example.cashbookbd.ui.admin.SoftwareInfoScreen
+import com.example.cashbookbd.ui.orders.AddOrderScreen
 import com.example.cashbookbd.ui.customer.AddCoaL3Screen
 import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
 import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
@@ -211,6 +212,9 @@ object Routes {
 
     /** Software Information (report-footer name/mobile), a single-record form. */
     const val SOFTWARE_INFO = "admin/software-info"
+
+    /** Create Order form, opened from the Orders list's "Create Order" button. */
+    const val ORDER_ADD = "orders/add"
 
     // HRM section
     const val HRM = "hrm/home"
@@ -622,6 +626,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.VOUCHER_HISTORY) {
             PermissionGate(anyOf = listOf("voucher.history")) {
                 VoucherHistoryScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.ORDER_ADD) {
+            PermissionGate(anyOf = listOf("order.view")) {
+                AddOrderScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

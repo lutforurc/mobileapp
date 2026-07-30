@@ -50,6 +50,7 @@ import com.example.cashbookbd.data.repository.RealEstateCrudRepository
 import com.example.cashbookbd.data.repository.UnitSaleRepository
 import com.example.cashbookbd.data.repository.UnitSalePaymentRepository
 import com.example.cashbookbd.data.repository.RealEstateSalesRepository
+import com.example.cashbookbd.data.repository.OrderRepository
 import com.example.cashbookbd.data.repository.CoaRepository
 import com.example.cashbookbd.data.repository.VoucherHistoryRepository
 import com.example.cashbookbd.data.repository.SoftwareInfoRepository
@@ -150,6 +151,9 @@ object ServiceLocator {
 
     @Volatile
     private var realEstateSalesRepository: RealEstateSalesRepository? = null
+
+    @Volatile
+    private var orderRepository: OrderRepository? = null
 
     @Volatile
     private var coaRepository: CoaRepository? = null
@@ -468,6 +472,14 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { unitSaleRepository = it }
+        }
+
+    fun provideOrderRepository(context: Context): OrderRepository =
+        orderRepository ?: synchronized(this) {
+            orderRepository ?: OrderRepository(
+                reportApi = provideReportApiService(context),
+                transactionApi = provideTransactionApiService(context),
+            ).also { orderRepository = it }
         }
 
     fun provideRealEstateSalesRepository(context: Context): RealEstateSalesRepository =
