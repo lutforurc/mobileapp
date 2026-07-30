@@ -1,5 +1,10 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.cashbookbd.notifications.AppNotification
 import com.example.cashbookbd.notifications.NotificationCenter
@@ -75,8 +79,8 @@ fun NotificationBell(
                 badge = {
                     if (state.totalCount > 0) {
                         Badge(
-                            containerColor = MaterialTheme.accents.red,
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.appColors.danger,
+                            contentColor = MaterialTheme.appColors.textOnAccent,
                         ) {
                             Text(if (state.totalCount > 99) "99+" else state.totalCount.toString())
                         }
@@ -143,7 +147,7 @@ private fun NotificationHeader(totalCount: Int, isLoading: Boolean, onRefresh: (
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+                .background(MaterialTheme.appColors.primaryTint, AppShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -158,7 +162,7 @@ private fun NotificationHeader(totalCount: Int, isLoading: Boolean, onRefresh: (
             Text(
                 text = "Notification Center",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
             )
             Text(
                 text = if (totalCount > 0) "$totalCount item(s) need attention" else "Everything looks clear",
@@ -183,7 +187,7 @@ private fun EmptyRow(text: String, icon: ImageVector? = null) {
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(green.copy(alpha = 0.15f), CircleShape),
+                    .background(green.asTint(), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -232,7 +236,7 @@ private fun NotificationRow(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                    .background(accent.asTint(), AppShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -248,7 +252,7 @@ private fun NotificationRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         maxLines = 1,
                         modifier = Modifier.weight(1f),
                     )
@@ -257,14 +261,14 @@ private fun NotificationRow(
                             modifier = Modifier
                                 .background(
                                     MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(50),
+                                    PillShape,
                                 )
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Text(
                                 text = item.count.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = AppFontWeight.Bold,
                             )
                         }
                     }
@@ -297,7 +301,7 @@ private fun PreviewRow(row: NotificationPreviewRow) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+            .background(MaterialTheme.appColors.cardMuted, AppShape)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -305,7 +309,7 @@ private fun PreviewRow(row: NotificationPreviewRow) {
             Text(
                 text = row.label,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 maxLines = 1,
             )
             if (row.meta.isNotBlank()) {
@@ -321,7 +325,7 @@ private fun PreviewRow(row: NotificationPreviewRow) {
             Text(
                 text = row.value,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
             )
         }
     }

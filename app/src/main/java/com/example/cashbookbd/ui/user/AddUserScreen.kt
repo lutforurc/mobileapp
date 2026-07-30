@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.user
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -169,7 +171,7 @@ private fun Hint(text: String, isError: Boolean = false) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
-        color = if (isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+        color = if (isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.appColors.textOnScreenMuted,
     )
 }
 

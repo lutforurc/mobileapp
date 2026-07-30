@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.applist
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -262,7 +264,7 @@ private fun DialogLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = AppFontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
     )
@@ -337,7 +339,7 @@ private fun PaginationBar(state: AppListUiState, onPrev: () -> Unit, onNext: () 
         Text(
             text = "Page ${state.currentPage} of ${state.lastPage}  •  ${state.total} total",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            color = MaterialTheme.appColors.textOnScreenMuted,
         )
         LinkButton(
             text = "Next",
@@ -372,7 +374,7 @@ private fun ListBody(
         state.rows.isEmpty() -> Center {
             Text(
                 text = "No records found.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }

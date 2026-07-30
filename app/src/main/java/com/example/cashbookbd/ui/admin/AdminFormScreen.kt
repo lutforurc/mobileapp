@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -88,7 +90,7 @@ fun AdminFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This screen isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -111,7 +113,7 @@ fun AdminFormScreen(
                 AdminKind.JUMP_DATE -> {
                     Text(
                         text = "Pick the date to jump the transaction date to.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                         style = MaterialTheme.typography.bodySmall,
                     )
                     DateField(

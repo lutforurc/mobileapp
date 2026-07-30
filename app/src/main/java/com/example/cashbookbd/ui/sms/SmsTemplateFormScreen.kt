@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.sms
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -316,7 +319,7 @@ private fun TemplateForm(state: SmsTemplateFormUiState, viewModel: SmsTemplateFo
             Text(
                 text = "Template Name, Template Key and Message Body are required.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
         PrimaryButton(
@@ -335,7 +338,7 @@ private fun HelperText(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+        color = MaterialTheme.appColors.textOnScreenMuted,
         modifier = Modifier.padding(start = 4.dp, top = 4.dp),
     )
 }
@@ -348,7 +351,7 @@ private fun DetectedPlaceholders(placeholders: List<String>) {
         Text(
             text = "Detected placeholders",
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
         )
@@ -359,7 +362,7 @@ private fun DetectedPlaceholders(placeholders: List<String>) {
             placeholders.forEach { name ->
                 Box(
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.secondaryContainer, PillShape)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
                     Text(

@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -868,7 +868,7 @@ private fun SaleHeaderCards(
                 Text(
                     dueAmount.toAmountDisplay(),
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                 )
             }
         }
@@ -886,7 +886,7 @@ private fun HeaderCaption(text: String) = Text(
 private fun HeaderValue(text: String) = Text(
     text,
     style = MaterialTheme.typography.bodySmall,
-    fontWeight = FontWeight.Medium,
+    fontWeight = AppFontWeight.SemiBold,
 )
 
 /** A `yyyy-MM-dd` field shown as dd/MM/yyyy, picked with the platform dialog. */

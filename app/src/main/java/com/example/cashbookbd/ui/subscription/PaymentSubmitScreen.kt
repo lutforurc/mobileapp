@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.subscription
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -273,7 +275,7 @@ fun PaymentSubmitScreen(
                     text = "Submit a manual payment for your subscription. The request is " +
                         "reviewed by the platform team; access is granted once it is approved.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                 )
 
                 if (state.plansError != null) {

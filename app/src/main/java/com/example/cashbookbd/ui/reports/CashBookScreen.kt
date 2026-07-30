@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -41,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -232,7 +234,7 @@ private fun CashBookResults(state: CashBookUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -240,7 +242,7 @@ private fun CashBookResults(state: CashBookUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No transactions found for this period.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -339,7 +341,7 @@ private fun CashBookDescriptionCell(row: CashBookRow, rule: HighlightRule?) {
             Text(
                 text = row.particulars,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (row.isSummary) AppFontWeight.Bold else AppFontWeight.Normal,
                 color = onScreen,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -349,7 +351,7 @@ private fun CashBookDescriptionCell(row: CashBookRow, rule: HighlightRule?) {
         HighlightedText(
             text = row.remarks,
             borderColor = highlightBorderColor(rule),
-            color = onScreen.copy(alpha = 0.75f),
+            color = onScreen.muted(),
             maxLines = 3,
         )
     }

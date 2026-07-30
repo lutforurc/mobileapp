@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.customer
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -149,7 +151,7 @@ fun AddCustomerScreen(
                     Text(
                         text = "Type, Name, Present Address and Mobile are required.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
                 PrimaryButton(

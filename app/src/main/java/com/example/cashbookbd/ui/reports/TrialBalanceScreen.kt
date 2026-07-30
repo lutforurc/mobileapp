@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.clickable
@@ -41,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -227,7 +229,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -277,7 +279,7 @@ private fun ReportContent(
             Text(
                 text = "Reporting date: $range",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(Modifier.height(8.dp))
@@ -287,7 +289,7 @@ private fun ReportContent(
             CenterBox {
                 Text(
                     text = "No trial balance data for this selection.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -319,7 +321,7 @@ private fun SummaryBox(
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = accent,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

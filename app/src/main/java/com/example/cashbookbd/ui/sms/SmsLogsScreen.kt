@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.sms
 
+import com.example.cashbookbd.ui.theme.appColors
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -357,7 +358,7 @@ private fun PaginationBar(
     onPrev: () -> Unit,
     onNext: () -> Unit,
 ) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f))
+    HorizontalDivider(color = MaterialTheme.appColors.divider)
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -1,5 +1,10 @@
 package com.example.cashbookbd.ui.reseller
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -147,7 +151,7 @@ private fun ResellerDashboardContent(
                 Text(
                     text = "Refreshing…",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
@@ -228,7 +232,7 @@ private data class KpiTileData(val label: String, val value: String, val accent:
 private fun KpiTile(tile: KpiTileData, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = tile.accent.copy(alpha = 0.10f)),
+        colors = CardDefaults.cardColors(containerColor = tile.accent.asTint()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp)) {
             Text(
@@ -243,7 +247,7 @@ private fun KpiTile(tile: KpiTileData, modifier: Modifier = Modifier) {
             Text(
                 text = tile.value,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = tile.accent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -288,7 +292,7 @@ private fun DataTableCard(
                         text = col.title,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                         modifier = Modifier.weight(col.weight),
                         textAlign = if (col.alignEnd) TextAlign.End else TextAlign.Start,
                     )
@@ -310,7 +314,7 @@ private fun DataTableCard(
                             Text(
                                 text = row.getOrElse(ci) { "" },
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = if (col.emphasize) FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = if (col.emphasize) AppFontWeight.Bold else AppFontWeight.Normal,
                                 color = if (col.emphasize) accent else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(col.weight),
                                 textAlign = if (col.alignEnd) TextAlign.End else TextAlign.Start,
@@ -351,13 +355,13 @@ private fun PaymentDetailsCard(rows: List<ResellerPaymentRow>) {
                             Text(
                                 text = row.method,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = AppFontWeight.SemiBold,
                                 modifier = Modifier.weight(1f),
                             )
                             Text(
                                 text = money(row.amount, row.currency),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = AppFontWeight.Bold,
                                 color = accents.green,
                             )
                         }
@@ -411,18 +415,18 @@ private fun SectionHeader(title: String, count: Int) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
         Box(
             modifier = Modifier
-                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(50))
+                .background(accent.asTint(), PillShape)
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 color = accent,
             )
         }

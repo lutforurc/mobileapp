@@ -1,5 +1,10 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppCornerRadius
+import com.example.cashbookbd.ui.theme.AppShape
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -38,7 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -336,7 +340,7 @@ private fun CountTile(
         Text(
             text = count.toString(),
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = tint,
         )
     }
@@ -382,7 +386,7 @@ private fun FloorTabStrip(
 private fun FloorTab(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = AppShape,
         color = if (selected) scheme.primary else scheme.surfaceContainerHigh,
         contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
         modifier = Modifier.clickable(onClick = onClick),
@@ -395,17 +399,17 @@ private fun FloorTab(label: String, count: Int, selected: Boolean, onClick: () -
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 maxLines = 1,
             )
             Surface(
-                shape = RoundedCornerShape(6.dp),
+                shape = AppShape,
                 color = LocalContentColorFraction(),
             ) {
                 Text(
                     text = count.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                 )
             }
@@ -416,7 +420,7 @@ private fun FloorTab(label: String, count: Int, selected: Boolean, onClick: () -
 /** The count badge's soft backdrop, derived from the pill's own ink. */
 @Composable
 private fun LocalContentColorFraction() =
-    androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.15f)
+    androidx.compose.material3.LocalContentColor.current.asTint()
 
 /** The web's Building / Grid segmented switch, right-aligned. */
 @Composable
@@ -427,7 +431,7 @@ private fun ViewModeToggle(mode: LayoutViewMode, onChange: (LayoutViewMode) -> U
         horizontalArrangement = Arrangement.End,
     ) {
         Surface(
-            shape = RoundedCornerShape(10.dp),
+            shape = AppShape,
             color = scheme.surfaceContainerHigh,
         ) {
             Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -446,7 +450,7 @@ private fun ViewModeToggle(mode: LayoutViewMode, onChange: (LayoutViewMode) -> U
 private fun ViewModeSegment(label: String, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShape,
         color = if (selected) scheme.primary else scheme.surfaceContainerHigh,
         contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
         modifier = Modifier.clickable(onClick = onClick),
@@ -454,7 +458,7 @@ private fun ViewModeSegment(label: String, selected: Boolean, onClick: () -> Uni
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
         )
     }
@@ -481,14 +485,14 @@ private fun BuildingElevation(
             // Nameplate + rooftop.
             if (buildingName.isNotBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShape,
                     color = scheme.secondaryContainer,
                     contentColor = scheme.onSecondaryContainer,
                 ) {
                     Text(
                         text = buildingName.uppercase(),
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
                     )
                 }
@@ -498,7 +502,7 @@ private fun BuildingElevation(
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
                     .height(10.dp)
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .clip(RoundedCornerShape(topStart = AppCornerRadius, topEnd = AppCornerRadius))
                     .background(scheme.surfaceContainerHighest),
             )
 
@@ -534,7 +538,7 @@ private fun FloorRow(floor: LayoutFloor, onUnitClick: (BuildingUnit) -> Unit) {
                     Text(
                         text = floor.floorNo.toString(),
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                     )
                 }
             }
@@ -547,7 +551,7 @@ private fun FloorRow(floor: LayoutFloor, onUnitClick: (BuildingUnit) -> Unit) {
                 Text(
                     text = units.size.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = MaterialTheme.brand.onGradient,
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                 )
@@ -575,7 +579,7 @@ private fun GradientUnitTile(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit
     val colors = brand.unitStatus[unit.status] ?: brand.unitStatus.getValue(0)
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShape)
             .background(Brush.verticalGradient(colors))
             .clickable { onClick(unit) }
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -584,7 +588,7 @@ private fun GradientUnitTile(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit
         Text(
             text = unit.unitNo,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = brand.onGradient,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -592,7 +596,7 @@ private fun GradientUnitTile(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit
         Text(
             text = if (unit.isParking) "PARKING" else statusLabel(unit.status).uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = brand.onGradient.copy(alpha = 0.85f),
+            color = brand.onGradient.muted(),
             maxLines = 1,
         )
     }
@@ -626,7 +630,7 @@ private fun FloorCard(floor: LayoutFloor, onUnitClick: (BuildingUnit) -> Unit) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -694,7 +698,7 @@ private fun UnitChip(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit) {
 
     Surface(
         onClick = { onClick(unit) },
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShape,
         color = container,
         contentColor = content,
         border = border,
@@ -707,21 +711,21 @@ private fun UnitChip(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit) {
                 Text(
                     text = unit.unitNo,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (unit.isParking) {
                     Spacer(Modifier.size(4.dp))
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = content.copy(alpha = 0.15f),
+                        shape = AppShape,
+                        color = content.asTint(),
                         contentColor = content,
                     ) {
                         Text(
                             text = "P",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = AppFontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         )
                     }
@@ -730,7 +734,7 @@ private fun UnitChip(unit: BuildingUnit, onClick: (BuildingUnit) -> Unit) {
             Text(
                 text = statusLabel(unit.status),
                 style = MaterialTheme.typography.labelSmall,
-                color = content.copy(alpha = 0.8f),
+                color = content.muted(),
             )
         }
     }
@@ -784,7 +788,7 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
+            fontWeight = AppFontWeight.SemiBold,
             textAlign = TextAlign.End,
         )
     }

@@ -1,5 +1,12 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.asStripe
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -783,7 +789,7 @@ fun ManualAttendanceScreen(
                         Text(
                             "  Saving bulk attendance…",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            color = MaterialTheme.appColors.textOnScreenMuted,
                         )
                     }
                 }
@@ -880,7 +886,7 @@ fun ManualAttendanceScreen(
                 state.entries.isEmpty() -> item {
                     Text(
                         text = "No attendance entries in this range.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -913,7 +919,7 @@ private fun SectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = AppFontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(bottom = 10.dp),
     )
@@ -931,8 +937,8 @@ private fun FilterApprovalHeader() {
             modifier = Modifier
                 .size(36.dp)
                 .background(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    RoundedCornerShape(8.dp),
+                    MaterialTheme.appColors.primaryTint,
+                    AppShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -947,7 +953,7 @@ private fun FilterApprovalHeader() {
             Text(
                 text = "Filter & Approval",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
             )
             Text(
                 text = "Load entries and approve in bulk",
@@ -955,7 +961,7 @@ private fun FilterApprovalHeader() {
                 // onSurfaceVariant reads as a low-contrast maroon on this screen's
                 // teal background (the header isn't inside a surface/card); the
                 // dimmed onBackground the rest of the screen uses stays legible.
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
     }
@@ -972,7 +978,7 @@ private fun AttendanceListHeader(count: Int) {
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+                .background(MaterialTheme.appColors.primaryTint, AppShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -985,18 +991,18 @@ private fun AttendanceListHeader(count: Int) {
         Text(
             text = "Attendance List",
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
         Box(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(50))
+                .background(MaterialTheme.appColors.primaryTint, PillShape)
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
                 text = "$count entries",
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
@@ -1026,17 +1032,17 @@ private object AttCol {
 @Composable
 private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceEntry) -> Unit) {
     val hScroll = rememberScrollState()
-    val border = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+    val border = MaterialTheme.colorScheme.onBackground.asTint()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, border, RoundedCornerShape(8.dp)),
+            .clip(AppShape)
+            .border(1.dp, border, AppShape),
     ) {
         Column(Modifier.horizontalScroll(hScroll)) {
             Row(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
+                    .background(MaterialTheme.colorScheme.onBackground.asStripe())
                     .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1053,7 +1059,7 @@ private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceE
                 HeaderCell("ACTION", AttCol.action)
             }
             entries.forEachIndexed { index, entry ->
-                HorizontalDivider(color = border.copy(alpha = 0.6f))
+                HorizontalDivider(color = MaterialTheme.appColors.border)
                 Row(
                     modifier = Modifier.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1085,7 +1091,7 @@ private fun AttendanceTable(entries: List<AttendanceEntry>, onEdit: (AttendanceE
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp)),
+                                    .background(MaterialTheme.colorScheme.primary, AppShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -1109,8 +1115,8 @@ private fun HeaderCell(text: String, width: Dp) {
         text = text,
         modifier = Modifier.width(width).padding(horizontal = 8.dp),
         style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+        fontWeight = AppFontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground.muted(),
         textAlign = TextAlign.Center,
         maxLines = 1,
     )
@@ -1144,13 +1150,13 @@ private fun StatusPill(status: String) {
         return
     }
     val color = when (status.lowercase()) {
-        "present", "late" -> Color(0xFF16A34A)
-        "absent" -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+        "present", "late" -> MaterialTheme.appColors.success
+        "absent" -> MaterialTheme.appColors.danger
+        else -> MaterialTheme.colorScheme.onBackground.muted()
     }
     Box(
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .background(color.asTint(), PillShape)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(
@@ -1170,13 +1176,13 @@ private fun ApprovalPill(approval: String) {
         return
     }
     val color = when (approval.lowercase()) {
-        "approved" -> Color(0xFF16A34A)
-        "rejected" -> MaterialTheme.colorScheme.error
+        "approved" -> MaterialTheme.appColors.success
+        "rejected" -> MaterialTheme.appColors.danger
         else -> MaterialTheme.colorScheme.primary
     }
     Box(
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .background(color.asTint(), PillShape)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(

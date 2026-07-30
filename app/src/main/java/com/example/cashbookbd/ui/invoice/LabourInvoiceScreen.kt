@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.invoice
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -141,12 +141,12 @@ fun LabourInvoiceScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     text = "Total Tk.",
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
                     text = AmountFormat.format(state.total),
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
@@ -190,7 +190,7 @@ private fun ItemEntry(state: LabourInvoiceUiState, viewModel: LabourInvoiceViewM
     Text(
         text = "Add Labour Item",
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = AppFontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onBackground,
     )
     SearchableSelectDropdown(
@@ -270,8 +270,8 @@ private fun LabourLinesList(
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Total Tk.", fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(total), fontWeight = FontWeight.Bold)
+                Text("Total Tk.", fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
             }
         }
     }

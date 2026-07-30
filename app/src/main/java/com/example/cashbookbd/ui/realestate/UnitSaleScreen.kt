@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -650,7 +650,7 @@ private fun HeaderTile(label: String, value: String, modifier: Modifier = Modifi
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -694,8 +694,8 @@ private fun LinesTable(state: UnitSaleUiState, viewModel: UnitSaleViewModel) {
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Grand Total", fontWeight = FontWeight.Bold)
-                    Text(formatSigned(state.total), fontWeight = FontWeight.Bold)
+                    Text("Grand Total", fontWeight = AppFontWeight.Bold)
+                    Text(formatSigned(state.total), fontWeight = AppFontWeight.Bold)
                 }
             }
         }
@@ -707,7 +707,7 @@ private fun HeaderCell(text: String, modifier: Modifier, align: TextAlign = Text
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = AppFontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = align,
         modifier = modifier,
@@ -756,7 +756,7 @@ private fun LineRow(line: UnitSaleLine, viewModel: UnitSaleViewModel) {
             Text(
                 text = AmountFormat.format(abs(line.amount), 0),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                fontWeight = AppFontWeight.SemiBold,
                 maxLines = 1,
             )
         }

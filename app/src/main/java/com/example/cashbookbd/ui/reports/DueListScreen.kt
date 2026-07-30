@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -40,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -207,7 +209,7 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and end date, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -215,7 +217,7 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No dues found for this selection.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -296,7 +298,7 @@ private fun PartyCell(row: DueRow) {
         Text(
             text = row.customer,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = onScreen,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -305,7 +307,7 @@ private fun PartyCell(row: DueRow) {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
-                color = onScreen.copy(alpha = 0.75f),
+                color = onScreen.muted(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -314,7 +316,7 @@ private fun PartyCell(row: DueRow) {
             Text(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
-                color = onScreen.copy(alpha = 0.75f),
+                color = onScreen.muted(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.customer
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -162,7 +164,7 @@ fun EditCustomerScreen(
                     text = "Set the opening balance (needed at the start of business) and/or the ledger page. " +
                         "Opening can be set once; leave a field blank to keep it unchanged.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                 )
                 AppTextField(
                     value = state.opening,

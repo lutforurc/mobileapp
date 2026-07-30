@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -595,7 +595,7 @@ private fun VoucherLinesList(
                     Text(
                         text = AmountFormat.format(line.amount),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                     )
                     IconButton(onClick = { onEdit(index) }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit line", tint = MaterialTheme.colorScheme.primary)
@@ -608,8 +608,8 @@ private fun VoucherLinesList(
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(totalLabel, fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(total), fontWeight = FontWeight.Bold)
+                Text(totalLabel, fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
             }
         }
     }

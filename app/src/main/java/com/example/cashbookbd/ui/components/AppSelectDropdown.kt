@@ -51,12 +51,8 @@ fun DropdownAnchorField(
     ) {
         Text(
             text = valueText ?: placeholder,
-            style = fieldValueTextStyle(),
-            color = if (valueText == null) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            // Nothing picked yet reads as a hint, not as a value.
+            style = if (valueText == null) fieldPlaceholderTextStyle() else fieldValueTextStyle(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

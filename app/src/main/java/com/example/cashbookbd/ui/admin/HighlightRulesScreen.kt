@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -332,12 +333,12 @@ private fun RuleForm(state: HighlightRulesUiState, viewModel: HighlightRulesView
     // every text uses the background's on-colour — onSurfaceVariant is the
     // card-muted role and disappears against the teal in light mode.
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val onScreenMuted = onScreen.copy(alpha = 0.75f)
+    val onScreenMuted = onScreen.muted()
 
     Text(
         text = if (state.isEdit) "Edit Highlight Rule" else "Add Highlight Rule",
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = onScreen,
     )
     Spacer(Modifier.height(12.dp))
@@ -451,7 +452,7 @@ private fun RulesList(state: HighlightRulesUiState, viewModel: HighlightRulesVie
         Text(
             text = "Highlight Rules",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = onScreen,
             modifier = Modifier.weight(1f),
         )
@@ -459,7 +460,7 @@ private fun RulesList(state: HighlightRulesUiState, viewModel: HighlightRulesVie
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "Refresh list",
-                tint = onScreen.copy(alpha = 0.8f),
+                tint = onScreen.muted(),
             )
         }
     }
@@ -531,7 +532,7 @@ private fun ruleColumns(
             ReportColumn("Status", ReportColWidth.Fixed(80.dp)) { r, _ ->
                 cellText(
                     if (r.active) "Active" else "Inactive",
-                    color = if (r.active) active else onScreen.copy(alpha = 0.7f),
+                    color = if (r.active) active else onScreen.muted(),
                     bold = r.active,
                 )
             },

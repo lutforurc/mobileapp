@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
@@ -68,7 +70,7 @@ fun HrmFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This screen is not available yet.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                 )
             }
         }

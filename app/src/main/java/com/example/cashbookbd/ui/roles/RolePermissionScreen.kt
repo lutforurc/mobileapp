@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.roles
 
+import com.example.cashbookbd.ui.theme.asDivider
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -180,7 +182,7 @@ private fun RolePermissionBody(
             Text(
                 text = "Permissions",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = onScreen,
                 modifier = Modifier.weight(1f),
             )
@@ -190,14 +192,14 @@ private fun RolePermissionBody(
         }
         HorizontalDivider(
             modifier = Modifier.padding(top = 8.dp),
-            color = onScreen.copy(alpha = 0.2f),
+            color = onScreen.asDivider(),
         )
 
         if (state.isReadonly) {
             Text(
                 text = "This is a global/plan role. Its permissions are shared across companies and can't be changed here.",
                 style = MaterialTheme.typography.bodySmall,
-                color = onScreen.copy(alpha = 0.8f),
+                color = onScreen.muted(),
                 modifier = Modifier.padding(vertical = 12.dp),
             )
         }
@@ -211,7 +213,7 @@ private fun RolePermissionBody(
             groups.isEmpty() -> Text(
                 text = if (state.isReadonly) "This role has no permissions." else "No permissions found.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = onScreen.copy(alpha = 0.8f),
+                color = onScreen.muted(),
                 modifier = Modifier.padding(vertical = 24.dp),
             )
 
@@ -244,7 +246,7 @@ private fun PermissionGroupSection(
         Text(
             text = group.name,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = onScreen,
             modifier = Modifier.weight(1f),
         )
@@ -284,7 +286,7 @@ private fun PermissionRow(
         Text(
             text = formatPermissionName(permission.name),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) onScreen else onScreen.copy(alpha = 0.7f),
+            color = if (enabled) onScreen else onScreen.muted(),
             modifier = Modifier.padding(start = 10.dp),
         )
     }

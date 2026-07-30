@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,7 +10,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
@@ -31,7 +32,7 @@ fun BrandPill(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50),
+        shape = PillShape,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
@@ -42,7 +43,7 @@ fun BrandPill(
             } else {
                 MaterialTheme.typography.labelLarge
             },
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             modifier = Modifier.padding(
                 if (compact) {
                     PaddingValues(horizontal = 10.dp, vertical = 4.dp)

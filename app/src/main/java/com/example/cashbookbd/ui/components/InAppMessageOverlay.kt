@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,14 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -78,7 +78,7 @@ fun InAppMessageOverlay(
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(AppShape)
                             .clickable { onPrimary(message) },
                     )
                 }
@@ -97,7 +97,7 @@ fun InAppMessageOverlay(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(84.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(AppShape),
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
@@ -149,7 +149,7 @@ private fun DialogFrame(
     ) {
         Box(modifier = Modifier.padding(24.dp)) {
             Card(
-                shape = RoundedCornerShape(14.dp),
+                shape = AppShape,
                 colors = CardDefaults.cardColors(
                     containerColor = message.bgColor.toColorOr(MaterialTheme.colorScheme.surface),
                     contentColor = message.textColor.toColorOr(MaterialTheme.colorScheme.onSurface),
@@ -171,9 +171,9 @@ private fun DialogFrame(
                     Icon(
                         Icons.Filled.Close,
                         contentDescription = "Close message",
-                        tint = Color.White,
+                        tint = MaterialTheme.appColors.textOnScrim,
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(50))
+                            .background(MaterialTheme.appColors.scrim, PillShape)
                             .padding(4.dp),
                     )
                 }
@@ -197,7 +197,7 @@ private fun BannerMessage(
 
     Box(modifier = modifier.fillMaxSize()) {
         Card(
-            shape = RoundedCornerShape(10.dp),
+            shape = AppShape,
             colors = CardDefaults.cardColors(
                 containerColor = message.bgColor.toColorOr(MaterialTheme.colorScheme.surfaceVariant),
                 contentColor = message.textColor.toColorOr(MaterialTheme.colorScheme.onSurfaceVariant),
@@ -219,14 +219,14 @@ private fun BannerMessage(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(40.dp)
-                            .clip(RoundedCornerShape(6.dp)),
+                            .clip(AppShape),
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = message.title,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         maxLines = 1,
                     )
                     if (!message.body.isNullOrBlank()) {
@@ -253,7 +253,7 @@ private fun MessageText(message: InAppMessage) {
     Text(
         text = message.title,
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
     )
     if (!message.body.isNullOrBlank()) {
         Spacer(Modifier.height(6.dp))
@@ -278,19 +278,17 @@ private fun MessageButtons(
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (primaryLabel != null) {
-            Button(
+            PrimaryButton(
+                text = primaryLabel,
                 onClick = { onPrimary(message) },
-                colors = message.buttonColor.toColorOrNull()?.let {
-                    ButtonDefaults.buttonColors(containerColor = it)
-                } ?: ButtonDefaults.buttonColors(),
-            ) {
-                Text(primaryLabel, maxLines = 1)
-            }
+                containerColor = message.buttonColor.toColorOrNull(),
+            )
         }
         if (secondaryLabel != null && !compact) {
-            OutlinedButton(onClick = { onSecondary(message) }) {
-                Text(secondaryLabel, maxLines = 1)
-            }
+            SecondaryButton(
+                text = secondaryLabel,
+                onClick = { onSecondary(message) },
+            )
         }
     }
     if (secondaryLabel != null && compact) {

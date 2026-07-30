@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.asGridLine
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -25,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -182,7 +184,7 @@ fun <T> ReportTable(
                     Text(
                         text = col.header,
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary,
                         textAlign = col.headerAlign,
                         maxLines = 2,
@@ -298,7 +300,7 @@ private fun RowScope.RenderCell(
                     text = cell.text,
                     borderColor = cell.highlight,
                     color = cell.color,
-                    fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (cell.bold) AppFontWeight.Bold else AppFontWeight.Normal,
                     textAlign = cell.align ?: columnAlign,
                     maxLines = cell.maxLines,
                 )
@@ -307,7 +309,7 @@ private fun RowScope.RenderCell(
             Text(
                 text = cell.text,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (cell.bold) AppFontWeight.Bold else AppFontWeight.Normal,
                 color = cell.color,
                 textAlign = cell.align ?: columnAlign,
                 maxLines = cell.maxLines,
@@ -365,7 +367,7 @@ private fun <T> GroupedHeader(
                     ) {
                         HeaderText(group.label, TextAlign.Center)
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f))
+                    HorizontalDivider(color = MaterialTheme.appColors.gridLineOnPrimary)
                     Row(
                         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                     ) {
@@ -389,7 +391,7 @@ private fun HeaderText(text: String, align: TextAlign) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = MaterialTheme.colorScheme.onPrimary,
         textAlign = align,
         maxLines = 2,
@@ -447,7 +449,7 @@ private fun <T> RowScope.RenderFooterCell(
         is ReportTableCell.Text -> Text(
             text = cell.text,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (cell.bold) AppFontWeight.Bold else AppFontWeight.Normal,
             // Default to onSurfaceVariant so the footer reads against its
             // surfaceVariant background (white-on-light washed out in light mode);
             // an explicit cell colour still wins.
@@ -486,7 +488,7 @@ private fun rowWidth(fixed: Boolean): Modifier =
  * of a near-invisible dark hairline. Matches the header's onPrimary dividers.
  */
 @Composable
-private fun gridLineColor(): Color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+private fun gridLineColor(): Color = MaterialTheme.appColors.gridLine
 
 /**
  * The grid-line colour for a row on a tinted band (summary / total / footer
@@ -498,7 +500,7 @@ private fun gridLineColor(): Color = MaterialTheme.colorScheme.onBackground.copy
 private fun gridLineColorFor(rowBackground: Color?): Color {
     if (rowBackground == null) return gridLineColor()
     val on = contentColorFor(rowBackground)
-    return if (on == Color.Unspecified) gridLineColor() else on.copy(alpha = 0.3f)
+    return if (on == Color.Unspecified) gridLineColor() else on.asGridLine()
 }
 
 /** Vertical grid line spanning the full height of a table row. */
@@ -507,7 +509,7 @@ private fun GridVDivider(onHeader: Boolean = false, color: Color? = null) {
     VerticalDivider(
         thickness = GridLine,
         color = when {
-            onHeader -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+            onHeader -> MaterialTheme.appColors.gridLineOnPrimary
             color != null -> color
             else -> gridLineColor()
         },

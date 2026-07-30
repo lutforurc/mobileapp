@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,7 +111,7 @@ fun SoftwareInfoScreen(
                     Text(
                         text = "This name and mobile number appear in the footer of all reports.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                     AppTextField(
                         value = state.name,
@@ -153,7 +155,7 @@ fun SoftwareInfoScreen(
                         Text(
                             text = "Enter at least the company name or mobile",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            color = MaterialTheme.appColors.textOnScreenMuted,
                         )
                     }
                     PrimaryButton(

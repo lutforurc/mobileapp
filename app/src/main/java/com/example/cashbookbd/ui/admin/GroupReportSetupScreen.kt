@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -305,12 +306,12 @@ fun GroupReportSetupScreen(
 @Composable
 private fun SetupForm(state: GroupReportSetupUiState, viewModel: GroupReportSetupViewModel) {
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val onScreenMuted = onScreen.copy(alpha = 0.75f)
+    val onScreenMuted = onScreen.muted()
 
     Text(
         text = "Group Report Setup",
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = onScreen,
     )
     Spacer(Modifier.height(12.dp))
@@ -370,7 +371,7 @@ private fun SelectedList(state: GroupReportSetupUiState, viewModel: GroupReportS
         Text(
             text = "${state.selectedGroup.label} Items",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = onScreen,
             modifier = Modifier.weight(1f),
         )
@@ -378,7 +379,7 @@ private fun SelectedList(state: GroupReportSetupUiState, viewModel: GroupReportS
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "Refresh list",
-                tint = onScreen.copy(alpha = 0.8f),
+                tint = onScreen.muted(),
             )
         }
     }

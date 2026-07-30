@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -371,7 +373,7 @@ fun LeaveApplicationsScreen(
                 Text(
                     text = "Applications — this month",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -393,7 +395,7 @@ fun LeaveApplicationsScreen(
                 state.applications.isEmpty() -> item {
                     Text(
                         text = "No leave applications in this period.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -424,7 +426,7 @@ private fun LeaveApplicationRow(
                 Text(
                     text = application.employeeName,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
                 Text(

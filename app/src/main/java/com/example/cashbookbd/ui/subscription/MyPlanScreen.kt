@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.subscription
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,7 +79,7 @@ fun MyPlanScreen(
             !state.hasCurrent -> Center {
                 Text(
                     text = "You don't have an active subscription yet.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -97,7 +100,7 @@ private fun PlanDetail(plan: CurrentSubscription) {
                 Text(
                     text = plan.planName.ifBlank { "—" },
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                 )
                 if (plan.status.isNotBlank()) BrandPill(plan.status.replace('_', ' '))
                 if (plan.accessStatus.isNotBlank()) {
@@ -117,7 +120,7 @@ private fun PlanDetail(plan: CurrentSubscription) {
 
         val enabled = plan.features.filter { it.enabled }
         if (enabled.isNotEmpty()) {
-            Text("Enabled Features", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("Enabled Features", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 enabled.forEach { Chip(it.name) }
             }
@@ -133,7 +136,7 @@ private fun DateRow(label: String, value: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value.ifBlank { "-" }, fontWeight = FontWeight.SemiBold)
+            Text(value.ifBlank { "-" }, fontWeight = AppFontWeight.SemiBold)
         }
     }
 }
@@ -142,7 +145,7 @@ private fun DateRow(label: String, value: String) {
 private fun Chip(text: String) {
     Box(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.secondaryContainer, PillShape)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)

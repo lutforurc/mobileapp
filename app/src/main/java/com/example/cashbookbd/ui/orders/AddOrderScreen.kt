@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.orders
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -128,7 +130,7 @@ fun AddOrderScreen(
                 Text(
                     text = hint,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                 )
             }
 
@@ -297,7 +299,7 @@ private fun MultiProductEntry(
     state: AddOrderUiState,
     viewModel: AddOrderViewModel,
 ) {
-    Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
     SearchableSelectDropdown(
         selected = state.lineProduct,
@@ -369,7 +371,7 @@ private fun OrderLinesList(
                     Text(
                         text = line.amount.toDashedAmount(),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                     )
                     IconButton(onClick = { onEdit(index) }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit line", tint = MaterialTheme.colorScheme.primary)
@@ -382,10 +384,10 @@ private fun OrderLinesList(
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Total (${lines.size} product${if (lines.size == 1) "" else "s"})", fontWeight = FontWeight.Bold)
+                Text("Total (${lines.size} product${if (lines.size == 1) "" else "s"})", fontWeight = AppFontWeight.Bold)
                 Text(
                     text = "Qty ${totalQty.toDashedAmount()}  •  ${totalAmount.toDashedAmount()}",
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                 )
             }
         }

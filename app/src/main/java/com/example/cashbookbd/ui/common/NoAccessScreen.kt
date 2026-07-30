@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.common
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,7 +41,7 @@ fun NoAccessScreen(
             imageVector = Icons.Filled.Lock,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            tint = MaterialTheme.appColors.textOnScreenMuted,
         )
         Spacer(Modifier.height(16.dp))
         Text(
@@ -50,7 +52,7 @@ fun NoAccessScreen(
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            color = MaterialTheme.appColors.textOnScreenMuted,
             textAlign = TextAlign.Center,
         )
     }

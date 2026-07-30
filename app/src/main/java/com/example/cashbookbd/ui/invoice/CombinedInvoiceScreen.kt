@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.invoice
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -607,12 +607,12 @@ private fun CombinedLinesList(
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Purchase Tk.", fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(purchaseTotal), fontWeight = FontWeight.Bold)
+                Text("Purchase Tk.", fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(purchaseTotal), fontWeight = AppFontWeight.Bold)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Sales Tk.", fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(salesTotal), fontWeight = FontWeight.Bold)
+                Text("Sales Tk.", fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(salesTotal), fontWeight = AppFontWeight.Bold)
             }
         }
     }

@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.subscription
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,7 +79,7 @@ fun PricingScreen(
                 }
             }
             state.plans.isEmpty() -> Center {
-                Text("No plans available.", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
+                Text("No plans available.", color = MaterialTheme.appColors.textOnScreenMuted)
             }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -94,13 +97,13 @@ private fun PlanCard(plan: SubscriptionPlan) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(plan.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(plan.name, style = MaterialTheme.typography.titleMedium, fontWeight = AppFontWeight.Bold, modifier = Modifier.weight(1f))
                 if (plan.billingInterval.isNotBlank()) Pill(plan.billingInterval.replace('_', ' '))
             }
             Text(
                 text = "${plan.currency} ${amountFormat.format(plan.price)}",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
             )
             if (plan.trialDays > 0) {
@@ -127,7 +130,7 @@ private fun PlanCard(plan: SubscriptionPlan) {
             val features = plan.features.filter { it.enabled }
             if (features.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Text("Included Features", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Included Features", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
                 features.forEach {
                     Text("• ${it.name}", style = MaterialTheme.typography.bodyMedium)
                 }
@@ -144,7 +147,7 @@ private fun QuotaRow(label: String, value: Int?) = QuotaText(label, value?.toStr
 private fun QuotaText(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = AppFontWeight.SemiBold)
     }
 }
 
@@ -152,7 +155,7 @@ private fun QuotaText(label: String, value: String) {
 private fun Pill(text: String) {
     Box(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.secondaryContainer, PillShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)

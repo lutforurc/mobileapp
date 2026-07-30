@@ -1,38 +1,58 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.cashbookbd.ui.theme.AppShape
 
-/** Height of a form field's box, excluding the caption above it. */
-val FormFieldHeight = 44.dp
-
-private val FieldShape = RoundedCornerShape(10.dp)
+/** Height of a form field's box, excluding the floating label's overhang. */
+val FormFieldHeight = 52.dp
 
 /**
- * The shared chrome for every form field: a small primary-coloured caption above
- * a short [FormFieldHeight] rounded box with a tinted border.
+ * One corner shape for every form control, aliased to the app-wide [AppShape]
+ * token — fields, the buttons in [AppButtons], menus and cards all resolve to
+ * that single radius, so they can never drift apart.
+ */
+val FormFieldShape = AppShape
+
+/** Where the floating label starts, from the field's left edge. */
+private val LabelStartInset = 16.dp
+
+/** Breathing room inside the label's pill, left and right of the text. */
+private val LabelPillPadding = 5.dp
+
+/**
+ * The shared chrome for every form field: a rounded outlined box with the
+ * field's name floating on the top border — the label sits on the border line,
+ * like a Material "outlined" text field's notched label.
  *
  * This is the single definition of what a field looks like — the read-only
  * [com.example.cashbookbd.ui.reports.PickerField] and the searchable dropdowns
@@ -55,48 +75,76 @@ fun FieldFrame(
     trailingIcon: (@Composable () -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Column(modifier = modifier) {
-        if (label.isNotBlank()) Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            // The caption sits on the screen's teal background, not on the
-            // field box, so it uses the background's on-colour.
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
-        )
+    val hasLabel = label.isNotBlank()
+    val density = LocalDensity.current
+    // Measured so the box can be pushed down by exactly half the label height,
+    // whatever the font scale.
+    var labelSize by remember { mutableStateOf(IntSize.Zero) }
+    Box(modifier = modifier) {
+        // The box's top border passes through the label's vertical centre.
+        val labelOverhang = with(density) { labelSize.height.toDp() / 2 }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = if (hasLabel) labelOverhang else 0.dp)
                 .then(
                     if (multiline) Modifier.heightIn(min = FormFieldHeight)
                     else Modifier.height(FormFieldHeight)
                 )
-                .clip(FieldShape)
+                .clip(FormFieldShape)
                 // Solid surface, not a translucent tint: the screen behind is
                 // the brand teal, and a see-through box melts into it.
                 .background(MaterialTheme.colorScheme.surface)
+                // The floating label's opaque pill covers the border line where
+                // they overlap, so a plain border needs no gap cut out of it.
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = FieldShape,
+                    shape = FormFieldShape,
                 )
                 .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 14.dp)
                 .then(if (multiline) Modifier.padding(vertical = 12.dp) else Modifier),
             verticalAlignment = if (multiline) Alignment.Top else Alignment.CenterVertically,
         ) {
             content()
             trailingIcon?.invoke()
         }
+        // The label rides the border line, straddling the screen behind and the
+        // field's fill — two different colours, so no single text colour reads
+        // on both. A pill of the field's own surface colour under the text
+        // gives it one constant backdrop on any theme.
+        if (hasLabel) Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = AppFontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            modifier = Modifier
+                .padding(start = LabelStartInset)
+                .onSizeChanged { labelSize = it }
+                .background(MaterialTheme.colorScheme.surface, FormFieldShape)
+                .padding(horizontal = LabelPillPadding),
+        )
     }
 }
 
 /** The text style a field's value is drawn in, shared so every field matches. */
 @Composable
 fun fieldValueTextStyle() = MaterialTheme.typography.bodyMedium.copy(
-    fontWeight = FontWeight.Medium,
+    fontWeight = AppFontWeight.SemiBold,
     color = MaterialTheme.colorScheme.onSurface,
+)
+
+/**
+ * The style of a field's empty-state hint. Same size and metrics as
+ * [fieldValueTextStyle] so the text does not shift when the user types, but
+ * normal weight in the muted ink — a hint must not read as an entered value.
+ */
+@Composable
+fun fieldPlaceholderTextStyle() = fieldValueTextStyle().copy(
+    fontWeight = AppFontWeight.Normal,
+    color = MaterialTheme.appColors.textMuted,
 )
 
 /**
@@ -132,8 +180,7 @@ fun RowScope.FieldTextInput(
             if (value.isEmpty()) {
                 Text(
                     text = placeholder,
-                    style = fieldValueTextStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = fieldPlaceholderTextStyle(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

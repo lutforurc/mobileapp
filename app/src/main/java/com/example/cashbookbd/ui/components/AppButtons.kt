@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.muted
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,12 +64,30 @@ private val CompactButtonHeight = 32.dp
 private val CompactIconSize = 15.dp
 private val CompactPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
 
-private val CompactShape = RoundedCornerShape(4.dp)
-
-// Gently rounded, not a full pill — 24dp on a 48dp button read as overdone
-// next to the 10dp form fields; this keeps the whole family in one radius.
-private val ButtonShape = RoundedCornerShape(12.dp)
+// Buttons share the form fields' corner shape (see [FormFieldShape]) so a
+// button beside a field always carries the same radius — one change, one look.
+private val CompactShape = FormFieldShape
+private val ButtonShape = FormFieldShape
 private val IconSize = 18.dp
+
+/**
+ * Every button carries an edge, drawn in the same border colour the form fields
+ * use, so a button reads as a button on any backdrop.
+ *
+ * The case that forces this is the disabled state on the light theme: a
+ * disabled button's fill is a near-white grey, and on the white canvas the
+ * shape simply disappears without an outline. [fill] is the button's own
+ * container colour — a filled button keeps its edge in its own colour rather
+ * than being ringed in grey.
+ */
+@Composable
+private fun buttonBorder(enabled: Boolean, fill: Color? = null): BorderStroke = BorderStroke(
+    width = 1.dp,
+    color = when {
+        !enabled -> MaterialTheme.appColors.borderStrong
+        else -> fill ?: MaterialTheme.appColors.action
+    },
+)
 
 /**
  * The primary call to action — Save, Apply, Log in, "+ Add …".
@@ -83,18 +103,24 @@ fun PrimaryButton(
     icon: ImageVector? = null,
     isLoading: Boolean = false,
     compact: Boolean = false,
+    /** Overrides the filled colour — the in-app campaigns' server-set button colour. */
+    containerColor: androidx.compose.ui.graphics.Color? = null,
 ) {
+    val fill = containerColor ?: MaterialTheme.appColors.action
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = if (compact) CompactShape else ButtonShape,
         // M3's default disabled colours are onSurface at low alpha, which all
-        // but vanishes against the brand-teal screen. A solid surface fill with
-        // the muted on-colour keeps a disabled button legible in both themes.
+        // but vanishes against the screen. A solid surface fill with the muted
+        // on-colour keeps a disabled button legible in both themes.
         colors = ButtonDefaults.buttonColors(
+            containerColor = fill,
+            contentColor = MaterialTheme.appColors.onAction,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
+        border = buttonBorder(enabled = enabled && !isLoading, fill = fill),
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -102,10 +128,10 @@ fun PrimaryButton(
             text = text,
             icon = icon,
             isLoading = isLoading,
-            // The brand colour, not on-primary white: while loading the button is
-            // disabled and greys out, and a white ring would vanish against it.
-            // The primary colour stays visible and reads as "working".
-            spinnerColor = MaterialTheme.colorScheme.primary,
+            // The action colour, not the on-action white: while loading the
+            // button is disabled and greys out, and a white ring would vanish
+            // against it. The action colour stays visible and reads as "working".
+            spinnerColor = MaterialTheme.appColors.action,
             compact = compact,
         )
     }
@@ -128,13 +154,13 @@ fun SecondaryButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = if (compact) CompactShape else ButtonShape,
-        // These sit on the screen background (filter bars, list toolbars), not
-        // on a card, so label and border take the background's on-colour — the
-        // primary would be one brand colour drawn on another.
+        // An enabled secondary action is still an action, so it carries the
+        // same colour as the filled one — as its label and edge rather than a
+        // fill, which is what keeps the two apart.
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.onBackground,
+            contentColor = MaterialTheme.appColors.action,
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+        border = buttonBorder(enabled = enabled && !isLoading),
         contentPadding = if (compact) CompactPadding else ButtonDefaults.ContentPadding,
         modifier = modifier.height(if (compact) CompactButtonHeight else ButtonHeight),
     ) {
@@ -142,7 +168,7 @@ fun SecondaryButton(
             text = text,
             icon = icon,
             isLoading = isLoading,
-            spinnerColor = MaterialTheme.colorScheme.onBackground,
+            spinnerColor = MaterialTheme.appColors.action,
             compact = compact,
         )
         if (trailingIcon != null && !isLoading) {
@@ -230,16 +256,15 @@ fun FieldButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
 ) {
-    // These date pickers sit on the teal screen backdrop, so the text, icon and
-    // border take the on-teal ink — the default OutlinedButton uses primary/outline,
-    // which wash out on the teal in light mode.
+    // These sit on the screen backdrop, not on a card, so the label and icon
+    // take the backdrop's on-colour rather than M3's primary.
     val onScreen = MaterialTheme.colorScheme.onBackground
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         shape = ButtonShape,
         colors = ButtonDefaults.outlinedButtonColors(contentColor = onScreen),
-        border = BorderStroke(1.dp, onScreen.copy(alpha = 0.5f)),
+        border = buttonBorder(enabled = enabled),
         modifier = modifier.height(FieldHeight),
     ) {
         if (icon != null) {

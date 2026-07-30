@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.orders
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -174,7 +176,7 @@ private fun Results(state: OrderWithTransactionUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and an order, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -237,7 +239,7 @@ private fun SummaryBox(label: String, value: String, modifier: Modifier = Modifi
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -333,7 +335,7 @@ private fun ChallanCell(row: OrderTransactionRow) {
         Text(
             text = formatVrDate(row.challanDate),
             style = MaterialTheme.typography.labelSmall,
-            color = onScreen.copy(alpha = 0.75f),
+            color = onScreen.muted(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -356,7 +358,7 @@ private fun ProductCell(row: OrderTransactionRow) {
             Text(
                 text = row.remarks,
                 style = MaterialTheme.typography.labelSmall,
-                color = onScreen.copy(alpha = 0.75f),
+                color = onScreen.muted(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

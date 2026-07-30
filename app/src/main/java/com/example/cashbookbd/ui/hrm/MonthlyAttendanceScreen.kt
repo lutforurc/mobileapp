@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -29,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -322,7 +324,7 @@ fun MonthlyAttendanceScreen(
                 ) {
                     Text(
                         "Choose your filters, then tap Load.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
 
@@ -351,7 +353,7 @@ private fun SummaryTab(state: MonthlyAttendanceUiState) {
                         text = row.employeeName +
                             row.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                     )
                     Spacer(Modifier.height(6.dp))
                     Row {
@@ -390,7 +392,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
         Text(
             text = "Attendance for the Month of ${state.monthYear.toDisplay()}",
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         // Header: employee column + one column per day, sharing one scroll state
@@ -404,7 +406,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
             Text(
                 text = "Employee",
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.width(NAME_COL).padding(start = 16.dp),
             )
@@ -413,7 +415,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                     Text(
                         text = day.toString(),
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.width(DAY_COL),
@@ -456,7 +458,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                 Text(
                     text = "✓ Present   ! Late   ✕ Absent   L Leave   ○ Holiday   ½ Half Day",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -467,7 +469,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
 @Composable
 private fun EmptyNote(text: String) {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(text, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f))
+        Text(text, color = MaterialTheme.appColors.textOnScreenMuted)
     }
 }
 

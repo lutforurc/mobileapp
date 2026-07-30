@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.products
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -177,7 +179,7 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             Text(
                 text = "Category, Product Type, Name, Unit and both prices are required.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
         PrimaryButton(

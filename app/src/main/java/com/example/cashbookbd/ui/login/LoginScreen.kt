@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.login
 
+import com.example.cashbookbd.ui.theme.faint
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.components.appTextFieldColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,7 +56,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.cashbookbd.data.repository.DeviceLimitBlock
 import com.example.cashbookbd.data.repository.LoginDevice
@@ -254,9 +257,9 @@ private fun DeviceLimitPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-            .background(amber.copy(alpha = 0.10f))
+            .clip(AppShape)
+            .border(1.dp, amber.faint(), AppShape)
+            .background(amber.asTint())
             .padding(16.dp),
     ) {
         Row(
@@ -267,7 +270,7 @@ private fun DeviceLimitPanel(
             Text(
                 text = "Device limit reached",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
@@ -323,9 +326,9 @@ private fun DeviceRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShape)
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppShape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -334,7 +337,7 @@ private fun DeviceRow(
             Text(
                 text = device.name,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                fontWeight = AppFontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

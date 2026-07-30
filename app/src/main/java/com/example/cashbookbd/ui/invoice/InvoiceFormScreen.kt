@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.invoice
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -89,7 +91,7 @@ fun InvoiceFormScreen(
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = "This invoice form isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -320,7 +322,7 @@ private fun ProductEntry(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
         SearchableSelectDropdown(
             selected = state.selectedProduct?.let { SelectorOption(it.id, it.name, it.unit) },
@@ -448,8 +450,8 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Total", fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(total), fontWeight = FontWeight.Bold)
+                Text("Total", fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
             }
         }
     }

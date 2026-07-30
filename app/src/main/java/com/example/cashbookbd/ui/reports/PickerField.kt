@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.components.fieldPlaceholderTextStyle
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,12 +44,8 @@ internal fun PickerField(
         val showPlaceholder = value.isBlank()
         Text(
             text = if (showPlaceholder) placeholder else value,
-            style = fieldValueTextStyle(),
-            color = if (showPlaceholder) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            // Nothing picked yet reads as a hint, not as a value.
+            style = if (showPlaceholder) fieldPlaceholderTextStyle() else fieldValueTextStyle(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

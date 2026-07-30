@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.vrsettings
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -140,7 +143,7 @@ private fun HistoryResults(state: VoucherHistoryUiState, onRetry: () -> Unit) {
         state.result == null -> ResultsMessage {
             Text(
                 text = "Choose a branch, enter a voucher number, then tap View History.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -148,7 +151,7 @@ private fun HistoryResults(state: VoucherHistoryUiState, onRetry: () -> Unit) {
         state.result.isEmpty() -> ResultsMessage {
             Text(
                 text = "No history found for this voucher.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -159,7 +162,7 @@ private fun HistoryResults(state: VoucherHistoryUiState, onRetry: () -> Unit) {
                 Text(
                     text = "Branch: $branchName",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
@@ -182,7 +185,7 @@ private fun HistoryCard(item: VoucherHistoryItem) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -190,7 +193,7 @@ private fun HistoryCard(item: VoucherHistoryItem) {
         Text(
             text = item.title,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (item.action.isNotBlank()) {

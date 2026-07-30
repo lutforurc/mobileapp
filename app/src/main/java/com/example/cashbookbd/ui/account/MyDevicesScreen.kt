@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.account
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -99,7 +101,7 @@ fun MyDevicesScreen(
                     state.devices.isEmpty() -> Center {
                         Text(
                             text = "No active devices found.",
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            color = MaterialTheme.appColors.textOnScreenMuted,
                         )
                     }
 
@@ -131,7 +133,7 @@ private fun DeviceList(
                 text = deviceLimit?.let { "${devices.size} of $it devices in use" }
                     ?: "${devices.size} active devices",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
 
@@ -156,7 +158,7 @@ private fun DeviceCard(device: UserDevice, isRevoking: Boolean, onRevoke: () -> 
                 Text(
                     text = device.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
                 if (device.isCurrent) BrandPill(text = "This device", compact = true)

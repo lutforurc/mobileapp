@@ -33,7 +33,9 @@ class ThemeManager(context: Context) {
     private fun readMode(): ThemeMode =
         prefs.getString(KEY_MODE, null)
             ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-            ?: ThemeMode.SYSTEM
+            // Light by default, even on a dark-mode device: the white-canvas
+            // light theme is the app's face, and dark stays an opt-in choice.
+            ?: ThemeMode.LIGHT
 
     private companion object {
         const val PREFS_NAME = "theme_prefs"

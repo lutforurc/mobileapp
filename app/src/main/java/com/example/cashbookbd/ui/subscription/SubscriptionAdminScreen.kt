@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.subscription
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -348,7 +351,7 @@ private fun AdminContent(state: SubscriptionAdminUiState, viewModel: Subscriptio
                 Text(
                     text = "No payment requests found.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     textAlign = TextAlign.Center,
                 )
@@ -370,7 +373,7 @@ private fun AdminContent(state: SubscriptionAdminUiState, viewModel: Subscriptio
             Text(
                 text = "Assigning a subscription directly to a company is only available from the web for now.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
     }
@@ -380,7 +383,7 @@ private fun AdminContent(state: SubscriptionAdminUiState, viewModel: Subscriptio
 private fun SectionTitle(text: String) = Text(
     text = text,
     style = MaterialTheme.typography.titleSmall,
-    fontWeight = FontWeight.SemiBold,
+    fontWeight = AppFontWeight.SemiBold,
     modifier = Modifier.padding(top = 6.dp),
 )
 
@@ -410,7 +413,7 @@ private fun CounterTile(label: String, count: Int, modifier: Modifier = Modifier
         Text(
             text = count.toString(),
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
         )
     }
 }
@@ -430,7 +433,7 @@ private fun PaymentRequestCard(
                 Text(
                     text = payment.companyName.ifBlank { "—" },
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
                 StatusChip(payment.paymentStatus)
@@ -484,7 +487,7 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
+            fontWeight = AppFontWeight.SemiBold,
         )
     }
 }
@@ -499,7 +502,7 @@ private fun StatusChip(status: String) {
     }
     Box(
         modifier = Modifier
-            .background(container, RoundedCornerShape(50))
+            .background(container, PillShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Text(
@@ -517,13 +520,13 @@ private fun TenantTable(tenants: List<TenantSubscriptionRow>) {
         Text(
             text = "No tenant subscriptions found.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            color = MaterialTheme.appColors.textOnScreenMuted,
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             textAlign = TextAlign.Center,
         )
         return
     }
-    val gridLine = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+    val gridLine = MaterialTheme.appColors.gridLine
     Column {
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
             HeaderCell("Company", 1.4f)
@@ -550,7 +553,7 @@ private fun TenantTable(tenants: List<TenantSubscriptionRow>) {
 private fun androidx.compose.foundation.layout.RowScope.HeaderCell(text: String, weight: Float) = Text(
     text = text,
     style = MaterialTheme.typography.labelSmall,
-    fontWeight = FontWeight.SemiBold,
+    fontWeight = AppFontWeight.SemiBold,
     modifier = Modifier.weight(weight),
 )
 

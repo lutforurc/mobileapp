@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.user
 
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -336,7 +337,7 @@ private fun PaginationBar(
     onPrev: () -> Unit,
     onNext: () -> Unit,
 ) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f))
+    HorizontalDivider(color = MaterialTheme.appColors.divider)
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -387,7 +388,7 @@ private fun TemporaryPasswordDialog(
                 Text(
                     text = password,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(

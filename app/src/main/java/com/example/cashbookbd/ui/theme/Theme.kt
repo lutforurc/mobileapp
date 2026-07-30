@@ -1,7 +1,6 @@
 package com.example.cashbookbd.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -9,7 +8,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.unit.dp
 
 /**
  * Maps one [BrandPalette] onto Material's ColorScheme.
@@ -64,6 +62,10 @@ private fun schemeOf(p: BrandPalette, dark: Boolean): ColorScheme {
 private val LightScheme = schemeOf(LightPalette, dark = false)
 private val DarkScheme = schemeOf(DarkPalette, dark = true)
 
+// Built once per theme so reading a token costs nothing at recomposition.
+private val LightAppColors = appColorsOf(LightPalette)
+private val DarkAppColors = appColorsOf(DarkPalette)
+
 /**
  * The app's theme. Android 12+ dynamic colour is deliberately not offered: the
  * brand colours are fixed, and letting the system derive them from the
@@ -75,15 +77,25 @@ fun CashBookbdTheme(
     content: @Composable () -> Unit
 ) {
     val palette = if (darkTheme) DarkPalette else LightPalette
+    val colors = if (darkTheme) DarkAppColors else LightAppColors
 
-    CompositionLocalProvider(LocalBrandPalette provides palette) {
+    CompositionLocalProvider(
+        LocalBrandPalette provides palette,
+        LocalAppColors provides colors,
+    ) {
         MaterialTheme(
             colorScheme = if (darkTheme) DarkScheme else LightScheme,
             typography = Typography,
-            // Dialogs (and date pickers) draw with extraLarge, whose M3 default
-            // of 28dp reads as overdone beside the app's 10-12dp fields and
-            // buttons — rein it in so every surface shares one radius family.
-            shapes = Shapes(extraLarge = RoundedCornerShape(16.dp)),
+            // Every Material component (cards, menus, dialogs, date pickers,
+            // sheets) draws from these slots — mapping them all to [AppShape]
+            // is what gives the whole app the single shared corner radius.
+            shapes = Shapes(
+                extraSmall = AppShape,
+                small = AppShape,
+                medium = AppShape,
+                large = AppShape,
+                extraLarge = AppShape,
+            ),
             content = content,
         )
     }

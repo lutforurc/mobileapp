@@ -1,14 +1,16 @@
 package com.example.cashbookbd.navigation
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,6 +71,7 @@ import com.example.cashbookbd.requisition.RequisitionMenu
 import com.example.cashbookbd.report.ReportMenu
 import com.example.cashbookbd.transaction.TransactionMenu
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.components.AccountMenu
 import com.example.cashbookbd.ui.components.InAppMessageOverlay
 import com.example.cashbookbd.ui.components.NotificationBell
@@ -331,24 +334,10 @@ private fun AppDrawerContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-            // The brand sheet's "Signature gradient" (teal → deep blue) as the
-            // drawer header, so the drawer opens with the brand itself. Both
-            // the gradient and its text colour come from the palette, so the
-            // header follows a theme change like everything else.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Brush.linearGradient(MaterialTheme.brand.gradient))
-                    .padding(start = 28.dp, top = 48.dp, bottom = 24.dp),
-            ) {
-                Text(
-                    text = "CashBook",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.brand.onGradient,
-                )
-            }
-
+            // No branded header: the drawer opens straight onto its destinations.
+            // The top inset still has to be cleared, or the first item sits under
+            // the status bar.
+            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(12.dp))
 
             // Each section is one DrawerItem; child screens live inside the
@@ -433,7 +422,7 @@ private fun AppDrawerContent(
 
 /**
  * One drawer destination with the brand colours: the selected item sits in a
- * filled teal (primary) pill with white content; unselected items stay quiet.
+ * filled teal (primary) block with white content; unselected items stay quiet.
  */
 @Composable
 private fun DrawerItem(
@@ -444,11 +433,14 @@ private fun DrawerItem(
 ) {
     NavigationDrawerItem(
         label = {
-            Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+            Text(label, fontWeight = if (selected) AppFontWeight.SemiBold else AppFontWeight.Normal)
         },
         icon = { Icon(icon, contentDescription = null) },
         selected = selected,
         onClick = onClick,
+        // M3's default drawer item is a full pill, the one shape the theme's
+        // `shapes` mapping can't reach — pin it to the app-wide radius token.
+        shape = AppShape,
         colors = NavigationDrawerItemDefaults.colors(
             selectedContainerColor = MaterialTheme.colorScheme.primary,
             selectedIconColor = MaterialTheme.colorScheme.onPrimary,

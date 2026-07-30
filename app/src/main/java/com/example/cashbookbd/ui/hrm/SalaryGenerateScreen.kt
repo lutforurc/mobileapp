@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +28,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -491,7 +493,7 @@ fun SalaryGenerateScreen(
                 item {
                     Text(
                         text = "No eligible employees for this month.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -514,13 +516,13 @@ fun SalaryGenerateScreen(
                         Text(
                             text = "Total Net Salary",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = AppFontWeight.SemiBold,
                             modifier = Modifier.weight(1f),
                         )
                         Text(
                             text = AmountFormat.format(state.totalNet),
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = AppFontWeight.Bold,
                         )
                     }
                 }
@@ -543,7 +545,7 @@ private fun SalaryRowCard(
                     Text(
                         text = row.name,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                     )
                     if (row.designationName.isNotBlank()) {
                         Text(
@@ -588,7 +590,7 @@ private fun SalaryRowCard(
                     Text(
                         text = AmountFormat.format(row.net(isOvertime)),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                     )
                 }
             }

@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -307,14 +309,14 @@ private fun CompanyForm(state: EditCompanyUiState, viewModel: EditCompanyViewMod
             Text(
                 text = "Printed under the company name on letterheads.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
         Text(
             text = "The company logo can only be uploaded from the web for now. " +
                 "Everything else on this page saves normally.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            color = MaterialTheme.appColors.textOnScreenMuted,
         )
         PrimaryButton(
             text = "Update Company",

@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.register
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.components.appTextFieldColors
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -344,14 +345,14 @@ private fun OtpInput(
                                 } else {
                                     MaterialTheme.colorScheme.outline
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = AppShape,
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = digit,
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = AppFontWeight.SemiBold,
                         )
                     }
                 }

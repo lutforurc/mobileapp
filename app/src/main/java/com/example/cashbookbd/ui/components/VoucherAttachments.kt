@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -30,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.cashbookbd.core.VoucherAttachment
@@ -63,7 +64,7 @@ fun VoucherAttachmentsCell(
                 Box(
                     modifier = Modifier
                         .size(ThumbSize)
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(AppShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable { onOpen(attachment) },
                     contentAlignment = Alignment.Center,
@@ -83,7 +84,7 @@ fun VoucherAttachmentsCell(
                 }
             } else {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.clickable { onOpen(attachment) },
@@ -91,7 +92,7 @@ fun VoucherAttachmentsCell(
                     Text(
                         text = attachment.fileName.substringAfterLast('.', "file").uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                         maxLines = 1,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
                     )
@@ -133,7 +134,7 @@ fun VoucherImageViewerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 200.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center,
                 ) {

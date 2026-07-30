@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -341,7 +344,7 @@ fun SalarySheetScreen(
                 ) {
                     Text(
                         "Choose your filters, then tap Search.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
 
@@ -351,21 +354,17 @@ fun SalarySheetScreen(
                 ) {
                     Text(
                         "No salary sheets for this year.",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
 
                 else -> {
                     // The web's Salary Sheet table, through the shared template:
                     // same columns, same colours, action column at the end.
-                    // On this screen's teal light-mode rows the semantic red/green
-                    // and the primary link colour wash out; fall back to white there,
-                    // keeping the colours in dark mode. Covers Payment Month, Loan
-                    // Ded., Payment and Due in one place.
-                    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-                    val errorColor = if (isDark) MaterialTheme.colorScheme.error else Color.White
-                    val paidColor = if (isDark) MaterialTheme.accents.green else Color.White
-                    val primaryColor = if (isDark) MaterialTheme.colorScheme.primary else Color.White
+                    // Covers Payment Month, Loan Ded., Payment and Due in one place.
+                    val errorColor = MaterialTheme.appColors.danger
+                    val paidColor = MaterialTheme.appColors.success
+                    val primaryColor = MaterialTheme.appColors.textLink
                     val columns = listOf(
                         ReportColumn<SalarySheetSummary>(
                             header = "Sl",
@@ -381,7 +380,7 @@ fun SalarySheetScreen(
                                 Text(
                                     text = monthLabel(row.paymentMonth),
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AppFontWeight.Bold,
                                     color = primaryColor,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -486,19 +485,12 @@ private fun SalaryDetailView(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // The primary link colour washes out on the teal light-mode header;
-            // use white there, keep the default in dark mode.
-            val isLight = MaterialTheme.colorScheme.surface.luminance() > 0.5f
-            LinkButton(
-                text = "← Back",
-                onClick = onBack,
-                color = if (isLight) Color.White else null,
-            )
+            LinkButton(text = "← Back", onClick = onBack)
             Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
                 Text(
                     text = "Salary for the Month of ${monthLabel(detail.monthId)}",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                 )
                 val voucherLine = listOf(
                     detail.vrNo.takeIf { it.isNotBlank() }?.let { "Vr. No. $it" },
@@ -509,16 +501,13 @@ private fun SalaryDetailView(
                     Text(
                         text = voucherLine,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
             }
         }
 
-        // Paid amount: the theme's green in dark mode, but white in light mode,
-        // where that green washes out against this table's tinted rows.
-        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-        val paidColor = if (isDark) MaterialTheme.accents.green else Color.White
+        val paidColor = MaterialTheme.appColors.success
         // Every body cell is centre-aligned in this table.
         val columns = listOf(
             ReportColumn<com.example.cashbookbd.ui.hrm.model.SalaryDetailRow>(
@@ -642,13 +631,13 @@ private fun SalaryDetailView(
 private fun PaidBadge() {
     Box(
         modifier = Modifier
-            .background(MaterialTheme.accents.green, RoundedCornerShape(999.dp))
+            .background(MaterialTheme.accents.green, PillShape)
             .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(
             text = "Paid",
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = MaterialTheme.colorScheme.surface,
         )
     }

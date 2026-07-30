@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,11 +58,11 @@ fun InstallmentStatusPill(status: String) {
         Text(
             text = status.replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = color,
             maxLines = 1,
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
+                .clip(PillShape)
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         )
@@ -153,7 +154,7 @@ fun InstallmentPaymentsDialog(
                 Text(
                     text = "Total amount paid: ${AmountFormat.format(payments.sumOf { it.amount })}",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = AppFontWeight.SemiBold,
                 )
             }
         },
@@ -166,7 +167,7 @@ private fun PaymentsHeaderCell(text: String, modifier: Modifier, align: TextAlig
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         textAlign = align,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,

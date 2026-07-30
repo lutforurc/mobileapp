@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.faint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.clickable
@@ -26,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -409,7 +411,7 @@ fun DueInstallmentsScreen(
                     !state.hasApplied -> CenteredBox {
                         Text(
                             text = "Choose your filters, then tap Apply.",
-                            color = onScreen.copy(alpha = 0.8f),
+                            color = onScreen.muted(),
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -417,7 +419,7 @@ fun DueInstallmentsScreen(
                     state.rows.isEmpty() -> CenteredBox {
                         Text(
                             text = "No installments found for this selection.",
-                            color = onScreen.copy(alpha = 0.8f),
+                            color = onScreen.muted(),
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -480,13 +482,13 @@ private fun dueInstallmentColumns(
                             Text(
                                 text = "#${r.installmentNo}",
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = AppFontWeight.SemiBold,
                                 color = onScreen,
                             )
                             Text(
                                 text = "Details",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = onScreen.copy(alpha = 0.7f),
+                                color = onScreen.muted(),
                             )
                         }
                     }
@@ -541,7 +543,7 @@ private fun CustomerCell(
         Text(
             text = row.customerName.ifBlank { "-" },
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = onScreen,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -551,7 +553,7 @@ private fun CustomerCell(
                 Text(
                     text = line,
                     style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.copy(alpha = 0.75f),
+                    color = onScreen.muted(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -562,7 +564,7 @@ private fun CustomerCell(
             Text(
                 text = row.employee,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 color = officerColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -585,12 +587,12 @@ private fun StackedAmountCell(row: InstallmentRow, onScreen: androidx.compose.ui
         )
         HorizontalDivider(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            color = onScreen.copy(alpha = 0.4f),
+            color = onScreen.faint(),
         )
         Text(
             text = AmountFormat.formatOrDash(row.dueAmount),
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = AppFontWeight.SemiBold,
             color = onScreen,
         )
     }

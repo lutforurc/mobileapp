@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.roles
 
+import com.example.cashbookbd.ui.theme.asGridLine
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -302,12 +304,12 @@ fun AddPermissionScreen(
 @Composable
 private fun PermissionForm(state: AddPermissionUiState, viewModel: AddPermissionViewModel) {
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val onScreenMuted = onScreen.copy(alpha = 0.75f)
+    val onScreenMuted = onScreen.muted()
 
     Text(
         text = "Add Permission",
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = onScreen,
     )
     Spacer(Modifier.height(12.dp))
@@ -370,7 +372,7 @@ private fun GroupPermissionList(state: AddPermissionUiState, viewModel: AddPermi
         Text(
             text = if (group != null) "Permissions in \"$group\"" else "Permissions",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = onScreen,
             modifier = Modifier.weight(1f),
         )
@@ -378,7 +380,7 @@ private fun GroupPermissionList(state: AddPermissionUiState, viewModel: AddPermi
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "Refresh permissions",
-                tint = onScreen.copy(alpha = 0.8f),
+                tint = onScreen.muted(),
             )
         }
     }
@@ -405,19 +407,19 @@ private fun GroupPermissionList(state: AddPermissionUiState, viewModel: AddPermi
         group == null -> Text(
             text = "Pick a group to see its existing permissions.",
             style = MaterialTheme.typography.bodySmall,
-            color = onScreen.copy(alpha = 0.75f),
+            color = onScreen.muted(),
         )
 
         state.groupPermissions.isEmpty() -> Text(
             text = "No permissions in this group yet.",
             style = MaterialTheme.typography.bodySmall,
-            color = onScreen.copy(alpha = 0.75f),
+            color = onScreen.muted(),
         )
 
         else -> Column(modifier = Modifier.fillMaxWidth()) {
             state.groupPermissions.forEachIndexed { index, item ->
                 PermissionRow(index = index, item = item, state = state, viewModel = viewModel)
-                HorizontalDivider(color = onScreen.copy(alpha = 0.3f))
+                HorizontalDivider(color = onScreen.asGridLine())
             }
         }
     }
@@ -462,7 +464,7 @@ private fun PermissionRow(
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Cancel rename",
-                        tint = onScreen.copy(alpha = 0.8f),
+                        tint = onScreen.muted(),
                     )
                 }
             }
@@ -470,7 +472,7 @@ private fun PermissionRow(
             Text(
                 text = "${index + 1}.",
                 style = MaterialTheme.typography.bodySmall,
-                color = onScreen.copy(alpha = 0.7f),
+                color = onScreen.muted(),
                 modifier = Modifier.padding(end = 8.dp),
             )
             Text(

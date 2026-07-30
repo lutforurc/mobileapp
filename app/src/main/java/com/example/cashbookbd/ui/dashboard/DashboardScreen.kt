@@ -1,5 +1,11 @@
 package com.example.cashbookbd.ui.dashboard
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import android.content.res.Configuration
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -43,7 +49,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -251,7 +256,7 @@ private fun LinearRefreshHint() {
     Text(
         text = "Refreshing…",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+        color = MaterialTheme.appColors.textOnScreenMuted,
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
     )
@@ -275,7 +280,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 Text(
                     text = dashboard.branchName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
                 IconChip(icon = Icons.Filled.Place, tint = accents.blue)
@@ -345,7 +350,7 @@ private fun IconChip(icon: ImageVector, tint: Color) {
     Box(
         modifier = Modifier
             .size(34.dp)
-            .background(tint.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+            .background(tint.asTint(), AppShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
@@ -379,7 +384,7 @@ private fun SummaryStatRow(
                 // A neutral chip with the accent kept on the glyph: a translucent
                 // wash of [tint] only works over a light card, and goes muddy on
                 // the dark one.
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(10.dp)),
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, AppShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -401,7 +406,7 @@ private fun SummaryStatRow(
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = valueColor,
             )
         }
@@ -437,19 +442,19 @@ private fun TopProductsCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
                 val periodLabel = if (days <= 1) "Today" else "$periodPrefix$days Days"
                 Box(
                     modifier = Modifier
-                        .background(accent.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .background(accent.asTint(), PillShape)
                         .padding(horizontal = 12.dp, vertical = 5.dp),
                 ) {
                     Text(
                         text = periodLabel,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = AppFontWeight.SemiBold,
                         color = accent,
                     )
                 }
@@ -470,11 +475,11 @@ private fun TopProductsCard(
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Total", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("Total", style = MaterialTheme.typography.bodyMedium, fontWeight = AppFontWeight.Bold)
                     Text(
                         text = formatBdAmount(products.sumOf { it.quantity }),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         color = accent,
                     )
                 }
@@ -495,7 +500,7 @@ private fun TopProductRow(serial: Int, product: TopProduct, accent: Color) {
         Text(
             text = serial.toString().padStart(2, '0'),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = accents.blue,
             modifier = Modifier.width(32.dp),
         )
@@ -507,7 +512,7 @@ private fun TopProductRow(serial: Int, product: TopProduct, accent: Color) {
         Text(
             text = formatAmount(product.quantity),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = accent,
         )
     }
@@ -538,22 +543,22 @@ private fun ReceivedFromHoPanel(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = accents.rose,
                     modifier = Modifier.weight(1f),
                 )
                 Box(
                     modifier = Modifier
                         .background(
-                            color = accents.blue.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(50),
+                            color = accents.blue.asTint(),
+                            shape = PillShape,
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Text(
                         text = "Tk. ${formatMoney(total)}",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         color = accents.blue,
                     )
                 }
@@ -604,7 +609,7 @@ private fun ReceivedRow(
             Text(
                 text = row.voucherNo.ifBlank { "—" },
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
             )
             if (row.date.isNotBlank()) {
                 Text(
@@ -617,7 +622,7 @@ private fun ReceivedRow(
         Text(
             text = formatMoney(row.amount),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             modifier = Modifier.padding(end = 12.dp),
         )
         // Trailing action slot: processed = check, in-flight = spinner, else = receive button.
@@ -643,8 +648,8 @@ private fun ReceivedRow(
                 // web's "receive remittance" submit action).
                 else -> Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .border(1.dp, accents.red, RoundedCornerShape(6.dp))
+                        .clip(AppShape)
+                        .border(1.dp, accents.red, AppShape)
                         .clickable(onClick = onReceive)
                         .padding(horizontal = 7.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center,

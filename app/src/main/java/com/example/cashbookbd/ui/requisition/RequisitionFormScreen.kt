@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.requisition
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -171,7 +173,7 @@ private fun ItemEntry(state: RequisitionFormUiState, viewModel: RequisitionFormV
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Add Item", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text("Add Item", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
         SearchableSelectDropdown(
             selected = state.selectedItem?.let { SelectorOption(it.id, it.name, it.unit) },
@@ -231,7 +233,7 @@ private fun ItemEntry(state: RequisitionFormUiState, viewModel: RequisitionFormV
             Text(
                 text = "Line Total: ${AmountFormat.format(lineTotal)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
     }
@@ -305,8 +307,8 @@ private fun RequisitionLinesTable(
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Requisition Total", fontWeight = FontWeight.Bold)
-                Text(AmountFormat.format(total, 0), fontWeight = FontWeight.Bold)
+                Text("Requisition Total", fontWeight = AppFontWeight.Bold)
+                Text(AmountFormat.format(total, 0), fontWeight = AppFontWeight.Bold)
             }
         }
     }

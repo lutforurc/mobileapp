@@ -18,6 +18,13 @@ object BrandSheet {
     val TealDeep = Color(0xFF178A9E)
     val BlueDeep = Color(0xFF1D5379)
 
+    /**
+     * The action teal — the colour every button carries, in both themes. A tone
+     * below [TealDeep] so white sits on it legibly; it is what the dark theme
+     * already used, and the owner asked for that same button colour in light.
+     */
+    val TealAction = Color(0xFF178090)
+
     // Accents & Semantic
     val Orange = Color(0xFFE56A35)
     val Coral = Color(0xFFFF8B7B)
@@ -124,21 +131,24 @@ private val UnitStatusGradients: Map<Int, List<Color>> = mapOf(
 )
 
 /**
- * Light: the sheet mapped straight across — Teal·deep backdrop, Teal tint
- * cards, Ink text.
+ * Light: a white-canvas theme — near-white backdrop, white cards and fields
+ * with quiet grey outlines, Ink text, and the brand colours kept to accents
+ * (labels, buttons, headers) rather than painted across the screen.
  */
 val LightPalette = BrandPalette(
-    screen = BrandSheet.TealDeep,
-    onScreen = BrandSheet.White,
-    card = BrandSheet.TealTint,
-    cardRow = Color(0xFFD9E8E8),
-    cardRaised = Color(0xFFD0E2E2),
+    // Canvas, not pure white: cards and fields are white, so the barely-grey
+    // backdrop is what lets them read as raised at all.
+    screen = BrandSheet.Canvas,
+    onScreen = BrandSheet.Ink,
+    card = BrandSheet.White,
+    cardRow = BrandSheet.Canvas,
+    cardRaised = BrandSheet.Cloud,
     onCard = BrandSheet.Ink,
     onCardMuted = BrandSheet.Ink500,
-    cardMuted = Color(0xFFD3E4E4),
-    // Blue·deep, not Teal·deep: the screen behind is Teal·deep, so a teal fill
-    // would make every button and table header vanish into the backdrop. The
-    // blue end of the signature gradient reads on both the screen and a card.
+    cardMuted = BrandSheet.Cloud,
+    // Blue·deep, not a teal: filled buttons and table headers carry white text,
+    // and the teals are too light for that (white on Teal·primary is 2.7:1).
+    // The blue end of the signature gradient is the accent that reads on white.
     primary = BrandSheet.BlueDeep,
     onPrimary = BrandSheet.White,
     primaryContainer = BrandSheet.TealTint,

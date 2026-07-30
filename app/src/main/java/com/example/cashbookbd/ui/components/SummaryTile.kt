@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.AppShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -31,7 +32,7 @@ import androidx.compose.ui.unit.dp
  */
 
 /** Shared with the report cards, so the tile reads as part of the same family. */
-private val TileShape = RoundedCornerShape(10.dp)
+private val TileShape = AppShape
 
 /** The padding the report summary boxes settled on. */
 private val TilePadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)

@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.AppShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,7 +85,7 @@ fun HighlightedText(
         overflow = TextOverflow.Ellipsis,
         modifier = if (borderColor != null) {
             modifier
-                .border(2.dp, borderColor, RoundedCornerShape(4.dp))
+                .border(2.dp, borderColor, AppShape)
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         } else {
             modifier

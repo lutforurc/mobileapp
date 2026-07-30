@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.roles
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,7 +131,7 @@ fun AddRoleScreen(
                 Text(
                     text = "Create a role, then assign its permissions from the Roles screen.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                 )
                 AppTextField(
                     value = state.name,

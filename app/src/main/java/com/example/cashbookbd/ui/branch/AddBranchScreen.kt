@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.branch
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -127,7 +129,7 @@ fun AddBranchScreen(
                     Text(
                         text = state.step.summary,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        color = MaterialTheme.appColors.textOnScreenMuted,
                     )
 
                     if (state.optionsError != null) {
@@ -181,7 +183,7 @@ fun AddBranchScreen(
                             text = "The letterhead image can only be uploaded from the web for now. " +
                                 "Everything else on this page saves normally.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                            color = MaterialTheme.appColors.textOnScreenMuted,
                         )
                     }
                 }
@@ -267,9 +269,9 @@ private fun StepBar(
                     color = if (isCurrent) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                        MaterialTheme.appColors.textOnScreenMuted
                     },
-                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                    fontWeight = if (isCurrent) AppFontWeight.SemiBold else AppFontWeight.Normal,
                 )
             }
         }

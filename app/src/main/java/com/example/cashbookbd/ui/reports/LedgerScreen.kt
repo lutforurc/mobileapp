@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -42,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -243,7 +244,7 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
         state.statement == null -> CenterBox {
             Text(
                 text = "Choose a branch and ledger, pick a date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -350,7 +351,7 @@ private fun LedgerDescriptionCell(row: LedgerDisplayRow, rule: HighlightRule?) {
         HighlightedText(
             text = row.remarks,
             borderColor = highlightBorderColor(rule),
-            color = if (remarksOnly) onScreen else onScreen.copy(alpha = 0.75f),
+            color = if (remarksOnly) onScreen else onScreen.muted(),
             maxLines = 3,
         )
     }

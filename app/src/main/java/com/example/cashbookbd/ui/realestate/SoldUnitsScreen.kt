@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -36,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -453,7 +456,7 @@ fun SoldUnitsScreen(
                 !state.hasApplied || state.report == null -> CenteredBox {
                     Text(
                         text = "Choose your filters, then tap Search.",
-                        color = onScreen.copy(alpha = 0.8f),
+                        color = onScreen.muted(),
                         textAlign = TextAlign.Center,
                     )
                 }
@@ -461,7 +464,7 @@ fun SoldUnitsScreen(
                 state.report!!.customers.isEmpty() -> CenteredBox {
                     Text(
                         text = "No sold units found for this selection.",
-                        color = onScreen.copy(alpha = 0.8f),
+                        color = onScreen.muted(),
                         textAlign = TextAlign.Center,
                     )
                 }
@@ -598,7 +601,7 @@ private fun SummaryFigure(label: String, value: String, modifier: Modifier = Mod
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -636,7 +639,7 @@ private fun SoldUnitsTable(
     onGenerate: (SoldUnitSale) -> Unit,
 ) {
     val hScroll = rememberScrollState()
-    val gridLine = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+    val gridLine = MaterialTheme.appColors.gridLine
     val cycle = MaterialTheme.brand.customerCycle
 
     Column(
@@ -688,7 +691,7 @@ private fun HeaderCell(text: String, width: Dp, align: TextAlign) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = AppFontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onPrimary,
         textAlign = align,
         maxLines = 1,
@@ -712,7 +715,7 @@ private fun SoldUnitCustomerBlock(
     onGenerate: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val tint = accent.copy(alpha = 0.10f)
+    val tint = accent.asTint()
 
     Row(
         modifier = Modifier
@@ -728,7 +731,7 @@ private fun SoldUnitCustomerBlock(
             Text(
                 text = (index + 1).toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = accent,
             )
         }
@@ -746,7 +749,7 @@ private fun SoldUnitCustomerBlock(
             Text(
                 text = customer.customerName,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 color = onScreen,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -755,7 +758,7 @@ private fun SoldUnitCustomerBlock(
                 Text(
                     text = customer.customerAddress,
                     style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.copy(alpha = 0.75f),
+                    color = onScreen.muted(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -764,7 +767,7 @@ private fun SoldUnitCustomerBlock(
                 Text(
                     text = "Cell: ${customer.customerMobile}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.copy(alpha = 0.75f),
+                    color = onScreen.muted(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -817,7 +820,7 @@ private fun SoldUnitSaleBand(
                             Text(
                                 text = line.place,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = onScreen.copy(alpha = 0.75f),
+                                color = onScreen.muted(),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -855,7 +858,7 @@ private fun SoldUnitSaleBand(
                 Text(
                     text = saleInfo,
                     style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.copy(alpha = 0.75f),
+                    color = onScreen.muted(),
                     textAlign = TextAlign.End,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -865,7 +868,7 @@ private fun SoldUnitSaleBand(
                 Text(
                     text = "Letters: L-1…L-${sale.letterCount}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.copy(alpha = 0.75f),
+                    color = onScreen.muted(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -900,7 +903,7 @@ private fun SoldUnitSaleBand(
             Text(
                 text = money(sale.dueAmount),
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = AppFontWeight.SemiBold,
                 color = onScreen,
                 textAlign = TextAlign.End,
             )
@@ -927,7 +930,7 @@ private fun SoldUnitsGrandTotalRow(report: SoldUnitsReport) {
         Text(
             text = "Grand Total (${totals.customerCount} customer, ${totals.unitCount} unit, ${totals.parkingCount} parking)",
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = ink,
             textAlign = TextAlign.End,
             modifier = Modifier
@@ -948,7 +951,7 @@ private fun GrandTotalCell(text: String, width: Dp, ink: Color) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = ink,
         textAlign = TextAlign.End,
         maxLines = 1,

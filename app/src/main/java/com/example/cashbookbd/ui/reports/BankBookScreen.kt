@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -210,7 +212,7 @@ private fun BankBookResults(state: BankBookUiState, onRetry: () -> Unit) {
         state.report == null -> CenterBox {
             Text(
                 text = "Choose a branch and date range, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -218,7 +220,7 @@ private fun BankBookResults(state: BankBookUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No transactions found for this period.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -299,7 +301,7 @@ private fun DescriptionCell(row: BankBookRow) {
         Text(
             text = row.title.ifBlank { "-" },
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (row.isSummary) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (row.isSummary) AppFontWeight.Bold else AppFontWeight.Normal,
             color = onScreen,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -308,7 +310,7 @@ private fun DescriptionCell(row: BankBookRow) {
             Text(
                 text = row.subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = onScreen.copy(alpha = 0.75f),
+                color = onScreen.muted(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -317,7 +319,7 @@ private fun DescriptionCell(row: BankBookRow) {
             Text(
                 text = row.remarks,
                 style = MaterialTheme.typography.bodySmall,
-                color = onScreen.copy(alpha = 0.75f),
+                color = onScreen.muted(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

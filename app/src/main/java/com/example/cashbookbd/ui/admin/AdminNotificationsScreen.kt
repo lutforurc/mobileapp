@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.admin
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.border
@@ -35,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -382,13 +384,13 @@ private fun NotificationForm(state: AdminNotificationsUiState, viewModel: AdminN
     // The form sits directly on the screen backdrop (not on a card), so every
     // text uses the background's on-colour.
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val onScreenMuted = onScreen.copy(alpha = 0.75f)
+    val onScreenMuted = onScreen.muted()
     val context = LocalContext.current
 
     Text(
         text = "Publish Notification",
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = onScreen,
     )
     Spacer(Modifier.height(12.dp))
@@ -500,7 +502,7 @@ private fun NotificationList(state: AdminNotificationsUiState, viewModel: AdminN
         Text(
             text = "Notifications",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = onScreen,
             modifier = Modifier.weight(1f),
         )
@@ -508,7 +510,7 @@ private fun NotificationList(state: AdminNotificationsUiState, viewModel: AdminN
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "Refresh list",
-                tint = onScreen.copy(alpha = 0.8f),
+                tint = onScreen.muted(),
             )
         }
     }
@@ -588,7 +590,7 @@ private fun NotificationCell(row: AdminNotificationRow, textColor: androidx.comp
         Text(
             text = row.title,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = AppFontWeight.Bold,
             color = textColor,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -598,7 +600,7 @@ private fun NotificationCell(row: AdminNotificationRow, textColor: androidx.comp
             Text(
                 text = row.message,
                 style = MaterialTheme.typography.labelSmall,
-                color = textColor.copy(alpha = 0.75f),
+                color = textColor.muted(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -618,7 +620,7 @@ private fun ToneBadge(tone: String) {
     Box(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
         Box(
             modifier = Modifier
-                .border(1.dp, color, RoundedCornerShape(50))
+                .border(1.dp, color, PillShape)
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         ) {
             Text(

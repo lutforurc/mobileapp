@@ -1,5 +1,10 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.KpiColors
+import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -49,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -120,7 +124,7 @@ fun GenericReportScreen(
             CenterBox {
                 Text(
                     text = "This report isn't available in the mobile app yet.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -435,7 +439,7 @@ private fun YearField(value: MonthYear, onSelected: (MonthYear) -> Unit) {
                     Text(
                         text = year.toString(),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                     )
                     IconButton(onClick = { year++ }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next year")
@@ -481,7 +485,7 @@ private fun MonthYearPickerDialog(
                     Text(
                         text = year.toString(),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                     )
                     IconButton(onClick = { year++ }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next year")
@@ -542,7 +546,7 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
         state.result == null -> CenterBox {
             Text(
                 text = "Choose your filters, then tap Apply.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -550,7 +554,7 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
         state.isEmptyResult -> CenterBox {
             Text(
                 text = "No records found for this selection.",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                color = MaterialTheme.appColors.textOnScreenMuted,
                 textAlign = TextAlign.Center,
             )
         }
@@ -572,7 +576,7 @@ private fun ReportRowList(state: GenericReportUiState) {
             CenterBox {
                 Text(
                     text = "No tabular data to display.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -586,23 +590,26 @@ private fun ReportRowList(state: GenericReportUiState) {
 private data class KpiStyle(val label: String, val accent: Color)
 
 /**
- * The attendance report's KPI cards, in the web's order, colour and wording
- * (Daily Attendance Report). Keyed by the backend summary field, so the same
+ * The attendance report's KPI cards, in the web's order and wording (Daily
+ * Attendance Report). Keyed by the backend summary field, so the same
  * colours/labels apply wherever those fields appear. Insertion order is the
  * display order; a card is shown only when its field is in the summary.
+ *
+ * The colours come from the theme's [KpiColors] — every colour decision in the
+ * app lives there, not in a screen.
  */
 private val KPI_STYLES: Map<String, KpiStyle> = linkedMapOf(
-    "active_employees" to KpiStyle("Active Employee", Color(0xFF6366F1)), // indigo
-    "total_entries" to KpiStyle("Attendance Entry", Color(0xFF0EA5E9)),   // sky
-    "absent" to KpiStyle("Absent/Missing", Color(0xFFF43F5E)),            // rose
-    "present" to KpiStyle("Present", Color(0xFF10B981)),                  // emerald
-    "half_day" to KpiStyle("Half Day", Color(0xFF3B82F6)),               // blue
-    "leave" to KpiStyle("Leave", Color(0xFF8B5CF6)),                     // violet
-    "late" to KpiStyle("Late", Color(0xFFF59E0B)),                       // amber
-    "early_out" to KpiStyle("Early Out", Color(0xFFF97316)),             // orange
-    "pending_approval" to KpiStyle("Pending Approval", Color(0xFFF59E0B)),
-    "approved" to KpiStyle("Approved", Color(0xFF10B981)),
-    "rejected" to KpiStyle("Rejected", Color(0xFFF43F5E)),
+    "active_employees" to KpiStyle("Active Employee", KpiColors.getValue("active_employees")),
+    "total_entries" to KpiStyle("Attendance Entry", KpiColors.getValue("total_entries")),
+    "absent" to KpiStyle("Absent/Missing", KpiColors.getValue("absent")),
+    "present" to KpiStyle("Present", KpiColors.getValue("present")),
+    "half_day" to KpiStyle("Half Day", KpiColors.getValue("half_day")),
+    "leave" to KpiStyle("Leave", KpiColors.getValue("leave")),
+    "late" to KpiStyle("Late", KpiColors.getValue("late")),
+    "early_out" to KpiStyle("Early Out", KpiColors.getValue("early_out")),
+    "pending_approval" to KpiStyle("Pending Approval", KpiColors.getValue("pending_approval")),
+    "approved" to KpiStyle("Approved", KpiColors.getValue("approved")),
+    "rejected" to KpiStyle("Rejected", KpiColors.getValue("rejected")),
 )
 
 @Composable
@@ -634,7 +641,7 @@ private fun SummaryBoxes(cells: List<ReportCell>) {
                     Text(
                         text = cell.value,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         maxLines = 1,
                     )
                 }
@@ -668,7 +675,7 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
     Row(
         modifier = modifier
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Box(
@@ -694,7 +701,7 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
                 color = style.accent,
                 maxLines = 1,
             )

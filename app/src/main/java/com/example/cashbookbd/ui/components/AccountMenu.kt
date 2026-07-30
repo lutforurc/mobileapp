@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.components
 
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +39,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
@@ -216,7 +216,7 @@ private fun AccountHeader(userName: String?, transactionDate: String?, photoUrl:
             Text(
                 text = userName?.takeIf { it.isNotBlank() } ?: "Signed in",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = AppFontWeight.Bold,
             )
             // Hidden rather than shown blank — the backend omits it for branches
             // that have no open transaction date.

@@ -1,5 +1,8 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -29,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -603,7 +605,7 @@ fun InstallmentCreateScreen(
 
                 else -> Text(
                     text = "Select a sale to build its installment schedule.",
-                    color = onScreen.copy(alpha = 0.8f),
+                    color = onScreen.muted(),
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
             }
@@ -627,7 +629,7 @@ fun InstallmentCreateScreen(
                 Text(
                     text = "Preview",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = onScreen,
                 )
                 ReportTable(
@@ -649,7 +651,7 @@ fun InstallmentCreateScreen(
                 Text(
                     text = "Saved Schedule",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = AppFontWeight.Bold,
                     color = onScreen,
                 )
                 ReportTable(
@@ -721,7 +723,7 @@ private fun SummaryLine(label: String, value: String, bold: Boolean = false) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            fontWeight = if (bold) AppFontWeight.Bold else AppFontWeight.SemiBold,
             textAlign = TextAlign.End,
         )
     }
@@ -732,10 +734,10 @@ private fun AlreadyCreatedBadge() {
     Text(
         text = "Already Created",
         style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
+        fontWeight = AppFontWeight.Bold,
         color = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(PillShape)
             .background(MaterialTheme.colorScheme.secondaryContainer)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )

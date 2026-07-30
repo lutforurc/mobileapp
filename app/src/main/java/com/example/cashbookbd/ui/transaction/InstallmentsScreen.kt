@@ -1,5 +1,7 @@
-﻿package com.example.cashbookbd.ui.transaction
+package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -365,7 +366,7 @@ fun InstallmentsScreen(
 
                 state.customer == null -> Text(
                     text = "Select a customer to see their installments.",
-                    color = onScreen.copy(alpha = 0.8f),
+                    color = onScreen.muted(),
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
 
@@ -379,7 +380,7 @@ fun InstallmentsScreen(
                     Text(
                         text = "Total due amount: ${AmountFormat.format(state.totalDue)}",
                         color = onScreen,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = AppFontWeight.Bold,
                         textAlign = TextAlign.End,
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     )
@@ -439,13 +440,13 @@ private fun installmentColumns(
                             Text(
                                 text = "#${r.installmentNo}",
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = AppFontWeight.SemiBold,
                                 color = onScreen,
                             )
                             Text(
                                 text = "Details",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = onScreen.copy(alpha = 0.7f),
+                                color = onScreen.muted(),
                             )
                         }
                     }
@@ -530,6 +531,6 @@ private fun EarlyPaymentDialog(state: InstallmentsUiState, viewModel: Installmen
 private fun SummaryLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = AppFontWeight.SemiBold)
     }
 }
