@@ -128,19 +128,25 @@ class UserRepository(
 
     /** Creates a user. Returns the server's confirmation message. */
     suspend fun store(user: NewUser): Resource<String> = withContext(ioDispatcher) {
-        val body = mapOf(
-            "name" to user.name.trim(),
-            "email" to user.email.trim(),
-            "phone" to user.phone.trim(),
-            "branch_id" to user.branchId,
-            "role_id" to user.roleId,
-            "password" to user.password,
+        // Role ids travel as NUMBERS (see update()): Spatie's assignRole
+        // resolves an integer by id but a string by name.
+        val roleId = user.roleId.trim().toIntOrNull()
+        val body = buildMap<String, Any> {
+            put("name", user.name.trim())
+            put("email", user.email.trim())
+            put("phone", user.phone.trim())
+            put("branch_id", user.branchId)
+            if (roleId != null) {
+                put("role_id", roleId)
+                put("role_ids", listOf(roleId))
+            }
+            put("password", user.password)
             // The rule is `confirmed`, so the repeat must travel with it.
-            "password_confirmation" to user.password,
-            "language" to DEFAULT_LANGUAGE,
-        )
+            put("password_confirmation", user.password)
+            put("language", DEFAULT_LANGUAGE)
+        }
         try {
-            val response = api.post("user/store", body)
+            val response = api.postAny("user/store", body)
             if (response.code() == HTTP_UNAUTHORIZED) {
                 return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
             }
@@ -258,18 +264,25 @@ class UserRepository(
      * feature flags, and (unlike Add) does not change the password.
      */
     suspend fun update(user: EditUser): Resource<String> = withContext(ioDispatcher) {
-        val body = mapOf(
-            "usr_id" to user.userId,
-            "name" to user.name.trim(),
-            "phone" to user.phone.trim(),
-            "branch_id" to user.branchId,
-            "role_id" to user.roleId,
-            "lang" to user.lang.trim().ifBlank { DEFAULT_LANGUAGE },
-            "sidebar_menu" to if (user.sidebarMenu) "1" else "0",
-            "use_filter_parameter" to if (user.useFilterParameter) "1" else "0",
-        )
+        // The role travels as a NUMBER (and as the web's role_ids array):
+        // Spatie's syncRoles resolves an integer by id but a string by NAME,
+        // so a string "1" fails with "There is no role named `1`".
+        val roleId = user.roleId.trim().toIntOrNull()
+        val body = buildMap<String, Any> {
+            put("usr_id", user.userId)
+            put("name", user.name.trim())
+            put("phone", user.phone.trim())
+            put("branch_id", user.branchId)
+            if (roleId != null) {
+                put("role_id", roleId)
+                put("role_ids", listOf(roleId))
+            }
+            put("lang", user.lang.trim().ifBlank { DEFAULT_LANGUAGE })
+            put("sidebar_menu", if (user.sidebarMenu) "1" else "0")
+            put("use_filter_parameter", if (user.useFilterParameter) "1" else "0")
+        }
         try {
-            val response = api.post("user/user-update", body)
+            val response = api.postAny("user/user-update", body)
             if (response.code() == HTTP_UNAUTHORIZED) {
                 return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
             }

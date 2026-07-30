@@ -41,4 +41,15 @@ interface ReportApiService {
         @Url url: String,
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): Response<JsonElement>
+
+    /**
+     * A POST whose body may hold non-string values. Needed where the backend
+     * type-checks: Spatie's syncRoles treats a string "1" as a role NAME (and
+     * fails "There is no role named `1`"), so role ids must travel as numbers.
+     */
+    @POST
+    suspend fun postAny(
+        @Url url: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): Response<JsonElement>
 }
