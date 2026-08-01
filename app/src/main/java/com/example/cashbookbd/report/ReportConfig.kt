@@ -745,6 +745,8 @@ object ReportMenu {
             startParam = "startdate",
             endParam = "enddate",
             ledgerParam = "ledger_id",
+            // The API runs branch-wide when no supplier is chosen.
+            ledgerRequired = false,
             extraParams = mapOf("delay" to "1"),
             // The purchase voucher's note lives only inside the nested master;
             // it is surfaced as a "Notes" column and highlight-rule matched.
@@ -764,6 +766,8 @@ object ReportMenu {
             startParam = "startdate",
             endParam = "enddate",
             ledgerParam = "ledger_id",
+            // The API runs branch-wide when no customer is chosen.
+            ledgerRequired = false,
             extraParams = mapOf("delay" to "1"),
             // Same fallback order the web uses: the sales note, the flat copy
             // the API appends, then the journal detail's remarks.
