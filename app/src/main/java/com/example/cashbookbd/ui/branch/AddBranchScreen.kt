@@ -2,6 +2,7 @@ package com.example.cashbookbd.ui.branch
 
 import com.example.cashbookbd.ui.components.AppStepBar
 import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.accents
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
@@ -194,9 +195,15 @@ fun AddBranchScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         } else {
-                            LinkButton(
+                            // Filled red, not a link: it wipes figures kept
+                            // nowhere else, and read as ordinary text beside
+                            // Back and Update it was the quietest thing on a
+                            // step where it is the only one that destroys.
+                            PrimaryButton(
                                 text = "Clear Opening",
                                 onClick = viewModel::onClearOpeningRequested,
+                                compact = true,
+                                containerColor = MaterialTheme.accents.red,
                             )
                         }
                         state.clearedOpeningMessage?.let { message ->
