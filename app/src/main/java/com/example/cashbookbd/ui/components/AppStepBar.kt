@@ -2,28 +2,28 @@ package com.example.cashbookbd.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,11 +38,11 @@ import com.example.cashbookbd.ui.theme.asTint
  * The step indicator for every multi-step form: where you are, how far along,
  * and a way to jump.
  *
- * Only the current step is named. Six steps divided across a phone's width left
- * every label wrapping onto two lines, and the row of stacked numbers and
- * half-words was the clutter — so the other steps move into a menu behind the
- * title, which is also what makes them tappable without competing for space.
- * Someone editing one setting still jumps straight to it, as the web allows.
+ * The steps sit in a row that scrolls sideways. Dividing a phone's width between
+ * six of them was what used to wrap every label onto two lines — a scrolling row
+ * never divides it, so each keeps its own width and reads on one line however
+ * many there are. The current step is scrolled back into view whenever it
+ * changes, so Next never leaves it off the edge.
  */
 @Composable
 fun AppStepBar(
@@ -52,62 +52,31 @@ fun AppStepBar(
     modifier: Modifier = Modifier,
 ) {
     if (steps.isEmpty()) return
-    var expanded by remember { mutableStateOf(false) }
-    val title = steps.getOrNull(currentStep).orEmpty()
+    val listState = rememberLazyListState()
+
+    // Centred rather than merely made visible: on the last steps the row would
+    // otherwise stop with the current chip against the right edge, reading as
+    // though there were nothing after it.
+    LaunchedEffect(currentStep) {
+        if (currentStep in steps.indices) {
+            listState.animateScrollToItem(index = currentStep, scrollOffset = -StepScrollLead)
+        }
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = true }
-                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
-            ) {
-                Text(
-                    text = "STEP ${currentStep + 1} OF ${steps.size}",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = AppFontWeight.SemiBold,
-                    color = MaterialTheme.appColors.textOnScreenMuted,
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            itemsIndexed(steps) { index, step ->
+                StepChip(
+                    index = index,
+                    label = step,
+                    currentStep = currentStep,
+                    onClick = { onStepClick(index) },
                 )
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = AppFontWeight.Bold,
-                        color = MaterialTheme.appColors.action,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Go to a step",
-                        tint = MaterialTheme.appColors.action,
-                    )
-                }
-            }
-
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                steps.forEachIndexed { index, step ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = step,
-                                fontWeight = if (index == currentStep) {
-                                    AppFontWeight.SemiBold
-                                } else {
-                                    AppFontWeight.Normal
-                                },
-                            )
-                        },
-                        leadingIcon = { StepMarker(index = index, currentStep = currentStep) },
-                        onClick = {
-                            expanded = false
-                            onStepClick(index)
-                        },
-                    )
-                }
             }
         }
 
@@ -115,7 +84,41 @@ fun AppStepBar(
     }
 }
 
-/** A step's number in the menu — ticked once it is behind you. */
+/** One step in the row: its number, ticked once it is behind you, and its name. */
+@Composable
+private fun StepChip(
+    index: Int,
+    label: String,
+    currentStep: Int,
+    onClick: () -> Unit,
+) {
+    val isCurrent = index == currentStep
+    val action = MaterialTheme.appColors.action
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(AppShape)
+            .background(if (isCurrent) action.asTint() else MaterialTheme.appColors.cardMuted)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        StepMarker(index = index, currentStep = currentStep)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (isCurrent) AppFontWeight.Bold else AppFontWeight.Normal,
+            color = if (isCurrent) action else MaterialTheme.appColors.textMuted,
+            // The row scrolls, so a name has all the width it needs; one line is
+            // a guard against an unusually long title, not the usual case.
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** A step's number — ticked once it is behind you. */
 @Composable
 private fun StepMarker(index: Int, currentStep: Int) {
     val isCurrent = index == currentStep
@@ -128,7 +131,7 @@ private fun StepMarker(index: Int, currentStep: Int) {
                 color = when {
                     isCurrent -> action
                     isDone -> action.asTint()
-                    else -> MaterialTheme.appColors.cardMuted
+                    else -> MaterialTheme.appColors.card
                 },
                 shape = CircleShape,
             ),
@@ -180,3 +183,6 @@ private fun StepProgress(currentStep: Int, total: Int) {
 
 private val StepMarkerSize = 20.dp
 private val ProgressHeight = 3.dp
+
+/** How much of the previous chip to leave showing, so the row reads as continuing. */
+private const val StepScrollLead = 48
