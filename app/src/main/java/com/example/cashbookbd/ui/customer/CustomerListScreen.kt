@@ -44,6 +44,7 @@ import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AddButton
 import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.ReportColWidth
@@ -123,7 +124,14 @@ fun CustomerListScreen(
                         )
                     },
                 )
-                PrimaryButton(text = "Search", onClick = viewModel::onSearch, compact = true)
+                // Matched to the field beside it by the same constant the field
+                // uses, so restyling FieldFrame keeps the two level.
+                PrimaryButton(
+                    text = "Search",
+                    onClick = viewModel::onSearch,
+                    compact = true,
+                    modifier = Modifier.height(FormFieldHeight),
+                )
             }
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

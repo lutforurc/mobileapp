@@ -50,6 +50,7 @@ import com.example.cashbookbd.session.Permissions
 import com.example.cashbookbd.ui.components.AddButton
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.BrandPill
+import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.ReportColWidth
@@ -198,7 +199,14 @@ private fun SearchToolbar(
                 )
             },
         )
-        PrimaryButton(text = "Search", onClick = onSearch, compact = true)
+        // Levelled with the field beside it by the constant the field itself
+        // uses, so restyling FieldFrame keeps the two in step.
+        PrimaryButton(
+            text = "Search",
+            onClick = onSearch,
+            compact = true,
+            modifier = Modifier.height(FormFieldHeight),
+        )
     }
     if (canAddUser) {
         Spacer(Modifier.height(8.dp))

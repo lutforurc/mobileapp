@@ -48,6 +48,7 @@ import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.ReportColWidth
@@ -280,7 +281,14 @@ private fun SmsLogsFilters(state: SmsLogsUiState, viewModel: SmsLogsViewModel) {
                 )
             },
         )
-        PrimaryButton(text = "Search", onClick = viewModel::onSearch, compact = true)
+        // Levelled with the field beside it by the constant the field itself
+        // uses, so restyling FieldFrame keeps the two in step.
+        PrimaryButton(
+            text = "Search",
+            onClick = viewModel::onSearch,
+            compact = true,
+            modifier = Modifier.height(FormFieldHeight),
+        )
     }
 }
 
