@@ -18,7 +18,12 @@ val CUSTOMER_SEX_OPTIONS = listOf(
 )
 
 data class AddCustomerUiState(
-    val type: SelectorOption? = null,
+    /**
+     * Customer by default — it is what nearly every contact added here is, and
+     * the form opened with the one required field already needing a tap.
+     * Changing it is still a tap away for the rarer types.
+     */
+    val type: SelectorOption? = CUSTOMER_TYPES.first(),
     val name: String = "",
     val address: String = "",
     val mobile: String = "",

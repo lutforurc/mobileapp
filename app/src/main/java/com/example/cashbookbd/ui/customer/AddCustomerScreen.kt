@@ -144,8 +144,8 @@ fun AddCustomerScreen(
                     AppTextField(
                         value = state.openingBalance,
                         onValueChange = viewModel::onOpeningBalance,
-                        label = "Enter opening",
-                        caption = "Opening (optional)",
+                        label = "Enter opening balance",
+                        caption = "Opening Balance (optional)",
                         keyboardType = KeyboardType.Number,
                         modifier = Modifier.fillMaxWidth(),
                     )
