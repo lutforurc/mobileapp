@@ -175,6 +175,60 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             keyboardType = KeyboardType.Decimal,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showOpening) {
+            Text(
+                text = "OPENING STOCK",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.appColors.textOnScreenMuted,
+            )
+            Text(
+                text = "Optional. Left empty the product is created with no stock. " +
+                    "Given, it is received exactly as the product list receives one — " +
+                    "stock, and the purchase entry behind it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.appColors.textOnScreenMuted,
+            )
+            // Serials first, and a box rather than a line: they are entered one
+            // to a row and there is no telling how many. A single-line field
+            // made more than one impossible to type, while the server has always
+            // split them on newlines.
+            AppTextField(
+                value = state.openingSerialNo,
+                onValueChange = viewModel::onOpeningSerialNo,
+                label = "One IMEI / serial per line",
+                caption = "IMEI / Serial",
+                multiline = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = if (state.hasOpeningSerials) {
+                    "${state.openingSerialCount} counted — the quantity follows them."
+                } else {
+                    "One per line. The quantity below counts them as you type."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.appColors.textOnScreenMuted,
+            )
+            AppTextField(
+                value = state.openingQty,
+                onValueChange = viewModel::onOpeningQty,
+                label = "Enter quantity",
+                caption = "Quantity",
+                keyboardType = KeyboardType.Number,
+                // Counted from the serials while there are any. Left editable it
+                // could be made to disagree with them.
+                enabled = !state.hasOpeningSerials,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            AppTextField(
+                value = state.openingRate,
+                onValueChange = viewModel::onOpeningRate,
+                label = "Defaults to the purchase price",
+                caption = "Rate",
+                keyboardType = KeyboardType.Decimal,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         if (!state.canSave) {
             Text(
                 text = "Category, Product Type, Name, Unit and both prices are required.",

@@ -19,6 +19,11 @@ data class AddProductUiState(
     val description: String = "",
     val purchasePrice: String = "",
     val salesPrice: String = "",
+    // Opening stock, gated on the branch's is_opening flag.
+    val showOpening: Boolean = false,
+    val openingSerialNo: String = "",
+    val openingQty: String = "",
+    val openingRate: String = "",
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMessage: String? = null,
@@ -36,4 +41,17 @@ data class AddProductUiState(
             name.isNotBlank() &&
             purchasePrice.toDoubleOrNull() != null &&
             salesPrice.toDoubleOrNull() != null
+
+    /** Whether the quantity is being counted rather than typed. */
+    val hasOpeningSerials: Boolean get() = openingSerialNo.isNotBlank()
+
+    /**
+     * One serial is one unit, split the way the server splits them — on newlines
+     * and commas, trimmed, empties dropped — so what is shown here is what will
+     * be stored.
+     */
+    val openingSerialCount: Int
+        get() = openingSerialNo.split('\n', '\r', ',')
+            .map { it.trim() }
+            .count { it.isNotEmpty() }
 }

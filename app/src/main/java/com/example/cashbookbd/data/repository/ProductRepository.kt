@@ -56,6 +56,22 @@ data class NewProduct(
     val unitId: String,
     /** Brand (manufacturer) — optional; blank means none. */
     val brandId: String,
+    /**
+     * Opening stock, taken only while the branch is keying openings.
+     *
+     * Sent, the server receives the stock exactly as the product list does: the
+     * quantity, an inventory purchase, the journal voucher and the accounting
+     * behind it. A refused opening rolls the product back with it, so there is
+     * never a product left behind without the stock it was created for.
+     *
+     * With serials the quantity is counted from them and [openingQty] is
+     * ignored; without them the quantity is required. A blank rate falls back
+     * to the purchase price.
+     */
+    val openingQty: String = "",
+    val openingRate: String = "",
+    /** One IMEI/serial per line — the server splits on newlines and commas. */
+    val openingSerialNo: String = "",
 )
 
 /**
@@ -221,6 +237,13 @@ class ProductRepository(
             put("unit_id", product.unitId)
             product.description.trim().takeIf { it.isNotEmpty() }?.let { put("description", it) }
             product.brandId.takeIf { it.isNotBlank() }?.let { put("manufacture_id", it) }
+            // Left out when blank. The server decides there is an opening to
+            // receive by these keys being present at all, so sending empty ones
+            // would ask it to stock nothing.
+            product.openingQty.trim().takeIf { it.isNotEmpty() }?.let { put("opening_qty", it) }
+            product.openingRate.trim().takeIf { it.isNotEmpty() }?.let { put("opening_rate", it) }
+            product.openingSerialNo.trim().takeIf { it.isNotEmpty() }
+                ?.let { put("opening_serial_no", it) }
         }
         try {
             val response = api.post("product/store", body)

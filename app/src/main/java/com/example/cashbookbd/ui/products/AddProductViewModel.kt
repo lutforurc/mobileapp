@@ -19,9 +19,12 @@ import kotlinx.coroutines.launch
 /** Backs the Add Product form: loads the dropdowns, collects the fields, saves. */
 class AddProductViewModel(
     private val repository: ProductRepository,
+    settings: com.example.cashbookbd.session.Settings? = null,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddProductUiState())
+    private val _uiState = MutableStateFlow(
+        AddProductUiState(showOpening = settings?.openingOngoing == true)
+    )
     val uiState: StateFlow<AddProductUiState> = _uiState.asStateFlow()
 
     init {
@@ -66,6 +69,27 @@ class AddProductViewModel(
     fun onPurchasePrice(value: String) = _uiState.update { it.copy(purchasePrice = value) }
     fun onSalesPrice(value: String) = _uiState.update { it.copy(salesPrice = value) }
 
+    /**
+     * Serials carry the quantity with them, so it is not asked for twice: the
+     * count follows what is typed. Emptied, the quantity is handed back so a
+     * product without serials can still be given one by hand.
+     */
+    fun onOpeningSerialNo(value: String) = _uiState.update { state ->
+        val counted = state.copy(openingSerialNo = value).openingSerialCount
+        state.copy(
+            openingSerialNo = value,
+            openingQty = if (counted > 0) counted.toString() else "",
+        )
+    }
+
+    fun onOpeningQty(value: String) = _uiState.update {
+        // Ignored while serials are present -- they decide, and the server
+        // would disregard anything typed here anyway.
+        if (it.hasOpeningSerials) it else it.copy(openingQty = value)
+    }
+
+    fun onOpeningRate(value: String) = _uiState.update { it.copy(openingRate = value) }
+
     fun save() {
         val state = _uiState.value
         if (!state.canSave) return
@@ -84,6 +108,10 @@ class AddProductViewModel(
                     salesPrice = state.salesPrice,
                     unitId = unit.id,
                     brandId = state.brand?.id.orEmpty(),
+                    // Never sent from a branch that is not keying openings.
+                    openingQty = if (state.showOpening) state.openingQty else "",
+                    openingRate = if (state.showOpening) state.openingRate else "",
+                    openingSerialNo = if (state.showOpening) state.openingSerialNo else "",
                 )
             )
             when (result) {
@@ -108,7 +136,11 @@ class AddProductViewModel(
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
-                AddProductViewModel(ServiceLocator.provideProductRepository(context.applicationContext))
+                val appContext = context.applicationContext
+                AddProductViewModel(
+                    repository = ServiceLocator.provideProductRepository(appContext),
+                    settings = ServiceLocator.provideSessionManager(appContext).state.value.settings,
+                )
             }
         }
     }
