@@ -26,6 +26,7 @@ class AddCustomerViewModel(
         AddCustomerUiState(
             showSex = settings?.needCustomerSex == true,
             showArea = settings?.needCustomerArea == true,
+            showOpening = settings?.openingOngoing == true,
         )
     )
     val uiState: StateFlow<AddCustomerUiState> = _uiState.asStateFlow()
@@ -73,6 +74,7 @@ class AddCustomerViewModel(
     fun onMobile(value: String) = _uiState.update { it.copy(mobile = value) }
     fun onLedgerPage(value: String) = _uiState.update { it.copy(ledgerPage = value) }
     fun onNationalId(value: String) = _uiState.update { it.copy(nationalId = value) }
+    fun onOpeningBalance(value: String) = _uiState.update { it.copy(openingBalance = value) }
 
     fun save() {
         val state = _uiState.value
@@ -90,6 +92,9 @@ class AddCustomerViewModel(
                     nationalId = state.nationalId,
                     sex = state.sex?.id.orEmpty(),
                     areaId = state.area?.id.orEmpty(),
+                    // Never sent from a branch that is not keying openings, even
+                    // if something had left a value behind in the field.
+                    openingBalance = if (state.showOpening) state.openingBalance else "",
                 )
             )
             when (result) {

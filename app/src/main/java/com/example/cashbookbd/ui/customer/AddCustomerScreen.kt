@@ -140,6 +140,22 @@ fun AddCustomerScreen(
                     caption = "Ledger Page (optional)",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (state.showOpening) {
+                    AppTextField(
+                        value = state.openingBalance,
+                        onValueChange = viewModel::onOpeningBalance,
+                        label = "Enter opening",
+                        caption = "Opening (optional)",
+                        keyboardType = KeyboardType.Number,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "Entered once. Afterwards it can only be changed by " +
+                            "clearing the branch's opening.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 AppTextField(
                     value = state.nationalId,
                     onValueChange = viewModel::onNationalId,

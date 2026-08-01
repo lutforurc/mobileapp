@@ -49,6 +49,15 @@ data class NewCustomer(
     /** Area id, or blank — shown only when the branch needs it. Choosing an
      *  area makes the server compose the address from area/thana/district. */
     val areaId: String = "",
+    /**
+     * Opening balance, or blank — shown only while the branch is keying openings.
+     *
+     * Sent, the server both stores the figure and raises the journal voucher for
+     * it, exactly as entering one on the customer list does. Refused, it rolls
+     * the whole creation back, so there is no customer left carrying a balance
+     * the ledger never heard of.
+     */
+    val openingBalance: String = "",
 )
 
 /** One customer area from `area/ddl-list` — the Select Area options. */
@@ -176,7 +185,12 @@ class CustomerRepository(
             "area_id" to customer.areaId,
             // "Access Customer Login" is off for this essential form.
             "customerLogin" to "0",
-        )
+        ) + buildMap {
+            // Left out entirely when blank: the server acts on the key's
+            // presence, and an empty one would be a figure nobody entered.
+            customer.openingBalance.trim().takeIf { it.isNotEmpty() }
+                ?.let { put("openingbalance", it) }
+        }
         try {
             val response = api.post("contact/store", body)
             if (response.code() == HTTP_UNAUTHORIZED) {

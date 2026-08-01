@@ -31,6 +31,10 @@ data class AddCustomerUiState(
     val areas: List<SelectorOption> = emptyList(),
     val isAreasLoading: Boolean = false,
     val area: SelectorOption? = null,
+    // Opening balance, gated on the branch's is_opening flag — the same switch
+    // the customer list reads before showing its Opening column.
+    val showOpening: Boolean = false,
+    val openingBalance: String = "",
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMessage: String? = null,
