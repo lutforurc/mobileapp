@@ -103,6 +103,26 @@ class BranchRepository(
         }
     }
 
+    /**
+     * Puts a branch's opening balances back to zero so they can be keyed again.
+     *
+     * An opening balance is written once and then refuses to change, which
+     * leaves a branch that mistyped one with nowhere to go. This clears the two
+     * columns holding the figure -- products and customers/suppliers -- and only
+     * those two: the journal and stock entries an opening also raised are left
+     * alone, because a product's opening is recorded as an ordinary inventory
+     * purchase and nothing could tell it from a real one.
+     *
+     * Needs the `branch.opening.clear` permission; refused with 403 otherwise.
+     */
+    suspend fun clearOpening(branchId: String): Resource<String> = withContext(ioDispatcher) {
+        call("branch/clear-opening", mapOf("branch_id" to branchId)) { responseBody ->
+            responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() }
+                ?: "Opening cleared"
+        }
+    }
+
     private fun Map<String, String>.trimmed(): Map<String, String> =
         mapValues { (_, value) -> value.trim() }
 

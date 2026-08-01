@@ -21,10 +21,15 @@ import kotlinx.coroutines.launch
 class AddBranchViewModel(
     private val repository: BranchRepository,
     private val branchId: String? = null,
+    canClearOpening: Boolean = false,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        AddBranchUiState(branchId = branchId, values = defaultValues()),
+        AddBranchUiState(
+            branchId = branchId,
+            values = defaultValues(),
+            canClearOpening = canClearOpening,
+        ),
     )
     val uiState: StateFlow<AddBranchUiState> = _uiState.asStateFlow()
 
@@ -147,6 +152,44 @@ class AddBranchViewModel(
         }
     }
 
+    fun onClearOpeningRequested() = _uiState.update { it.copy(confirmClearOpening = true) }
+    fun onClearOpeningDismissed() = _uiState.update { it.copy(confirmClearOpening = false) }
+
+    /**
+     * Clears this branch's opening balances. Not undoable -- the figures are
+     * kept nowhere else -- so it is only reached through the confirmation, and
+     * what the server reports having cleared stays on screen afterwards rather
+     * than passing by in a snackbar.
+     */
+    fun clearOpening() {
+        val id = _uiState.value.branchId ?: return
+        if (_uiState.value.isClearingOpening) return
+
+        _uiState.update {
+            it.copy(
+                confirmClearOpening = false,
+                isClearingOpening = true,
+                clearedOpeningMessage = null,
+                error = null,
+            )
+        }
+        viewModelScope.launch {
+            when (val result = repository.clearOpening(id)) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(isClearingOpening = false, clearedOpeningMessage = result.data)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isClearingOpening = false,
+                        error = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun onErrorShown() = _uiState.update { it.copy(error = null) }
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
@@ -154,9 +197,14 @@ class AddBranchViewModel(
     companion object {
         fun provideFactory(context: Context, branchId: String? = null) = viewModelFactory {
             initializer {
+                val appContext = context.applicationContext
                 AddBranchViewModel(
-                    repository = ServiceLocator.provideBranchRepository(context.applicationContext),
+                    repository = ServiceLocator.provideBranchRepository(appContext),
                     branchId = branchId,
+                    canClearOpening = com.example.cashbookbd.session.Permissions.has(
+                        ServiceLocator.provideSessionManager(appContext).permissions,
+                        "branch.opening.clear",
+                    ),
                 )
             }
         }

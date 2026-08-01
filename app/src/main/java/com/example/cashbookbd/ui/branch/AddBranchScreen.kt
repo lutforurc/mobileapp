@@ -23,17 +23,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -176,6 +179,35 @@ fun AddBranchScreen(
                         }
                     }
 
+                    // Clearing an opening belongs beside "Opening ongoing", and
+                    // this is the step that carries it. Shown only to those
+                    // holding branch.opening.clear, and only when editing.
+                    if (state.currentStep == FEATURE_STEP && state.showClearOpening) {
+                        if (state.isClearingOpening) {
+                            Text(
+                                text = "Clearing opening balances...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        } else {
+                            LinkButton(
+                                text = "Clear Opening",
+                                onClick = viewModel::onClearOpeningRequested,
+                            )
+                        }
+                        state.clearedOpeningMessage?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.appColors.textOnScreenMuted,
+                            )
+                        }
+                    }
+
                     // The letterhead image is the web's one remaining field here;
                     // it needs a picker and a multipart upload, so for now the
                     // form says so rather than dropping the choice silently.
@@ -199,10 +231,39 @@ fun AddBranchScreen(
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
+
+    // Named plainly, because the figures cannot be recovered here -- they have
+    // to be keyed in again. What is left alone is said too, so nobody expects
+    // the accounts to move.
+    if (state.confirmClearOpening) {
+        AlertDialog(
+            onDismissRequest = viewModel::onClearOpeningDismissed,
+            title = { Text("Clear Opening Balances") },
+            text = {
+                Text(
+                    "Set every opening balance in this branch back to zero? " +
+                        "Products and customers/suppliers both. The figures are not " +
+                        "kept anywhere else, so they will have to be entered again.\n\n" +
+                        "The journal and stock entries already posted are left as they are."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearOpening) {
+                    Text("Clear Opening", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onClearOpeningDismissed) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 private const val PRINT_STEP = 1
 private const val CUSTOM_PAD = "3"
+
+/** Feature Controls -- the last step, and where "Opening ongoing" sits. */
+private val FEATURE_STEP = BranchForm.steps.lastIndex
 
 /**
  * Back / Next, with Save replacing Next on the last step.

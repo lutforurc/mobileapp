@@ -32,8 +32,21 @@ data class AddBranchUiState(
     /** Set once the branch is saved; the screen navigates back. */
     val savedMessage: String? = null,
     val sessionExpired: Boolean = false,
+    /**
+     * Clearing this branch's opening balances. Offered only to those holding
+     * `branch.opening.clear`, and only when editing -- a branch being created
+     * has no openings to clear.
+     */
+    val canClearOpening: Boolean = false,
+    val confirmClearOpening: Boolean = false,
+    val isClearingOpening: Boolean = false,
+    /** The server's count of what was cleared, shown until the screen leaves. */
+    val clearedOpeningMessage: String? = null,
 ) {
     val isEditing: Boolean get() = branchId != null
+
+    /** The button is drawn only where both hold. */
+    val showClearOpening: Boolean get() = canClearOpening && isEditing
 
     val screenTitle: String get() = if (isEditing) "Edit Branch" else "Add Branch"
 
