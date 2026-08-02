@@ -42,8 +42,22 @@ class AddBranchViewModel(
      * the web's initial form state. Without this the toggles would be absent
      * from the payload rather than explicitly "0".
      */
+    /**
+     * A new branch starts with every toggle off, an active status, and the print
+     * settings almost every branch turns out to want anyway.
+     *
+     * Without these the four Print Setup pickers opened empty and had to be
+     * answered before the form would save, though the answer was the same one
+     * nearly every time. paper_size is not here because its options come from
+     * the server; it is filled in once they arrive.
+     */
     private fun defaultValues(): Map<String, String> =
-        BranchForm.toggleKeys.associateWith { "0" } + mapOf("status" to "1")
+        BranchForm.toggleKeys.associateWith { "0" } + mapOf(
+            "status" to "1",
+            "pad_heading_print" to "1",   // Branch Pad Heading
+            "print_size" to "1",          // Normal Printer
+            "pad_print_mode" to "software", // Software Generated Pad Head
+        )
 
     fun load() {
         _uiState.update { it.copy(isLoadingOptions = true, optionsError = null) }
@@ -54,12 +68,23 @@ class AddBranchViewModel(
 
     private suspend fun loadOptions() {
         when (val result = repository.loadFormOptions()) {
-            is Resource.Success -> _uiState.update {
-                it.copy(
+            is Resource.Success -> _uiState.update { state ->
+                state.copy(
                     isLoadingOptions = false,
                     branchTypes = result.data.branchTypes,
                     businessTypes = result.data.businessTypes,
                     paperSizes = result.data.paperSizes,
+                    // The endpoint sorts is_default first, so the head of the
+                    // list is the size this installation prints on. Only filled
+                    // when nothing is chosen yet -- reloading the options must
+                    // not overwrite a size already picked.
+                    values = if (state.values["paper_size"].isNullOrBlank()) {
+                        result.data.paperSizes.firstOrNull()
+                            ?.let { state.values + ("paper_size" to it.id) }
+                            ?: state.values
+                    } else {
+                        state.values
+                    },
                 )
             }
             is Resource.Error -> _uiState.update { it.failed(result) }
