@@ -15,6 +15,21 @@ val devLoginProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// Release signing, sourced from keystore.properties (untracked, alongside the
+// keystore itself) so the credentials never enter source control. Absent on a
+// fresh clone, in which case the release build stays unsigned rather than
+// failing the whole configuration phase — debug builds are unaffected.
+//
+// Losing the keystore or its password means the published app can never be
+// updated again: Android rejects an update signed by a different key. Back both
+// up somewhere durable.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseSigning = keystoreProps.getProperty("storeFile")
+    ?.let { rootProject.file(it).exists() } == true
+
 // Single source of truth for the backend API base URL. Change it here to
 // repoint every build type (must end with a trailing slash for Retrofit).
 // val baseUrl = "https://aft.cashbookbd.com/api/"
@@ -97,8 +112,23 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.example.cashbookbd"
+        // Not the same as `namespace` above, which stays com.example.* because it
+        // is the source package for 300-odd files and is invisible outside the
+        // build. This is the identity Android and the Play Store key the app on,
+        // and it can never change once published.
+        applicationId = "com.cashbookbd.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -151,6 +181,9 @@ android {
             )
         }
         release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

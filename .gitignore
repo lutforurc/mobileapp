@@ -22,3 +22,9 @@ local.properties
 
 # Kotlin compiler crash dumps.
 /.kotlin
+
+# Release signing. Losing the keystore means never being able to update the
+# published app again - back it up somewhere durable, outside this repo.
+*.keystore
+*.jks
+keystore.properties
