@@ -43,20 +43,21 @@ class AddBranchViewModel(
      * from the payload rather than explicitly "0".
      */
     /**
-     * A new branch starts with every toggle off, an active status, and the print
+     * A new branch starts with every toggle off, an active status, and the
      * settings almost every branch turns out to want anyway.
      *
-     * Without these the four Print Setup pickers opened empty and had to be
-     * answered before the form would save, though the answer was the same one
-     * nearly every time. paper_size is not here because its options come from
-     * the server; it is filled in once they arrive.
+     * Without these the pickers opened empty and had to be answered before the
+     * form would save, though the answer was the same one nearly every time.
+     * paper_size is not here because its options come from the server; it is
+     * filled in once they arrive.
      */
     private fun defaultValues(): Map<String, String> =
         BranchForm.toggleKeys.associateWith { "0" } + mapOf(
             "status" to "1",
-            "pad_heading_print" to "1",   // Branch Pad Heading
-            "print_size" to "1",          // Normal Printer
+            "pad_heading_print" to "1",     // Branch Pad Heading
+            "print_size" to "1",            // Normal Printer
             "pad_print_mode" to "software", // Software Generated Pad Head
+            "money_format" to "1",          // Taka ... Only
         )
 
     fun load() {
