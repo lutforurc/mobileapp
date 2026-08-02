@@ -24,7 +24,8 @@ local.properties
 /.kotlin
 
 # Release signing. Losing the keystore means never being able to update the
-# published app again - back it up somewhere durable, outside this repo.
+# published app again - the repo doubles as its backup.
 *.keystore
+!cashbookbd-release.keystore
 *.jks
 keystore.properties
