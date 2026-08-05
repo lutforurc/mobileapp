@@ -196,17 +196,17 @@ class ProductStatementViewModel(
     fun apply() {
         val state = _uiState.value
         val product = state.product ?: run {
-            _uiState.update { it.copy(message = "একটি Product বাছুন।") }
+            _uiState.update { it.copy(message = "Select a product.") }
             return
         }
         val from = state.dateFrom
         val to = state.dateTo
         if (from == null || to == null) {
-            _uiState.update { it.copy(message = "তারিখ পরিসর দিন।") }
+            _uiState.update { it.copy(message = "Choose a date range.") }
             return
         }
         if (from.toApi() > to.toApi()) {
-            _uiState.update { it.copy(message = "শুরুর তারিখ শেষ তারিখের পরে হতে পারে না।") }
+            _uiState.update { it.copy(message = "The start date cannot be after the end date.") }
             return
         }
         if (state.isLoading) return
@@ -308,7 +308,7 @@ fun ProductStatementScreen(
                     onLedgerSelected = viewModel::onPartySelected,
                     searchLedgers = viewModel::searchParties,
                     label = "Customer / Supplier",
-                    placeholder = "সব পার্টি",
+                    placeholder = "All parties",
                 )
                 AppSelectDropdown(
                     label = "Select Product",
@@ -351,7 +351,7 @@ fun ProductStatementScreen(
                 when {
                     state.error != null -> Text(state.error!!, color = MaterialTheme.colorScheme.onBackground)
                     !state.hasApplied -> Text(
-                        text = "Product ও তারিখ পরিসর বেছে Apply চাপুন।",
+                        text = "Pick a product and a date range, then tap Apply.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.appColors.textOnScreenMuted,
                     )
@@ -386,7 +386,7 @@ private fun StatementBody(report: ProductStatement) {
 
         // The two summary cards: what came in against what went out.
         SummaryCard(
-            title = "Receivable (বিক্রয়)",
+            title = "Receivable (Sales)",
             lines = listOf(
                 "Opening Receivable" to report.summary.openingReceivable,
                 "Sales Bill" to report.summary.salesBill,
@@ -397,7 +397,7 @@ private fun StatementBody(report: ProductStatement) {
             closing = report.summary.closingReceivable,
         )
         SummaryCard(
-            title = "Payable (ক্রয়)",
+            title = "Payable (Purchase)",
             lines = listOf(
                 "Opening Payable" to report.summary.openingPayable,
                 "Purchase Bill" to report.summary.purchaseBill,
@@ -410,7 +410,7 @@ private fun StatementBody(report: ProductStatement) {
 
         if (report.rows.isEmpty()) {
             Text(
-                text = "এই পরিসরে কোনো লেনদেন নেই।",
+                text = "No transactions in this range.",
                 style = MaterialTheme.typography.bodySmall,
                 color = onScreen.muted(),
                 textAlign = TextAlign.Center,
@@ -533,9 +533,9 @@ private fun MemoNotice(notice: String, unmapped: TrackingUnmapped) {
         if (unmapped.rowsCount > 0) {
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "এই পরিসরে Product ছাড়া ${unmapped.rowsCount} টি লেনদেন আছে — " +
-                    "Received ${AmountFormat.format(unmapped.received)} ও " +
-                    "Payment ${AmountFormat.format(unmapped.payment)} — যা এই হিসাবে ধরা হয়নি।",
+                text = "This range holds ${unmapped.rowsCount} transaction(s) with no product — " +
+                    "Received ${AmountFormat.format(unmapped.received)} and " +
+                    "Payment ${AmountFormat.format(unmapped.payment)} — left out of these figures.",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = AppFontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -603,11 +603,11 @@ class TrackingSummaryViewModel(
         val from = state.dateFrom
         val to = state.dateTo
         if (from == null || to == null) {
-            _uiState.update { it.copy(message = "তারিখ পরিসর দিন।") }
+            _uiState.update { it.copy(message = "Choose a date range.") }
             return
         }
         if (from.toApi() > to.toApi()) {
-            _uiState.update { it.copy(message = "শুরুর তারিখ শেষ তারিখের পরে হতে পারে না।") }
+            _uiState.update { it.copy(message = "The start date cannot be after the end date.") }
             return
         }
         if (state.isLoading) return
@@ -706,7 +706,7 @@ fun ProductTrackingSummaryScreen(
                     onLedgerSelected = viewModel::onPartySelected,
                     searchLedgers = viewModel::searchParties,
                     label = "Customer / Supplier",
-                    placeholder = "সব পার্টি",
+                    placeholder = "All parties",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PickerField(
@@ -732,7 +732,7 @@ fun ProductTrackingSummaryScreen(
                 ) {
                     Checkbox(checked = state.includeInactive, onCheckedChange = viewModel::onIncludeInactive)
                     Text(
-                        text = "নিষ্ক্রিয় করা Product-ও দেখান (পুরোনো হিসাব মেলাতে)",
+                        text = "Show deactivated products too (to reconcile old figures)",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -746,7 +746,7 @@ fun ProductTrackingSummaryScreen(
                 when {
                     state.error != null -> Text(state.error!!, color = MaterialTheme.colorScheme.onBackground)
                     !state.hasApplied -> Text(
-                        text = "তারিখ পরিসর বেছে Apply চাপুন।",
+                        text = "Choose a date range, then tap Apply.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.appColors.textOnScreenMuted,
                     )
@@ -782,7 +782,7 @@ private fun SummaryBody(report: TrackingSummary, onProduct: (Long) -> Unit) {
 
         if (report.rows.isEmpty()) {
             Text(
-                text = "কোনো Product configure করা নেই। Admin → Product Tracking থেকে যোগ করুন।",
+                text = "No product is configured. Add one under Admin → Product Tracking.",
                 style = MaterialTheme.typography.bodySmall,
                 color = onScreen.muted(),
                 textAlign = TextAlign.Center,
@@ -796,8 +796,8 @@ private fun SummaryBody(report: TrackingSummary, onProduct: (Long) -> Unit) {
             // The web's two-level header: Product | Receivable ×5 | Payable ×5.
             Row(modifier = Modifier.background(MaterialTheme.colorScheme.primary).padding(vertical = 4.dp)) {
                 StatementHeaderCell("", 140.dp)
-                StatementHeaderCell("Receivable (বিক্রয়)", 88.dp * 5, TextAlign.Center)
-                StatementHeaderCell("Payable (ক্রয়)", 88.dp * 5, TextAlign.Center)
+                StatementHeaderCell("Receivable (Sales)", 88.dp * 5, TextAlign.Center)
+                StatementHeaderCell("Payable (Purchase)", 88.dp * 5, TextAlign.Center)
             }
             Row(modifier = Modifier.background(MaterialTheme.colorScheme.primary).padding(bottom = 6.dp)) {
                 StatementHeaderCell("Product", 140.dp)

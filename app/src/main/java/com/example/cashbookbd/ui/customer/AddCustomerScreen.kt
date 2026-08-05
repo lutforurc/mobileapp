@@ -114,7 +114,7 @@ fun AddCustomerScreen(
                     AppTextField(
                         value = state.bangla,
                         onValueChange = viewModel::onBangla,
-                        label = "নাম লিখুন",
+                        label = "Enter name in Bangla",
                         caption = "Name (Bangla)",
                         modifier = Modifier.fillMaxWidth(),
                     )

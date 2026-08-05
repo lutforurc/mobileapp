@@ -324,7 +324,7 @@ fun ComparisonScreen(
                     state.error != null -> Text(state.error!!, color = MaterialTheme.colorScheme.onBackground)
 
                     state.series.all { s -> s.values.all { it == null } } -> Text(
-                        text = "এই পরিসরে কোনো লেনদেন নেই।",
+                        text = "No transactions in this range.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.appColors.textOnScreenMuted,
                     )

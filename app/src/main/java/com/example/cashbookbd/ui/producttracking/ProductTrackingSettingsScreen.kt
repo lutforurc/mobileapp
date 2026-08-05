@@ -238,7 +238,7 @@ class ProductTrackingSettingsViewModel(
     fun save() {
         val state = _uiState.value
         val product = state.product ?: run {
-            _uiState.update { it.copy(message = "একটি Product বাছুন।") }
+            _uiState.update { it.copy(message = "Select a product.") }
             return
         }
         if (state.isSaving) return
@@ -365,7 +365,7 @@ fun ProductTrackingSettingsScreen(
                     AppTextField(
                         value = state.search,
                         onValueChange = viewModel::onSearchChange,
-                        label = "Product খুঁজুন",
+                        label = "Search product",
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(2.dp))
@@ -389,8 +389,8 @@ fun ProductTrackingSettingsScreen(
                     }
                     state.rows.isEmpty() -> item {
                         Text(
-                            text = "এখনো কোনো Product যোগ করা হয়নি। উপরের ফর্ম দিয়ে যোগ করুন — " +
-                                "যোগ করার আগ পর্যন্ত Cash Received/Payment ফর্মে Product dropdown দেখা যাবে না।",
+                            text = "No product has been added yet. Add one with the form above — " +
+                                "until then the Cash Received/Payment forms show no product dropdown.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.appColors.textOnScreenMuted,
                         )
@@ -419,7 +419,7 @@ private fun SettingForm(state: TrackingSettingsUiState, viewModel: ProductTracki
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = if (state.editingId == null) "নতুন Product যোগ করুন" else "Setting সম্পাদনা",
+                text = if (state.editingId == null) "Add New Product" else "Edit Setting",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = AppFontWeight.SemiBold,
             )
@@ -438,10 +438,10 @@ private fun SettingForm(state: TrackingSettingsUiState, viewModel: ProductTracki
                 onLedgerSelected = viewModel::onPartySelected,
                 searchLedgers = viewModel::searchParties,
                 label = "Customer / Supplier",
-                placeholder = "সব পার্টির জন্য",
+                placeholder = "For all parties",
             )
             if (state.party != null) {
-                LinkButton(text = "সব পার্টির জন্য করুন", onClick = { viewModel.onPartySelected(null) })
+                LinkButton(text = "Make it for all parties", onClick = { viewModel.onPartySelected(null) })
             }
             AppSelectDropdown(
                 label = "Branch",
@@ -456,7 +456,7 @@ private fun SettingForm(state: TrackingSettingsUiState, viewModel: ProductTracki
             FlagSwitch("Cash Payment", state.trackCashPayment, viewModel::onTrackCashPayment)
             FlagSwitch("Active", state.isActive, viewModel::onIsActive)
             Text(
-                text = "বন্ধ করলে নতুন mapping হবে না, পুরোনো হিসাব অক্ষত থাকবে।",
+                text = "Switched off, no new mappings are made; past figures stay intact.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.appColors.textOnScreenMuted,
             )
@@ -522,7 +522,7 @@ private fun SettingRow(
                 )
             }
             Text(
-                text = (if (row.coa4Id == 0L) "সব পার্টি" else row.partyName.ifBlank { "Party ${row.coa4Id}" }) +
+                text = (if (row.coa4Id == 0L) "All parties" else row.partyName.ifBlank { "Party ${row.coa4Id}" }) +
                     " • " +
                     (if (row.branchId == 0L) "All Branch" else row.branchName.ifBlank { "Branch ${row.branchId}" }),
                 style = MaterialTheme.typography.labelSmall,
@@ -534,7 +534,7 @@ private fun SettingRow(
                     "Purchase" to row.trackPurchaseBill,
                     "Received" to row.trackCashReceived,
                     "Payment" to row.trackCashPayment,
-                ).joinToString("   ") { (label, on) -> "$label: ${if (on) "হ্যাঁ" else "না"}" },
+                ).joinToString("   ") { (label, on) -> "$label: ${if (on) "Yes" else "No"}" },
                 style = MaterialTheme.typography.labelSmall,
                 color = onScreen.muted(),
             )
