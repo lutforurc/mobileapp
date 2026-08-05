@@ -8,9 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -68,6 +74,7 @@ import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.theme.AppFontWeight
+import com.example.cashbookbd.ui.theme.accents
 import com.example.cashbookbd.ui.theme.appColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -87,6 +94,7 @@ private val COL_DISCOUNT = 88.dp
 private val COL_PAYMENT = 92.dp
 private val COL_BALANCE = 92.dp
 private val COL_VOUCHER = 96.dp
+private val COL_ACTION = 84.dp
 
 data class TradeLedgerUiState(
     val kind: TradeLedgerKind = TradeLedgerKind.PURCHASE,
@@ -105,8 +113,19 @@ data class TradeLedgerUiState(
     val hasApplied: Boolean = false,
     val report: TradeLedgerReport? = null,
 
+    // The web ACTION column's two real actions, behind their own permissions.
+    val canApprove: Boolean = false,
+    val canRemoveApproval: Boolean = false,
+    /** The row awaiting a confirm: the voucher and which action. */
+    val pendingApprove: TradeLedgerRow? = null,
+    val pendingRemoveApproval: TradeLedgerRow? = null,
+    val busyVoucherId: Long? = null,
+    val actionMessage: String? = null,
+
     val sessionExpired: Boolean = false,
 ) {
+    val showActionColumn: Boolean get() = canApprove || canRemoveApproval
+
     val title: String
         get() = if (kind == TradeLedgerKind.PURCHASE) "Purchase Ledger" else "Sales Ledger"
 
@@ -124,7 +143,17 @@ class TradeLedgerViewModel(
     val settings: Settings?,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(TradeLedgerUiState(kind = kind))
+    private val _uiState = MutableStateFlow(
+        TradeLedgerUiState(
+            kind = kind,
+            canApprove = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions, "cashbook.approved",
+            ),
+            canRemoveApproval = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions, "remove.approval",
+            ),
+        )
+    )
     val uiState: StateFlow<TradeLedgerUiState> = _uiState.asStateFlow()
 
     init {
@@ -212,6 +241,55 @@ class TradeLedgerViewModel(
         }
     }
 
+    // ---- Row actions (the web ACTION column's approve pair) ---------------
+
+    fun requestApprove(row: TradeLedgerRow) = _uiState.update { it.copy(pendingApprove = row) }
+    fun requestRemoveApproval(row: TradeLedgerRow) =
+        _uiState.update { it.copy(pendingRemoveApproval = row) }
+
+    fun cancelAction() =
+        _uiState.update { it.copy(pendingApprove = null, pendingRemoveApproval = null) }
+
+    /** Approval locks the voucher against editing — reached only via confirm. */
+    fun confirmApprove() {
+        val row = _uiState.value.pendingApprove ?: return
+        runRowAction(row) { repository.approveVoucher(row.voucherId) }
+    }
+
+    fun confirmRemoveApproval() {
+        val row = _uiState.value.pendingRemoveApproval ?: return
+        runRowAction(row) { repository.removeApproval(row.voucherId, row.challanNo) }
+    }
+
+    private fun runRowAction(
+        row: TradeLedgerRow,
+        action: suspend () -> Resource<String>,
+    ) {
+        if (_uiState.value.busyVoucherId != null) return
+        _uiState.update {
+            it.copy(pendingApprove = null, pendingRemoveApproval = null, busyVoucherId = row.voucherId)
+        }
+        viewModelScope.launch {
+            val result = action()
+            _uiState.update {
+                it.copy(
+                    busyVoucherId = null,
+                    actionMessage = when (result) {
+                        is Resource.Success -> result.data
+                        is Resource.Error -> result.message
+                        Resource.Loading -> null
+                    },
+                    sessionExpired = it.sessionExpired ||
+                        (result as? Resource.Error)?.isUnauthorized == true,
+                )
+            }
+            // Whatever the outcome, re-fetch so the icons say what is now true.
+            apply()
+        }
+    }
+
+    fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
+
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
@@ -261,6 +339,11 @@ fun TradeLedgerScreen(
             viewModel.onSessionExpiredHandled()
             onLogout()
         }
+    }
+    LaunchedEffect(state.actionMessage) {
+        val message = state.actionMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.onActionMessageShown()
     }
 
     AuthenticatedShell(
@@ -367,6 +450,8 @@ fun TradeLedgerScreen(
                         report = state.report!!,
                         settings = settings,
                         onOpenAttachment = { viewing = it },
+                        onApprove = viewModel::requestApprove,
+                        onRemoveApproval = viewModel::requestRemoveApproval,
                     )
                 }
             }
@@ -381,6 +466,37 @@ fun TradeLedgerScreen(
             onDismiss = { viewing = null },
         )
     }
+
+    // Approval locks the voucher against editing, so both directions ask
+    // first and name the voucher, like the web's inline Yes/No.
+    state.pendingApprove?.let { row ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::cancelAction,
+            title = { Text("Approve voucher?") },
+            text = { Text("Approve ${row.challanNo}? An approved voucher can no longer be edited.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = viewModel::confirmApprove) { Text("Approve") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = viewModel::cancelAction) { Text("Cancel") }
+            },
+        )
+    }
+    state.pendingRemoveApproval?.let { row ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = viewModel::cancelAction,
+            title = { Text("Remove approval?") },
+            text = { Text("Withdraw the approval on ${row.challanNo}? The voucher becomes editable again.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = viewModel::confirmRemoveApproval) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = viewModel::cancelAction) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -389,6 +505,8 @@ private fun TradeLedgerTable(
     report: TradeLedgerReport,
     settings: Settings?,
     onOpenAttachment: (VoucherAttachment) -> Unit,
+    onApprove: (TradeLedgerRow) -> Unit,
+    onRemoveApproval: (TradeLedgerRow) -> Unit,
 ) {
     val rules = rememberHighlightRules()
     val showVoucher = settings?.showVoucherImage == true
@@ -510,6 +628,24 @@ private fun TradeLedgerTable(
                 }
             })
         }
+        if (state.showActionColumn) {
+            add(ReportColumn<TradeLedgerRow>("ACTION", ReportColWidth.Fixed(COL_ACTION), TextAlign.Center) { r, _ ->
+                if (r.challanNo.isBlank() || r.voucherId <= 0L) {
+                    ReportTableCell.Empty
+                } else {
+                    ReportTableCell.Slot {
+                        ActionIcons(
+                            row = r,
+                            canApprove = state.canApprove,
+                            canRemoveApproval = state.canRemoveApproval,
+                            isBusy = state.busyVoucherId == r.voucherId,
+                            onApprove = onApprove,
+                            onRemoveApproval = onRemoveApproval,
+                        )
+                    }
+                }
+            })
+        }
     }
 
     val totals = report.totals
@@ -522,6 +658,7 @@ private fun TradeLedgerTable(
         add(ReportFooterCell(cellText(money(totals.payment), bold = true, align = TextAlign.End)))
         add(ReportFooterCell(cellText(money(totals.balance), bold = true, align = TextAlign.End)))
         if (showVoucher) add(ReportFooterCell(ReportTableCell.Empty))
+        if (state.showActionColumn) add(ReportFooterCell(ReportTableCell.Empty))
     }
 
     ReportTable(
@@ -530,6 +667,65 @@ private fun TradeLedgerTable(
         footerRows = if (report.rows.isEmpty()) emptyList() else listOf(footer),
         noDataMessage = "No data found",
     )
+}
+
+/**
+ * The web ACTION column's two live actions: approve (red tick, green circle
+ * once approved) and remove-approval (amber ✕, only on approved rows). The
+ * web's print and edit icons lead into the voucher print/edit flows, which
+ * this app does not carry — they stay on the web.
+ */
+@Composable
+private fun ActionIcons(
+    row: TradeLedgerRow,
+    canApprove: Boolean,
+    canRemoveApproval: Boolean,
+    isBusy: Boolean,
+    onApprove: (TradeLedgerRow) -> Unit,
+    onRemoveApproval: (TradeLedgerRow) -> Unit,
+) {
+    Row(
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isBusy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+            )
+            return@Row
+        }
+        if (canApprove) {
+            if (row.isApproved) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "Approved",
+                    tint = MaterialTheme.appColors.success,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Approve voucher",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable { onApprove(row) },
+                )
+            }
+        }
+        if (canRemoveApproval && row.isApproved) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Remove approval",
+                tint = MaterialTheme.accents.amber,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable { onRemoveApproval(row) },
+            )
+        }
+    }
 }
 
 /** A stacked numeric cell: one line per product detail, end-aligned. */

@@ -47,6 +47,9 @@ data class TradeLedgerRow(
     val branchId: String,
     val voucherImage: String,
     val remarks: String,
+    /** The main_trx id the approve endpoints key on (0 = row not actionable). */
+    val voucherId: Long,
+    val isApproved: Boolean,
 )
 
 /** The bold summary strip under the table (the web calculators' figures). */
@@ -130,6 +133,75 @@ class TradeLedgerRepository(
             Resource.Error("Something went wrong. Please try again.")
         }
     }
+
+    // ---- Row actions -------------------------------------------------------
+
+    /**
+     * Approves one voucher (`GET accounts/voucher/approved/{id}`) — the web
+     * row icon's own endpoint. The server answers the bare string "1" on
+     * success and "2" for a voucher it cannot find.
+     *
+     * ⚠️ Approval locks the voucher against editing — only confirmed taps.
+     */
+    suspend fun approveVoucher(voucherId: Long): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val response = api.get("accounts/voucher/approved/$voucherId", emptyMap())
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val body = response.body()
+            val primitive = body?.takeIf { it.isJsonPrimitive }?.asString?.trim()
+            val success = body?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            when {
+                primitive == "1" || success == true -> Resource.Success("Voucher approved.")
+                primitive == "2" -> Resource.Error("Voucher not found.")
+                else -> Resource.Error("The voucher could not be approved.")
+            }
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * Withdraws one voucher's approval (`POST admin/voucher/remove/approval`,
+     * body `{id, mtm_id, remove_for_approval}`) — again the row icon's own
+     * endpoint, not the bulk Approval Remove form's.
+     */
+    suspend fun removeApproval(voucherId: Long, vrNo: String): Resource<String> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.postAny(
+                    "admin/voucher/remove/approval",
+                    mapOf(
+                        "id" to voucherId,
+                        "mtm_id" to voucherId,
+                        "remove_for_approval" to vrNo,
+                    ),
+                )
+                if (response.code() == 401) {
+                    return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.", isUnauthorized = true,
+                    )
+                }
+                val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                val success = body?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+                val message = body?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
+                if (success == false) {
+                    Resource.Error(message ?: "The approval could not be removed.")
+                } else {
+                    Resource.Success(message ?: "Approval removed.")
+                }
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
 
     // ---- Row parsing -------------------------------------------------------
 
@@ -221,6 +293,9 @@ class TradeLedgerRepository(
             branchId = text("branch_id"),
             voucherImage = text("voucher_image"),
             remarks = text("remarks"),
+            // The web's fallback chain for the voucher id, in its order.
+            voucherId = long("mtm_id") ?: long("smtm_id") ?: long("mtmid") ?: long("id") ?: 0L,
+            isApproved = long("is_approved") == 1L,
         )
     }
 
