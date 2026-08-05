@@ -1,15 +1,23 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-05):**
+> **Matched to (2026-08-06):**
 > ```
-> cashbookbd_react : b1496bc (2026-08-05 15:21)
-> cashbook_api     : 06fae1bc (2026-08-04 21:49)
+> cashbookbd_react : 549ad6b (2026-08-06 02:01)
+> cashbook_api     : af14b5a0 (2026-08-06 02:13)
 > ```
-> The 08-01..08-05 web batch is ported, including the challan register with
-> its issued-vs-received comparison, the sale nominee dialog and the booking
-> form's generate/withdraw. Still web-only: the scanned-deed upload (multipart
-> file picking) and printing the letter/booking-form PDFs (auth'd PDF streams).
-> `git log b1496bc..HEAD` in the react repo is the next catch-up list.
+> Ported through the 08-05 evening batch: the challan register with its
+> issued-vs-received comparison, the sale nominee dialog, the booking form's
+> generate/withdraw, the branch form's full web layout (Inventory System, the
+> six missing customer switches, and the renamed meta keys the old form was
+> silently posting into), and the cash forms' party-scoped Select Product
+> (product tracking) field.
+>
+> Still web-only: the scanned-deed upload (multipart file picking), printing
+> the letter/booking-form PDFs (auth'd PDF streams), and — from the product
+> tracking module — the Tracking Settings screen, the Product Financial
+> Statement and the Tracking Summary reports (`product-tracking/settings`,
+> `reports/product-financial-statement`, `reports/product-tracking-summary`).
+> `git log 549ad6b..HEAD` in the react repo is the next catch-up list.
 
 What the web gained after this app's last commit, and what it costs to follow.
 
