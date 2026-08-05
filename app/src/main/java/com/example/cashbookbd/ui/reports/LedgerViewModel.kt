@@ -38,14 +38,18 @@ class LedgerViewModel(
 
     // ---- Branch + date defaults --------------------------------------------
 
-    /** Seed both dates from the dashboard's `trDate` (the backend's business date). */
+    /**
+     * Seed the dates from the backend's business date: Start on the 1st of
+     * that month, End on the date itself — a ledger is usually read for the
+     * month so far, not for one day.
+     */
     private fun applyDashboardTransactionDate() {
         viewModelScope.launch {
             val dashboard = dashboardRepository.getCachedDashboard()
                 ?: (dashboardRepository.getDashboard() as? Resource.Success)?.data
             val trDate = SimpleDate.fromDisplay(dashboard?.transactionDate) ?: return@launch
             dateDefaulted = true
-            _uiState.update { it.copy(startDate = trDate, endDate = trDate) }
+            _uiState.update { it.copy(startDate = trDate.copy(day = 1), endDate = trDate) }
         }
     }
 
@@ -61,7 +65,8 @@ class LedgerViewModel(
                         isBranchesLoading = false,
                         branches = result.data.branches,
                         selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
-                        startDate = if (applyBranchDate) branchTrDate!! else it.startDate,
+                        // Start from the month's first day, like the seed above.
+                        startDate = if (applyBranchDate) branchTrDate!!.copy(day = 1) else it.startDate,
                         endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
                     )
                 }
