@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onRegisterClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = viewModel(
         factory = LoginViewModel.provideFactory(LocalContext.current)
@@ -225,6 +226,13 @@ fun LoginScreen(
             )
 
             Spacer(Modifier.height(8.dp))
+
+            // Password reset by OTP, like the web sign-in's link.
+            LinkButton(
+                text = "Forgot password?",
+                onClick = onForgotPasswordClick,
+                enabled = !uiState.isLoading,
+            )
 
             // Mirrors the web sign-in's "Register your company" affordance.
             Row(

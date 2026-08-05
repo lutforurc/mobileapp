@@ -736,6 +736,8 @@ object AppLists {
                 AppListColumn("status_label", "Status"),
             ),
             anyOf = listOf("subscription.plans"),
+            addAction = ListAddAction(label = "New Plan", route = Routes.PLAN_ADD),
+            editAction = ListEditAction(route = Routes.PLAN_EDIT, idKey = "id"),
         ),
 
         // ---- HRM ----

@@ -128,6 +128,8 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "balanceSheet" -> Routes.BALANCE_SHEET
         "dueList" -> Routes.DUE_LIST
         "dueInstallments" -> Routes.DUE_INSTALLMENTS
+        "productStatement" -> Routes.productStatement(null)
+        "productTrackingSummary" -> Routes.PRODUCT_TRACKING_SUMMARY
         else -> Routes.reportView(report.key)
     }
     navigate(route)

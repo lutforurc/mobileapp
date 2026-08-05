@@ -280,8 +280,10 @@ fun accountMenuItems(
     onDashboard: () -> Unit,
     onMyDevices: () -> Unit,
     onSubscription: (() -> Unit)?,
+    onProfile: (() -> Unit)? = null,
 ): List<AccountMenuItem> = buildList {
     add(AccountMenuItem("Dashboard", Icons.Filled.Home, onDashboard))
+    onProfile?.let { add(AccountMenuItem("Profile", Icons.Filled.AccountCircle, it)) }
     add(AccountMenuItem("My Devices", Icons.Filled.Phone, onMyDevices))
     onSubscription?.let { add(AccountMenuItem("Subscription", Icons.Filled.Star, it)) }
 }

@@ -57,6 +57,7 @@ object MenuPermissions {
             "user.view",
             "online.users",
             "user.login.log",
+            "product.tracking.settings.view",
             "company.user",
             "highlight.rules",
             "dayclose.create",

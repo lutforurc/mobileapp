@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
@@ -157,6 +158,9 @@ fun AuthenticatedShell(
     // mirroring the web's top-level Reseller Dashboard sidebar link.
     val canReseller = com.example.cashbookbd.session.MenuPermissions
         .hasMenu(sessionState.permissions, "reseller")
+    // "Analytics" holds one screen (the item comparison chart), like the web.
+    val canAnalytics = com.example.cashbookbd.session.Permissions
+        .has(sessionState.permissions, "analytics.comparison")
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -200,6 +204,7 @@ fun AuthenticatedShell(
                 canProducts = canProducts,
                 canSubscription = canSubscription,
                 canReseller = canReseller,
+                canAnalytics = canAnalytics,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -255,6 +260,7 @@ fun AuthenticatedShell(
                         onFullScreenChange = fullScreenManager::setEnabled,
                         items = accountMenuItems(
                             onDashboard = { navigateTo(Routes.HOME) },
+                            onProfile = { navigateTo(Routes.PROFILE) },
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {
                                 { navigateTo(Routes.SUBSCRIPTION) }
@@ -326,6 +332,7 @@ private fun AppDrawerContent(
     canProducts: Boolean,
     canSubscription: Boolean,
     canReseller: Boolean,
+    canAnalytics: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -405,6 +412,12 @@ private fun AppDrawerContent(
             if (canSubscription) {
                 DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
                     onDestinationClick(Routes.SUBSCRIPTION)
+                }
+            }
+            if (canAnalytics) {
+                // One screen, like the web's one-item Analytics group.
+                DrawerItem("Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON) {
+                    onDestinationClick(Routes.ANALYTICS_COMPARISON)
                 }
             }
             if (canReseller) {

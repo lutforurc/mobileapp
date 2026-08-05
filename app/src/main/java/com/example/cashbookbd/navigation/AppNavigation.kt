@@ -97,6 +97,16 @@ import com.example.cashbookbd.ui.customer.AddCoaL3Screen
 import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
 import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
 import com.example.cashbookbd.ui.inventory.TransferListScreen
+import com.example.cashbookbd.ui.admin.InAppMessageFormScreen
+import com.example.cashbookbd.ui.analytics.ComparisonScreen
+import com.example.cashbookbd.ui.account.ProfileScreen
+import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
+import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
+import com.example.cashbookbd.ui.admin.InventorySystemsScreen
+import com.example.cashbookbd.ui.subscription.PlanFormScreen
+import com.example.cashbookbd.ui.producttracking.ProductStatementScreen
+import com.example.cashbookbd.ui.producttracking.ProductTrackingSettingsScreen
+import com.example.cashbookbd.ui.producttracking.ProductTrackingSummaryScreen
 import com.example.cashbookbd.ui.requisition.RequisitionFormScreen
 import com.example.cashbookbd.ui.requisition.RequisitionHomeScreen
 import com.example.cashbookbd.requisition.RequisitionMenu
@@ -112,6 +122,7 @@ import com.example.cashbookbd.ui.realestate.UnitSaleScreen
 object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val FORGOT_PASSWORD = "forgot-password"
     const val HOME = "home"
 
     // Reports
@@ -165,6 +176,39 @@ object Routes {
 
     /** The branch transfer register: issued/received challans + comparison. */
     const val TRANSFER_LIST = "inventory/transfers"
+
+    /** Platform CRUD of the inventory systems the branch form picks from. */
+    const val INVENTORY_SYSTEMS = "admin/inventory-systems"
+
+    /** The signed-in user's own page (name + profile photo). */
+    const val PROFILE = "account/profile"
+
+    /** The Analytics section's one screen: the two-period item comparison. */
+    const val ANALYTICS_COMPARISON = "analytics/comparison"
+
+    // In-app message campaigns: the admin list and its create/edit form.
+    const val IN_APP_MESSAGES = "admin/in-app-messages"
+    const val IN_APP_MESSAGE_ADD = "admin/in-app-messages/add"
+    const val IN_APP_MESSAGE_EDIT_PATTERN = "admin/in-app-messages/edit/{messageId}"
+    const val IN_APP_MESSAGE_ID_ARG = "messageId"
+
+    fun inAppMessageEdit(id: Long): String = "admin/in-app-messages/edit/$id"
+
+    // SaaS plan entry/edit (the plans list is the subscriptionAdminPlans AppList).
+    const val PLAN_ADD = "subscription/plans/add"
+    const val PLAN_EDIT = "subscription/plans/edit"
+    const val PLAN_EDIT_PATTERN = "subscription/plans/edit/{planId}"
+    const val PLAN_ID_ARG = "planId"
+
+    // Product tracking: the admin settings screen and the two memo reports.
+    const val PRODUCT_TRACKING_SETTINGS = "admin/product-tracking"
+    const val PRODUCT_TRACKING_SUMMARY = "reports/product-tracking-summary"
+    const val PRODUCT_STATEMENT = "reports/product-statement?productId={productId}"
+    const val PRODUCT_STATEMENT_ID_ARG = "productId"
+
+    /** [productId] pre-selects the product (the Summary screen's row tap). */
+    fun productStatement(productId: Long?): String =
+        "reports/product-statement" + (productId?.let { "?productId=$it" } ?: "")
 
     // Requisition section
     const val REQUISITIONS = "requisition/home"
@@ -401,12 +445,21 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 onRegisterClick = {
                     navController.navigate(Routes.REGISTER) { launchSingleTop = true }
                 },
+                onForgotPasswordClick = {
+                    navController.navigate(Routes.FORGOT_PASSWORD) { launchSingleTop = true }
+                },
             )
         }
 
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onRegistered = enterApp,
+                onBackToLogin = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(
                 onBackToLogin = { navController.popBackStack() },
             )
         }
@@ -553,6 +606,108 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     formKey = key,
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        composable(Routes.ANALYTICS_COMPARISON) {
+            PermissionGate(anyOf = listOf("analytics.comparison")) {
+                ComparisonScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.IN_APP_MESSAGES) {
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                InAppMessagesAdminScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.IN_APP_MESSAGE_ADD) {
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                InAppMessageFormScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(
+            route = Routes.IN_APP_MESSAGE_EDIT_PATTERN,
+            arguments = listOf(navArgument(Routes.IN_APP_MESSAGE_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                InAppMessageFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    messageId = backStackEntry.arguments
+                        ?.getString(Routes.IN_APP_MESSAGE_ID_ARG)?.toLongOrNull(),
+                )
+            }
+        }
+
+        composable(Routes.PLAN_ADD) {
+            PermissionGate(anyOf = listOf("subscription.plans")) {
+                PlanFormScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(
+            route = Routes.PLAN_EDIT_PATTERN,
+            arguments = listOf(navArgument(Routes.PLAN_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            PermissionGate(anyOf = listOf("subscription.plans")) {
+                PlanFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    planId = backStackEntry.arguments?.getString(Routes.PLAN_ID_ARG)?.toLongOrNull(),
+                )
+            }
+        }
+
+        composable(Routes.INVENTORY_SYSTEMS) {
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                InventorySystemsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PRODUCT_TRACKING_SETTINGS) {
+            PermissionGate(anyOf = listOf("product.tracking.settings.view")) {
+                ProductTrackingSettingsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PRODUCT_TRACKING_SUMMARY) {
+            PermissionGate(anyOf = listOf("product.tracking.report.view")) {
+                ProductTrackingSummaryScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.PRODUCT_STATEMENT,
+            arguments = listOf(
+                navArgument(Routes.PRODUCT_STATEMENT_ID_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
+        ) { backStackEntry ->
+            PermissionGate(anyOf = listOf("product.tracking.report.view")) {
+                ProductStatementScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    initialProductId = backStackEntry.arguments
+                        ?.getString(Routes.PRODUCT_STATEMENT_ID_ARG)?.toLongOrNull(),
                 )
             }
         }

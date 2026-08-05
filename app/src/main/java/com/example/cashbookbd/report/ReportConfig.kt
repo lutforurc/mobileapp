@@ -450,6 +450,32 @@ object ReportMenu {
             native = true,
         ),
 
+        // The two product-tracking memo reports — bespoke screens: summary
+        // cards, running balances and the unmapped-transactions notice don't
+        // fit the generic table.
+        ReportConfig(
+            key = "productStatement",
+            title = "Product Statement",
+            routeName = "ReportProductStatement",
+            webPath = "/reports/product-financial-statement",
+            anyOf = listOf("product.tracking.report.view"),
+            endpointKey = "cashbook", // unused: native screen fetches itself
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "productTrackingSummary",
+            title = "Product Receivable / Payable",
+            routeName = "ReportProductTrackingSummary",
+            webPath = "/reports/product-receivable-payable",
+            anyOf = listOf("product.tracking.report.view"),
+            endpointKey = "cashbook", // unused: native screen fetches itself
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
+
         ReportConfig(
             key = "bankbook",
             title = "Bank Book",

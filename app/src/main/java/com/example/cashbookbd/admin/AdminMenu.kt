@@ -38,6 +38,9 @@ object AdminMenu {
         // branch.view / all.user.view (which was leaking items into the menu).
         AdminItem("companyList", "Company List", listOf("company.view"), supported = true),
         AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
+        // Which products carry their own bill/collection ledger — the module's
+        // settings screen; its two reports live in the Reports section.
+        AdminItem("productTracking", "Product Tracking", listOf("product.tracking.settings.view"), supported = true),
         AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = true),
         AdminItem("userList", "User List", USER_VIEW, supported = true),
         AdminItem("onlineUsers", "Online Users", listOf("online.users", "user.view"), supported = true),
@@ -53,6 +56,15 @@ object AdminMenu {
         // Platform broadcasts; the server additionally restricts to company 1.
         AdminItem(
             "adminNotifications", "Admin Notifications",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
+        ),
+        // Platform screens (the server additionally restricts to platform admin).
+        AdminItem(
+            "inAppMessages", "In-App Messages",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
+        ),
+        AdminItem(
+            "inventorySystems", "Inventory Systems",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
         ),
         AdminItem("smsLogs", "SMS Logs", listOf("sms.logs"), supported = true),

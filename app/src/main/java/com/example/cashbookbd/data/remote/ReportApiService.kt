@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.QueryMap
@@ -54,7 +55,36 @@ interface ReportApiService {
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): Response<JsonElement>
 
+    /** A POST with a raw JSON object body (nulls preserved) — campaign saves. */
+    @POST
+    suspend fun postObjectRaw(
+        @Url url: String,
+        @Body body: com.google.gson.JsonObject,
+    ): Response<JsonElement>
+
+    /** Multipart image upload (field name `image`) — the profile photo. */
+    @retrofit2.http.Multipart
+    @POST
+    suspend fun uploadImage(
+        @Url url: String,
+        @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
+    ): Response<JsonElement>
+
     /** A bodiless DELETE — withdrawing an issued allotment letter/booking form. */
     @DELETE
     suspend fun delete(@Url url: String): Response<JsonElement>
+
+    /** A PATCH with mixed-type values — the product-tracking toggle. */
+    @PATCH
+    suspend fun patchAny(
+        @Url url: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): Response<JsonElement>
+
+    /** A PUT whose body may hold non-string values (inventory-system update). */
+    @PUT
+    suspend fun putAny(
+        @Url url: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): Response<JsonElement>
 }
