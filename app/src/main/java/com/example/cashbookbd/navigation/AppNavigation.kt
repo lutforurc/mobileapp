@@ -101,7 +101,9 @@ import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
 import com.example.cashbookbd.ui.inventory.TransferListScreen
 import com.example.cashbookbd.ui.admin.InAppMessageFormScreen
 import com.example.cashbookbd.ui.analytics.ComparisonScreen
+import com.example.cashbookbd.data.repository.TradeLedgerKind
 import com.example.cashbookbd.ui.account.ProfileScreen
+import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
@@ -187,6 +189,12 @@ object Routes {
 
     /** The signed-in user's own page (name + profile photo). */
     const val PROFILE = "account/profile"
+
+    // Purchase/Sales Ledger — one native screen keyed by kind.
+    const val TRADE_LEDGER_PATTERN = "reports/trade-ledger/{kind}"
+    const val TRADE_LEDGER_KIND_ARG = "kind"
+
+    fun tradeLedger(kind: String): String = "reports/trade-ledger/$kind"
 
     /** The Analytics section's one screen: the two-period item comparison. */
     const val ANALYTICS_COMPARISON = "analytics/comparison"
@@ -612,6 +620,26 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     formKey = key,
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.TRADE_LEDGER_PATTERN,
+            arguments = listOf(navArgument(Routes.TRADE_LEDGER_KIND_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val kind = if (backStackEntry.arguments?.getString(Routes.TRADE_LEDGER_KIND_ARG) == "sales") {
+                TradeLedgerKind.SALES
+            } else {
+                TradeLedgerKind.PURCHASE
+            }
+            PermissionGate(
+                anyOf = listOf(if (kind == TradeLedgerKind.SALES) "sales.ledger" else "purchase.ledger"),
+            ) {
+                TradeLedgerScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    kind = kind,
                 )
             }
         }

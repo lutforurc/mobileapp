@@ -130,6 +130,8 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "dueInstallments" -> Routes.DUE_INSTALLMENTS
         "productStatement" -> Routes.productStatement(null)
         "productTrackingSummary" -> Routes.PRODUCT_TRACKING_SUMMARY
+        "purchaseLedger" -> Routes.tradeLedger("purchase")
+        "salesLedger" -> Routes.tradeLedger("sales")
         else -> Routes.reportView(report.key)
     }
     navigate(route)

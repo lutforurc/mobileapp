@@ -53,6 +53,7 @@ import com.example.cashbookbd.data.repository.UnitSalePaymentRepository
 import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.OrderRepository
 import com.example.cashbookbd.data.repository.ProductTrackingRepository
+import com.example.cashbookbd.data.repository.TradeLedgerRepository
 import com.example.cashbookbd.data.repository.SmsRepository
 import com.example.cashbookbd.data.repository.CompanyRepository
 import com.example.cashbookbd.data.repository.OrderReportsRepository
@@ -145,6 +146,7 @@ object ServiceLocator {
     @Volatile
     private var inventoryMovementRepository: InventoryMovementRepository? = null
     private var productTrackingRepository: ProductTrackingRepository? = null
+    private var tradeLedgerRepository: TradeLedgerRepository? = null
 
     @Volatile
     private var realEstateApiService: RealEstateApiService? = null
@@ -604,6 +606,13 @@ object ServiceLocator {
                 reportApi = provideReportApiService(context),
                 transactionApi = provideTransactionApiService(context),
             ).also { inventoryMovementRepository = it }
+        }
+
+    fun provideTradeLedgerRepository(context: Context): TradeLedgerRepository =
+        tradeLedgerRepository ?: synchronized(this) {
+            tradeLedgerRepository ?: TradeLedgerRepository(
+                api = provideReportApiService(context),
+            ).also { tradeLedgerRepository = it }
         }
 
     fun provideProductTrackingRepository(context: Context): ProductTrackingRepository =

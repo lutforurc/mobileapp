@@ -37,6 +37,8 @@ data class Settings(
      * customer form asks for a Bangla name beside the English one.
      */
     val useBangla: Boolean = false,
+    /** Branch column `stock_report_type`: product cells carry a category prefix. */
+    val stockReportTypeGrouped: Boolean = false,
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,

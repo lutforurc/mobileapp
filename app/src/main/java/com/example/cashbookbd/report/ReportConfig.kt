@@ -793,11 +793,10 @@ object ReportMenu {
             // The API runs branch-wide when no supplier is chosen.
             ledgerRequired = false,
             extraParams = mapOf("delay" to "1"),
-            // The purchase voucher's note lives only inside the nested master;
-            // it is surfaced as a "Notes" column and highlight-rule matched.
-            highlightPaths = listOf("purchase_master.notes"),
-            highlightColumn = "notes",
-            voucherImages = ReportVoucherImages(),
+            // Rendered by the bespoke TradeLedgerScreen: the web's one-row-per-
+            // voucher table with stacked product lines cannot ride the flat
+            // generic table.
+            native = true,
         ),
         ReportConfig(
             key = "salesLedger",
@@ -814,15 +813,8 @@ object ReportMenu {
             // The API runs branch-wide when no customer is chosen.
             ledgerRequired = false,
             extraParams = mapOf("delay" to "1"),
-            // Same fallback order the web uses: the sales note, the flat copy
-            // the API appends, then the journal detail's remarks.
-            highlightPaths = listOf(
-                "sales_master.notes",
-                "notes",
-                "acc_transaction_master.0.acc_transaction_details.0.remarks",
-            ),
-            highlightColumn = "notes",
-            voucherImages = ReportVoucherImages(),
+            // Rendered by the bespoke TradeLedgerScreen — see purchaseLedger.
+            native = true,
         ),
         ReportConfig(
             key = "mitchMatch",

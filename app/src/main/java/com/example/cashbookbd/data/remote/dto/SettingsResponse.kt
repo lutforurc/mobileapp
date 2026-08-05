@@ -99,6 +99,9 @@ data class SettingsBranchDto(
      * the branch rather than a meta, so it arrives as a number, never "1".
      */
     @SerializedName("use_bangla") val useBangla: String? = null,
+    /** Branch column: the stock report (and ledger product cells) group by
+     *  Brand → Category → Item, so product names carry their category prefix. */
+    @SerializedName("stock_report_type") val stockReportType: String? = null,
     // The 2026-07 branch metas. Each arrives as "1"/"0", or the boolean `false`
     // when the meta row was never written (Gson reads that into "false") — the
     // mapper treats only "1" as on.

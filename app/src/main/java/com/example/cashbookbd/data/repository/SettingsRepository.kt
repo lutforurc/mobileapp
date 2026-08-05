@@ -71,6 +71,8 @@ class SettingsRepository(
                     // A branch column, not a meta — arrives as a number. The web
                     // reads it loosely (String(x) === '1'), so parse numerically.
                     useBangla = payload?.branch?.useBangla?.trim()?.toDoubleOrNull() == 1.0,
+                    stockReportTypeGrouped = payload?.branch?.stockReportType?.trim()
+                        ?.toDoubleOrNull() == 1.0,
                     // The web checks String(x) === '1' on each of these metas.
                     needCustomerArea = payload?.branch?.needCustomerArea?.trim() == "1",
                     needCustomerSex = payload?.branch?.needCustomerSex?.trim() == "1",
