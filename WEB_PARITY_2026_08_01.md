@@ -19,6 +19,42 @@
 > `reports/product-financial-statement`, `reports/product-tracking-summary`).
 > `git log 549ad6b..HEAD` in the react repo is the next catch-up list.
 
+## Full-surface audit — 2026-08-06
+
+Every web sidebar item and route was enumerated and matched against every
+mobile registry (menus, ReportConfig, AppLists, Routes). Transaction, Invoice,
+Reports, Requisition, Real Estate, Products, Customers, VR Settings, HRM and
+Subscription are at parity. What the web has and this app does not:
+
+| Gap | Web route | Permission | Note |
+|---|---|---|---|
+| Product Tracking settings | /settings/product-tracking | product.tracking.settings.view | module's admin screen |
+| Product Statement report | /reports/product-financial-statement | product.tracking.report.view | |
+| Product Receivable/Payable | /reports/product-receivable-payable | product.tracking.report.view | |
+| In-App Messages admin | /admin/in-app-messages (+create/edit) | reseller/subscription/all.user.view | app SHOWS campaigns, cannot manage them |
+| Inventory Systems admin | /admin/inventory-systems | reseller/subscription/all.user.view | platform CRUD |
+| Analytics → Comparison | /item/item-chart | analytics.comparison | item compare chart; no Analytics section on mobile |
+| Resellers screen | /admin/resellers | reseller.view … | mobile menu item is a placeholder |
+| Approval Center (+audit) | /approval-center | approval.center | mobile placeholder |
+| Profile page | /profile | (none) | account menu has no profile edit |
+| Forgot Password | /forgot-password | public | login screen has no reset flow |
+| Subscription plan entry/edit | /subscription/admin/plans/entry|edit | subscription.plans | mobile lists plans read-only |
+| Voucher/Bulk Upload, Purchase/Sales Import | various | — | file uploads/imports, web-only class |
+| Customer portal | /customer/* | — | different audience, web-only by design |
+
+Deliberate divergences (fine as they are): the web's "Branch Transfer" drawer
+group lives inside Invoice + Reports here; Due/Employee Installments are not
+business_type_id==4-gated here; the web's absent/late/early-out attendance
+presets ride the one Attendance Alerts report here.
+
+Web-side bugs found while auditing (fix in the REACT repo, not here): the
+/vr-settings/voucher-activity route guard still checks `voucher.changes`
+while the sidebar checks `log.changes` (holder of only log.changes is bounced
+to /no-access); sidebar/route permission mismatches on Ledger Details
+(ledger.details vs ledger.customer), Bank Book & Cash & Bank Summary
+(bank.book/cash.bank.summery vs cashbook.view), and Branch Issue
+(branch.issue.create vs the transfer-create set).
+
 What the web gained after this app's last commit, and what it costs to follow.
 
 Baseline for this document:
