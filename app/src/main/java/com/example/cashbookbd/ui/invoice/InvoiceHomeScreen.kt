@@ -90,6 +90,7 @@ fun InvoiceHomeScreen(
                             InvoiceMenu.BRANCH_ISSUE_KEY,
                             InvoiceMenu.MATERIAL_ISSUE_KEY,
                             -> Routes.inventoryView(item.key)
+                            InvoiceMenu.TRANSFER_LIST_KEY -> Routes.TRANSFER_LIST
                             else -> Routes.invoiceView(item.key)
                         }
                         navController.navigate(route)

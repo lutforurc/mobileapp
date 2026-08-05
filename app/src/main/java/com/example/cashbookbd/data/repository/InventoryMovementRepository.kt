@@ -66,6 +66,43 @@ data class BranchTransferHeader(
 )
 
 /**
+ * One challan of the branch transfer registers (`warehouse/transfer/list` /
+ * `warehouse/received/list`). transfer_status 1 = in transit (still
+ * receivable), 3 = fully received.
+ */
+data class TransferChallan(
+    val id: Long,
+    val vrNo: String,
+    val challanNumber: String,
+    val date: String,
+    val fromBranch: String,
+    val toBranch: String,
+    val status: Int,
+)
+
+/** One product's figures on the issued-vs-received comparison. */
+data class ComparisonRow(
+    val productName: String,
+    val issuedQty: Double,
+    val receivedQty: Double,
+    val damagedQty: Double,
+    val shortQty: Double,
+    val difference: Double,
+)
+
+/**
+ * What was sent against what arrived, for one challan. Given a receive, the
+ * server answers about the issue behind it — the question is always "against
+ * what was sent", whichever end you happen to be looking at.
+ */
+data class TransferComparison(
+    val rows: List<ComparisonRow>,
+    val totals: ComparisonRow?,
+    /** False while nothing has been received against this challan yet. */
+    val isReceived: Boolean,
+)
+
+/**
  * A transfer submit that reached the server: either it saved a voucher, or it
  * bounced with a stock-shortage list awaiting the user's "transfer anyway".
  */
@@ -119,6 +156,89 @@ class InventoryMovementRepository(
             )
         }
     }
+
+    /**
+     * The challan register: issues (`warehouse/transfer/list`, transfer_type 1)
+     * or receives (`warehouse/received/list`). The server scopes to the
+     * caller's company and — outside the Head Office — to the branches the
+     * caller is party to; it caps the answer at the newest 200 rows.
+     */
+    suspend fun fetchChallans(received: Boolean): Resource<List<TransferChallan>> =
+        withContext(ioDispatcher) {
+            safeCall {
+                val endpoint = if (received) "warehouse/received/list" else "warehouse/transfer/list"
+                val params = buildMap {
+                    put("limit", "200")
+                    // The issue register would otherwise list receives too —
+                    // they live in the same table, told apart by type.
+                    if (!received) put("transfer_type", "1")
+                }
+                val response = reportApi.get(endpoint, params)
+                response.unauthorizedOrNull()?.let { return@safeCall it }
+                if (!response.isSuccessful) {
+                    return@safeCall Resource.Error("Server error (${response.code()}). Please try again later.")
+                }
+                val array = unwrap(response.body())?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?: return@safeCall Resource.Success(emptyList())
+                Resource.Success(
+                    array.mapNotNull { el ->
+                        val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                        val id = o.str("id")?.toLongOrNull() ?: return@mapNotNull null
+                        TransferChallan(
+                            id = id,
+                            vrNo = o.str("vr_no").orEmpty(),
+                            challanNumber = o.str("challan_number").orEmpty(),
+                            date = o.str("challan_date")?.ifBlank { null }
+                                ?: o.str("vr_date").orEmpty(),
+                            fromBranch = o.str("from_branch_name").orEmpty(),
+                            toBranch = o.str("to_branch_name").orEmpty(),
+                            status = o.str("transfer_status")?.toDoubleOrNull()?.toInt() ?: 0,
+                        )
+                    }
+                )
+            }
+        }
+
+    /**
+     * `GET warehouse/transfer/comparison/{id}` — what was sent against what
+     * arrived, product by product. Works from either end: handed a receive, it
+     * answers about the issue behind it.
+     */
+    suspend fun fetchComparison(challanId: Long): Resource<TransferComparison> =
+        withContext(ioDispatcher) {
+            safeCall {
+                val response = reportApi.get("warehouse/transfer/comparison/$challanId", emptyMap())
+                response.unauthorizedOrNull()?.let { return@safeCall it }
+                if (!response.isSuccessful) {
+                    return@safeCall Resource.Error("Server error (${response.code()}). Please try again later.")
+                }
+                val payload = unwrap(response.body())?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@safeCall Resource.Error("Could not load the issued versus received figures.")
+
+                fun JsonObject.toComparisonRow() = ComparisonRow(
+                    productName = str("product_name").orEmpty(),
+                    issuedQty = str("issued_qty")?.toDoubleOrNull() ?: 0.0,
+                    receivedQty = str("received_qty")?.toDoubleOrNull() ?: 0.0,
+                    damagedQty = str("damaged_qty")?.toDoubleOrNull() ?: 0.0,
+                    shortQty = str("short_qty")?.toDoubleOrNull() ?: 0.0,
+                    difference = str("difference")?.toDoubleOrNull() ?: 0.0,
+                )
+
+                Resource.Success(
+                    TransferComparison(
+                        rows = payload.get("rows")?.takeIf { it.isJsonArray }?.asJsonArray
+                            ?.mapNotNull { el ->
+                                el.takeIf { it.isJsonObject }?.asJsonObject?.toComparisonRow()
+                            }
+                            .orEmpty(),
+                        totals = payload.get("totals")?.takeIf { it.isJsonObject }
+                            ?.asJsonObject?.toComparisonRow(),
+                        isReceived = payload.get("is_received")
+                            ?.takeUnless { it.isJsonNull }?.asBoolean == true,
+                    )
+                )
+            }
+        }
 
     /**
      * Product search for the line editor (`requisition/items?q=`). Each option

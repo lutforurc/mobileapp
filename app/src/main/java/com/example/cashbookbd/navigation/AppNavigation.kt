@@ -96,6 +96,7 @@ import com.example.cashbookbd.ui.subscription.SubscriptionAdminScreen
 import com.example.cashbookbd.ui.customer.AddCoaL3Screen
 import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
 import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
+import com.example.cashbookbd.ui.inventory.TransferListScreen
 import com.example.cashbookbd.ui.requisition.RequisitionFormScreen
 import com.example.cashbookbd.ui.requisition.RequisitionHomeScreen
 import com.example.cashbookbd.requisition.RequisitionMenu
@@ -161,6 +162,9 @@ object Routes {
     const val INVENTORY_KEY_ARG = "key"
 
     fun inventoryView(key: String): String = "inventory/view/$key"
+
+    /** The branch transfer register: issued/received challans + comparison. */
+    const val TRANSFER_LIST = "inventory/transfers"
 
     // Requisition section
     const val REQUISITIONS = "requisition/home"
@@ -547,6 +551,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = InvoiceMenu.byKey(key)?.anyOf ?: emptyList()) {
                 InventoryMovementScreen(
                     formKey = key,
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.TRANSFER_LIST) {
+            PermissionGate(anyOf = InvoiceMenu.byKey(InvoiceMenu.TRANSFER_LIST_KEY)?.anyOf ?: emptyList()) {
+                TransferListScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

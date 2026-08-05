@@ -35,6 +35,9 @@ object InvoiceMenu {
     const val BRANCH_ISSUE_KEY = "branchIssue"
     const val MATERIAL_ISSUE_KEY = "materialIssue"
 
+    /** The challan register (issued/received + issued-vs-received figures). */
+    const val TRANSFER_LIST_KEY = "transferList"
+
     val all: List<InvoiceItem> = listOf(
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
         // Import/return items are gated on their OWN permission in the web sidebar,
@@ -71,6 +74,15 @@ object InvoiceMenu {
             MATERIAL_ISSUE_KEY,
             "Material Issue",
             listOf("material.issue.create", "inventory.issue.create", "purchase.create"),
+            supported = true,
+        ),
+        // The register behind the two forms above: what each challan issued
+        // against what the other branch received. Visible to whoever can work
+        // either end of a transfer.
+        InvoiceItem(
+            TRANSFER_LIST_KEY,
+            "Branch Transfer List",
+            listOf("branch.transfer.create", "branch.received.create"),
             supported = true,
         ),
     )

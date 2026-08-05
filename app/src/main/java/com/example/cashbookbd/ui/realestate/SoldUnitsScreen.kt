@@ -65,6 +65,8 @@ import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.data.repository.SaleNomineeOption
+import com.example.cashbookbd.data.repository.SaleNomineePick
 import com.example.cashbookbd.data.repository.SoldUnitSale
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
@@ -111,9 +113,11 @@ data class SoldUnitsUiState(
     val hasApplied: Boolean = false,
     val report: SoldUnitsReport? = null,
 
-    // Allotment-letter Generate: the sale awaiting confirmation, and the one
-    // whose snapshot save is in flight (its button shows the spinner).
+    // Paper Generate: the sale awaiting confirmation, which paper it is about
+    // (letter or booking form — issued the same way, headed the same way, so
+    // they share the dialog), and the sale whose save is in flight.
     val pendingGenerate: com.example.cashbookbd.data.repository.SoldUnitSale? = null,
+    val generateKind: PaperKind = PaperKind.LETTER,
     val generatingSaleId: String? = null,
     /** What the letter will be headed with — the office's to overwrite. */
     val refNo: String = "",
@@ -123,15 +127,36 @@ data class SoldUnitsUiState(
     val actionMessage: String? = null,
 
     /**
-     * Withdrawing an issued letter is its own permission
-     * (`allotment.letter.delete`), granted separately from issuing one.
-     * Without it the L-n chips print and nothing more.
+     * Withdrawing an issued paper is its own permission per paper
+     * (`allotment.letter.delete` / `booking.form.delete`), granted separately
+     * from issuing one. Without it the chips print and nothing more.
      */
     val canWithdrawLetter: Boolean = false,
-    /** The issued copy awaiting the withdraw confirmation: sale + L-version. */
-    val pendingWithdraw: Pair<com.example.cashbookbd.data.repository.SoldUnitSale, Int>? = null,
+    val canWithdrawBooking: Boolean = false,
+    /** The issued copy awaiting the withdraw confirmation. */
+    val pendingWithdraw: WithdrawTarget? = null,
+
+    // The sale whose nominees are being named, and the dialog's working state.
+    // Done here as well as at booking: most buyers settle on a nominee after
+    // the money has been taken.
+    val nomineeSale: com.example.cashbookbd.data.repository.SoldUnitSale? = null,
+    val nomineeLoading: Boolean = false,
+    val nomineeAvailable: List<SaleNomineeOption> = emptyList(),
+    /** Nominee id → the pick as typed. Absent = not named on this sale. */
+    val nomineePicks: Map<Long, SaleNomineePick> = emptyMap(),
+    val nomineeSaving: Boolean = false,
 
     val sessionExpired: Boolean = false,
+)
+
+/** Which issued paper an action is about. The two ride separate series. */
+enum class PaperKind { LETTER, BOOKING }
+
+/** One issued copy: the sale, which paper, and its number. */
+data class WithdrawTarget(
+    val sale: com.example.cashbookbd.data.repository.SoldUnitSale,
+    val kind: PaperKind,
+    val version: Int,
 )
 
 class SoldUnitsViewModel(
@@ -144,6 +169,10 @@ class SoldUnitsViewModel(
             canWithdrawLetter = com.example.cashbookbd.session.Permissions.has(
                 settings?.permissions,
                 "allotment.letter.delete",
+            ),
+            canWithdrawBooking = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions,
+                "booking.form.delete",
             ),
         )
     )
@@ -242,15 +271,22 @@ class SoldUnitsViewModel(
         return "$prefix/${on.year}/$serial"
     }
 
-    /** Opens the confirmation with the reference/date the letter will carry. */
-    fun requestGenerate(sale: com.example.cashbookbd.data.repository.SoldUnitSale) {
+    /** Opens the confirmation with the reference/date the paper will carry. */
+    fun requestGenerate(
+        sale: com.example.cashbookbd.data.repository.SoldUnitSale,
+        kind: PaperKind = PaperKind.LETTER,
+    ) {
         // The branch's letter date when it keeps one, else today — an offer the
         // clerk sees and can overwrite, never a silent default.
         val on = settings?.letterRefDate?.let { SimpleDate.fromApi(it) } ?: SimpleDate.today()
-        val suggestion = suggestRefNo(sale, on)
+        // The letter's prefix is not offered for a booking form: the two are
+        // numbered in separate series, and BST/ALLOT on a booking form would be
+        // wrong in a way nobody notices until the register is reconciled.
+        val suggestion = if (kind == PaperKind.LETTER) suggestRefNo(sale, on) else ""
         _uiState.update {
             it.copy(
                 pendingGenerate = sale,
+                generateKind = kind,
                 refDate = on,
                 refNo = suggestion,
                 suggestedRefNo = suggestion,
@@ -265,7 +301,7 @@ class SoldUnitsViewModel(
     fun onRefDateSelected(date: SimpleDate) {
         val state = _uiState.value
         val sale = state.pendingGenerate ?: return
-        val next = suggestRefNo(sale, date)
+        val next = if (state.generateKind == PaperKind.LETTER) suggestRefNo(sale, date) else ""
         _uiState.update {
             it.copy(
                 refDate = date,
@@ -277,16 +313,21 @@ class SoldUnitsViewModel(
 
     fun cancelGenerate() = _uiState.update { it.copy(pendingGenerate = null) }
 
-    /** Confirms the snapshot save, then silently refreshes so L-counts update. */
+    /** Confirms the snapshot save, then silently refreshes so the chips update. */
     fun confirmGenerate() {
         val state = _uiState.value
         val sale = state.pendingGenerate ?: return
         if (state.generatingSaleId != null) return
         val refNo = state.refNo
         val refDate = state.refDate?.toApi()
+        val kind = state.generateKind
         _uiState.update { it.copy(pendingGenerate = null, generatingSaleId = sale.saleId) }
         viewModelScope.launch {
-            when (val result = repository.generateAllotmentLetter(sale.saleId, refNo, refDate)) {
+            val result = when (kind) {
+                PaperKind.LETTER -> repository.generateAllotmentLetter(sale.saleId, refNo, refDate)
+                PaperKind.BOOKING -> repository.generateBookingForm(sale.saleId, refNo, refDate)
+            }
+            when (result) {
                 is Resource.Success -> {
                     _uiState.update { it.copy(actionMessage = result.data) }
                     refreshSilently()
@@ -303,10 +344,13 @@ class SoldUnitsViewModel(
         }
     }
 
-    // ---- Withdraw an issued letter ----------------------------------------
+    // ---- Withdraw an issued paper -----------------------------------------
 
-    fun requestWithdraw(sale: com.example.cashbookbd.data.repository.SoldUnitSale, version: Int) =
-        _uiState.update { it.copy(pendingWithdraw = sale to version) }
+    fun requestWithdraw(
+        sale: com.example.cashbookbd.data.repository.SoldUnitSale,
+        kind: PaperKind,
+        version: Int,
+    ) = _uiState.update { it.copy(pendingWithdraw = WithdrawTarget(sale, kind, version)) }
 
     fun cancelWithdraw() = _uiState.update { it.copy(pendingWithdraw = null) }
 
@@ -317,11 +361,15 @@ class SoldUnitsViewModel(
      */
     fun confirmWithdraw() {
         val state = _uiState.value
-        val (sale, version) = state.pendingWithdraw ?: return
+        val target = state.pendingWithdraw ?: return
         if (state.generatingSaleId != null) return
-        _uiState.update { it.copy(pendingWithdraw = null, generatingSaleId = sale.saleId) }
+        _uiState.update { it.copy(pendingWithdraw = null, generatingSaleId = target.sale.saleId) }
         viewModelScope.launch {
-            when (val result = repository.withdrawAllotmentLetter(sale.saleId, version)) {
+            val result = when (target.kind) {
+                PaperKind.LETTER -> repository.withdrawAllotmentLetter(target.sale.saleId, target.version)
+                PaperKind.BOOKING -> repository.withdrawBookingForm(target.sale.saleId, target.version)
+            }
+            when (result) {
                 is Resource.Success -> {
                     _uiState.update { it.copy(actionMessage = result.data) }
                     refreshSilently()
@@ -329,6 +377,120 @@ class SoldUnitsViewModel(
                 is Resource.Error -> _uiState.update {
                     it.copy(
                         generatingSaleId = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    // ---- Sale nominees ----------------------------------------------------
+
+    /** Opens the nominee dialog and loads who is available and already named. */
+    fun openNominees(sale: com.example.cashbookbd.data.repository.SoldUnitSale) {
+        _uiState.update {
+            it.copy(
+                nomineeSale = sale,
+                nomineeLoading = true,
+                nomineeAvailable = emptyList(),
+                nomineePicks = emptyMap(),
+            )
+        }
+        viewModelScope.launch {
+            when (val result = repository.fetchSaleNominees(sale.saleId)) {
+                is Resource.Success -> _uiState.update { state ->
+                    state.copy(
+                        nomineeLoading = false,
+                        nomineeAvailable = result.data.available,
+                        nomineePicks = result.data.attached.associateBy { it.nomineeId },
+                    )
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        nomineeSale = null,
+                        nomineeLoading = false,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun closeNominees() = _uiState.update { it.copy(nomineeSale = null) }
+
+    fun toggleNominee(option: SaleNomineeOption) = _uiState.update { state ->
+        val picks = state.nomineePicks.toMutableMap()
+        if (picks.remove(option.id) == null) {
+            // The buyer's own default share as the starting point; this
+            // property is free to differ, and most of the time it does not.
+            picks[option.id] = SaleNomineePick(
+                nomineeId = option.id,
+                share = option.defaultShare,
+                priority = "",
+            )
+        }
+        state.copy(nomineePicks = picks)
+    }
+
+    fun onNomineeShare(id: Long, value: String) = _uiState.update { state ->
+        state.nomineePicks[id]?.let { pick ->
+            state.copy(nomineePicks = state.nomineePicks + (id to pick.copy(share = value)))
+        } ?: state
+    }
+
+    fun onNomineePriority(id: Long, value: String) = _uiState.update { state ->
+        state.nomineePicks[id]?.let { pick ->
+            state.copy(nomineePicks = state.nomineePicks + (id to pick.copy(priority = value)))
+        } ?: state
+    }
+
+    /**
+     * The same two rules the server enforces, caught before the round trip:
+     * shares may not exceed 100, and a set where EVERY pick carries a share
+     * must account for all of it. A blank share is a nomination whose division
+     * is left to law, which is allowed.
+     */
+    fun nomineeShareProblem(): String? {
+        val picked = orderedPicks()
+        val shared = picked.mapNotNull { it.share.trim().toDoubleOrNull() }
+        if (shared.isEmpty()) return null
+        val total = shared.sum()
+        if (total > 100.0) {
+            return "Nominee shares add up to ${AmountFormat.format(total, 0)}%, which is more than the property."
+        }
+        if (shared.size == picked.size && kotlin.math.abs(total - 100.0) > 0.01) {
+            return "Every nominee carries a share, so they must add up to 100% — " +
+                "they add up to ${AmountFormat.format(total, 0)}%."
+        }
+        return null
+    }
+
+    /** Picks in the order the available list shows them — the print order. */
+    private fun orderedPicks(): List<SaleNomineePick> =
+        _uiState.value.nomineeAvailable.mapNotNull { _uiState.value.nomineePicks[it.id] }
+
+    /** Saves the sale's nominations, then refreshes so the count updates. */
+    fun saveNominees() {
+        val state = _uiState.value
+        val sale = state.nomineeSale ?: return
+        if (state.nomineeSaving) return
+        if (nomineeShareProblem() != null) return
+        _uiState.update { it.copy(nomineeSaving = true) }
+        viewModelScope.launch {
+            when (val result = repository.saveSaleNominees(sale.saleId, orderedPicks())) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(nomineeSaving = false, nomineeSale = null, actionMessage = result.data)
+                    }
+                    refreshSilently()
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        nomineeSaving = false,
                         actionMessage = result.message,
                         sessionExpired = it.sessionExpired || result.isUnauthorized,
                     )
@@ -531,7 +693,9 @@ fun SoldUnitsScreen(
                         generatingSaleId = state.generatingSaleId,
                         onGenerate = viewModel::requestGenerate,
                         canWithdrawLetter = state.canWithdrawLetter,
+                        canWithdrawBooking = state.canWithdrawBooking,
                         onWithdraw = viewModel::requestWithdraw,
+                        onNominees = viewModel::openNominees,
                     )
                 }
             }
@@ -541,16 +705,23 @@ fun SoldUnitsScreen(
     }
 
     // The web's Generate confirmation: a snapshot is immutable once saved. The
-    // reference and date head the letter — both the office's to overwrite
-    // (the register's number, and the day the letter actually goes out).
+    // reference and date head the paper — both the office's to overwrite
+    // (the register's number, and the day the paper actually goes out).
     state.pendingGenerate?.let { sale ->
+        val isLetter = state.generateKind == PaperKind.LETTER
+        val paperName = if (isLetter) "allotment letter" else "booking form"
+        val nextCopy = if (isLetter) {
+            "L-${(sale.letterVersions.maxOrNull() ?: 0) + 1}"
+        } else {
+            "B-${(sale.bookingFormVersions.maxOrNull() ?: 0) + 1}"
+        }
         AlertDialog(
             onDismissRequest = viewModel::cancelGenerate,
-            title = { Text("Generate allotment letter?") },
+            title = { Text("Generate $paperName?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "This saves letter L-${sale.letterCount + 1} for receipt " +
+                        "This saves $paperName $nextCopy for receipt " +
                             "${sale.receiptNo.ifBlank { "(no receipt)" }} as a permanent snapshot. " +
                             "Saved versions can be printed from the web.",
                     )
@@ -587,14 +758,16 @@ fun SoldUnitsScreen(
     // Withdrawing removes a copy that may already have been handed over, so it
     // asks first, names the paper, and says the number is not reused — the
     // obvious worry on withdrawing L-2 is whether L-3 is about to be renamed.
-    state.pendingWithdraw?.let { (sale, version) ->
+    state.pendingWithdraw?.let { target ->
+        val paperName = if (target.kind == PaperKind.LETTER) "letter" else "booking form"
+        val copyName = (if (target.kind == PaperKind.LETTER) "L-" else "B-") + target.version
         AlertDialog(
             onDismissRequest = viewModel::cancelWithdraw,
-            title = { Text("Withdraw letter L-$version?") },
+            title = { Text("Withdraw $paperName $copyName?") },
             text = {
                 Text(
-                    "This removes the issued copy L-$version for receipt " +
-                        "${sale.receiptNo.ifBlank { "(no receipt)" }}. It cannot be " +
+                    "This removes the issued copy $copyName for receipt " +
+                        "${target.sale.receiptNo.ifBlank { "(no receipt)" }}. It cannot be " +
                         "printed again afterwards, and the number is not reused.",
                 )
             },
@@ -606,7 +779,136 @@ fun SoldUnitsScreen(
             dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelWithdraw) },
         )
     }
+
+    // Naming who a sold property is left to, after the sale. The people come
+    // off the buyer's own nominee list (written on the customer screen); what
+    // is decided here is which of them stand against THIS property, in what
+    // order and for what share.
+    state.nomineeSale?.let { sale ->
+        SaleNomineeDialog(
+            sale = sale,
+            state = state,
+            onToggle = viewModel::toggleNominee,
+            onShare = viewModel::onNomineeShare,
+            onPriority = viewModel::onNomineePriority,
+            shareProblem = viewModel.nomineeShareProblem(),
+            onSave = viewModel::saveNominees,
+            onClose = viewModel::closeNominees,
+        )
+    }
 }
+
+/** The nominee dialog: tick who stands against this sale, order and share. */
+@Composable
+private fun SaleNomineeDialog(
+    sale: SoldUnitSale,
+    state: SoldUnitsUiState,
+    onToggle: (SaleNomineeOption) -> Unit,
+    onShare: (Long, String) -> Unit,
+    onPriority: (Long, String) -> Unit,
+    shareProblem: String?,
+    onSave: () -> Unit,
+    onClose: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Nominee") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = "Who receipt ${sale.receiptNo.ifBlank { "(no receipt)" }} is left to. " +
+                        "Named against this property only — the buyer's other properties " +
+                        "are nominated separately.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.appColors.textOnScreenMuted,
+                )
+                when {
+                    state.nomineeLoading -> Text("Loading…")
+                    state.nomineeAvailable.isEmpty() -> Text(
+                        "This customer has no nominee on file. Add them on the " +
+                            "customer screen, then they can be named here.",
+                    )
+                    else -> state.nomineeAvailable.forEach { option ->
+                        val pick = state.nomineePicks[option.id]
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onToggle(option) },
+                            ) {
+                                Checkbox(checked = pick != null, onCheckedChange = { onToggle(option) })
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(option.name, style = MaterialTheme.typography.bodyMedium)
+                                    val detail = listOf(
+                                        titleCaseRelation(option.relation),
+                                        option.nationalId,
+                                    ).filter { it.isNotBlank() }.joinToString(" • ")
+                                    if (detail.isNotBlank()) {
+                                        Text(
+                                            text = detail,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.appColors.textOnScreenMuted,
+                                        )
+                                    }
+                                }
+                            }
+                            if (pick != null) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    AppTextField(
+                                        value = pick.priority,
+                                        onValueChange = { onPriority(option.id, it) },
+                                        label = "As listed",
+                                        caption = "Order",
+                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    AppTextField(
+                                        value = pick.share,
+                                        onValueChange = { onShare(option.id, it) },
+                                        label = "Left to law",
+                                        caption = "Share %",
+                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                shareProblem?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            PrimaryButton(
+                text = "Save",
+                onClick = onSave,
+                enabled = !state.nomineeLoading && !state.nomineeSaving && shareProblem == null,
+                isLoading = state.nomineeSaving,
+                compact = true,
+            )
+        },
+        dismissButton = { LinkButton(text = "Cancel", onClick = onClose) },
+    )
+}
+
+/**
+ * "wife" reads as Wife, "grand father" as Grand Father. Relations are stored
+ * as the dropdown's own lowercase values — right for a stored value, wrong on
+ * a printed line. Capitalised where shown, never in the column.
+ */
+private fun titleCaseRelation(value: String): String =
+    value.split(" ").filter { it.isNotBlank() }
+        .joinToString(" ") { word -> word.replaceFirstChar { it.uppercaseChar() } }
 
 // ---------------------------------------------------------------------------
 // Summary tiles
@@ -728,9 +1030,11 @@ private val TABLE_WIDTH =
 private fun SoldUnitsTable(
     report: SoldUnitsReport,
     generatingSaleId: String?,
-    onGenerate: (SoldUnitSale) -> Unit,
+    onGenerate: (SoldUnitSale, PaperKind) -> Unit,
     canWithdrawLetter: Boolean,
-    onWithdraw: (SoldUnitSale, Int) -> Unit,
+    canWithdrawBooking: Boolean,
+    onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
+    onNominees: (SoldUnitSale) -> Unit,
 ) {
     val hScroll = rememberScrollState()
     val gridLine = MaterialTheme.appColors.gridLine
@@ -751,7 +1055,9 @@ private fun SoldUnitsTable(
                 generatingSaleId = generatingSaleId,
                 onGenerate = onGenerate,
                 canWithdrawLetter = canWithdrawLetter,
+                canWithdrawBooking = canWithdrawBooking,
                 onWithdraw = onWithdraw,
+                onNominees = onNominees,
             )
         }
         SoldUnitsGrandTotalRow(report)
@@ -808,9 +1114,11 @@ private fun SoldUnitCustomerBlock(
     accent: Color,
     gridLine: Color,
     generatingSaleId: String?,
-    onGenerate: (SoldUnitSale) -> Unit,
+    onGenerate: (SoldUnitSale, PaperKind) -> Unit,
     canWithdrawLetter: Boolean,
-    onWithdraw: (SoldUnitSale, Int) -> Unit,
+    canWithdrawBooking: Boolean,
+    onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
+    onNominees: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val tint = accent.asTint()
@@ -883,7 +1191,9 @@ private fun SoldUnitCustomerBlock(
                     isGenerating = generatingSaleId == sale.saleId,
                     onGenerate = onGenerate,
                     canWithdrawLetter = canWithdrawLetter,
+                    canWithdrawBooking = canWithdrawBooking,
                     onWithdraw = onWithdraw,
+                    onNominees = onNominees,
                 )
             }
         }
@@ -895,9 +1205,11 @@ private fun SoldUnitSaleBand(
     sale: SoldUnitSale,
     gridLine: Color,
     isGenerating: Boolean,
-    onGenerate: (SoldUnitSale) -> Unit,
+    onGenerate: (SoldUnitSale, PaperKind) -> Unit,
     canWithdrawLetter: Boolean,
-    onWithdraw: (SoldUnitSale, Int) -> Unit,
+    canWithdrawBooking: Boolean,
+    onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
+    onNominees: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
 
@@ -966,48 +1278,51 @@ private fun SoldUnitSaleBand(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            // One chip per issued letter, built from the numbers the report
+            // One chip per issued paper, built from the numbers the report
             // sends — after a withdrawal a sale carries L-1 and L-3, and
-            // counting 1..n would offer a letter that is gone. The ✕ beside a
+            // counting 1..n would offer a copy that is gone. The ✕ beside a
             // chip withdraws that copy, and only shows for whoever may do that.
             if (sale.letterVersions.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    sale.letterVersions.forEach { version ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .border(
-                                    width = 1.dp,
-                                    color = gridLine,
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                        ) {
-                            Text(
-                                text = "L-$version",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = onScreen.muted(),
-                            )
-                            if (canWithdrawLetter && sale.saleId.isNotBlank()) {
-                                Text(
-                                    text = "✕",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier
-                                        .padding(start = 4.dp)
-                                        .clickable(enabled = !isGenerating) {
-                                            onWithdraw(sale, version)
-                                        },
-                                )
-                            }
-                        }
-                    }
-                }
+                PaperChipsRow(
+                    prefix = "L",
+                    versions = sale.letterVersions,
+                    canWithdraw = canWithdrawLetter && sale.saleId.isNotBlank(),
+                    enabled = !isGenerating,
+                    gridLine = gridLine,
+                    ink = onScreen,
+                    onWithdraw = { version -> onWithdraw(sale, PaperKind.LETTER, version) },
+                )
+            }
+            // The booking form rides its own B-n series, because a sale can be
+            // on its third form and its first letter.
+            if (sale.bookingFormVersions.isNotEmpty()) {
+                PaperChipsRow(
+                    prefix = "B",
+                    versions = sale.bookingFormVersions,
+                    canWithdraw = canWithdrawBooking && sale.saleId.isNotBlank(),
+                    enabled = !isGenerating,
+                    gridLine = gridLine,
+                    ink = onScreen,
+                    onWithdraw = { version -> onWithdraw(sale, PaperKind.BOOKING, version) },
+                )
             }
             if (sale.saleId.isNotBlank()) {
                 LinkButton(
                     text = if (isGenerating) "Generating…" else "Generate",
-                    onClick = { onGenerate(sale) },
+                    onClick = { onGenerate(sale, PaperKind.LETTER) },
+                    enabled = !isGenerating,
+                )
+                LinkButton(
+                    text = "Booking Form",
+                    onClick = { onGenerate(sale, PaperKind.BOOKING) },
+                    enabled = !isGenerating,
+                )
+                // Who this property is left to. Named at booking when the buyer
+                // has decided, and here when they decide later — which is most
+                // of the time.
+                LinkButton(
+                    text = if (sale.nomineeCount > 0) "Nominees (${sale.nomineeCount})" else "+ Nominee",
+                    onClick = { onNominees(sale) },
                     enabled = !isGenerating,
                 )
             }
@@ -1038,6 +1353,48 @@ private fun SoldUnitSaleBand(
                 color = onScreen,
                 textAlign = TextAlign.End,
             )
+        }
+    }
+}
+
+/**
+ * The issued copies of one paper as chips: the number prints the stored copy's
+ * name, and the ✕ beside it withdraws that copy — two controls in one frame.
+ */
+@Composable
+private fun PaperChipsRow(
+    prefix: String,
+    versions: List<Int>,
+    canWithdraw: Boolean,
+    enabled: Boolean,
+    gridLine: Color,
+    ink: Color,
+    onWithdraw: (Int) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        versions.forEach { version ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .border(width = 1.dp, color = gridLine, shape = RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            ) {
+                Text(
+                    text = "$prefix-$version",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ink.muted(),
+                )
+                if (canWithdraw) {
+                    Text(
+                        text = "✕",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .clickable(enabled = enabled) { onWithdraw(version) },
+                    )
+                }
+            }
         }
     }
 }

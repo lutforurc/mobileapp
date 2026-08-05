@@ -42,6 +42,14 @@ data class SoldUnitSale(
      * does not send the list yet.
      */
     val letterVersions: List<Int>,
+    /**
+     * The booking-form numbers that exist (the web's B-1…B-n) — its own series,
+     * because a sale can be on its third form and its first letter. Same
+     * hole-tolerant rule as [letterVersions].
+     */
+    val bookingFormVersions: List<Int>,
+    /** How many people this particular property is left to. */
+    val nomineeCount: Int,
     val unitPriceAmount: Double,
     val parkingAmount: Double,
     val buildingName: String,
@@ -86,6 +94,31 @@ data class SoldUnitsTotals(
 data class SoldUnitsReport(
     val customers: List<SoldUnitCustomer>,
     val totals: SoldUnitsTotals,
+)
+
+/** One person on the buyer's nominee list, as the customer screen saved them. */
+data class SaleNomineeOption(
+    val id: Long,
+    val name: String,
+    val relation: String,
+    val nationalId: String,
+    /** The buyer's own default share ("" when none) — a text-field value. */
+    val defaultShare: String,
+)
+
+/** What one sale says about one nominee: picked, with what share and order. */
+data class SaleNomineePick(
+    val nomineeId: Long,
+    /** Share % as typed ("" = division left to law). */
+    val share: String,
+    /** Priority order as typed ("" = the order they appear in). */
+    val priority: String,
+)
+
+/** The nominee dialog's load: everyone available, and who is already named. */
+data class SaleNominees(
+    val available: List<SaleNomineeOption>,
+    val attached: List<SaleNomineePick>,
 )
 
 // ---------------------------------------------------------------------------
@@ -276,14 +309,24 @@ class RealEstateSalesRepository(
         )
     }
 
+    /**
+     * The issued numbers of a paper, e.g. [1, 3] after the second copy was
+     * withdrawn. Falls back to 1..count for a server that only sends the count,
+     * where 1..n is still true.
+     */
+    private fun JsonObject.versionList(versionsKey: String, countKey: String): List<Int> =
+        arr(versionsKey)
+            ?.mapNotNull { el -> el.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull() }
+            ?.takeIf { it.isNotEmpty() }
+            ?: (1..int(countKey)).toList()
+
     private fun JsonObject.toSoldUnitSale(): SoldUnitSale = SoldUnitSale(
         saleId = str("sale_id").orEmpty(),
         saleDate = str("sale_date").orEmpty(),
         letterCount = int("letter_count"),
-        letterVersions = arr("letter_versions")
-            ?.mapNotNull { el -> el.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull() }
-            ?.takeIf { it.isNotEmpty() }
-            ?: (1..int("letter_count")).toList(),
+        letterVersions = versionList("letter_versions", "letter_count"),
+        bookingFormVersions = versionList("booking_form_versions", "booking_form_count"),
+        nomineeCount = int("nominee_count"),
         unitPriceAmount = dbl("unit_price_amount"),
         parkingAmount = dbl("parking_amount"),
         buildingName = str("building_name").orEmpty(),
@@ -550,6 +593,129 @@ class RealEstateSalesRepository(
                 }
             }
         }
+
+    /**
+     * `POST real-estate/unit-sale/booking-form/generate/{saleId}` — issues one
+     * immutable booking-form snapshot (B-{n}) on its own series, separate from
+     * the letters. The letter's ref prefix is NOT offered here: the two are
+     * numbered apart, and BST/ALLOT on a booking form would be wrong in a way
+     * nobody notices until the register is reconciled.
+     */
+    suspend fun generateBookingForm(
+        saleId: String,
+        refNo: String? = null,
+        refDate: String? = null,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            refNo?.trim()?.takeIf { it.isNotEmpty() }?.let { addProperty("ref_no", it) }
+            refDate?.trim()?.takeIf { it.isNotEmpty() }?.let { addProperty("ref_date", it) }
+        }
+        guarded {
+            val response = transactionApi.postObject(
+                "real-estate/unit-sale/booking-form/generate/$saleId",
+                body,
+            )
+            envelope(response) { json ->
+                Resource.Success(json.message() ?: "Booking form generated.")
+            }
+        }
+    }
+
+    /** `DELETE real-estate/unit-sale/booking-form/{saleId}/{version}` — see [withdrawAllotmentLetter]. */
+    suspend fun withdrawBookingForm(saleId: String, version: Int): Resource<String> =
+        withContext(ioDispatcher) {
+            guarded {
+                val response = reportApi.delete(
+                    "real-estate/unit-sale/booking-form/$saleId/$version",
+                )
+                envelope(response) { json ->
+                    Resource.Success(json.message() ?: "Booking form withdrawn.")
+                }
+            }
+        }
+
+    // ---- Sale nominees -----------------------------------------------------
+
+    /**
+     * `GET real-estate/unit-sale/{saleId}/nominees` — the buyer's own nominee
+     * list (written on the customer screen) plus what THIS sale says about
+     * them. A buyer holding three flats can leave each of them differently, so
+     * this is asked per sale and never inherited from the customer.
+     */
+    suspend fun fetchSaleNominees(saleId: String): Resource<SaleNominees> =
+        withContext(ioDispatcher) {
+            guarded {
+                val response = reportApi.get("real-estate/unit-sale/$saleId/nominees", emptyMap())
+                envelope(response) { json ->
+                    val payload = json.obj("data")?.obj("data")
+                    val available = payload?.arr("available")?.mapNotNull { el ->
+                        el.objOrNull()?.let { o ->
+                            SaleNomineeOption(
+                                id = o.str("id")?.toLongOrNull() ?: return@let null,
+                                name = o.str("name").orEmpty(),
+                                relation = o.str("relation").orEmpty(),
+                                nationalId = o.str("national_id").orEmpty(),
+                                // The buyer's own default share — the starting
+                                // point when this sale first picks them.
+                                defaultShare = o.str("share_percentage")
+                                    ?.toDoubleOrNull()?.toPlainShare().orEmpty(),
+                            )
+                        }
+                    }.orEmpty()
+                    val attached = payload?.arr("nominees")?.mapNotNull { el ->
+                        el.objOrNull()?.let { o ->
+                            val id = o.str("nominee_id")?.toLongOrNull() ?: return@let null
+                            SaleNomineePick(
+                                nomineeId = id,
+                                share = o.str("share_percentage")?.toDoubleOrNull()?.toPlainShare().orEmpty(),
+                                priority = o.str("priority_order")?.toDoubleOrNull()?.toInt()?.toString().orEmpty(),
+                            )
+                        }
+                    }.orEmpty()
+                    Resource.Success(SaleNominees(available = available, attached = attached))
+                }
+            }
+        }
+
+    /**
+     * `POST real-estate/unit-sale/{saleId}/nominees` — replaces the sale's
+     * nominations with [picks]. Always sent, even empty: that is how the last
+     * nominee is removed. Shares travel as numbers or null (division left to
+     * law); priorities as numbers.
+     */
+    suspend fun saveSaleNominees(
+        saleId: String,
+        picks: List<SaleNomineePick>,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            add("nominees", JsonArray().apply {
+                picks.forEachIndexed { index, pick ->
+                    add(JsonObject().apply {
+                        addProperty("nominee_id", pick.nomineeId)
+                        pick.share.trim().toDoubleOrNull()
+                            ?.let { addProperty("share_percentage", it) }
+                            ?: add("share_percentage", JsonNull.INSTANCE)
+                        // Nothing typed means the order they appear in, which
+                        // is the order the booking form prints them.
+                        addProperty(
+                            "priority_order",
+                            pick.priority.trim().toIntOrNull() ?: (index + 1),
+                        )
+                    })
+                }
+            })
+        }
+        guarded {
+            val response = transactionApi.postObject("real-estate/unit-sale/$saleId/nominees", body)
+            envelope(response) { json ->
+                Resource.Success(json.message() ?: "Nominees saved.")
+            }
+        }
+    }
+
+    /** 50.0 → "50", 33.33 → "33.33" — what belongs in a text field. */
+    private fun Double.toPlainShare(): String =
+        if (this == toLong().toDouble()) toLong().toString() else toString()
 
     // ---- Envelope / transport helpers -------------------------------------
 
