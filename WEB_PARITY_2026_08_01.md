@@ -24,23 +24,22 @@
 Every web sidebar item and route was enumerated and matched against every
 mobile registry (menus, ReportConfig, AppLists, Routes). Transaction, Invoice,
 Reports, Requisition, Real Estate, Products, Customers, VR Settings, HRM and
-Subscription are at parity. What the web has and this app does not:
+Subscription are at parity.
 
-| Gap | Web route | Permission | Note |
-|---|---|---|---|
-| Product Tracking settings | /settings/product-tracking | product.tracking.settings.view | module's admin screen |
-| Product Statement report | /reports/product-financial-statement | product.tracking.report.view | |
-| Product Receivable/Payable | /reports/product-receivable-payable | product.tracking.report.view | |
-| In-App Messages admin | /admin/in-app-messages (+create/edit) | reseller/subscription/all.user.view | app SHOWS campaigns, cannot manage them |
-| Inventory Systems admin | /admin/inventory-systems | reseller/subscription/all.user.view | platform CRUD |
-| Analytics → Comparison | /item/item-chart | analytics.comparison | item compare chart; no Analytics section on mobile |
-| Resellers screen | /admin/resellers | reseller.view … | mobile menu item is a placeholder |
-| Approval Center (+audit) | /approval-center | approval.center | mobile placeholder |
-| Profile page | /profile | (none) | account menu has no profile edit |
-| Forgot Password | /forgot-password | public | login screen has no reset flow |
-| Subscription plan entry/edit | /subscription/admin/plans/entry|edit | subscription.plans | mobile lists plans read-only |
-| Voucher/Bulk Upload, Purchase/Sales Import | various | — | file uploads/imports, web-only class |
-| Customer portal | /customer/* | — | different audience, web-only by design |
+**Closed on 2026-08-06 (commit 1fbabdf):** Product Tracking settings + both
+reports, In-App Messages admin (list + form; image by URL), Inventory Systems
+admin, Analytics → Comparison (new drawer entry), Forgot Password (3-step
+OTP), Profile (photo upload), and Subscription plan entry/edit.
+
+Still web-only, deliberately:
+
+| Gap | Why |
+|---|---|
+| Resellers screen, Approval Center (+audit) | mobile menu placeholders — port when asked |
+| Voucher/Bulk Upload, Purchase/Sales Import | file uploads/imports class |
+| Campaign image upload, scanned-deed upload | multipart file picking beyond the profile photo |
+| Letter/booking-form PDF prints | auth'd PDF streams |
+| Customer portal | different audience |
 
 Deliberate divergences (fine as they are): the web's "Branch Transfer" drawer
 group lives inside Invoice + Reports here; Due/Employee Installments are not
