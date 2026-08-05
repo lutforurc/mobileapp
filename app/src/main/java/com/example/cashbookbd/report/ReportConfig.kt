@@ -185,6 +185,8 @@ data class ReportConfig(
      * this registry and the generic engine.
      */
     val section: String = SECTION_REPORTS,
+    /** What the Start Date opens on: the business date, or a wider window. */
+    val startDateDefault: StartDateDefault = StartDateDefault.TRANSACTION_DATE,
     /** How the generic parser should read this report's payload. */
     val responseShape: ReportResponseShape = ReportResponseShape.NORMAL,
     /** Column header for a [ReportResponseShape.KEYED_SCALARS] report (e.g. "IMEI"). */
@@ -293,6 +295,18 @@ data class ReportConfig(
             ReportFilterType.BRANCH_REPORT_TYPE_END_DATE,
             ReportFilterType.GROUP_REPORT,
         )
+    }
+
+    /** What the Start Date field opens on, before the clerk touches it. */
+    enum class StartDateDefault {
+        /** The backend's business date — a one-day window (the default). */
+        TRANSACTION_DATE,
+
+        /** The 1st of the business date's month — "the month so far". */
+        MONTH_FIRST,
+
+        /** January 1st of the business date's year — "the year so far". */
+        YEAR_FIRST,
     }
 }
 
@@ -533,6 +547,8 @@ object ReportMenu {
             endpointKey = "dateWiseTotal",
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // A day-by-day total is read for the month so far, not one day.
+            startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
         ),
         ReportConfig(
             key = "profitLoss",

@@ -73,13 +73,20 @@ class GenericReportViewModel(
         }
     }
 
+    /** The report's own Start Date opening, derived from the business date. */
+    private fun defaultStart(trDate: SimpleDate): SimpleDate = when (config?.startDateDefault) {
+        ReportConfig.StartDateDefault.MONTH_FIRST -> trDate.copy(day = 1)
+        ReportConfig.StartDateDefault.YEAR_FIRST -> trDate.copy(month = 1, day = 1)
+        else -> trDate
+    }
+
     private fun applyDashboardTransactionDate() {
         viewModelScope.launch {
             val dashboard = dashboardRepository.getCachedDashboard()
                 ?: (dashboardRepository.getDashboard() as? Resource.Success)?.data
             val trDate = SimpleDate.fromDisplay(dashboard?.transactionDate) ?: return@launch
             dateDefaulted = true
-            _uiState.update { it.copy(startDate = trDate, endDate = trDate) }
+            _uiState.update { it.copy(startDate = defaultStart(trDate), endDate = trDate) }
         }
     }
 
@@ -96,7 +103,7 @@ class GenericReportViewModel(
                             isBranchesLoading = false,
                             branches = result.data.branches,
                             selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
-                            startDate = if (applyBranchDate) branchTrDate!! else it.startDate,
+                            startDate = if (applyBranchDate) defaultStart(branchTrDate!!) else it.startDate,
                             endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
                         )
                     }

@@ -46,7 +46,9 @@ class ProfitLossViewModel(
             val trDate = SimpleDate.fromDisplay(dashboard?.transactionDate) ?: return@launch
             dateDefaulted = true
             defaultDate = trDate
-            _uiState.update { it.copy(startDate = trDate, endDate = trDate) }
+            // Profit is read for the year so far: Start opens on January 1st
+            // of the business date's year, End on the date itself.
+            _uiState.update { it.copy(startDate = trDate.copy(month = 1, day = 1), endDate = trDate) }
         }
     }
 
@@ -65,7 +67,7 @@ class ProfitLossViewModel(
                         isBranchesLoading = false,
                         branches = result.data.branches,
                         selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
-                        startDate = if (applyBranchDate) branchTrDate!! else it.startDate,
+                        startDate = if (applyBranchDate) branchTrDate!!.copy(month = 1, day = 1) else it.startDate,
                         endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
                     )
                 }
@@ -98,7 +100,7 @@ class ProfitLossViewModel(
     fun reset() {
         _uiState.update {
             it.copy(
-                startDate = defaultDate,
+                startDate = defaultDate.copy(month = 1, day = 1),
                 endDate = defaultDate,
                 report = null,
                 reportError = null,
