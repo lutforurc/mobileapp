@@ -32,6 +32,11 @@ data class Settings(
      * only while `branch.is_opening == 1`.
      */
     val openingOngoing: Boolean = false,
+    /**
+     * Branch column `use_bangla`: the branch keeps its ledgers in Bangla, so the
+     * customer form asks for a Bangla name beside the English one.
+     */
+    val useBangla: Boolean = false,
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,

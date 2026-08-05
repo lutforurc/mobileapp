@@ -25,6 +25,10 @@ data class AddCustomerUiState(
      */
     val type: SelectorOption? = CUSTOMER_TYPES.first(),
     val name: String = "",
+    // Bangla name, gated on the branch's use_bangla column — the branch keeps
+    // its ledgers in Bangla, so the name is written twice.
+    val showBangla: Boolean = false,
+    val bangla: String = "",
     val address: String = "",
     val mobile: String = "",
     val ledgerPage: String = "",

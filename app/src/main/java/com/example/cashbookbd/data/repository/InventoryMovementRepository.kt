@@ -59,7 +59,10 @@ data class BranchTransferHeader(
     val receiverName: String,
     val receiverMobile: String,
     val note: String,
-    val transport: String,
+    // The web's one Transport input became Driver Name + Driver Mobile
+    // (2026-08-02); the server keeps `transport` only for old vouchers.
+    val driverName: String,
+    val driverMobile: String,
 )
 
 /**
@@ -93,10 +96,14 @@ class InventoryMovementRepository(
         private const val HTTP_FORBIDDEN = 403
     }
 
-    /** Every branch (`branch/ddl/all-branch`) — the transfer's "other side" list. */
+    /**
+     * The transfer's "other side" list (`branch/ddl/all-branch`). Asked for
+     * with `own_company=1`: stock cannot move between two companies' books, and
+     * for a privileged user the unscoped list is every company's branches.
+     */
     suspend fun getAllBranches(): Resource<List<BranchOption>> = withContext(ioDispatcher) {
         safeCall {
-            val response = reportApi.get("branch/ddl/all-branch", emptyMap())
+            val response = reportApi.get("branch/ddl/all-branch", mapOf("own_company" to "1"))
             response.unauthorizedOrNull()?.let { return@safeCall it }
             if (!response.isSuccessful) {
                 return@safeCall Resource.Error("Server error (${response.code()}). Please try again later.")
@@ -195,7 +202,8 @@ class InventoryMovementRepository(
                 addNullableString("receiver_name", header.receiverName)
                 addNullableString("receiver_mobile_number", header.receiverMobile)
                 addNullableString("note", header.note)
-                addNullableString("transport", header.transport)
+                addNullableString("driver_name", header.driverName)
+                addNullableString("driver_mobile", header.driverMobile)
                 add("table_data", JsonArray().apply {
                     lines.forEach { line ->
                         add(JsonObject().apply {

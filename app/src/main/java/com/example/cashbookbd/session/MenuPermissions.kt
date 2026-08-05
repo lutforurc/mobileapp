@@ -56,6 +56,7 @@ object MenuPermissions {
             "all.user.view",
             "user.view",
             "online.users",
+            "user.login.log",
             "company.user",
             "highlight.rules",
             "dayclose.create",
@@ -82,7 +83,7 @@ object MenuPermissions {
             "voucher.date.change",
             "voucher.recycle",
             "voucher.history",
-            "voucher.changes",
+            "log.changes",
         ),
         "hrm" to listOf(
             "employee.view",

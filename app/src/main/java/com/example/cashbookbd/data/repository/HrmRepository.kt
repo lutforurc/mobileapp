@@ -629,6 +629,13 @@ class HrmRepository(
                     day = day,
                     status = obj.text("status").orEmpty(),
                     approvalStatus = obj.text("approval_status").orEmpty(),
+                    // Marked at another site (a lent employee). The day counts
+                    // here all the same — this branch pays for it.
+                    otherBranchName = if (obj.text("is_other_branch")?.toDoubleOrNull()?.let { it != 0.0 } == true) {
+                        obj.text("attendance_branch_name")?.takeIf { it.isNotBlank() } ?: "another branch"
+                    } else {
+                        ""
+                    },
                 )
             }
         }

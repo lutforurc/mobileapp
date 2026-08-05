@@ -94,6 +94,11 @@ data class SettingsBranchDto(
      * [decimalPlaces]; the mapper derives a Boolean.
      */
     @SerializedName("is_opening") val isOpening: String? = null,
+    /**
+     * "Use Bangla" — the customer form asks for a Bangla name too. A column on
+     * the branch rather than a meta, so it arrives as a number, never "1".
+     */
+    @SerializedName("use_bangla") val useBangla: String? = null,
     // The 2026-07 branch metas. Each arrives as "1"/"0", or the boolean `false`
     // when the meta row was never written (Gson reads that into "false") — the
     // mapper treats only "1" as on.

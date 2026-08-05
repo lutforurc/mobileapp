@@ -249,10 +249,19 @@ private fun BranchTransferHeaderFields(
             style = MaterialTheme.typography.bodySmall,
         )
     }
+    // Driver Name and Driver Mobile — the web split the one Transport input,
+    // since who drives and how to reach them are what the office actually asks.
     AppTextField(
-        value = state.transport,
-        onValueChange = viewModel::onTransportChange,
-        label = "Transport (optional)",
+        value = state.driverName,
+        onValueChange = viewModel::onDriverNameChange,
+        label = "Driver Name (optional)",
+        modifier = Modifier.fillMaxWidth(),
+    )
+    AppTextField(
+        value = state.driverMobile,
+        onValueChange = viewModel::onDriverMobileChange,
+        label = "Driver Mobile (optional)",
+        keyboardType = KeyboardType.Phone,
         modifier = Modifier.fillMaxWidth(),
     )
     AppTextField(

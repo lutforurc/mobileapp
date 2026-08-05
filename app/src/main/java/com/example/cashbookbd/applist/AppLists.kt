@@ -140,7 +140,7 @@ object AppLists {
                 AppListColumn("branch.name", "Branch"),
                 AppListColumn("status_label", "Status"),
             ),
-            anyOf = listOf("voucher.changes"),
+            anyOf = listOf("log.changes"),
             paginated = true,
         ),
 
@@ -234,6 +234,29 @@ object AppLists {
             // Online Users is gated on online.users in the web sidebar, matching
             // its Admin menu entry.
             anyOf = listOf("online.users", "user.view"),
+        ),
+        AppListSpec(
+            key = "loginHistory",
+            title = "Login History",
+            endpoint = "user/login-log",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("serial", "Sl"),
+                AppListColumn("user_name", "User"),
+                AppListColumn("company", "Company"),
+                AppListColumn("branch", "Branch"),
+                AppListColumn("in_time", "Logged In"),
+                // A session never signed out of has an empty out time and no
+                // duration — the log cannot tell someone still working from
+                // someone who closed the tab, so it claims neither.
+                AppListColumn("out_time", "Logged Out"),
+                AppListColumn("duration_minutes", "Duration (min)", numeric = true),
+                AppListColumn("ip_address", "IP Address"),
+                AppListColumn("computer_name", "Device"),
+            ),
+            anyOf = listOf("user.login.log"),
+            paginated = true,
+            perPage = 20,
         ),
         AppListSpec(
             key = "orders",

@@ -5,6 +5,7 @@ import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +68,11 @@ data class MatrixRow(
     val name: String,
     val serial: String,
     val days: Map<Int, String>,
+    /**
+     * Days marked at another branch, day → branch name. The status glyph still
+     * says what the day was; the outline says where it was given.
+     */
+    val otherBranchDays: Map<Int, String> = emptyMap(),
 )
 
 data class MonthlyAttendanceUiState(
@@ -186,13 +193,24 @@ class MonthlyAttendanceViewModel(
                 val existing = byEmployee[cell.employeeId]
                 val glyph = glyphFor(cell.status, cell.approvalStatus)
                 val days = existing?.days.orEmpty().toMutableMap()
+                val otherDays = existing?.otherBranchDays.orEmpty().toMutableMap()
                 val current = days[cell.day]
-                if (current == null || glyph == GLYPH_LEAVE) days[cell.day] = glyph
+                if (current == null || glyph == GLYPH_LEAVE) {
+                    days[cell.day] = glyph
+                    // Marked at another site — flagged rather than hidden,
+                    // because this branch pays for the day.
+                    if (cell.otherBranchName.isNotBlank()) {
+                        otherDays[cell.day] = cell.otherBranchName
+                    } else {
+                        otherDays.remove(cell.day)
+                    }
+                }
                 byEmployee[cell.employeeId] = MatrixRow(
                     employeeId = cell.employeeId,
                     name = existing?.name?.ifBlank { cell.employeeName } ?: cell.employeeName,
                     serial = existing?.serial?.ifBlank { cell.employeeSerial } ?: cell.employeeSerial,
                     days = days,
+                    otherBranchDays = otherDays,
                 )
             }
 
@@ -439,17 +457,36 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                     Row(modifier = Modifier.horizontalScroll(hScroll)) {
                         days.forEach { day ->
                             val glyph = row.days[day] ?: "-"
-                            Text(
-                                text = glyph,
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center,
-                                color = when (glyph) {
-                                    "✕", "!" -> MaterialTheme.colorScheme.error
-                                    "✓" -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.onBackground
-                                },
+                            // An outline, not a tint: the status colour still
+                            // says what the day was; the ring says it was
+                            // marked at another branch.
+                            val elsewhere = row.otherBranchDays.containsKey(day)
+                            Box(
                                 modifier = Modifier.width(DAY_COL),
-                            )
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = glyph,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                    color = when (glyph) {
+                                        "✕", "!" -> MaterialTheme.colorScheme.error
+                                        "✓" -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.onBackground
+                                    },
+                                    modifier = if (elsewhere) {
+                                        Modifier
+                                            .border(
+                                                width = 1.dp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = RoundedCornerShape(4.dp),
+                                            )
+                                            .padding(horizontal = 4.dp)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -461,6 +498,20 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                     color = MaterialTheme.appColors.textOnScreenMuted,
                     modifier = Modifier.padding(16.dp),
                 )
+                // A screen cannot be hovered over, so the branches the boxed
+                // days came from are named once beneath the legend instead.
+                val otherBranches = state.matrixRows
+                    .flatMap { it.otherBranchDays.values }
+                    .distinct()
+                if (otherBranches.isNotEmpty()) {
+                    Text(
+                        text = "Boxed marks were given at another branch: " +
+                            otherBranches.joinToString(", "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.appColors.textOnScreenMuted,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
             }
         }
     }

@@ -115,10 +115,14 @@ interface ApiService {
 
     /**
      * GET {BASE_URL}/branch/ddl/protected-branch — branches for the report filter,
-     * scoped to what the logged-in user may see.
+     * scoped to what the logged-in user may see. `own_company=1` narrows the list
+     * to the caller's own company even for a privileged user — the branch
+     * transfer forms ask for it, since stock cannot move between companies.
      */
     @GET("branch/ddl/protected-branch")
-    suspend fun getBranches(): Response<BranchListResponse>
+    suspend fun getBranches(
+        @retrofit2.http.Query("own_company") ownCompany: String? = null,
+    ): Response<BranchListResponse>
 
     /**
      * POST {BASE_URL}/settings/get-settings — the current user's app settings,

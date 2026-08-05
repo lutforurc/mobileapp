@@ -40,6 +40,8 @@ data class NewCustomer(
     /** Party type: 1 Customer, 2 Supplier, 3 Supplier & Customer, 4 Advance. */
     val typeId: String,
     val name: String,
+    /** Bangla name, or blank — shown only when the branch's `use_bangla` is on. */
+    val bangla: String = "",
     val address: String,
     val mobile: String,
     val ledgerPage: String,
@@ -175,6 +177,7 @@ class CustomerRepository(
         val body = mapOf(
             "type_id" to customer.typeId,
             "name" to customer.name.trim(),
+            "bangla" to customer.bangla.trim(),
             "manual_address" to customer.address.trim(),
             "mobile" to customer.mobile.trim(),
             "ledger_page" to customer.ledgerPage.trim(),

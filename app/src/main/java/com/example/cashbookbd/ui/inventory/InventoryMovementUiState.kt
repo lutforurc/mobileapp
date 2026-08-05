@@ -36,7 +36,10 @@ data class InventoryMovementUiState(
     val challanNumber: String = "",
     val receiverName: String = "",
     val receiverMobile: String = "",
-    val transport: String = "",
+    // The web's one Transport input became Driver Name + Driver Mobile —
+    // together they are one thing, but the server reads them apart.
+    val driverName: String = "",
+    val driverMobile: String = "",
     val note: String = "",
 
     // Material Issue header.

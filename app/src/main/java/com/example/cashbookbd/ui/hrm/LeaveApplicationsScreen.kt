@@ -437,8 +437,10 @@ private fun LeaveApplicationRow(
             }
             Spacer(Modifier.height(4.dp))
             Row {
-                LabelValue("From", application.fromDate, Modifier.weight(1f))
-                LabelValue("To", application.toDate, Modifier.weight(1f))
+                // The API answers in yyyy-MM-dd; the office reads dates day
+                // first, the same way the pickers above this list show them.
+                LabelValue("From", displayDate(application.fromDate), Modifier.weight(1f))
+                LabelValue("To", displayDate(application.toDate), Modifier.weight(1f))
                 LabelValue("Type", application.leaveTypeName.ifBlank { "-" }, Modifier.weight(1f))
                 LabelValue("Days", application.requestedDays.ifBlank { "-" }, Modifier.weight(1f))
             }
@@ -469,4 +471,14 @@ private fun LeaveApplicationRow(
             }
         }
     }
+}
+
+/** yyyy-MM-dd -> dd/MM/yyyy; anything else passes through untouched. */
+private fun displayDate(raw: String): String {
+    val parts = raw.trim().substringBefore('T').substringBefore(' ').split('-')
+    if (parts.size == 3 && parts[0].length == 4 && parts.all { it.toIntOrNull() != null }) {
+        val (y, m, d) = parts
+        return "${d.padStart(2, '0')}/${m.padStart(2, '0')}/$y"
+    }
+    return raw
 }

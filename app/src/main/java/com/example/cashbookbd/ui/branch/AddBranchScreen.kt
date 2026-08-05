@@ -159,6 +159,7 @@ fun AddBranchScreen(
                                 onChange = { viewModel.onValue(field.key, it) },
                                 keyboard = field.keyboard,
                                 multiline = field.multiline,
+                                description = field.description,
                             )
 
                             is BranchField.Choice -> {
@@ -169,6 +170,7 @@ fun AddBranchScreen(
                                     selected = state.option(field.key, options),
                                     isLoading = state.isLoadingOptions,
                                     onSelected = { viewModel.onValue(field.key, it.id) },
+                                    description = field.description,
                                 )
                             }
 
@@ -176,17 +178,25 @@ fun AddBranchScreen(
                                 label = field.label,
                                 checked = state.flag(field.key),
                                 onChange = { viewModel.onToggle(field.key, it) },
+                                description = field.description,
                             )
                         }
                     }
 
-                    // Clearing an opening belongs beside "Opening ongoing", and
-                    // this is the step that carries it. Shown only to those
-                    // holding branch.opening.clear, and only when editing.
-                    if (state.currentStep == FEATURE_STEP && state.showClearOpening) {
-                        if (state.isClearingOpening) {
+                    // The clears belong beside "Opening ongoing", and this is
+                    // the step that carries it. Each shows only to those
+                    // holding its permission, only when editing, and only while
+                    // the branch is still marked "Opening ongoing".
+                    if (state.step.title == FEATURE_STEP_TITLE &&
+                        (state.showClearOpening || state.showClearTransactions)
+                    ) {
+                        if (state.clearInFlight) {
                             Text(
-                                text = "Clearing opening balances...",
+                                text = if (state.isClearingOpening) {
+                                    "Clearing opening balances..."
+                                } else {
+                                    "Clearing transactions..."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -195,18 +205,39 @@ fun AddBranchScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         } else {
-                            // Filled red, not a link: it wipes figures kept
-                            // nowhere else, and read as ordinary text beside
-                            // Back and Update it was the quietest thing on a
-                            // step where it is the only one that destroys.
-                            PrimaryButton(
-                                text = "Clear Opening",
-                                onClick = viewModel::onClearOpeningRequested,
-                                compact = true,
-                                containerColor = MaterialTheme.accents.red,
-                            )
+                            // Filled red, not links: they wipe or withdraw
+                            // figures kept nowhere else, and read as ordinary
+                            // text beside Back and Update they were the
+                            // quietest things on the step.
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                if (state.showClearOpening) {
+                                    PrimaryButton(
+                                        text = "Clear Opening",
+                                        onClick = viewModel::onClearOpeningRequested,
+                                        compact = true,
+                                        containerColor = MaterialTheme.accents.red,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                if (state.showClearTransactions) {
+                                    PrimaryButton(
+                                        text = "Transaction Clear",
+                                        onClick = viewModel::onClearTransactionsRequested,
+                                        compact = true,
+                                        containerColor = MaterialTheme.accents.red,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
                         }
                         state.clearedOpeningMessage?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.appColors.textOnScreenMuted,
+                            )
+                        }
+                        state.clearedTransactionsMessage?.let { message ->
                             Text(
                                 text = message,
                                 style = MaterialTheme.typography.bodySmall,
@@ -218,7 +249,7 @@ fun AddBranchScreen(
                     // The letterhead image is the web's one remaining field here;
                     // it needs a picker and a multipart upload, so for now the
                     // form says so rather than dropping the choice silently.
-                    if (state.currentStep == PRINT_STEP && state.text("pad_heading_print") == CUSTOM_PAD) {
+                    if (state.step.title == PRINT_STEP_TITLE && state.text("pad_heading_print") == CUSTOM_PAD) {
                         Text(
                             text = "The letterhead image can only be uploaded from the web for now. " +
                                 "Everything else on this page saves normally.",
@@ -264,13 +295,42 @@ fun AddBranchScreen(
             },
         )
     }
+
+    // Says plainly what survives: the vouchers are not erased, they stop
+    // counting. That is the difference between this and a deletion, and it is
+    // the thing somebody approving it needs to know.
+    if (state.confirmClearTransactions) {
+        AlertDialog(
+            onDismissRequest = viewModel::onClearTransactionsDismissed,
+            title = { Text("Clear Transactions") },
+            text = {
+                Text(
+                    "Withdraw every voucher in this branch from the books?\n\n" +
+                        "Every voucher this branch holds is marked inactive at once, " +
+                        "so it stops showing in reports, ledgers and balances.\n\n" +
+                        "Nothing is deleted — the entries stay on record, but there " +
+                        "is no button that puts them all back."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearTransactions) {
+                    Text("Clear Transactions", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onClearTransactionsDismissed) { Text("Cancel") }
+            },
+        )
+    }
 }
 
-private const val PRINT_STEP = 1
 private const val CUSTOM_PAD = "3"
 
-/** Feature Controls -- the last step, and where "Opening ongoing" sits. */
-private val FEATURE_STEP = BranchForm.steps.lastIndex
+// Steps are asked for by name, not by the number they happen to sit at — the
+// list varies per user (the SaaS step), and a numbered check silently renames
+// every panel after an inserted step.
+private const val PRINT_STEP_TITLE = "Print Setup"
+private const val FEATURE_STEP_TITLE = "Feature Controls"
 
 /**
  * Back / Next, with Save replacing Next on the last step.
@@ -329,6 +389,16 @@ private fun StepActions(
     }
 }
 
+/** What a setting does, said under the field itself. */
+@Composable
+private fun FieldDescription(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.appColors.textOnScreenMuted,
+    )
+}
+
 @Composable
 private fun Field(
     label: String,
@@ -336,19 +406,23 @@ private fun Field(
     onChange: (String) -> Unit,
     keyboard: KeyboardType = KeyboardType.Text,
     multiline: Boolean = false,
+    description: String? = null,
 ) {
-    AppTextField(
-        value = value,
-        onValueChange = onChange,
-        // The name goes on the border, as the dropdowns on this form already do
-        // — as an in-box hint it vanished the moment the field was filled, and
-        // a form of half-labelled, half-anonymous boxes is what read as a mess.
-        caption = label,
-        label = "",
-        keyboardType = keyboard,
-        multiline = multiline,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        AppTextField(
+            value = value,
+            onValueChange = onChange,
+            // The name goes on the border, as the dropdowns on this form already do
+            // — as an in-box hint it vanished the moment the field was filled, and
+            // a form of half-labelled, half-anonymous boxes is what read as a mess.
+            caption = label,
+            label = "",
+            keyboardType = keyboard,
+            multiline = multiline,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        description?.let { FieldDescription(it) }
+    }
 }
 
 /** A label with a switch, for the form's many on/off settings. */
@@ -357,20 +431,24 @@ private fun ToggleField(
     label: String,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    description: String? = null,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onChange(!checked) }
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(checked = checked, onCheckedChange = onChange)
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onChange(!checked) }
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(checked = checked, onCheckedChange = onChange)
+        }
+        description?.let { FieldDescription(it) }
     }
 }
 
@@ -382,29 +460,33 @@ private fun ChoiceField(
     selected: SelectorOption?,
     isLoading: Boolean,
     onSelected: (SelectorOption) -> Unit,
+    description: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        DropdownAnchorField(
-            label = label,
-            valueText = selected?.label,
-            placeholder = if (isLoading) "Loading…" else "",
-            onClick = { if (options.isNotEmpty()) expanded = true },
-            trailingIcon = if (isLoading && options.isEmpty()) {
-                { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
-            } else {
-                null
-            },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = { onSelected(option); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            DropdownAnchorField(
+                label = label,
+                valueText = selected?.label,
+                placeholder = if (isLoading) "Loading…" else "",
+                onClick = { if (options.isNotEmpty()) expanded = true },
+                trailingIcon = if (isLoading && options.isEmpty()) {
+                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
+                } else {
+                    null
+                },
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = { onSelected(option); expanded = false },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                    )
+                }
             }
         }
+        description?.let { FieldDescription(it) }
     }
 }
 

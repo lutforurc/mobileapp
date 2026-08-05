@@ -76,7 +76,9 @@ class InventoryMovementViewModel(
         val kind = spec?.kind ?: return
         _uiState.update { it.copy(isBranchesLoading = true, branchesError = null) }
         viewModelScope.launch {
-            val protectedResult = reportRepository.getBranches()
+            // Own company only: a transfer between two companies' branches is
+            // not a transfer, and offering one is how it gets posted by mistake.
+            val protectedResult = reportRepository.getBranches(ownCompany = true)
             if (protectedResult is Resource.Error) {
                 _uiState.update {
                     it.copy(
@@ -184,7 +186,8 @@ class InventoryMovementViewModel(
     fun onReceiverMobileChange(value: String) =
         _uiState.update { it.copy(receiverMobile = value.filter(Char::isDigit).take(32)) }
 
-    fun onTransportChange(value: String) = _uiState.update { it.copy(transport = value) }
+    fun onDriverNameChange(value: String) = _uiState.update { it.copy(driverName = value) }
+    fun onDriverMobileChange(value: String) = _uiState.update { it.copy(driverMobile = value) }
 
     fun onNoteChange(value: String) = _uiState.update { it.copy(note = value) }
 
@@ -352,7 +355,8 @@ class InventoryMovementViewModel(
                 receiverName = state.receiverName.trim(),
                 receiverMobile = state.receiverMobile.trim(),
                 note = state.note.trim(),
-                transport = state.transport.trim(),
+                driverName = state.driverName.trim(),
+                driverMobile = state.driverMobile.trim(),
             ),
             lines = state.transferLines,
             allowNegative = allowNegative,

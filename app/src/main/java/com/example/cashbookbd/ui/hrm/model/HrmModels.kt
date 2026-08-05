@@ -105,6 +105,13 @@ data class AttendanceDayRow(
     val day: Int,
     val status: String,
     val approvalStatus: String,
+    /**
+     * The branch this day was marked at, when that is not the branch reading
+     * the sheet — otherwise "". Staff lent to another site keep drawing their
+     * pay here, so their days there belong on this sheet; naming the site is
+     * what stops the reader taking them for days worked at home.
+     */
+    val otherBranchName: String = "",
 )
 
 /**

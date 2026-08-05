@@ -1,5 +1,16 @@
 # Web parity — 2026-08-01
 
+> **Matched to (2026-08-05):**
+> ```
+> cashbookbd_react : b1496bc (2026-08-05 15:21)
+> cashbook_api     : 06fae1bc (2026-08-04 21:49)
+> ```
+> The 08-01..08-05 web batch is ported except: the Transfer/Receive challan
+> lists and their issued-vs-received Comparison panel (mobile has no challan
+> list screen), the sale nominee modal, the scanned-deed upload, and the
+> booking-form generate/print (file upload + PDF streams — web-only for now).
+> `git log b1496bc..HEAD` in the react repo is the next catch-up list.
+
 What the web gained after this app's last commit, and what it costs to follow.
 
 Baseline for this document:

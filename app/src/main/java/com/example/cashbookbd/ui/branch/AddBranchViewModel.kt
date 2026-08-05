@@ -22,6 +22,8 @@ class AddBranchViewModel(
     private val repository: BranchRepository,
     private val branchId: String? = null,
     canClearOpening: Boolean = false,
+    canClearTransactions: Boolean = false,
+    steps: List<BranchStep> = BranchForm.steps,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -29,6 +31,8 @@ class AddBranchViewModel(
             branchId = branchId,
             values = defaultValues(),
             canClearOpening = canClearOpening,
+            canClearTransactions = canClearTransactions,
+            steps = steps,
         ),
     )
     val uiState: StateFlow<AddBranchUiState> = _uiState.asStateFlow()
@@ -216,6 +220,43 @@ class AddBranchViewModel(
         }
     }
 
+    fun onClearTransactionsRequested() = _uiState.update { it.copy(confirmClearTransactions = true) }
+    fun onClearTransactionsDismissed() = _uiState.update { it.copy(confirmClearTransactions = false) }
+
+    /**
+     * Withdraws every voucher this branch holds from the books in one stroke.
+     * Nothing is deleted — the server marks the vouchers inactive, so they stop
+     * showing in reports, ledgers and balances while the entries stay on record.
+     */
+    fun clearTransactions() {
+        val id = _uiState.value.branchId ?: return
+        if (_uiState.value.clearInFlight) return
+
+        _uiState.update {
+            it.copy(
+                confirmClearTransactions = false,
+                isClearingTransactions = true,
+                clearedTransactionsMessage = null,
+                error = null,
+            )
+        }
+        viewModelScope.launch {
+            when (val result = repository.clearTransactions(id)) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(isClearingTransactions = false, clearedTransactionsMessage = result.data)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isClearingTransactions = false,
+                        error = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun onErrorShown() = _uiState.update { it.copy(error = null) }
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
@@ -224,13 +265,19 @@ class AddBranchViewModel(
         fun provideFactory(context: Context, branchId: String? = null) = viewModelFactory {
             initializer {
                 val appContext = context.applicationContext
+                val session = ServiceLocator.provideSessionManager(appContext)
                 AddBranchViewModel(
                     repository = ServiceLocator.provideBranchRepository(appContext),
                     branchId = branchId,
                     canClearOpening = com.example.cashbookbd.session.Permissions.has(
-                        ServiceLocator.provideSessionManager(appContext).permissions,
+                        session.permissions,
                         "branch.opening.clear",
                     ),
+                    canClearTransactions = com.example.cashbookbd.session.Permissions.has(
+                        session.permissions,
+                        "branch.transaction.clear",
+                    ),
+                    steps = BranchForm.stepsFor(session.permissions),
                 )
             }
         }

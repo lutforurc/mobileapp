@@ -3,6 +3,7 @@ package com.example.cashbookbd.data.remote
 import com.google.gson.JsonElement
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -52,4 +53,8 @@ interface ReportApiService {
         @Url url: String,
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): Response<JsonElement>
+
+    /** A bodiless DELETE — withdrawing an issued allotment letter/booking form. */
+    @DELETE
+    suspend fun delete(@Url url: String): Response<JsonElement>
 }

@@ -35,6 +35,13 @@ data class SoldUnitSale(
     val saleDate: String,
     /** How many allotment-letter snapshots this sale has (the web's L-1…L-n). */
     val letterCount: Int,
+    /**
+     * The letter numbers that actually exist. After a withdrawal a sale can
+     * carry L-1 and L-3 — counting 1..n would offer a letter that is gone and
+     * hide one that is not. Falls back to 1..[letterCount] for a server that
+     * does not send the list yet.
+     */
+    val letterVersions: List<Int>,
     val unitPriceAmount: Double,
     val parkingAmount: Double,
     val buildingName: String,
@@ -273,6 +280,10 @@ class RealEstateSalesRepository(
         saleId = str("sale_id").orEmpty(),
         saleDate = str("sale_date").orEmpty(),
         letterCount = int("letter_count"),
+        letterVersions = arr("letter_versions")
+            ?.mapNotNull { el -> el.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull() }
+            ?.takeIf { it.isNotEmpty() }
+            ?: (1..int("letter_count")).toList(),
         unitPriceAmount = dbl("unit_price_amount"),
         parkingAmount = dbl("parking_amount"),
         buildingName = str("building_name").orEmpty(),
@@ -518,6 +529,24 @@ class RealEstateSalesRepository(
                 )
                 envelope(response) { json ->
                     Resource.Success(json.message() ?: "Allotment letter generated.")
+                }
+            }
+        }
+
+    /**
+     * `DELETE real-estate/unit-sale/allotment-letter/{saleId}/{version}` —
+     * withdraws one issued copy. The number is not reused afterwards: the
+     * server issues past the highest ever used, so L-2 gone never means a new
+     * paper called L-2. A missing version answers success:false on a 2xx.
+     */
+    suspend fun withdrawAllotmentLetter(saleId: String, version: Int): Resource<String> =
+        withContext(ioDispatcher) {
+            guarded {
+                val response = reportApi.delete(
+                    "real-estate/unit-sale/allotment-letter/$saleId/$version",
+                )
+                envelope(response) { json ->
+                    Resource.Success(json.message() ?: "Letter withdrawn.")
                 }
             }
         }

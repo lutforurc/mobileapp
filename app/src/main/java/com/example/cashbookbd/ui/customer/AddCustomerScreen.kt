@@ -107,6 +107,18 @@ fun AddCustomerScreen(
                     caption = "Name",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // The branch keeps its ledgers in Bangla, so the name is written
+                // twice — the English one for the software, this one for what is
+                // read out at the counter.
+                if (state.showBangla) {
+                    AppTextField(
+                        value = state.bangla,
+                        onValueChange = viewModel::onBangla,
+                        label = "নাম লিখুন",
+                        caption = "Name (Bangla)",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 // Shown only when the branch collects customer sex.
                 if (state.showSex) {
                     AppSelectDropdown(

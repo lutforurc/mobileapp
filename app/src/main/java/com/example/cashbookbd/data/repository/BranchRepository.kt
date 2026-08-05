@@ -123,6 +123,24 @@ class BranchRepository(
         }
     }
 
+    /**
+     * Withdraws every voucher the branch holds from the books in one stroke.
+     *
+     * Only `main_trx_master.status` is written — nothing is deleted. Every
+     * report, ledger and balance reaches a voucher through that table and asks
+     * for status = 1, so a zero takes it out of the accounts while the entry
+     * stays on record for anyone who has to answer for the clear.
+     *
+     * Needs the `branch.transaction.clear` permission; refused with 403 otherwise.
+     */
+    suspend fun clearTransactions(branchId: String): Resource<String> = withContext(ioDispatcher) {
+        call("branch/clear-transaction", mapOf("branch_id" to branchId)) { responseBody ->
+            responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() }
+                ?: "Transactions cleared"
+        }
+    }
+
     private fun Map<String, String>.trimmed(): Map<String, String> =
         mapValues { (_, value) -> value.trim() }
 

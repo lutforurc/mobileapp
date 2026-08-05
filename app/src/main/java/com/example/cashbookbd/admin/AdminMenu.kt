@@ -41,6 +41,10 @@ object AdminMenu {
         AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = true),
         AdminItem("userList", "User List", USER_VIEW, supported = true),
         AdminItem("onlineUsers", "Online Users", listOf("online.users", "user.view"), supported = true),
+        // Its own permission, not borrowed from online.users: seeing who is
+        // working right now and reading back over someone's hours are different
+        // questions to be allowed to ask.
+        AdminItem("loginHistory", "Login History", listOf("user.login.log"), supported = true),
         AdminItem("companyUser", "Company User", listOf("company.user", "user.view"), supported = true),
         AdminItem(
             "resellers", "Resellers",

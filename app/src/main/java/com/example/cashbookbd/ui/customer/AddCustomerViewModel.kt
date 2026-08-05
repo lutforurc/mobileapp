@@ -24,6 +24,7 @@ class AddCustomerViewModel(
 
     private val _uiState = MutableStateFlow(
         AddCustomerUiState(
+            showBangla = settings?.useBangla == true,
             showSex = settings?.needCustomerSex == true,
             showArea = settings?.needCustomerArea == true,
             showOpening = settings?.openingOngoing == true,
@@ -70,6 +71,7 @@ class AddCustomerViewModel(
     fun onSex(option: SelectorOption) = _uiState.update { it.copy(sex = option) }
     fun onArea(option: SelectorOption) = _uiState.update { it.copy(area = option) }
     fun onName(value: String) = _uiState.update { it.copy(name = value) }
+    fun onBangla(value: String) = _uiState.update { it.copy(bangla = value) }
     fun onAddress(value: String) = _uiState.update { it.copy(address = value) }
     fun onMobile(value: String) = _uiState.update { it.copy(mobile = value) }
     fun onLedgerPage(value: String) = _uiState.update { it.copy(ledgerPage = value) }
@@ -86,6 +88,7 @@ class AddCustomerViewModel(
                 NewCustomer(
                     typeId = type.id,
                     name = state.name,
+                    bangla = if (state.showBangla) state.bangla else "",
                     address = state.address,
                     mobile = state.mobile,
                     ledgerPage = state.ledgerPage,

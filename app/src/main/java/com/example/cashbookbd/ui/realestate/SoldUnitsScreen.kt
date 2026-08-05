@@ -8,6 +8,7 @@ import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -33,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,6 +122,15 @@ data class SoldUnitsUiState(
     val suggestedRefNo: String = "",
     val actionMessage: String? = null,
 
+    /**
+     * Withdrawing an issued letter is its own permission
+     * (`allotment.letter.delete`), granted separately from issuing one.
+     * Without it the L-n chips print and nothing more.
+     */
+    val canWithdrawLetter: Boolean = false,
+    /** The issued copy awaiting the withdraw confirmation: sale + L-version. */
+    val pendingWithdraw: Pair<com.example.cashbookbd.data.repository.SoldUnitSale, Int>? = null,
+
     val sessionExpired: Boolean = false,
 )
 
@@ -127,7 +139,14 @@ class SoldUnitsViewModel(
     private val settings: com.example.cashbookbd.session.Settings?,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SoldUnitsUiState())
+    private val _uiState = MutableStateFlow(
+        SoldUnitsUiState(
+            canWithdrawLetter = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions,
+                "allotment.letter.delete",
+            ),
+        )
+    )
     val uiState: StateFlow<SoldUnitsUiState> = _uiState.asStateFlow()
 
     init {
@@ -268,6 +287,41 @@ class SoldUnitsViewModel(
         _uiState.update { it.copy(pendingGenerate = null, generatingSaleId = sale.saleId) }
         viewModelScope.launch {
             when (val result = repository.generateAllotmentLetter(sale.saleId, refNo, refDate)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(actionMessage = result.data) }
+                    refreshSilently()
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        generatingSaleId = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    // ---- Withdraw an issued letter ----------------------------------------
+
+    fun requestWithdraw(sale: com.example.cashbookbd.data.repository.SoldUnitSale, version: Int) =
+        _uiState.update { it.copy(pendingWithdraw = sale to version) }
+
+    fun cancelWithdraw() = _uiState.update { it.copy(pendingWithdraw = null) }
+
+    /**
+     * Withdraws one issued copy. The number is not reused afterwards — the
+     * server issues past the highest ever used — so the chips can go from
+     * L-1 L-2 L-3 to L-1 L-3, never to two different papers both called L-2.
+     */
+    fun confirmWithdraw() {
+        val state = _uiState.value
+        val (sale, version) = state.pendingWithdraw ?: return
+        if (state.generatingSaleId != null) return
+        _uiState.update { it.copy(pendingWithdraw = null, generatingSaleId = sale.saleId) }
+        viewModelScope.launch {
+            when (val result = repository.withdrawAllotmentLetter(sale.saleId, version)) {
                 is Resource.Success -> {
                     _uiState.update { it.copy(actionMessage = result.data) }
                     refreshSilently()
@@ -476,6 +530,8 @@ fun SoldUnitsScreen(
                         report = report,
                         generatingSaleId = state.generatingSaleId,
                         onGenerate = viewModel::requestGenerate,
+                        canWithdrawLetter = state.canWithdrawLetter,
+                        onWithdraw = viewModel::requestWithdraw,
                     )
                 }
             }
@@ -527,6 +583,29 @@ fun SoldUnitsScreen(
             dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelGenerate) },
         )
     }
+
+    // Withdrawing removes a copy that may already have been handed over, so it
+    // asks first, names the paper, and says the number is not reused — the
+    // obvious worry on withdrawing L-2 is whether L-3 is about to be renamed.
+    state.pendingWithdraw?.let { (sale, version) ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelWithdraw,
+            title = { Text("Withdraw letter L-$version?") },
+            text = {
+                Text(
+                    "This removes the issued copy L-$version for receipt " +
+                        "${sale.receiptNo.ifBlank { "(no receipt)" }}. It cannot be " +
+                        "printed again afterwards, and the number is not reused.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmWithdraw) {
+                    Text("Withdraw", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelWithdraw) },
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -540,9 +619,19 @@ fun SoldUnitsScreen(
  */
 private fun wholeTaka(value: Double): Long = value.toLong()
 
+/**
+ * A negative amount prints as `(-) 36,000`, not `-36,000`. The bare minus is
+ * one thin stroke against a column of digits and is missed exactly where it
+ * matters — a discount read as a charge turns a rebate into an addition. The
+ * parenthesised form is what the office already writes by hand.
+ */
 private fun money(value: Double): String {
     val whole = wholeTaka(value)
-    return if (whole == 0L) "-" else AmountFormat.format(whole.toDouble(), 0)
+    return when {
+        whole == 0L -> "-"
+        whole < 0L -> "(-) " + AmountFormat.format(-whole.toDouble(), 0)
+        else -> AmountFormat.format(whole.toDouble(), 0)
+    }
 }
 
 /** The money totals recomputed from the floored per-sale figures. */
@@ -563,8 +652,11 @@ private fun flooredTotals(report: SoldUnitsReport): FlooredTotals {
     )
 }
 
-private fun moneyWhole(value: Long): String =
-    if (value == 0L) "-" else AmountFormat.format(value.toDouble(), 0)
+private fun moneyWhole(value: Long): String = when {
+    value == 0L -> "-"
+    value < 0L -> "(-) " + AmountFormat.format(-value.toDouble(), 0)
+    else -> AmountFormat.format(value.toDouble(), 0)
+}
 
 /** The web's 7 cards: counts, then Parking/Sale Value, then Received/Due. */
 @Composable
@@ -637,6 +729,8 @@ private fun SoldUnitsTable(
     report: SoldUnitsReport,
     generatingSaleId: String?,
     onGenerate: (SoldUnitSale) -> Unit,
+    canWithdrawLetter: Boolean,
+    onWithdraw: (SoldUnitSale, Int) -> Unit,
 ) {
     val hScroll = rememberScrollState()
     val gridLine = MaterialTheme.appColors.gridLine
@@ -656,6 +750,8 @@ private fun SoldUnitsTable(
                 gridLine = gridLine,
                 generatingSaleId = generatingSaleId,
                 onGenerate = onGenerate,
+                canWithdrawLetter = canWithdrawLetter,
+                onWithdraw = onWithdraw,
             )
         }
         SoldUnitsGrandTotalRow(report)
@@ -713,6 +809,8 @@ private fun SoldUnitCustomerBlock(
     gridLine: Color,
     generatingSaleId: String?,
     onGenerate: (SoldUnitSale) -> Unit,
+    canWithdrawLetter: Boolean,
+    onWithdraw: (SoldUnitSale, Int) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val tint = accent.asTint()
@@ -784,6 +882,8 @@ private fun SoldUnitCustomerBlock(
                     gridLine = gridLine,
                     isGenerating = generatingSaleId == sale.saleId,
                     onGenerate = onGenerate,
+                    canWithdrawLetter = canWithdrawLetter,
+                    onWithdraw = onWithdraw,
                 )
             }
         }
@@ -796,6 +896,8 @@ private fun SoldUnitSaleBand(
     gridLine: Color,
     isGenerating: Boolean,
     onGenerate: (SoldUnitSale) -> Unit,
+    canWithdrawLetter: Boolean,
+    onWithdraw: (SoldUnitSale, Int) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
 
@@ -864,14 +966,43 @@ private fun SoldUnitSaleBand(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (sale.letterCount > 0) {
-                Text(
-                    text = "Letters: L-1…L-${sale.letterCount}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = onScreen.muted(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            // One chip per issued letter, built from the numbers the report
+            // sends — after a withdrawal a sale carries L-1 and L-3, and
+            // counting 1..n would offer a letter that is gone. The ✕ beside a
+            // chip withdraws that copy, and only shows for whoever may do that.
+            if (sale.letterVersions.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    sale.letterVersions.forEach { version ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = gridLine,
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        ) {
+                            Text(
+                                text = "L-$version",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = onScreen.muted(),
+                            )
+                            if (canWithdrawLetter && sale.saleId.isNotBlank()) {
+                                Text(
+                                    text = "✕",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .clickable(enabled = !isGenerating) {
+                                            onWithdraw(sale, version)
+                                        },
+                                )
+                            }
+                        }
+                    }
+                }
             }
             if (sale.saleId.isNotBlank()) {
                 LinkButton(

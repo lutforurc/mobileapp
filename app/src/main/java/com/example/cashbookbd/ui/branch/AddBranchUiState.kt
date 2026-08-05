@@ -42,17 +42,38 @@ data class AddBranchUiState(
     val isClearingOpening: Boolean = false,
     /** The server's count of what was cleared, shown until the screen leaves. */
     val clearedOpeningMessage: String? = null,
+    /**
+     * Withdrawing every voucher the branch holds from the books. Carries a
+     * permission of its own (`branch.transaction.clear`) rather than riding
+     * along on the one that clears openings.
+     */
+    val canClearTransactions: Boolean = false,
+    val confirmClearTransactions: Boolean = false,
+    val isClearingTransactions: Boolean = false,
+    val clearedTransactionsMessage: String? = null,
+    /**
+     * The wizard for this user — [BranchForm.stepsFor]. The SaaS step is absent
+     * for anyone who cannot reach anything on it.
+     */
+    val steps: List<BranchStep> = BranchForm.steps,
 ) {
     val isEditing: Boolean get() = branchId != null
 
-    /** The button is drawn only where both hold. */
-    val showClearOpening: Boolean get() = canClearOpening && isEditing
+    /**
+     * Both clears show under the same two conditions: the permission, and a
+     * branch still marked "Opening ongoing?". Past that point the branch is
+     * trading for real and a wholesale clear is no longer a correction.
+     */
+    val showClearOpening: Boolean get() = canClearOpening && isEditing && flag("is_opening")
+
+    val showClearTransactions: Boolean get() = canClearTransactions && isEditing && flag("is_opening")
+
+    /** Either clear in flight disables both buttons. */
+    val clearInFlight: Boolean get() = isClearingOpening || isClearingTransactions
 
     val screenTitle: String get() = if (isEditing) "Edit Branch" else "Add Branch"
 
     val saveLabel: String get() = if (isEditing) "Update Branch" else "Save Branch"
-
-    val steps: List<BranchStep> get() = BranchForm.steps
 
     val step: BranchStep get() = steps[currentStep.coerceIn(steps.indices)]
 

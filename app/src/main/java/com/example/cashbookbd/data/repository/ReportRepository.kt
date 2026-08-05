@@ -28,9 +28,13 @@ class ReportRepository(
         private const val HTTP_UNAUTHORIZED = 401
     }
 
-    suspend fun getBranches(): Resource<BranchList> = withContext(ioDispatcher) {
+    /**
+     * @param ownCompany keeps the list inside the caller's own company even for
+     * a privileged user. The transfer forms ask for it; reports do not.
+     */
+    suspend fun getBranches(ownCompany: Boolean = false): Resource<BranchList> = withContext(ioDispatcher) {
         safeCall {
-            val response = api.getBranches()
+            val response = api.getBranches(if (ownCompany) "1" else null)
             response.unauthorizedOrNull()?.let { return@safeCall it }
 
             if (!response.isSuccessful) {
