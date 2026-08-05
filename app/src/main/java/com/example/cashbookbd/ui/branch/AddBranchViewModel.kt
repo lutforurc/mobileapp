@@ -58,6 +58,7 @@ class AddBranchViewModel(
     private fun defaultValues(): Map<String, String> =
         BranchForm.toggleKeys.associateWith { "0" } + mapOf(
             "status" to "1",
+            "inventory_system_id" to "1",   // General Inventory
             "pad_heading_print" to "1",     // Branch Pad Heading
             "print_size" to "1",            // Normal Printer
             "pad_print_mode" to "software", // Software Generated Pad Head
@@ -78,6 +79,7 @@ class AddBranchViewModel(
                     isLoadingOptions = false,
                     branchTypes = result.data.branchTypes,
                     businessTypes = result.data.businessTypes,
+                    inventorySystems = result.data.inventorySystems,
                     paperSizes = result.data.paperSizes,
                     // The endpoint sorts is_default first, so the head of the
                     // list is the size this installation prints on. Only filled
@@ -114,6 +116,9 @@ class AddBranchViewModel(
                         isLoadingOptions = false,
                         branchTypes = data.branchTypes.ifEmpty { options?.branchTypes.orEmpty() },
                         businessTypes = data.businessTypes.ifEmpty { options?.businessTypes.orEmpty() },
+                        // Like the paper sizes, this list only comes from the
+                        // settings endpoint — branch-edit does not send it.
+                        inventorySystems = options?.inventorySystems.orEmpty(),
                         paperSizes = options?.paperSizes.orEmpty(),
                         existingFields = data.fields,
                         // Normalise the flags: the server sends them as 1/0 but

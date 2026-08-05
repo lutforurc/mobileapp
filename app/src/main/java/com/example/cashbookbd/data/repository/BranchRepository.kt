@@ -18,6 +18,8 @@ data class BranchFormOptions(
     val branchTypes: List<SelectorOption>,
     val businessTypes: List<SelectorOption>,
     val paperSizes: List<SelectorOption>,
+    /** Which purchase/sales screens the branch works with (fixed ids: 1 general, 2 electronics, 3 construction, 4 trading). */
+    val inventorySystems: List<SelectorOption>,
 )
 
 /**
@@ -56,6 +58,7 @@ class BranchRepository(
                 branchTypes = payload.options("branchType"),
                 businessTypes = payload.options("businessType"),
                 paperSizes = payload.options("paperSize"),
+                inventorySystems = payload.options("inventorySystem"),
             )
         }
     }

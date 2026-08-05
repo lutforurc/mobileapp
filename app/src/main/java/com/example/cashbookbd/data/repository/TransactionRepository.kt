@@ -29,6 +29,12 @@ data class CashVoucherLine(
     /** Trading only: the linked order's id and display number ("" = none). */
     val orderNumber: String = "",
     val orderText: String = "",
+    /**
+     * Product tracking: which product this money was for ("" = none). Only
+     * offered while the branch tracks products; the server maps it to the row.
+     */
+    val trackedProductId: String = "",
+    val trackedProductName: String = "",
 )
 
 /**
@@ -175,6 +181,45 @@ class TransactionRepository(
                 add("transactions", rows)
             },
         )
+    }
+
+    /**
+     * The tracked products a cash row may name (`product-tracking/products`).
+     *
+     * Party-scoped: [coa4Id] is the picked account, and the answer is that
+     * party's own products plus the ones configured for every party. With no
+     * account yet, only the every-party ones come back. Tracking not set up,
+     * or no permission → empty, and the form stays exactly as it was — the
+     * dropdown hides itself rather than the form ever breaking.
+     */
+    suspend fun fetchTrackedProducts(
+        context: String,
+        coa4Id: String?,
+    ): List<Pair<String, String>> = withContext(ioDispatcher) {
+        try {
+            val query = buildString {
+                append("product-tracking/products?context=")
+                append(URLEncoder.encode(context, "UTF-8"))
+                coa4Id?.takeIf { it.isNotBlank() }?.let {
+                    append("&coa4_id=").append(URLEncoder.encode(it, "UTF-8"))
+                }
+            }
+            val response = api.get(query)
+            val body = response.takeIf { it.isSuccessful }?.body()
+                ?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext emptyList()
+            val array = body.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("data")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?: return@withContext emptyList()
+            array.mapNotNull { el ->
+                val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                val id = o.get("id")?.takeUnless { it.isJsonNull }?.asString ?: return@mapNotNull null
+                val name = o.get("name")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+                id to name.ifBlank { "Product $id" }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     /**
@@ -389,6 +434,9 @@ class TransactionRepository(
             addProperty("accountName", line.account.name)
             addProperty("remarks", line.remarks)
             addProperty("amount", line.amount)
+            // ProductTrackingService reads `trackedProductId` off each row;
+            // absent, the row simply goes unmapped — never an error.
+            line.trackedProductId.toLongOrNull()?.let { addProperty("trackedProductId", it) }
             if (trading) {
                 addProperty("purchaseOrderNumber", line.orderNumber)
                 addProperty("purchaseOrderText", line.orderText)

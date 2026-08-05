@@ -58,6 +58,7 @@ sealed interface BranchField {
 enum class BranchOptions {
     BRANCH_TYPE,
     BUSINESS_TYPE,
+    INVENTORY_SYSTEM,
     PAPER_SIZE,
     STATUS,
     PAD_HEADING,
@@ -102,6 +103,10 @@ object BranchForm {
                 BranchField.Choice(
                     "business_type_id", "Business Type", BranchOptions.BUSINESS_TYPE,
                     description = "The trade the branch is in. It decides which dashboard the branch opens on.",
+                ),
+                BranchField.Choice(
+                    "inventory_system_id", "Inventory System", BranchOptions.INVENTORY_SYSTEM,
+                    description = "Which purchase and sales screens the branch works with — electronics, construction or trading.",
                 ),
                 BranchField.Text(
                     "email", "Email", KeyboardType.Email,
@@ -224,17 +229,81 @@ object BranchForm {
                 ),
             ),
         ),
+        // The web's full Customer Setup: every switch that shapes the customer
+        // form, in the web's own order. The "Need …" switches all do the same
+        // thing — each puts its field on the Add and Edit Customer forms.
+        //
+        // ⚠️ Keys must match BranchController's meta keys EXACTLY: the server
+        // reads `need_customer_mother_name`, `need_customer_contact_person`
+        // and `have_customer_nominee` — the shorter names this form once used
+        // were dead keys the server silently ignored.
         BranchStep(
             title = "Customer Setup",
-            summary = "Which extra fields the customer form asks for.",
+            summary = "Customer and supplier related options for this branch.",
             fields = listOf(
+                BranchField.Toggle(
+                    "have_customer_sl", "Use Customer Serial?",
+                    description = "Gives every customer a serial number of its own on the customer form.",
+                ),
                 BranchField.Toggle(
                     "need_customer_area", "Need Customer Area?",
                     description = "Adds the area field to the customer form, so customers can be grouped by locality.",
                 ),
                 BranchField.Toggle(
+                    "share_customer_with_other_branch", "Customer Share with Other branch?",
+                    description = "Customers entered anywhere in the company can be picked here. Off, this branch sees only its own.",
+                ),
+                BranchField.Toggle(
+                    "need_relation_info", "Need Relation's Information?",
+                    description = "Adds the father's/husband's name and relation fields to the customer form.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_mother_name", "Need Customer Mother's Name?",
+                    description = "Adds the mother's name field to the customer form.",
+                ),
+                BranchField.Toggle(
                     "need_customer_sex", "Need Customer Sex?",
                     description = "Adds the sex field, which also decides which salutation a letter uses for the customer.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_contact_person", "Need Customer Contact Person?",
+                    description = "Adds a contact person and their number, for customers reached through someone else.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_date_of_birth", "Need Customer Date of Birth?",
+                    description = "Adds the date of birth field to the customer form.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_occupation", "Need Customer Occupation?",
+                    description = "Adds the occupation field to the customer form.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_permanent_address", "Need Customer Permanent Address?",
+                    description = "Adds a permanent address alongside the present one, as deeds and letters usually want both.",
+                ),
+                BranchField.Toggle(
+                    "need_customer_photo", "Need Customer Photo?",
+                    description = "Adds the photo upload to the customer form.",
+                ),
+                BranchField.Toggle(
+                    "use_bangla", "Use Bangla?",
+                    description = "Adds Bangla name fields beside the English ones, for papers that have to carry both.",
+                ),
+                BranchField.Toggle(
+                    "due_list_with_address", "Report Due List with Address?",
+                    description = "Prints each party's address and mobile beside the name on the Due List, so the sheet can be worked from in the field.",
+                ),
+                BranchField.Toggle(
+                    "have_customer_nominee", "Use Customer Nominee?",
+                    description = "Opens the nominee section on the customer form — who inherits the customer's claim.",
+                ),
+                BranchField.Toggle(
+                    "need_nominee_photo", "Need Nominee Photo?",
+                    description = "Asks for the nominee's photograph as well as their particulars.",
+                ),
+                BranchField.Toggle(
+                    "have_is_guaranter", "Use Guarantor?",
+                    description = "Opens the guarantor section on the customer form — who stands behind the customer's dues.",
                 ),
             ),
         ),
@@ -263,6 +332,10 @@ object BranchForm {
                 BranchField.Toggle(
                     "share_product_with_other_branch", "Product share",
                     description = "Products entered anywhere in the company can be picked here. Off, this branch sees only its own.",
+                ),
+                BranchField.Toggle(
+                    "product_tracking", "Product Tracking?",
+                    description = "Cash Received and Payment ask which product the money was for, and the Product Statement reports on it. Off, those forms stay exactly as they were.",
                 ),
             ),
         ),
@@ -302,48 +375,12 @@ object BranchForm {
                     description = "Vouchers say which warehouse stock moved in or out of. Off, everything sits in one.",
                 ),
                 BranchField.Toggle(
-                    "share_customer_with_other_branch", "Customer share",
-                    description = "Customers entered anywhere in the company can be picked here. Off, this branch sees only its own.",
-                ),
-                BranchField.Toggle(
-                    "have_customer_sl", "Use customer serial",
-                    description = "Gives every customer a serial number of its own on the customer form.",
-                ),
-                BranchField.Toggle(
-                    "use_bangla", "Use Bangla",
-                    description = "Adds Bangla name fields beside the English ones, for papers that have to carry both.",
-                ),
-                BranchField.Toggle(
                     "is_opening", "Opening ongoing",
                     description = "The branch is still entering its opening figures, so products and parties can take an opening balance. Switch off once the books are settled.",
                 ),
                 BranchField.Toggle(
-                    "have_is_guaranter", "Use guarantor",
-                    description = "Opens the guarantor section on the customer form — who stands behind the customer's dues.",
-                ),
-                BranchField.Toggle(
-                    "have_is_nominee", "Use nominee",
-                    description = "Opens the nominee section on the customer form — who inherits the customer's claim.",
-                ),
-                BranchField.Toggle(
                     "need_demo_tutorial", "Need demo tutorial",
                     description = "Offers the guided walkthrough to users of this branch. Turn off once the staff know their way around.",
-                ),
-                BranchField.Toggle(
-                    "need_relation_info", "Need relation's information",
-                    description = "Adds the father's/husband's name and relation fields to the customer form.",
-                ),
-                BranchField.Toggle(
-                    "need_mother_name", "Need mother's name",
-                    description = "Adds the mother's name field to the customer form.",
-                ),
-                BranchField.Toggle(
-                    "need_contact_person", "Need contact person",
-                    description = "Adds a contact person and their number, for customers reached through someone else.",
-                ),
-                BranchField.Toggle(
-                    "due_list_with_address", "Report due list with address",
-                    description = "Prints each party's address and mobile beside the name on the Due List, so the sheet can be worked from in the field.",
                 ),
                 BranchField.Toggle(
                     "sms_service", "SMS service",

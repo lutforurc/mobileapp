@@ -154,6 +154,12 @@ data class CashVoucherUiState(
     val amount: String = "",
     val remarkSuggestions: List<String> = emptyList(),
 
+    // Product tracking: which product this money was for. The list is
+    // party-scoped and empty where the branch tracks nothing — the dropdown
+    // then hides itself and the form stays exactly as it was.
+    val trackedProducts: List<SelectorOption> = emptyList(),
+    val trackedProduct: SelectorOption? = null,
+
     // Head Office: the branch the money moves against.
     val branches: List<BranchOption> = emptyList(),
     val selectedBranch: BranchOption? = null,
@@ -205,6 +211,33 @@ class CashVoucherViewModel(
 
     init {
         if (variant == CashVoucherVariant.HEAD_OFFICE) loadBranches()
+        // With no account yet, only the every-party products come back.
+        loadTrackedProducts(coa4Id = null)
+    }
+
+    /** "received"/"payment" — what product-tracking/products calls this form. */
+    private val trackingContext: String =
+        if (spec.rowsEndpoint.endsWith("received")) "received" else "payment"
+
+    /**
+     * Refreshes the party-scoped product list. Empty (tracking off, no
+     * permission, nothing configured) hides the dropdown — the form must never
+     * break for a branch that has not heard of product tracking.
+     */
+    private fun loadTrackedProducts(coa4Id: String?) {
+        viewModelScope.launch {
+            val products = transactionRepository.fetchTrackedProducts(trackingContext, coa4Id)
+            _uiState.update { state ->
+                val options = products.map { (id, name) -> SelectorOption(id = id, label = name) }
+                state.copy(
+                    trackedProducts = options,
+                    // A pick that survived an account change may no longer be
+                    // offered for the new party; drop it rather than post it.
+                    trackedProduct = state.trackedProduct
+                        ?.takeIf { picked -> options.any { it.id == picked.id } },
+                )
+            }
+        }
     }
 
     private fun loadBranches() {
@@ -237,7 +270,14 @@ class CashVoucherViewModel(
         _uiState.update { it.copy(selectedBranch = branch) }
     }
 
-    fun onAccountSelected(account: TxnSelection) = _uiState.update { it.copy(account = account) }
+    fun onAccountSelected(account: TxnSelection) {
+        _uiState.update { it.copy(account = account) }
+        // Tracking is party-wise: the product list follows the account.
+        loadTrackedProducts(coa4Id = account.id)
+    }
+
+    fun onTrackedProductSelected(option: SelectorOption) =
+        _uiState.update { it.copy(trackedProduct = option.takeIf { o -> o.id.isNotBlank() }) }
 
     suspend fun searchAccounts(query: String): Resource<List<LedgerDropdownItem>> =
         ledgerRepository.searchLedgers(query)
@@ -300,9 +340,14 @@ class CashVoucherViewModel(
                     amount = amount,
                     orderNumber = if (variant == CashVoucherVariant.TRADING) it.order?.id.orEmpty() else "",
                     orderText = if (variant == CashVoucherVariant.TRADING) it.order?.orderNumber.orEmpty() else "",
+                    trackedProductId = it.trackedProduct?.id.orEmpty(),
+                    trackedProductName = it.trackedProduct?.label.orEmpty(),
                 ),
                 remarks = "",
                 amount = "",
+                // The product belongs to the row just added, not to the next
+                // one — the web clears it per row too.
+                trackedProduct = null,
                 remarkSuggestions = emptyList(),
             )
         }
@@ -316,6 +361,8 @@ class CashVoucherViewModel(
                 account = line.account,
                 remarks = line.remarks,
                 amount = line.amount.toPlainAmount(),
+                trackedProduct = line.trackedProductId.takeIf { it.isNotBlank() }
+                    ?.let { SelectorOption(id = it, label = line.trackedProductName) },
                 order = when {
                     line.orderNumber.isBlank() -> state.order
                     else -> OrderOption(
@@ -374,6 +421,7 @@ class CashVoucherViewModel(
                         lines = emptyList(),
                         account = null,
                         order = null,
+                        trackedProduct = null,
                         remarks = "",
                         amount = "",
                         remarkSuggestions = emptyList(),
@@ -483,6 +531,20 @@ fun CashVoucherScreen(
                 searchLedgers = viewModel::searchAccounts,
                 label = "Select Account",
             )
+
+            // Product tracking: only where the branch tracks products for this
+            // party — the dropdown hides itself everywhere else, so the form
+            // never changes for a branch that has not heard of tracking.
+            if (state.trackedProducts.isNotEmpty()) {
+                AppSelectDropdown(
+                    label = "Select Product (Optional)",
+                    options = listOf(SelectorOption(id = "", label = "None")) + state.trackedProducts,
+                    selected = state.trackedProduct,
+                    onSelected = viewModel::onTrackedProductSelected,
+                    placeholder = "None",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             AppTextField(
                 value = state.remarks,
@@ -594,6 +656,13 @@ private fun VoucherLinesList(
                         if (line.orderText.isNotBlank()) {
                             Text(
                                 text = "Order: ${line.orderText}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (line.trackedProductName.isNotBlank()) {
+                            Text(
+                                text = "Product: ${line.trackedProductName}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

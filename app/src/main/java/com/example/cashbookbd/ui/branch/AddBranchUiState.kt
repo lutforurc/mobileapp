@@ -22,6 +22,7 @@ data class AddBranchUiState(
     val currentStep: Int = 0,
     val branchTypes: List<SelectorOption> = emptyList(),
     val businessTypes: List<SelectorOption> = emptyList(),
+    val inventorySystems: List<SelectorOption> = emptyList(),
     val paperSizes: List<SelectorOption> = emptyList(),
     /** True while the pickers (and, when editing, the branch) are being fetched. */
     val isLoadingOptions: Boolean = false,
@@ -91,6 +92,7 @@ data class AddBranchUiState(
     fun options(source: BranchOptions): List<SelectorOption> = when (source) {
         BranchOptions.BRANCH_TYPE -> branchTypes
         BranchOptions.BUSINESS_TYPE -> businessTypes
+        BranchOptions.INVENTORY_SYSTEM -> inventorySystems
         BranchOptions.PAPER_SIZE -> paperSizes
         BranchOptions.STATUS -> BranchForm.statusOptions
         BranchOptions.PAD_HEADING -> BranchForm.padHeadingOptions
