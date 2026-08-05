@@ -361,12 +361,19 @@ class CashVoucherViewModel(
             }
             when (result) {
                 is Resource.Success -> _uiState.update {
-                    // Like the web reset: the batch clears; account/order/branch stay.
+                    // The batch clears, and so does the picked account (and the
+                    // Trading order that hangs off it): a saved voucher ends the
+                    // matter, and the next entry starts from a fresh search
+                    // rather than silently posting to whoever was left selected.
+                    // Only the branch survives — it is the operator's own desk,
+                    // not a per-voucher choice.
                     it.copy(
                         isSubmitting = false,
                         message = result.data,
                         isError = false,
                         lines = emptyList(),
+                        account = null,
+                        order = null,
                         remarks = "",
                         amount = "",
                         remarkSuggestions = emptyList(),
