@@ -283,6 +283,9 @@ data class ReportConfig(
         /** [section] of reports listed under the Requisition parent menu. */
         const val SECTION_REQUISITION = "requisition"
 
+        /** Listed by the Branch Transfer section, not the Reports home. */
+        const val SECTION_BRANCH_TRANSFER = "branch_transfer"
+
         private val GENERIC_FILTER_TYPES = setOf(
             ReportFilterType.BRANCH_DATE_RANGE,
             ReportFilterType.BRANCH_END_DATE,
@@ -1009,6 +1012,7 @@ object ReportMenu {
             title = "Branch Transfer Report",
             routeName = "ReportBranchTransfer",
             webPath = "/reports/branch-transfer",
+            section = ReportConfig.SECTION_BRANCH_TRANSFER,
             // The web sidebar gates this item on branch.transfer.create.
             anyOf = listOf("branch.transfer.create"),
             endpointKey = "branchTransferReport",
@@ -1029,6 +1033,7 @@ object ReportMenu {
             title = "Branch Receive Report",
             routeName = "ReportBranchReceive",
             webPath = "/reports/branch-receive",
+            section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("branch.received.create"),
             endpointKey = "branchReceiveReport",
             method = ReportMethod.POST,
@@ -1048,6 +1053,7 @@ object ReportMenu {
             title = "Branch Stock",
             routeName = "ReportBranchStock",
             webPath = "/reports/branch-stock",
+            section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("product.stock.view"),
             endpointKey = "branchStockReport",
             method = ReportMethod.POST,

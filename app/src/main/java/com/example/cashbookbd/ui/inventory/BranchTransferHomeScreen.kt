@@ -1,11 +1,8 @@
-package com.example.cashbookbd.ui.invoice
+package com.example.cashbookbd.ui.inventory
 
-import com.example.cashbookbd.ui.theme.muted
-import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,17 +27,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.di.ServiceLocator
-import com.example.cashbookbd.invoice.InvoiceItem
-import com.example.cashbookbd.invoice.InvoiceMenu
+import com.example.cashbookbd.inventory.BranchTransferItem
+import com.example.cashbookbd.inventory.BranchTransferMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.theme.appColors
 
 /**
- * The "Invoice" parent section. Lists every invoice form the current user is
- * permitted to open (from [InvoiceMenu.visible]); each routes to its entry form.
+ * The "Branch Transfer" parent section, mirroring the web's sidebar group:
+ * the movement forms, the challan register, and the three transfer reports.
  */
 @Composable
-fun InvoiceHomeScreen(
+fun BranchTransferHomeScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
@@ -49,14 +47,11 @@ fun InvoiceHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = InvoiceMenu.visible(
-        sessionState.permissions,
-        businessTypeId = sessionState.settings?.businessTypeId,
-    )
+    val items = BranchTransferMenu.visible(sessionState.permissions)
 
     AuthenticatedShell(
-        title = "Invoice",
-        currentRoute = Routes.INVOICES,
+        title = "Branch Transfer",
+        currentRoute = Routes.BRANCH_TRANSFER,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
@@ -64,7 +59,7 @@ fun InvoiceHomeScreen(
         if (items.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "You don't have access to any invoices.",
+                    text = "You don't have access to any transfer screen.",
                     color = MaterialTheme.appColors.textOnScreenMuted,
                     textAlign = TextAlign.Center,
                 )
@@ -78,13 +73,17 @@ fun InvoiceHomeScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(items) { item ->
-                InvoiceRowItem(
+                BranchTransferRowItem(
                     item = item,
                     onClick = {
                         val route = when (item.key) {
-                            InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
-                            InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
-                            else -> Routes.invoiceView(item.key)
+                            BranchTransferMenu.BRANCH_ISSUE_KEY,
+                            BranchTransferMenu.BRANCH_RECEIVE_KEY,
+                            BranchTransferMenu.MATERIAL_ISSUE_KEY,
+                            -> Routes.inventoryView(item.key)
+                            BranchTransferMenu.TRANSFER_LIST_KEY -> Routes.TRANSFER_LIST
+                            // The three reports ride the generic engine.
+                            else -> Routes.reportView(item.key)
                         }
                         navController.navigate(route)
                     },
@@ -95,22 +94,17 @@ fun InvoiceHomeScreen(
 }
 
 @Composable
-private fun InvoiceRowItem(item: InvoiceItem, onClick: () -> Unit) {
+private fun BranchTransferRowItem(item: BranchTransferItem, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
-                if (!item.supported) {
-                    Text(
-                        text = "Coming soon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,

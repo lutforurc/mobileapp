@@ -161,6 +161,9 @@ fun AuthenticatedShell(
     // "Analytics" holds one screen (the item comparison chart), like the web.
     val canAnalytics = com.example.cashbookbd.session.Permissions
         .has(sessionState.permissions, "analytics.comparison")
+    // "Branch Transfer" — the web's own group for stock crossing a branch line.
+    val canBranchTransfer = com.example.cashbookbd.inventory.BranchTransferMenu
+        .hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -205,6 +208,7 @@ fun AuthenticatedShell(
                 canSubscription = canSubscription,
                 canReseller = canReseller,
                 canAnalytics = canAnalytics,
+                canBranchTransfer = canBranchTransfer,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -333,6 +337,7 @@ private fun AppDrawerContent(
     canSubscription: Boolean,
     canReseller: Boolean,
     canAnalytics: Boolean,
+    canBranchTransfer: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -347,10 +352,16 @@ private fun AppDrawerContent(
             Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(12.dp))
 
-            // Each section is one DrawerItem; child screens live inside the
-            // section's own home screen, filtered by permission.
+            // Each section is one DrawerItem, in the WEB SIDEBAR'S order —
+            // child screens live inside the section's own home screen,
+            // filtered by permission.
             DrawerItem("Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME) {
                 onDestinationClick(Routes.HOME)
+            }
+            if (canReseller) {
+                DrawerItem("Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD) {
+                    onDestinationClick(Routes.RESELLER_DASHBOARD)
+                }
             }
             if (canTransactions) {
                 DrawerItem("Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS) {
@@ -360,6 +371,11 @@ private fun AppDrawerContent(
             if (canInvoices) {
                 DrawerItem("Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES) {
                     onDestinationClick(Routes.INVOICES)
+                }
+            }
+            if (canBranchTransfer) {
+                DrawerItem("Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER) {
+                    onDestinationClick(Routes.BRANCH_TRANSFER)
                 }
             }
             if (canReports) {
@@ -389,14 +405,14 @@ private fun AppDrawerContent(
                     onDestinationClick(Routes.PRODUCTS)
                 }
             }
-            if (canVrSettings) {
-                DrawerItem("VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS) {
-                    onDestinationClick(Routes.VR_SETTINGS)
-                }
-            }
             if (canAdmin) {
                 DrawerItem("Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN) {
                     onDestinationClick(Routes.ADMIN)
+                }
+            }
+            if (canVrSettings) {
+                DrawerItem("VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS) {
+                    onDestinationClick(Routes.VR_SETTINGS)
                 }
             }
             if (canHrm) {
@@ -409,20 +425,16 @@ private fun AppDrawerContent(
                     onDestinationClick(Routes.CUSTOMERS)
                 }
             }
-            if (canSubscription) {
-                DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
-                    onDestinationClick(Routes.SUBSCRIPTION)
-                }
-            }
             if (canAnalytics) {
                 // One screen, like the web's one-item Analytics group.
                 DrawerItem("Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON) {
                     onDestinationClick(Routes.ANALYTICS_COMPARISON)
                 }
             }
-            if (canReseller) {
-                DrawerItem("Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD) {
-                    onDestinationClick(Routes.RESELLER_DASHBOARD)
+            // Mobile-only tail: the web keeps Subscription in the header menu.
+            if (canSubscription) {
+                DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
+                    onDestinationClick(Routes.SUBSCRIPTION)
                 }
             }
 

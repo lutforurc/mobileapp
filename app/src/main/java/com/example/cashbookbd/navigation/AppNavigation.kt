@@ -95,6 +95,8 @@ import com.example.cashbookbd.ui.subscription.PaymentSubmitScreen
 import com.example.cashbookbd.ui.subscription.SubscriptionAdminScreen
 import com.example.cashbookbd.ui.customer.AddCoaL3Screen
 import com.example.cashbookbd.ui.invoice.LabourInvoiceScreen
+import com.example.cashbookbd.inventory.BranchTransferMenu
+import com.example.cashbookbd.ui.inventory.BranchTransferHomeScreen
 import com.example.cashbookbd.ui.inventory.InventoryMovementScreen
 import com.example.cashbookbd.ui.inventory.TransferListScreen
 import com.example.cashbookbd.ui.admin.InAppMessageFormScreen
@@ -173,6 +175,9 @@ object Routes {
     const val INVENTORY_KEY_ARG = "key"
 
     fun inventoryView(key: String): String = "inventory/view/$key"
+
+    /** The Branch Transfer parent section (forms + register + reports). */
+    const val BRANCH_TRANSFER = "branchtransfer/home"
 
     /** The branch transfer register: issued/received challans + comparison. */
     const val TRANSFER_LIST = "inventory/transfers"
@@ -600,8 +605,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             arguments = listOf(navArgument(Routes.INVENTORY_KEY_ARG) { type = NavType.StringType }),
         ) { backStackEntry ->
             val key = backStackEntry.arguments?.getString(Routes.INVENTORY_KEY_ARG).orEmpty()
-            // The inventory forms live in the Invoice menu; gate like their entries.
-            PermissionGate(anyOf = InvoiceMenu.byKey(key)?.anyOf ?: emptyList()) {
+            // The inventory forms live in the Branch Transfer menu; gate like
+            // their entries.
+            PermissionGate(anyOf = BranchTransferMenu.byKey(key)?.anyOf ?: emptyList()) {
                 InventoryMovementScreen(
                     formKey = key,
                     navController = navController,
@@ -712,8 +718,20 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable(Routes.BRANCH_TRANSFER) {
+            PermissionGate(anyOf = BranchTransferMenu.all.flatMap { it.anyOf }) {
+                BranchTransferHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
         composable(Routes.TRANSFER_LIST) {
-            PermissionGate(anyOf = InvoiceMenu.byKey(InvoiceMenu.TRANSFER_LIST_KEY)?.anyOf ?: emptyList()) {
+            PermissionGate(
+                anyOf = BranchTransferMenu.byKey(BranchTransferMenu.TRANSFER_LIST_KEY)?.anyOf
+                    ?: emptyList(),
+            ) {
                 TransferListScreen(
                     navController = navController,
                     onLogout = backToLogin,

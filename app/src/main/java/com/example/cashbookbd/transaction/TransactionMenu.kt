@@ -18,12 +18,14 @@ data class TransactionItem(
 /** The Transaction menu registry and its permission rules. */
 object TransactionMenu {
 
+    // The web sidebar's order (2026-08-04): the cash/bank pairs first,
+    // Installments after them.
     val all: List<TransactionItem> = listOf(
         TransactionItem("cashReceived", "Cash Received", listOf("cash.received.create")),
-        TransactionItem("installments", "Installments", listOf("installment.create")),
         TransactionItem("cashPayment", "Cash Payment", listOf("cash.payment.create")),
         TransactionItem("bankReceived", "Bank Received", listOf("bank.received.create")),
         TransactionItem("bankPayment", "Bank Payment", listOf("bank.payment.create")),
+        TransactionItem("installments", "Installments", listOf("installment.create")),
         TransactionItem("employeeLoan", "Employee Loan", listOf("hrm.loan.create")),
         TransactionItem("journal", "Journal", listOf("journal.create")),
     )
