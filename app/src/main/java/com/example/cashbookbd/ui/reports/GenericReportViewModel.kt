@@ -47,6 +47,8 @@ class GenericReportViewModel(
     private val _uiState = MutableStateFlow(
         GenericReportUiState(
             title = config?.title ?: "Report",
+            totalColumns = config?.totalColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
+            totalRowLabel = config?.totalRowLabel ?: "Total",
             isSupported = config?.isGenericSupported == true,
             showStartDate = config?.startParam != null,
             showEndDate = config?.endParam != null,

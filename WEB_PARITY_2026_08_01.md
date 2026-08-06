@@ -39,18 +39,25 @@ fixed across 19 generic reports, and Monthly Report + Closing Stock/Stock
 Details — silently broken parsers — now render. Purchase/Sales Ledger are
 native rebuilds. Structural gaps that need bespoke screens, largest first:
 
-- Group Report: mobile never sent report_group (every Apply 422s) and the
-  pivot payload needs its own renderer — currently broken, needs a rebuild.
-- Connected Member: employee-keyed groups + client-computed columns — needs
-  a native screen (currently empty).
+- ~~Group Report~~ — rebuilt native 2026-08-06: GroupReportScreen +
+  GroupReportRepository send report_group (strict d/m/Y dates), render the
+  month-pair pivot with two-tier headers and a Grand Total row, and "All
+  group" fires both group requests and merges client-side, like the web.
+- ~~Connected Member~~ — rebuilt native 2026-08-06: ConnectedMemberScreen +
+  ConnectedMemberRepository parse the employee-keyed payload, expandable
+  employee rows, computed columns (Pay Member %, DP+Coll, 5% Salary,
+  Overview — including the web's own detail-row Overview inconsistency,
+  kept for parity), Grand Total tfoot over all rows.
 - HRM Overtime matrix, Holiday Calendar grid, Branch Attendance aggregation,
   Employee Attendance day-synthesis (server also ignores employee_id — fix
   belongs in the API), Attendance absent-row synthesis.
-- Generic-table niceties the web has and the engine lacks: per-report footer
-  Total rows, per-group headings (closing stock brands, labour branches),
-  cell colour rules, running-balance columns (Product In Out, Ledger's
-  Balance), en-IN lakh/crore grouping, dd/MM/yyyy date reformat outside
-  stacked cells, "All Branch" filter option.
+- Generic-table niceties the web has and the engine lacks: ~~per-report
+  footer Total rows~~ (added 2026-08-06 — ReportConfig.totalColumns /
+  totalRowLabel now sum 13 reports' web tfoots), per-group headings
+  (closing stock brands, labour branches), cell colour rules,
+  running-balance columns (Product In Out, Ledger's Balance), en-IN
+  lakh/crore grouping, dd/MM/yyyy date reformat outside stacked cells,
+  "All Branch" filter option.
 - Native-screen deltas: Cash Book/Bank Book Sl+Action columns and somity
   lines, Ledger running Balance + netted Opening, P&L 4-column layout,
   Balance Sheet Opening/Movement columns + equity adjustment.

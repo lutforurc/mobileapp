@@ -211,6 +211,13 @@ data class ReportConfig(
      */
     val columnOrder: List<String> = emptyList(),
     /**
+     * Raw API row keys summed into a bold footer Total row (case-insensitive),
+     * mirroring the web tables' tfoot. Empty = no footer.
+     */
+    val totalColumns: List<String> = emptyList(),
+    /** The footer row's left label ("Total", "Grand Total", "Summary"…). */
+    val totalRowLabel: String = "Total",
+    /**
      * Raw API row keys (case-insensitive) whose zero value should render as "-"
      * instead of "0" — e.g. Product Stock's opening/in/out/balance amounts. Their
      * non-zero values also carry the [unitColumn] suffix when one is set.
@@ -667,6 +674,7 @@ object ReportMenu {
                 "dr_bal" to "Debit Balance",
                 "cr_bal" to "Credit Balance",
             ),
+            totalColumns = listOf("dr_bal", "cr_bal"),
         ),
         ReportConfig(
             key = "connectedMember",
@@ -677,6 +685,7 @@ object ReportMenu {
             endpointKey = "connectedMember",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
             startParam = "startdate",
             endParam = "enddate",
             dateStyle = ReportDateStyle.DISPLAY,
@@ -720,6 +729,8 @@ object ReportMenu {
                 "unit_sale_rate" to "Unit Sale",
                 "profit" to "Effect",
             ),
+            totalColumns = listOf("sold_qty", "purchase_total", "sale_total"),
+            totalRowLabel = "Summary",
         ),
         ReportConfig(
             key = "customerSupplierStatement",
@@ -804,6 +815,9 @@ object ReportMenu {
                 "amount" to "Inst. Amount",
                 "paid_amount" to "Rcv Amount",
             ),
+            // The web's "Total due amount" line under the table.
+            totalColumns = listOf("due_amount"),
+            totalRowLabel = "Total due amount",
         ),
         ReportConfig(
             key = "dueList",
@@ -838,6 +852,7 @@ object ReportMenu {
             // Internal ids the web never shows.
             hiddenColumns = listOf("mtmid", "product_id"),
             columnLabels = mapOf("vr_no" to "Invoice No."),
+            totalColumns = listOf("purchase", "sales_return", "sales", "purchase_return"),
         ),
         ReportConfig(
             key = "labourLedger",
@@ -874,6 +889,7 @@ object ReportMenu {
                 "vr_date" to "Date",
                 "coa4_name" to "Description",
             ),
+            totalColumns = listOf("qty", "total"),
         ),
         ReportConfig(
             key = "purchaseLedger",
@@ -940,6 +956,7 @@ object ReportMenu {
             endpointKey = "groupReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.GROUP_REPORT,
+            native = true,
             startParam = "startdate",
             endParam = "enddate",
             dateStyle = ReportDateStyle.DISPLAY,
@@ -993,6 +1010,10 @@ object ReportMenu {
                 "previous_collection" to "Prv. Coll.",
                 "this_month_collection" to "This Month",
             ),
+            totalColumns = listOf(
+                "sales", "down_payment", "previous_collection", "this_month_collection",
+            ),
+            totalRowLabel = "Grand Total",
         ),
         ReportConfig(
             key = "monthlyReport",
@@ -1047,6 +1068,8 @@ object ReportMenu {
             responseShape = ReportResponseShape.NESTED_GROUPS,
             hiddenColumns = CLOSING_STOCK_HIDDEN,
             columnLabels = CLOSING_STOCK_LABELS,
+            totalColumns = listOf("total_stock"),
+            totalRowLabel = "Grand Total",
         ),
         ReportConfig(
             key = "stockDetails",
@@ -1066,6 +1089,8 @@ object ReportMenu {
             responseShape = ReportResponseShape.NESTED_GROUPS,
             hiddenColumns = CLOSING_STOCK_HIDDEN,
             columnLabels = CLOSING_STOCK_LABELS,
+            totalColumns = listOf("total_stock"),
+            totalRowLabel = "Grand Total",
         ),
         ReportConfig(
             key = "productStock",
@@ -1160,6 +1185,8 @@ object ReportMenu {
             zeroDashColumns = listOf("quantity"),
             columnOrder = listOf("cat_name", "product_name", "manufacturer_name", "quantity"),
             columnLabels = mapOf("manufacturer_name" to "Brand Name / Manufacturer"),
+            totalColumns = listOf("quantity"),
+            totalRowLabel = "Grand Total",
             selectors = listOf(
                 ReportSelector(
                     paramKey = "category_id",
@@ -1179,6 +1206,7 @@ object ReportMenu {
             anyOf = listOf("branch.transfer.create"),
             // The web opens on the month so far.
             startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
+            totalColumns = listOf("opening", "issued", "balance"),
             endpointKey = "branchTransferReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -1200,6 +1228,7 @@ object ReportMenu {
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("branch.received.create"),
             startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
+            totalColumns = listOf("opening", "received", "damaged", "shortage", "balance"),
             endpointKey = "branchReceiveReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -1221,6 +1250,7 @@ object ReportMenu {
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("product.stock.view"),
             startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
+            totalColumns = listOf("opening", "total", "damaged", "short"),
             endpointKey = "branchStockReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
@@ -1275,6 +1305,7 @@ object ReportMenu {
                 "date_display" to "Date",
                 "stock" to "Balance",
             ),
+            totalColumns = listOf("in_qty", "out_qty", "damage", "over"),
         ),
 
         // ---- HRM section (listed by HrmMenu, not the Reports home) ----
@@ -1500,6 +1531,9 @@ object ReportMenu {
                 "total_senction" to "Total Sanction",
                 "total_payment" to "Total Payment",
             ),
+            // The web's "Total Balance" box under the table.
+            totalColumns = listOf("balance"),
+            totalRowLabel = "Total Balance",
         ),
         ReportConfig(
             key = "hrmLoanLedger",

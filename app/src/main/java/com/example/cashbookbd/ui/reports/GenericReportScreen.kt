@@ -65,6 +65,7 @@ import com.example.cashbookbd.ui.components.FilterActions
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.core.VoucherAttachment
 import com.example.cashbookbd.di.ServiceLocator
@@ -566,7 +567,9 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
 @Composable
 private fun ReportRowList(state: GenericReportUiState) {
     val result = state.result ?: return
-    val table = remember(result.rows) { buildTable(result.rows) }
+    val table = remember(result.rows, state.totalColumns) {
+        buildTable(result.rows, state.totalColumns, state.totalRowLabel)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (result.summary.isNotEmpty()) {
@@ -755,7 +758,26 @@ private fun GenericReportTable(table: TableModel) {
             },
         )
     }
-    ReportTable(columns = columns, data = table.rows)
+    val footerRows = table.footer?.let { footer ->
+        listOf(
+            buildList {
+                // The label sits in the table's own Sl column.
+                add(ReportFooterCell(cellText(table.footerLabel, bold = true)))
+                footer.forEachIndexed { ci, value ->
+                    add(
+                        if (value.isEmpty()) {
+                            ReportFooterCell(ReportTableCell.Empty)
+                        } else {
+                            ReportFooterCell(cellText(value, bold = true, align = TextAlign.End))
+                        }
+                    )
+                }
+                if (showVouchers) add(ReportFooterCell(ReportTableCell.Empty))
+            }
+        )
+    }.orEmpty()
+
+    ReportTable(columns = columns, data = table.rows, footerRows = footerRows)
 
     viewing?.let { attachment ->
         VoucherImageViewerDialog(
@@ -859,6 +881,9 @@ private data class TableModel(
     val highlightCol: Int = -1,
     /** Per row, the voucher attachments for the flag-gated thumbnail column. */
     val attachments: List<List<VoucherAttachment>> = emptyList(),
+    /** Per-column footer totals ("" = blank cell); null = no footer row. */
+    val footer: List<String>? = null,
+    val footerLabel: String = "Total",
 )
 
 /**
@@ -866,7 +891,11 @@ private data class TableModel(
  * first-seen order); a column is numeric when every non-blank value parses as a
  * number (so amount columns right-align but dates/text don't).
  */
-private fun buildTable(rows: List<ReportRow>): TableModel {
+private fun buildTable(
+    rows: List<ReportRow>,
+    totalColumns: List<String> = emptyList(),
+    totalRowLabel: String = "Total",
+): TableModel {
     val columnOrder = LinkedHashSet<String>()
     rows.forEach { row -> row.cells.forEach { columnOrder.add(it.label) } }
     // Drop any serial/SL column the API sends — the table renders its own "Sl. No.".
@@ -882,6 +911,29 @@ private fun buildTable(rows: List<ReportRow>): TableModel {
         values.isNotEmpty() && values.all { isNumericCell(it) }
     }
 
+    // The web tfoot: the configured raw keys, summed down the column. The
+    // cells are already formatted, so the sum reads the leading number back
+    // ("1,234 nos" → 1234, "-" → 0).
+    val footer: List<String>? = if (totalColumns.isEmpty() || rows.isEmpty()) {
+        null
+    } else {
+        val keyByLabel = buildMap {
+            rows.forEach { row ->
+                row.cells.forEach { cell ->
+                    if (cell.key.isNotBlank()) putIfAbsent(cell.label, cell.key)
+                }
+            }
+        }
+        columns.map { label ->
+            if (keyByLabel[label] !in totalColumns) {
+                ""
+            } else {
+                val sum = matrix.sumOf { parseCellNumber(it[columns.indexOf(label)]) }
+                if (sum == 0.0) "-" else AmountFormat.format(sum)
+            }
+        }.takeIf { it.any { v -> v.isNotEmpty() } }
+    }
+
     val highlightLabel = rows.firstNotNullOfOrNull { it.highlightLabel }
     return TableModel(
         columns = columns,
@@ -890,8 +942,14 @@ private fun buildTable(rows: List<ReportRow>): TableModel {
         highlightTexts = rows.map { it.highlightText },
         highlightCol = highlightLabel?.let { columns.indexOf(it) } ?: -1,
         attachments = rows.map { it.voucherAttachments },
+        footer = footer,
+        footerLabel = totalRowLabel,
     )
 }
+
+/** "1,234.50 nos" → 1234.5; "-", "" and non-numbers → 0. */
+private fun parseCellNumber(value: String): Double =
+    value.trim().substringBefore(' ').replace(",", "").toDoubleOrNull() ?: 0.0
 
 @Composable
 private fun CenterBox(content: @Composable () -> Unit) {

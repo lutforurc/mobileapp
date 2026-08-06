@@ -54,6 +54,8 @@ import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.OrderRepository
 import com.example.cashbookbd.data.repository.ProductTrackingRepository
 import com.example.cashbookbd.data.repository.TradeLedgerRepository
+import com.example.cashbookbd.data.repository.GroupReportRepository
+import com.example.cashbookbd.data.repository.ConnectedMemberRepository
 import com.example.cashbookbd.data.repository.SmsRepository
 import com.example.cashbookbd.data.repository.CompanyRepository
 import com.example.cashbookbd.data.repository.OrderReportsRepository
@@ -147,6 +149,8 @@ object ServiceLocator {
     private var inventoryMovementRepository: InventoryMovementRepository? = null
     private var productTrackingRepository: ProductTrackingRepository? = null
     private var tradeLedgerRepository: TradeLedgerRepository? = null
+    private var groupReportRepository: GroupReportRepository? = null
+    private var connectedMemberRepository: ConnectedMemberRepository? = null
 
     @Volatile
     private var realEstateApiService: RealEstateApiService? = null
@@ -613,6 +617,20 @@ object ServiceLocator {
             tradeLedgerRepository ?: TradeLedgerRepository(
                 api = provideReportApiService(context),
             ).also { tradeLedgerRepository = it }
+        }
+
+    fun provideGroupReportRepository(context: Context): GroupReportRepository =
+        groupReportRepository ?: synchronized(this) {
+            groupReportRepository ?: GroupReportRepository(
+                api = provideReportApiService(context),
+            ).also { groupReportRepository = it }
+        }
+
+    fun provideConnectedMemberRepository(context: Context): ConnectedMemberRepository =
+        connectedMemberRepository ?: synchronized(this) {
+            connectedMemberRepository ?: ConnectedMemberRepository(
+                api = provideReportApiService(context),
+            ).also { connectedMemberRepository = it }
         }
 
     fun provideProductTrackingRepository(context: Context): ProductTrackingRepository =

@@ -24,6 +24,9 @@ data class SelectorFieldState(
 
 data class GenericReportUiState(
     val title: String = "Report",
+    /** Raw keys (lowercase) summed into the footer Total row; empty = none. */
+    val totalColumns: List<String> = emptyList(),
+    val totalRowLabel: String = "Total",
     /** False when this report's filters aren't yet available in the mobile app. */
     val isSupported: Boolean = true,
     val showStartDate: Boolean = true,

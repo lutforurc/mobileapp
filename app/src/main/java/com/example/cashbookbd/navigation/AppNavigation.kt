@@ -104,6 +104,8 @@ import com.example.cashbookbd.ui.analytics.ComparisonScreen
 import com.example.cashbookbd.data.repository.TradeLedgerKind
 import com.example.cashbookbd.ui.account.ProfileScreen
 import com.example.cashbookbd.ui.reports.TradeLedgerScreen
+import com.example.cashbookbd.ui.reports.GroupReportScreen
+import com.example.cashbookbd.ui.reports.ConnectedMemberScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
@@ -195,6 +197,12 @@ object Routes {
     const val TRADE_LEDGER_KIND_ARG = "kind"
 
     fun tradeLedger(kind: String): String = "reports/trade-ledger/$kind"
+
+    /** Group Report's Operating/Purchase Cost pivot (native screen). */
+    const val GROUP_REPORT = "reports/group-report"
+
+    /** Connected Member's employee/area collection summary (native screen). */
+    const val CONNECTED_MEMBER = "reports/connected-member"
 
     /** The Analytics section's one screen: the two-period item comparison. */
     const val ANALYTICS_COMPARISON = "analytics/comparison"
@@ -641,6 +649,18 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onLogout = backToLogin,
                     kind = kind,
                 )
+            }
+        }
+
+        composable(Routes.GROUP_REPORT) {
+            PermissionGate(anyOf = listOf("group.report")) {
+                GroupReportScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.CONNECTED_MEMBER) {
+            PermissionGate(anyOf = listOf("connected.member.view")) {
+                ConnectedMemberScreen(navController = navController, onLogout = backToLogin)
             }
         }
 
