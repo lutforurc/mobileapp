@@ -204,6 +204,13 @@ data class ReportConfig(
      */
     val columnLabels: Map<String, String> = emptyMap(),
     /**
+     * Raw API row keys in the order the WEB table shows its columns
+     * (case-insensitive). Without this the columns follow the server's key
+     * order; keys not listed here trail behind the listed ones, still in
+     * server order.
+     */
+    val columnOrder: List<String> = emptyList(),
+    /**
      * Raw API row keys (case-insensitive) whose zero value should render as "-"
      * instead of "0" — e.g. Product Stock's opening/in/out/balance amounts. Their
      * non-zero values also carry the [unitColumn] suffix when one is set.
@@ -345,7 +352,13 @@ private val HRM_ATTENDANCE_HIDDEN = listOf(
  * the serial adds noise. Scoped to this report so the other HRM tables keep them.
  */
 private val HRM_ATTENDANCE_REPORT_HIDDEN =
-    HRM_ATTENDANCE_HIDDEN + listOf("employee_serial", "branch_name")
+    HRM_ATTENDANCE_HIDDEN + listOf(
+        "employee_serial", "branch_name",
+        // The web's daily table never shows these; they belong to the
+        // overtime report (which keeps its own hidden list).
+        "overtime_minutes", "overtime_amount", "remarks",
+        "employment_type", "is_other_branch", "leave_type_name",
+    )
 
 /** Header overrides for the attendance-entry report tables. */
 private val HRM_ATTENDANCE_LABELS = mapOf(
@@ -360,6 +373,24 @@ private val HRM_ATTENDANCE_LABELS = mapOf(
     "overtime_minutes" to "OT Min",
     "overtime_amount" to "OT Amount",
     "approval_status" to "Approval",
+)
+
+/** The web ClosingStockReport's visible six columns — the rest stay internal. */
+private val CLOSING_STOCK_HIDDEN = listOf(
+    "id", "vr_no", "category", "brand", "prodct_detls_id", "purchase_pct",
+)
+
+private val CLOSING_STOCK_LABELS = mapOf(
+    "product_name" to "Product Details",
+    "stock" to "Stock Qty",
+    "rate" to "Rate (Tk.)",
+    "total_stock" to "Total (Tk.)",
+)
+
+/** The web daily-attendance table's column order (ID/Branch stay hidden here). */
+private val HRM_ATTENDANCE_WEB_ORDER = listOf(
+    "attendance_date", "employee_name", "shift_name",
+    "in_time", "out_time", "work_minutes", "status", "approval_status",
 )
 
 /** Internal columns dropped from the monthly-summary report tables. */
@@ -549,6 +580,11 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             // A day-by-day total is read for the month so far, not one day.
             startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
+            // The web's abbreviated cumulative headers.
+            columnLabels = mapOf(
+                "cumulative_debit" to "Cum. Debit",
+                "cumulative_credit" to "Cum. Credit",
+            ),
         ),
         ReportConfig(
             key = "profitLoss",
@@ -624,6 +660,13 @@ object ReportMenu {
                     ReportChoice("Bank Loan", "2"),
                 ),
             ),
+            // The web shows only Bank Name + the two balances; the raw
+            // debit/credit movement pair and the id stay internal.
+            hiddenColumns = listOf("coa4_id", "debit", "credit"),
+            columnLabels = mapOf(
+                "dr_bal" to "Debit Balance",
+                "cr_bal" to "Credit Balance",
+            ),
         ),
         ReportConfig(
             key = "connectedMember",
@@ -661,11 +704,21 @@ object ReportMenu {
                 "purchase_invoices",
                 "purchase_details",
                 "period_in_amount",
+                "period_in_qty",
             ),
-            // Shorter headers so the rate columns don't wrap on a phone.
+            // The web's column order: product first, the two invoices, then
+            // the qty/rate/total pairs, ending on Effect.
+            columnOrder = listOf(
+                "product_name", "purchase_invoice", "vr_no", "vr_date", "sold_qty",
+                "unit_purchase_rate", "purchase_total", "unit_sale_rate", "sale_total", "profit",
+            ),
+            // The web's headers.
             columnLabels = mapOf(
-                "unit_purchase_rate" to "Pur. Rate",
-                "unit_sale_rate" to "Sale Rate",
+                "purchase_invoice" to "Pur. Invoice",
+                "vr_no" to "Sal. Invoice",
+                "unit_purchase_rate" to "Unit Purchase",
+                "unit_sale_rate" to "Unit Sale",
+                "profit" to "Effect",
             ),
         ),
         ReportConfig(
@@ -681,6 +734,21 @@ object ReportMenu {
             ledgerParam = "party_id",
             highlightPaths = listOf("remarks"),
             highlightColumn = "remarks",
+            // The web's twelve columns; the raw voucher internals stay hidden.
+            hiddenColumns = listOf(
+                "voucher_type", "trx_type", "product_name", "quantity", "total",
+                "received", "payment", "party_name", "mtmid", "is_approved",
+            ),
+            columnOrder = listOf(
+                "vr_no", "vr_date", "transaction_name", "sales_item_name",
+                "order_number", "truck_no", "rate", "purchase_total",
+                "sales_total", "debit", "credit", "balance", "remarks",
+            ),
+            columnLabels = mapOf(
+                "truck_no" to "Vehicle No",
+                "purchase_total" to "Pur. Total",
+                "sales_total" to "Sal. Total",
+            ),
         ),
         ReportConfig(
             key = "dueInstallments",
@@ -720,7 +788,22 @@ object ReportMenu {
             ),
             // "1" not "true"; no upcoming_day — see dueInstallments above.
             extraParams = mapOf("due_only" to "1"),
-            hiddenColumns = listOf("installment_id", "payments"),
+            hiddenColumns = listOf(
+                "installment_id", "payments",
+                // Web shows none of these as columns.
+                "invoice_no", "coa4_id", "area_id", "area_name", "received_date",
+            ),
+            // The web's order: the customer block first, then the schedule.
+            columnOrder = listOf(
+                "customer_name", "father", "customer_address", "customer_mobile",
+                "employee", "installment_no", "due_date", "amount", "due_amount",
+                "paid_amount", "status",
+            ),
+            columnLabels = mapOf(
+                "installment_no" to "Inst No",
+                "amount" to "Inst. Amount",
+                "paid_amount" to "Rcv Amount",
+            ),
         ),
         ReportConfig(
             key = "dueList",
@@ -752,6 +835,9 @@ object ReportMenu {
             endParam = "enddate",
             ledgerParam = "ledger_id",
             dateStyle = ReportDateStyle.DISPLAY,
+            // Internal ids the web never shows.
+            hiddenColumns = listOf("mtmid", "product_id"),
+            columnLabels = mapOf("vr_no" to "Invoice No."),
         ),
         ReportConfig(
             key = "labourLedger",
@@ -777,6 +863,17 @@ object ReportMenu {
                 ),
             ),
             responseShape = ReportResponseShape.NESTED_GROUPS,
+            // The web shows SL | VR No | Date | Description | Qty | Rate |
+            // Total; every grouping/id helper stays internal.
+            hiddenColumns = listOf(
+                "is_approved", "group_key", "branch_id", "branch_name",
+                "labour_id", "labour_name", "payment_this_invoice", "labour_item",
+            ),
+            columnOrder = listOf("vr_no", "vr_date", "coa4_name", "note", "qty", "rate", "total"),
+            columnLabels = mapOf(
+                "vr_date" to "Date",
+                "coa4_name" to "Description",
+            ),
         ),
         ReportConfig(
             key = "purchaseLedger",
@@ -829,6 +926,10 @@ object ReportMenu {
             startParam = null,
             endParam = null,
             extraParams = mapOf("delay" to "1"),
+            columnLabels = mapOf(
+                "total_debit" to "Debit (Tk)",
+                "total_credit" to "Credit (Tk)",
+            ),
         ),
         ReportConfig(
             key = "groupReport",
@@ -868,13 +969,30 @@ object ReportMenu {
             ),
             choiceParam = ReportChoiceParam(
                 paramKey = "type_id",
-                label = "Collection Type",
+                // The web's wording and default: Status, Opening first.
+                label = "Status",
                 options = listOf(
-                    ReportChoice("Full Month", "2"),
-                    ReportChoice("Opening Day", "1"),
+                    ReportChoice("Opening", "1"),
+                    ReportChoice("Closing", "2"),
                 ),
             ),
             responseShape = ReportResponseShape.NORMAL,
+            // The web's member sheet: the id/relation and the four server-side
+            // Bangla-rendering helpers stay internal.
+            hiddenColumns = listOf(
+                "coa4_id", "relation", "bangla_font_family", "bangla_font_url",
+                "bangla_html", "father_bangla_html",
+            ),
+            columnOrder = listOf(
+                "bangla", "name", "idfr_code", "father_bangla", "mobile",
+                "sales", "down_payment", "previous_collection", "installment",
+                "this_month_collection",
+            ),
+            columnLabels = mapOf(
+                "sales" to "Total Sales",
+                "previous_collection" to "Prv. Coll.",
+                "this_month_collection" to "This Month",
+            ),
         ),
         ReportConfig(
             key = "monthlyReport",
@@ -889,6 +1007,24 @@ object ReportMenu {
             startParam = "startdate",
             endParam = "enddate",
             dateStyle = ReportDateStyle.DISPLAY,
+            // The payload is an object keyed by date — the NORMAL shape found
+            // no rows at all, so this report rendered empty until now.
+            responseShape = ReportResponseShape.KEYED_OBJECTS,
+            // The web's fixed order and Bengali headers (the API emits keys in
+            // an unstable order, first-nonzero first).
+            columnOrder = listOf(
+                "selected_date", "sales", "downpayment", "kistyaday",
+                "cashsales", "expenditure", "comments",
+            ),
+            columnLabels = mapOf(
+                "selected_date" to "তারিখ",
+                "sales" to "বিতরণ",
+                "downpayment" to "ডাউন পেমেন্ট",
+                "kistyaday" to "কিস্তি আদায়",
+                "cashsales" to "নগদ বিক্রয়",
+                "expenditure" to "খরচ",
+                "comments" to "মন্তব্য",
+            ),
         ),
         ReportConfig(
             key = "closingStock",
@@ -906,6 +1042,11 @@ object ReportMenu {
             endParam = "end_date",
             altStartParam = "startdate",
             altEndParam = "enddate",
+            // The payload is a brand-keyed map of row arrays — the NORMAL shape
+            // found no rows, so this report rendered empty until now.
+            responseShape = ReportResponseShape.NESTED_GROUPS,
+            hiddenColumns = CLOSING_STOCK_HIDDEN,
+            columnLabels = CLOSING_STOCK_LABELS,
         ),
         ReportConfig(
             key = "stockDetails",
@@ -921,6 +1062,10 @@ object ReportMenu {
             endParam = "end_date",
             altStartParam = "startdate",
             altEndParam = "enddate",
+            // Same page as Closing Stock on the web — same shape fix.
+            responseShape = ReportResponseShape.NESTED_GROUPS,
+            hiddenColumns = CLOSING_STOCK_HIDDEN,
+            columnLabels = CLOSING_STOCK_LABELS,
         ),
         ReportConfig(
             key = "productStock",
@@ -934,8 +1079,10 @@ object ReportMenu {
             startParam = "startdate",
             endParam = "enddate",
             // Internal ids + the standalone unit column (unit is shown inline on
-            // each amount instead) the user doesn't need to see.
-            hiddenColumns = listOf("product_id", "category_id", "unit"),
+            // each amount instead). The web shows category only as a group
+            // header and folds the brand into the product cell, so neither is
+            // its own column.
+            hiddenColumns = listOf("product_id", "category_id", "unit", "cat_name", "brand_name"),
             // Show "-" for 0, and suffix the unit ("1 nos") for the stock amounts.
             zeroDashColumns = listOf("opening", "stock_in", "stock_out", "balance"),
             unitColumn = "unit",
@@ -1006,6 +1153,13 @@ object ReportMenu {
                     ReportChoice("Sales", "2"),
                 ),
             ),
+            // The web shows Sl | Product | Brand/Manufacturer | Quantity, with
+            // the unit riding the quantity figure.
+            hiddenColumns = listOf("id", "unit"),
+            unitColumn = "unit",
+            zeroDashColumns = listOf("quantity"),
+            columnOrder = listOf("cat_name", "product_name", "manufacturer_name", "quantity"),
+            columnLabels = mapOf("manufacturer_name" to "Brand Name / Manufacturer"),
             selectors = listOf(
                 ReportSelector(
                     paramKey = "category_id",
@@ -1023,6 +1177,8 @@ object ReportMenu {
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             // The web sidebar gates this item on branch.transfer.create.
             anyOf = listOf("branch.transfer.create"),
+            // The web opens on the month so far.
+            startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
             endpointKey = "branchTransferReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -1043,6 +1199,7 @@ object ReportMenu {
             webPath = "/reports/branch-receive",
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("branch.received.create"),
+            startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
             endpointKey = "branchReceiveReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
@@ -1063,6 +1220,7 @@ object ReportMenu {
             webPath = "/reports/branch-stock",
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("product.stock.view"),
+            startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
             endpointKey = "branchStockReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
@@ -1107,6 +1265,16 @@ object ReportMenu {
             ledgerParam = "ledger_id",
             ledgerRequired = false,
             dateStyle = ReportDateStyle.DISPLAY,
+            // The web's seven columns: the raw wire date, the ids and the two
+            // server-rendered styling helpers stay internal.
+            hiddenColumns = listOf(
+                "vr_date", "branch", "product_id", "product_name",
+                "stock_tone", "stock_html",
+            ),
+            columnLabels = mapOf(
+                "date_display" to "Date",
+                "stock" to "Balance",
+            ),
         ),
 
         // ---- HRM section (listed by HrmMenu, not the Reports home) ----
@@ -1131,6 +1299,7 @@ object ReportMenu {
             section = ReportConfig.SECTION_HRM,
             hiddenColumns = HRM_ATTENDANCE_REPORT_HIDDEN,
             columnLabels = HRM_ATTENDANCE_LABELS,
+            columnOrder = HRM_ATTENDANCE_WEB_ORDER,
             textColumns = listOf("employee_serial"),
         ),
         ReportConfig(
@@ -1324,9 +1493,10 @@ object ReportMenu {
             startParam = null,
             endParam = null,
             section = ReportConfig.SECTION_HRM,
-            hiddenColumns = listOf("emp_id", "received_amt", "payment_amt"),
+            // installment is not a web column either.
+            hiddenColumns = listOf("emp_id", "received_amt", "payment_amt", "installment"),
             columnLabels = mapOf(
-                "employee_name" to "Employee",
+                "employee_name" to "Employee Name",
                 "total_senction" to "Total Sanction",
                 "total_payment" to "Total Payment",
             ),
@@ -1358,8 +1528,12 @@ object ReportMenu {
                 // branch_name is hidden too: the report is always scoped to one
                 // selected branch, so the column is redundant — like the web, which
                 // shows the branch under Remarks rather than as its own column.
+                // balance leaks off the Opening/Balance rows; web has no such column.
                 "id", "loan_detail_id", "branch_id", "branch_name", "branch_pad", "voucher_image",
+                "balance",
             ),
+            // The web's order: the voucher pair first, then Remarks.
+            columnOrder = listOf("vr_no", "vr_date", "remarks", "received_amt", "payment_amt"),
             columnLabels = mapOf(
                 "employee_name" to "Employee",
                 "received_amt" to "Received",
@@ -1392,15 +1566,16 @@ object ReportMenu {
             startParam = "start_date",
             endParam = "end_date",
             section = ReportConfig.SECTION_HRM,
-            hiddenColumns = listOf("main_trx_id", "emp_id"),
+            // serial_number is appended LAST server-side, so it landed as a
+            // trailing Sl column — the engine's own # column already numbers.
+            hiddenColumns = listOf("main_trx_id", "emp_id", "serial_number"),
             columnLabels = mapOf(
-                "serial_number" to "Sl",
-                "vr_no" to "Vr No",
+                "vr_no" to "Vr No.",
                 "vr_date" to "Vr Date",
                 "employee_name" to "Employee",
                 "remarks" to "Month",
                 "dup_count" to "Times",
-                "total_deducted" to "Total Deducted",
+                "total_deducted" to "Total Deducted (Tk)",
             ),
             // vr_no and the comma-joined amounts are labels, not amounts.
             textColumns = listOf("vr_no", "amounts", "remarks"),
@@ -1421,15 +1596,20 @@ object ReportMenu {
             yearParam = "year_id",
             section = ReportConfig.SECTION_HRM,
             // main_trx is a nested relation object; payment_year duplicates the
-            // year filter. The Update/Payment actions stay web-only for now.
-            hiddenColumns = listOf("main_trx_id", "main_trx", "payment_year"),
+            // year filter; serial_no is appended last server-side (the engine's
+            // own # column numbers). The Update/Payment actions stay web-only.
+            hiddenColumns = listOf("main_trx_id", "main_trx", "payment_year", "serial_no"),
             monthColumns = listOf("payment_month"),
+            // The web's order: title before month.
+            columnOrder = listOf(
+                "bonus_title", "payment_month", "total_employee",
+                "bonus_amount", "payment_amount",
+            ),
             columnLabels = mapOf(
-                "serial_no" to "Sl",
                 "bonus_title" to "Bonus Title",
                 "payment_month" to "Month",
                 "total_employee" to "Employees",
-                "bonus_amount" to "Bonus",
+                "bonus_amount" to "Bonus Amount",
                 "payment_amount" to "Paid",
             ),
         ),

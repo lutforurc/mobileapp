@@ -190,11 +190,12 @@ class GenericReportRepository(
         val text = (config.textColumns.map { it.lowercase(Locale.US) } + listOfNotNull(highlightKey)).toSet()
         val months = config.monthColumns.map { it.lowercase(Locale.US) }.toSet()
         val voucherSpec = config.voucherImages
+        val order = config.columnOrder.map { it.lowercase(Locale.US) }
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
         }
     }
 
@@ -312,6 +313,7 @@ class GenericReportRepository(
         highlightKey: String? = null,
         voucherSpec: com.example.cashbookbd.report.ReportVoucherImages? = null,
         stacked: List<com.example.cashbookbd.report.ReportStackedColumn> = emptyList(),
+        order: List<String> = emptyList(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -352,13 +354,26 @@ class GenericReportRepository(
                 cells
             }
             ReportRow(
-                mergeStackedColumns(allCells, stacked),
+                reorderCells(mergeStackedColumns(allCells, stacked), order),
                 highlightText = highlightText,
                 highlightLabel = highlightLabel,
                 voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
             )
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /**
+     * Applies the config's web-order [order]: listed keys first in that order,
+     * everything else after them in the order it arrived. A stable sort, so
+     * the unlisted tail never shuffles.
+     */
+    private fun reorderCells(cells: List<ReportCell>, order: List<String>): List<ReportCell> {
+        if (order.isEmpty()) return cells
+        val rank = order.withIndex().associate { (i, key) -> key to i }
+        return cells.withIndex()
+            .sortedBy { (index, cell) -> rank[cell.key] ?: (order.size + index) }
+            .map { it.value }
     }
 
     /**
