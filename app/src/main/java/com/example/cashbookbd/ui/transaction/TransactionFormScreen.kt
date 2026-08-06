@@ -5,6 +5,7 @@ import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,9 +14,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +43,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.core.AmountFormat
+import com.example.cashbookbd.data.repository.CashVoucherLine
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.DropdownAnchorField
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -135,13 +147,42 @@ fun TransactionFormScreen(
 
             Spacer(Modifier.height(2.dp))
 
-            PrimaryButton(
-                text = "Save",
-                onClick = viewModel::submit,
-                enabled = state.canSubmit,
-                isLoading = state.isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (state.isBankBatch) {
+                // The web's multi-row voucher: Add New collects rows into the
+                // batch below; Save posts them all as one voucher.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SecondaryButton(
+                        text = "Add New",
+                        onClick = viewModel::addLine,
+                        enabled = state.canAddLine && !state.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        text = "Save",
+                        onClick = viewModel::submit,
+                        enabled = state.canSubmit,
+                        isLoading = state.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (state.lines.isNotEmpty()) {
+                    BankLinesList(
+                        lines = state.lines,
+                        totalLabel = state.batchTotalLabel,
+                        total = state.linesTotal,
+                        onEdit = viewModel::editLine,
+                        onRemove = viewModel::removeLine,
+                    )
+                }
+            } else {
+                PrimaryButton(
+                    text = "Save",
+                    onClick = viewModel::submit,
+                    enabled = state.canSubmit,
+                    isLoading = state.isSubmitting,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             state.message?.let { message ->
                 Text(
@@ -192,6 +233,83 @@ private fun AccountField(
             error = state.bankError,
             onSelected = { onSelected(field.key, TxnSelection(it.id, it.label)) },
         )
+    }
+}
+
+/** The pending bank batch: one row per line, edit/remove, and the running total. */
+@Composable
+private fun BankLinesList(
+    lines: List<CashVoucherLine>,
+    totalLabel: String,
+    total: Double,
+    onEdit: (Int) -> Unit,
+    onRemove: (Int) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            lines.forEachIndexed { index, line ->
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(line.account.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                        if (line.remarks.isNotBlank()) {
+                            Text(
+                                text = line.remarks,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                            )
+                        }
+                        if (line.trackedProductName.isNotBlank()) {
+                            Text(
+                                text = "Product: ${line.trackedProductName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Text(
+                        text = AmountFormat.format(line.amount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = AppFontWeight.SemiBold,
+                    )
+                    IconButton(onClick = { onEdit(index) }) {
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = "Edit line",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    IconButton(onClick = { onRemove(index) }) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Remove line",
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = totalLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = AppFontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = AmountFormat.format(total),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = AppFontWeight.Bold,
+                )
+            }
+        }
     }
 }
 

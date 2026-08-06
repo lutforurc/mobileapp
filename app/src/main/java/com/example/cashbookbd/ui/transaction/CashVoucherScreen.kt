@@ -101,7 +101,10 @@ data class CashVoucherSpec(
     val rowsEndpoint: String,
     /** Head Office store — takes the branch/project-wrapped payload. */
     val headOfficeEndpoint: String,
-    /** Payment only: a head-office *branch type* also forces the HO variant. */
+    /**
+     * Payment keys Head Office off `branch_types_id` (true); received keys it
+     * off `business_type_id` (false) — each index applies only its own rule.
+     */
     val branchTypeForcesHeadOffice: Boolean,
 )
 
@@ -133,11 +136,17 @@ object CashVoucherForms {
     }
 }
 
-/** How the current branch's settings pick this form's variant (web index logic). */
+/**
+ * How the current branch's settings pick this form's variant (web index logic).
+ * The two indexes key Head Office differently — CashPaymentIndex on the branch
+ * *type* only, CashReceivedIndex on the *business* type only — so each spec
+ * applies exactly its own web rule, never both.
+ */
 fun cashVoucherVariant(spec: CashVoucherSpec, settings: Settings?): CashVoucherVariant = when {
     spec.branchTypeForcesHeadOffice &&
         settings?.branchTypesId == HEAD_OFFICE_BRANCH_TYPES_ID -> CashVoucherVariant.HEAD_OFFICE
-    settings?.businessTypeId == HEAD_OFFICE_BUSINESS_TYPE_ID -> CashVoucherVariant.HEAD_OFFICE
+    !spec.branchTypeForcesHeadOffice &&
+        settings?.businessTypeId == HEAD_OFFICE_BUSINESS_TYPE_ID -> CashVoucherVariant.HEAD_OFFICE
     // The web indexes pick Trading from the branch's *inventory system* (4);
     // electronics (2) / construction (3) fall through to General.
     settings?.inventorySystemId == TRADING_INVENTORY_SYSTEM_ID -> CashVoucherVariant.TRADING

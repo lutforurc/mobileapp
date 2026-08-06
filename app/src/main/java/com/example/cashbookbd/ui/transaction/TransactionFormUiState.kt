@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.data.repository.CashVoucherLine
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.transaction.TxnField
 import com.example.cashbookbd.ui.reports.model.SelectorOption
@@ -29,6 +30,14 @@ data class TransactionFormUiState(
     val trackedProducts: List<SelectorOption> = emptyList(),
     val trackedProduct: SelectorOption? = null,
 
+    /**
+     * Bank forms only: the web's multi-row batch — "Add New" collects rows
+     * here and Save posts them as one voucher. Other forms leave it empty.
+     */
+    val isBankBatch: Boolean = false,
+    val batchTotalLabel: String = "Total",
+    val lines: List<CashVoucherLine> = emptyList(),
+
     val isSubmitting: Boolean = false,
     /** Transient result banner; [isError] chooses success vs error styling. */
     val message: String? = null,
@@ -37,8 +46,18 @@ data class TransactionFormUiState(
     val sessionExpired: Boolean = false,
 ) {
     val canSubmit: Boolean
-        get() = isSupported &&
-            !isSubmitting &&
-            fields.all { selections[it.key] != null } &&
-            (amount.toDoubleOrNull() ?: 0.0) > 0.0
+        get() = when {
+            !isSupported || isSubmitting -> false
+            // Bank: the bank account plus at least one added row — like the
+            // web, which saves only what was added to the table.
+            isBankBatch -> selections["bank"] != null && lines.isNotEmpty()
+            else -> fields.all { selections[it.key] != null } &&
+                (amount.toDoubleOrNull() ?: 0.0) > 0.0
+        }
+
+    /** Add New's own rule: an account and a positive amount for the row. */
+    val canAddLine: Boolean
+        get() = selections["account"] != null && (amount.toDoubleOrNull() ?: 0.0) > 0.0
+
+    val linesTotal: Double get() = lines.sumOf { it.amount }
 }

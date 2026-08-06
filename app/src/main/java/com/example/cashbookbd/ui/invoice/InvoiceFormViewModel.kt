@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** The fixed Cash chart-of-accounts id the web's auto-amount rule keys on. */
+private const val CASH_ACCOUNT_ID = "17"
+
 /**
  * Drives a Sales/Purchase invoice form (resolved from [invoiceKey]): the party
  * account, a running list of product lines, the paid/received amount, discount
@@ -89,12 +92,19 @@ class InvoiceFormViewModel(
             // features; an Electronics/Trading purchase must not show them.
             showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
             showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
+            showVehicleNumber = !(isElectronics && spec?.kind == InvoiceKind.SALES),
+            showExtraCharges = isElectronics && spec?.kind == InvoiceKind.SALES,
+            allowBlankAmount = isTrading && spec?.isReturn != true,
         )
     )
     val uiState: StateFlow<InvoiceFormUiState> = _uiState.asStateFlow()
 
+    /** Electronics sales: a hand-typed amount stops the cash auto-fill (web). */
+    private var cashAmountManuallyEdited = false
+
     init {
-        if (isTrading) loadWarehouses()
+        // Every web variant has the per-line warehouse picker.
+        loadWarehouses()
         // The branch's inventory system may have changed since login — the web
         // index refetches the current branch on mount, so refresh settings and
         // re-derive the variant flags when they land.
@@ -103,7 +113,6 @@ class InvoiceFormViewModel(
             val fresh = sessionManager.state.value.settings?.inventorySystemId
             if (fresh == inventorySystemId) return@launch
             inventorySystemId = fresh
-            val wasTrading = isTrading
             isElectronics = spec?.electronicsEndpoint != null &&
                 fresh == ELECTRONICS_INVENTORY_SYSTEM_ID
             isTrading = fresh == TRADING_INVENTORY_SYSTEM_ID &&
@@ -114,10 +123,43 @@ class InvoiceFormViewModel(
                     isTrading = isTrading,
                     showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
                     showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
+                    showVehicleNumber = !(isElectronics && spec?.kind == InvoiceKind.SALES),
+                    showExtraCharges = isElectronics && spec?.kind == InvoiceKind.SALES,
+                    allowBlankAmount = isTrading && spec?.isReturn != true,
                 )
             }
-            if (isTrading && !wasTrading) loadWarehouses()
         }
+    }
+
+    // ---- Cash (17) party rule ---------------------------------------------
+
+    /**
+     * The web's cash-party amount: `max(0, lines + extra charges − discount)`,
+     * rounded the way that variant's form rounds it — whole taka on Trading and
+     * Electronics sales, floored on the Construction/General purchase, two
+     * decimals elsewhere. Purchase returns keep the raw figure.
+     */
+    private fun cashAutoAmount(s: InvoiceFormUiState): String {
+        val net = (s.total + s.extraChargesTotal - (s.discount.toDoubleOrNull() ?: 0.0))
+            .coerceAtLeast(0.0)
+        return when {
+            spec?.isReturn == true && spec.kind == InvoiceKind.PURCHASE ->
+                if (net % 1.0 == 0.0) net.toLong().toString() else net.toString()
+            spec?.isReturn == true -> String.format(java.util.Locale.US, "%.2f", net)
+            isTrading || s.showExtraCharges -> Math.round(net).toString()
+            isElectronics -> String.format(java.util.Locale.US, "%.2f", net)
+            spec?.kind == InvoiceKind.PURCHASE -> kotlin.math.floor(net).toLong().toString()
+            else -> String.format(java.util.Locale.US, "%.2f", net)
+        }
+    }
+
+    /** Re-derives the auto amount while a Cash party is selected. */
+    private fun recalcCashAmount() {
+        val s = _uiState.value
+        if (s.party?.id != CASH_ACCOUNT_ID) return
+        // Electronics sales stays hand-editable; a manual edit wins.
+        if (s.showExtraCharges && cashAmountManuallyEdited) return
+        _uiState.update { it.copy(amount = cashAutoAmount(it)) }
     }
 
     private fun loadWarehouses() {
@@ -132,7 +174,22 @@ class InvoiceFormViewModel(
     }
 
     fun onPartySelected(party: TxnSelection) {
-        _uiState.update { it.copy(party = party) }
+        val wasCash = _uiState.value.party?.id == CASH_ACCOUNT_ID
+        val isCash = party.id == CASH_ACCOUNT_ID
+        cashAmountManuallyEdited = false
+        _uiState.update {
+            it.copy(
+                party = party,
+                // Cash locks the auto amount (Electronics sales stays editable);
+                // leaving cash resets it — '' on Trading, '0' elsewhere (web).
+                amountLocked = isCash && !it.showExtraCharges,
+                amount = when {
+                    isCash -> cashAutoAmount(it)
+                    wasCash -> if (isTrading) "" else "0"
+                    else -> it.amount
+                },
+            )
+        }
     }
 
     /** Party accounts (customers/suppliers) — COA level-4 with acType=3. */
@@ -170,12 +227,40 @@ class InvoiceFormViewModel(
     fun onQtyChange(value: String) = _uiState.update { it.copy(qty = value.decimalOnly()) }
     fun onPriceChange(value: String) = _uiState.update { it.copy(price = value.decimalOnly()) }
     fun onSerialNoChange(value: String) = _uiState.update { it.copy(serialNo = value) }
-    fun onAmountChange(value: String) = _uiState.update { it.copy(amount = value.decimalOnly()) }
-    fun onDiscountChange(value: String) = _uiState.update { it.copy(discount = value.decimalOnly()) }
+
+    fun onAmountChange(value: String) {
+        // The locked cash amount is not typable; an Electronics-sales edit
+        // switches the field to manual (the web's manual-override flag).
+        if (_uiState.value.amountLocked) return
+        if (_uiState.value.showExtraCharges && _uiState.value.party?.id == CASH_ACCOUNT_ID) {
+            cashAmountManuallyEdited = true
+        }
+        _uiState.update { it.copy(amount = value.decimalOnly()) }
+    }
+
+    fun onDiscountChange(value: String) {
+        _uiState.update { it.copy(discount = value.decimalOnly()) }
+        recalcCashAmount()
+    }
+
+    fun onServiceChargeChange(value: String) {
+        _uiState.update { it.copy(serviceCharge = value.decimalOnly()) }
+        recalcCashAmount()
+    }
+
+    fun onTdsAmountChange(value: String) {
+        _uiState.update { it.copy(tdsAmount = value.decimalOnly()) }
+        recalcCashAmount()
+    }
+
+    fun onTransportationChange(value: String) {
+        _uiState.update { it.copy(transportationAmt = value.decimalOnly()) }
+        recalcCashAmount()
+    }
     fun onNotesChange(value: String) = _uiState.update { it.copy(notes = value) }
     fun onInvoiceNoChange(value: String) = _uiState.update { it.copy(invoiceNo = value) }
     fun onInvoiceDateChange(date: com.example.cashbookbd.ui.reports.model.SimpleDate) =
-        _uiState.update { it.copy(invoiceDate = date) }
+        _uiState.update { it.copy(invoiceDate = date, invoiceDateTouched = true) }
 
     // ---- Installment (Electronics) ----
 
@@ -290,8 +375,9 @@ class InvoiceFormViewModel(
                     qty = qty,
                     price = price,
                     serialNo = if (it.isElectronics) it.serialNo.trim() else "",
-                    warehouseId = if (it.isTrading) it.selectedWarehouse?.id.orEmpty() else "",
-                    warehouseName = if (it.isTrading) it.selectedWarehouse?.label.orEmpty() else "",
+                    // Every web variant carries the picked warehouse per line.
+                    warehouseId = it.selectedWarehouse?.id.orEmpty(),
+                    warehouseName = it.selectedWarehouse?.label.orEmpty(),
                     bag = if (it.isTrading) it.bag.trim() else "",
                     variance = if (it.isTrading && it.varianceEnabled) it.variance.trim() else "",
                     varianceType = if (it.isTrading) it.varianceType.id else "",
@@ -306,6 +392,7 @@ class InvoiceFormViewModel(
                 varianceType = VARIANCE_TYPES.first(),
             )
         }
+        recalcCashAmount()
     }
 
     fun removeLine(index: Int) {
@@ -313,6 +400,7 @@ class InvoiceFormViewModel(
             if (index !in it.lines.indices) it
             else it.copy(lines = it.lines.filterIndexed { i, _ -> i != index })
         }
+        recalcCashAmount()
     }
 
     fun submit() {
@@ -326,14 +414,26 @@ class InvoiceFormViewModel(
                 spec = currentSpec,
                 party = state.party!!,
                 lines = state.lines,
-                amount = state.amount.trim(),
+                // Trading saves a blank amount as 0, like the web's '' → '0'.
+                amount = state.amount.trim().ifBlank { if (state.allowBlankAmount) "0" else "" },
                 discount = state.discount.toDoubleOrNull() ?: 0.0,
                 notes = state.notes.trim(),
                 invoiceNo = state.invoiceNo.trim(),
-                invoiceDate = if (state.showInvoiceDate) state.invoiceDate.toApi() else "",
+                // Returns always post their required date; a purchase posts
+                // invoice_date only once the user actually picked one (the web
+                // leaves it blank otherwise).
+                invoiceDate = when {
+                    !state.showInvoiceDate -> ""
+                    currentSpec.isReturn || state.invoiceDateTouched -> state.invoiceDate.toApi()
+                    else -> ""
+                },
                 electronics = isElectronics,
                 installment = if (state.showInstallment && state.isInstallment) state.toInstallmentInput() else null,
                 trading = if (isTrading) state.toTradingExtras() else null,
+                vehicleNumber = state.vehicleNumber.trim(),
+                serviceCharge = state.serviceCharge.toDoubleOrNull() ?: 0.0,
+                tdsAmount = state.tdsAmount.toDoubleOrNull() ?: 0.0,
+                transportationAmt = state.transportationAmt.toDoubleOrNull() ?: 0.0,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -365,6 +465,11 @@ class InvoiceFormViewModel(
                         bag = "",
                         variance = "",
                         varianceType = VARIANCE_TYPES.first(),
+                        invoiceDateTouched = false,
+                        serviceCharge = "",
+                        tdsAmount = "",
+                        transportationAmt = "",
+                        amountLocked = false,
                     )
                 }
                 is Resource.Error -> _uiState.update {

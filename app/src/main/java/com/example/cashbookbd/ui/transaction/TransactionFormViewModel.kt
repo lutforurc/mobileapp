@@ -50,6 +50,8 @@ class TransactionFormViewModel(
             fields = spec?.fields.orEmpty(),
             remarksLabel = spec?.remarksLabel ?: "Remarks",
             amountLabel = spec?.amountLabel ?: "Amount (Tk.)",
+            isBankBatch = trackedContext != null,
+            batchTotalLabel = if (trackedContext == "received") "Received Total" else "Payment Total",
         )
     )
     val uiState: StateFlow<TransactionFormUiState> = _uiState.asStateFlow()
@@ -82,6 +84,65 @@ class TransactionFormViewModel(
 
     fun onTrackedProductSelected(option: SelectorOption) {
         _uiState.update { it.copy(trackedProduct = option) }
+    }
+
+    // ---- Bank multi-row batch (the web's Add New table) --------------------
+
+    /** Adds the typed row to the batch; the bank account stays put. */
+    fun addLine() {
+        val state = _uiState.value
+        val account = state.selections["account"] ?: return
+        val amount = state.amount.toDoubleOrNull() ?: return
+        if (amount <= 0) return
+        _uiState.update {
+            it.copy(
+                lines = it.lines + com.example.cashbookbd.data.repository.CashVoucherLine(
+                    account = account,
+                    remarks = it.remarks.trim(),
+                    amount = amount,
+                    trackedProductId = it.trackedProduct?.id.orEmpty(),
+                    trackedProductName = it.trackedProduct?.label.orEmpty(),
+                ),
+                // The web clears the whole in-form row after Add — account,
+                // remarks, amount and the picked product; the bank stays.
+                selections = it.selections - "account",
+                remarks = "",
+                amount = "",
+                trackedProduct = null,
+            )
+        }
+        // Back to the every-party product list for the next row.
+        if (trackedContext != null) loadTrackedProducts(coa4Id = null)
+    }
+
+    /** Loads a pending row back into the form (and removes it from the batch). */
+    fun editLine(index: Int) {
+        _uiState.update { state ->
+            val line = state.lines.getOrNull(index) ?: return@update state
+            state.copy(
+                selections = state.selections + ("account" to line.account),
+                remarks = line.remarks,
+                amount = if (line.amount % 1.0 == 0.0) {
+                    line.amount.toLong().toString()
+                } else {
+                    line.amount.toString()
+                },
+                trackedProduct = line.trackedProductId.takeIf { it.isNotBlank() }
+                    ?.let { SelectorOption(id = it, label = line.trackedProductName) },
+                lines = state.lines.filterIndexed { i, _ -> i != index },
+            )
+        }
+        // The loaded row's party scopes the product list again.
+        if (trackedContext != null) {
+            loadTrackedProducts(coa4Id = _uiState.value.selections["account"]?.id)
+        }
+    }
+
+    fun removeLine(index: Int) {
+        _uiState.update {
+            if (index !in it.lines.indices) it
+            else it.copy(lines = it.lines.filterIndexed { i, _ -> i != index })
+        }
     }
 
     private fun loadBankAccounts() {
@@ -135,28 +196,41 @@ class TransactionFormViewModel(
         val currentSpec = spec ?: return
         val state = _uiState.value
         if (!state.canSubmit) return
-        val amount = state.amount.toDoubleOrNull() ?: return
 
         _uiState.update { it.copy(isSubmitting = true, message = null, isError = false) }
         viewModelScope.launch {
-            val result = transactionRepository.submit(
-                spec = currentSpec,
-                selections = state.selections,
-                amount = amount,
-                remarks = state.remarks.trim(),
-                trackedProductId = state.trackedProduct?.id.orEmpty(),
-            )
+            val result = if (state.isBankBatch) {
+                transactionRepository.submitBankVoucher(
+                    spec = currentSpec,
+                    bank = state.selections.getValue("bank"),
+                    lines = state.lines,
+                )
+            } else {
+                transactionRepository.submit(
+                    spec = currentSpec,
+                    selections = state.selections,
+                    amount = state.amount.toDoubleOrNull() ?: 0.0,
+                    remarks = state.remarks.trim(),
+                    trackedProductId = state.trackedProduct?.id.orEmpty(),
+                )
+            }
             when (result) {
                 is Resource.Success -> _uiState.update {
-                    // Clear the form for the next entry on success.
+                    // Clear the form for the next entry on success. The bank
+                    // batch keeps the bank account, like the web.
                     it.copy(
                         isSubmitting = false,
                         message = result.data,
                         isError = false,
-                        selections = emptyMap(),
+                        selections = if (it.isBankBatch) {
+                            it.selections.filterKeys { k -> k == "bank" }
+                        } else {
+                            emptyMap()
+                        },
                         amount = "",
                         remarks = "",
                         trackedProduct = null,
+                        lines = emptyList(),
                     )
                 }
                 is Resource.Error -> _uiState.update {

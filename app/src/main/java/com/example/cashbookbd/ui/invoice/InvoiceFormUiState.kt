@@ -32,10 +32,19 @@ data class InvoiceFormUiState(
     val showInstallment: Boolean = false,
     /** Sales-order picker — Trading sales only; a Trading purchase links a purchase order alone. */
     val showSalesOrderPicker: Boolean = false,
+    /** Every variant takes a vehicle number except Electronics sales (web). */
+    val showVehicleNumber: Boolean = false,
+    /** Electronics sales only: service charge / TDS / transportation inputs. */
+    val showExtraCharges: Boolean = false,
+    /** Cash (17) party locks the auto-computed amount (Electronics sales stays editable). */
+    val amountLocked: Boolean = false,
+    /** Trading invoices may save a blank amount as 0, like the web. */
+    val allowBlankAmount: Boolean = false,
 
     val party: TxnSelection? = null,
 
-    // Trading invoice-level extras.
+    // Invoice-level extras (vehicle on every non-Electronics-sales variant;
+    // the per-line warehouse options are loaded for every variant).
     val vehicleNumber: String = "",
     val warehouses: List<SelectorOption> = emptyList(),
     val purchaseOrder: OrderOption? = null,
@@ -59,6 +68,13 @@ data class InvoiceFormUiState(
     val notes: String = "",
     val invoiceNo: String = "",
     val invoiceDate: SimpleDate = SimpleDate.today(),
+    /** Purchases post invoice_date only after the user actually picks one. */
+    val invoiceDateTouched: Boolean = false,
+
+    // Electronics sales extra charges (web serviceCharge/tdsAmount/transportationAmt).
+    val serviceCharge: String = "",
+    val tdsAmount: String = "",
+    val transportationAmt: String = "",
 
     // Installment plan (Electronics sales, non-Cash customer).
     val isInstallment: Boolean = false,
@@ -87,12 +103,20 @@ data class InvoiceFormUiState(
             ((installmentAmount.toDoubleOrNull() ?: 0.0) > 0.0 &&
                 (installmentsNo.toIntOrNull() ?: 0) > 0)
 
+    /** Charges folded into the Electronics sales payable (0 elsewhere). */
+    val extraChargesTotal: Double
+        get() = if (!showExtraCharges) 0.0 else {
+            (serviceCharge.toDoubleOrNull() ?: 0.0) +
+                (tdsAmount.toDoubleOrNull() ?: 0.0) +
+                (transportationAmt.toDoubleOrNull() ?: 0.0)
+        }
+
     val canSubmit: Boolean
         get() = isSupported &&
             !isSubmitting &&
             party != null &&
             lines.isNotEmpty() &&
-            amount.isNotBlank() &&
+            (amount.isNotBlank() || allowBlankAmount) &&
             installmentReady
 
     /** The weight-variance input is only usable once a direction is chosen. */

@@ -96,6 +96,9 @@ object InvoiceForms {
             amountKey = "paymentAmt",
             autoFillPrice = true,
             showInvoiceNo = true,
+            // Every web purchase variant pairs the supplier invoice no with an
+            // optional Invoice Date (posted yyyy-MM-dd under invoice_date).
+            showInvoiceDate = true,
             electronicsEndpoint = "electronics/purchase/store",
             tradingEndpoint = "trading/purchase/api-store",
         ),

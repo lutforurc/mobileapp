@@ -139,12 +139,20 @@ class InvoiceRepository(
         electronics: Boolean = false,
         installment: InstallmentInput? = null,
         trading: TradingExtras? = null,
+        vehicleNumber: String = "",
+        serviceCharge: Double = 0.0,
+        tdsAmount: Double = 0.0,
+        transportationAmt: Double = 0.0,
     ): Resource<String> = withContext(ioDispatcher) {
         val useElectronics = electronics && spec.electronicsEndpoint != null
         val body = if (spec.isReturn) {
-            returnBody(spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate)
+            returnBody(spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate, vehicleNumber)
         } else {
-            invoiceBody(spec, party, lines, amount, discount, notes, invoiceNo, useElectronics, installment, trading)
+            invoiceBody(
+                spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate,
+                useElectronics, installment, trading, vehicleNumber,
+                serviceCharge, tdsAmount, transportationAmt,
+            )
         }
         // Variant → store endpoint, as the web's PurchaseIndex/SalesIndex resolve
         // it: Electronics has its own store for both kinds; Trading only for
@@ -296,9 +304,14 @@ class InvoiceRepository(
         discount: Double,
         notes: String,
         invoiceNo: String,
+        invoiceDate: String,
         electronics: Boolean,
         installment: InstallmentInput?,
         trading: TradingExtras?,
+        vehicleNumber: String,
+        serviceCharge: Double,
+        tdsAmount: Double,
+        transportationAmt: Double,
     ): JsonObject = JsonObject().apply {
         addProperty("mtmId", "")
         addProperty("account", party.id)
@@ -306,15 +319,22 @@ class InvoiceRepository(
         addProperty(spec.amountKey, amount)
         addProperty("discountAmt", discount)
         // Electronics SALES is the one variant with no vehicle field; every other
-        // form sends one — Trading's real value, or an empty one (the server
-        // reads it unconditionally; the electronics purchase form posts it too).
+        // form sends the typed value (the server reads it unconditionally on
+        // sales, optionally on purchases).
         if (!(electronics && spec.kind == InvoiceKind.SALES)) {
-            addProperty("vehicleNumber", trading?.vehicleNumber.orEmpty())
+            addProperty("vehicleNumber", vehicleNumber)
+        }
+        // Electronics sales' extra charges — separate credit legs server-side
+        // (coa4 42 service, 41 TDS, 198 transportation), absent = 0.
+        if (electronics && spec.kind == InvoiceKind.SALES) {
+            addProperty("serviceCharge", serviceCharge)
+            addProperty("tdsAmount", tdsAmount)
+            addProperty("transportationAmt", transportationAmt)
         }
         addProperty("notes", notes)
         if (spec.showInvoiceNo) {
             addProperty("invoice_no", invoiceNo)
-            addProperty("invoice_date", "")
+            addProperty("invoice_date", invoiceDate)
         }
         if (trading != null) {
             // A Trading purchase links a purchase order only; sales sends both.
@@ -354,6 +374,7 @@ class InvoiceRepository(
         notes: String,
         invoiceNo: String,
         invoiceDate: String,
+        vehicleNumber: String,
     ): JsonObject = JsonObject().apply {
         val prefix = spec.returnPrefix ?: "sales"
         addProperty("supplier_id", party.id)
@@ -363,7 +384,7 @@ class InvoiceRepository(
         addProperty("discount", discount)
         addProperty("netpayment", amount)
         addProperty("notes", notes)
-        addProperty("vehicle_no", "")
+        addProperty("vehicle_no", vehicleNumber)
         add("table_data", JsonArray().apply { lines.forEach { add(returnLineJson(it)) } })
     }
 
@@ -391,7 +412,8 @@ class InvoiceRepository(
         line.product.id.toIntOrNull()?.let { addProperty("code", it) } ?: addProperty("code", line.product.id)
         addProperty("qty", line.qty)
         addProperty("price", line.price)
-        addProperty("godown", "")
+        // The picked warehouse; blank lets the server default (godown 1).
+        addProperty("godown", line.warehouseId)
     }
 
     private fun parseOrders(root: JsonElement?): List<OrderOption> {

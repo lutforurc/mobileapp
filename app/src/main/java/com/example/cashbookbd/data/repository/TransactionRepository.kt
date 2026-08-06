@@ -202,6 +202,39 @@ class TransactionRepository(
     }
 
     /**
+     * Bank Received/Payment: the web's multi-row voucher — the batch posted as
+     * one `transactions` array under the voucher-level bank account. The
+     * server reads only account/remarks/amount/trackedProductId per row and
+     * writes the bank contra leg itself from the summed total.
+     */
+    suspend fun submitBankVoucher(
+        spec: TxnFormSpec,
+        bank: TxnSelection,
+        lines: List<CashVoucherLine>,
+    ): Resource<String> = postForMessage {
+        val received = spec.kind == TxnKind.BANK_RECEIVED
+        val tempId = System.currentTimeMillis()
+        api.postObject(
+            spec.endpoint,
+            JsonObject().apply {
+                addProperty("mtmId", "")
+                addProperty(if (received) "bankReceivedAccount" else "bankPaymentAccount", bank.id)
+                addProperty(if (received) "bankReceivedAccountName" else "bankPaymentAccountName", bank.name)
+                add("transactions", JsonArray().apply {
+                    lines.forEachIndexed { index, line ->
+                        add(
+                            lineRow(
+                                tempId + index, line.account, line.remarks,
+                                line.amount, line.trackedProductId,
+                            )
+                        )
+                    }
+                })
+            },
+        )
+    }
+
+    /**
      * The tracked products a cash row may name (`product-tracking/products`).
      *
      * Party-scoped: [coa4Id] is the picked account, and the answer is that
@@ -544,7 +577,10 @@ class TransactionRepository(
             return Resource.Error(errorMessage ?: message ?: "The transaction could not be saved.")
         }
 
-        // Success: prefer message, else the voucher string at data.data (string or array).
+        // Success: the voucher string at data.data (string or array) is the
+        // banner. `message` is only a fallback, and never when it is a bare
+        // number — the bank store puts the literal 200 there, and "200" is a
+        // useless thing to congratulate the user with.
         val voucher = obj.getAsJsonObject("data")?.get("data")?.let { d ->
             when {
                 d.isJsonPrimitive -> d.asString
@@ -552,7 +588,8 @@ class TransactionRepository(
                 else -> null
             }
         }
-        return Resource.Success(message ?: voucher ?: "Transaction saved successfully.")
+        val readableMessage = message?.takeIf { it.toDoubleOrNull() == null }
+        return Resource.Success(voucher ?: readableMessage ?: "Transaction saved successfully.")
     }
 
     /** Loads the bank-account dropdown (`coal3/l4-list/2`) → `{id, name}` options. */

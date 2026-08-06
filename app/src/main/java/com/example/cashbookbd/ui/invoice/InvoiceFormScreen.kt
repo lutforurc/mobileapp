@@ -112,6 +112,16 @@ fun InvoiceFormScreen(
                 label = state.partyLabel,
             )
 
+            // Every variant but Electronics sales takes a vehicle number (web).
+            if (state.showVehicleNumber) {
+                AppTextField(
+                    value = state.vehicleNumber,
+                    onValueChange = viewModel::onVehicleNumberChange,
+                    label = "Vehicle Number",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             if (state.isTrading) {
                 TradingHeaderFields(state = state, viewModel = viewModel)
             }
@@ -134,11 +144,40 @@ fun InvoiceFormScreen(
                 )
             }
 
+            // Electronics sales' extra charges fold into the payable total.
+            if (state.showExtraCharges) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppTextField(
+                        value = state.serviceCharge,
+                        onValueChange = viewModel::onServiceChargeChange,
+                        label = "Service Charge",
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AppTextField(
+                        value = state.tdsAmount,
+                        onValueChange = viewModel::onTdsAmountChange,
+                        label = "TDS",
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                AppTextField(
+                    value = state.transportationAmt,
+                    onValueChange = viewModel::onTransportationChange,
+                    label = "Transportation",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppTextField(
                     value = state.amount,
                     onValueChange = viewModel::onAmountChange,
                     label = state.amountLabel,
+                    // A Cash (17) party locks the auto-computed figure.
+                    enabled = !state.amountLocked,
                     keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f),
                 )
@@ -205,12 +244,6 @@ fun InvoiceFormScreen(
  */
 @Composable
 private fun TradingHeaderFields(state: InvoiceFormUiState, viewModel: InvoiceFormViewModel) {
-    AppTextField(
-        value = state.vehicleNumber,
-        onValueChange = viewModel::onVehicleNumberChange,
-        label = "Vehicle Number",
-        modifier = Modifier.fillMaxWidth(),
-    )
     SearchableSelectDropdown(
         selected = state.purchaseOrder?.let { SelectorOption(it.id, it.orderNumber, it.customerName) },
         onSelected = viewModel::onPurchaseOrderSelected,
@@ -342,14 +375,16 @@ private fun ProductEntry(
             )
         }
 
+        // Every web variant carries a per-line warehouse (returns post `godown`).
+        AppSelectDropdown(
+            label = "Warehouse",
+            options = state.warehouses,
+            selected = state.selectedWarehouse,
+            onSelected = viewModel::onWarehouseSelected,
+            placeholder = "Not Applicable",
+        )
+
         if (state.isTrading) {
-            AppSelectDropdown(
-                label = "Warehouse",
-                options = state.warehouses,
-                selected = state.selectedWarehouse,
-                onSelected = viewModel::onWarehouseSelected,
-                placeholder = "Not Applicable",
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AppTextField(
                     value = state.bag,
