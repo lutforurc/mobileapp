@@ -36,6 +36,13 @@ class TransactionFormViewModel(
 
     private val spec = TransactionForms.byKey(txnKey)
 
+    /** Product-tracking context — the bank forms mirror the web's field. */
+    private val trackedContext: String? = when (spec?.kind) {
+        com.example.cashbookbd.transaction.TxnKind.BANK_RECEIVED -> "received"
+        com.example.cashbookbd.transaction.TxnKind.BANK_PAYMENT -> "payment"
+        else -> null
+    }
+
     private val _uiState = MutableStateFlow(
         TransactionFormUiState(
             title = spec?.title ?: "Transaction",
@@ -49,6 +56,32 @@ class TransactionFormViewModel(
 
     init {
         if (spec?.fields?.any { it.picker == TxnPicker.BANK } == true) loadBankAccounts()
+        // With no party picked yet, the every-party products come back.
+        if (trackedContext != null) loadTrackedProducts(coa4Id = null)
+    }
+
+    /**
+     * The party-scoped tracked products, like the web's useTrackedProducts:
+     * refetched for the picked transaction account; an empty answer hides the
+     * dropdown. A stale selection no longer in the list is dropped.
+     */
+    private fun loadTrackedProducts(coa4Id: String?) {
+        val context = trackedContext ?: return
+        viewModelScope.launch {
+            val products = transactionRepository.fetchTrackedProducts(context, coa4Id)
+                .map { (id, name) -> SelectorOption(id, name) }
+            _uiState.update { state ->
+                val stillValid = state.trackedProduct?.let { sel -> products.any { it.id == sel.id } } == true
+                state.copy(
+                    trackedProducts = products,
+                    trackedProduct = if (stillValid) state.trackedProduct else null,
+                )
+            }
+        }
+    }
+
+    fun onTrackedProductSelected(option: SelectorOption) {
+        _uiState.update { it.copy(trackedProduct = option) }
     }
 
     private fun loadBankAccounts() {
@@ -71,7 +104,15 @@ class TransactionFormViewModel(
     }
 
     fun onFieldSelected(key: String, selection: TxnSelection) {
+        val accountChanged = key == "account" &&
+            _uiState.value.selections[key]?.id != selection.id
         _uiState.update { it.copy(selections = it.selections + (key to selection)) }
+        // A new party means a new product list — the web clears the picked
+        // product on an account change (isSameAccount) and refetches.
+        if (accountChanged && trackedContext != null) {
+            _uiState.update { it.copy(trackedProduct = null) }
+            loadTrackedProducts(coa4Id = selection.id)
+        }
     }
 
     fun onAmountChange(value: String) {
@@ -103,6 +144,7 @@ class TransactionFormViewModel(
                 selections = state.selections,
                 amount = amount,
                 remarks = state.remarks.trim(),
+                trackedProductId = state.trackedProduct?.id.orEmpty(),
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -114,6 +156,7 @@ class TransactionFormViewModel(
                         selections = emptyMap(),
                         amount = "",
                         remarks = "",
+                        trackedProduct = null,
                     )
                 }
                 is Resource.Error -> _uiState.update {

@@ -77,10 +77,10 @@ import kotlinx.coroutines.launch
  *  - Head Office (business type 1; for payments a `branch_types_id` of 1 also
  *    forces it): a branch dropdown; the batch posts wrapped in branch/project
  *    meta to `accounts/received|payment`.
- *  - Trading (business type 8): a "Select Order (Optional)" picker; each line
- *    carries the linked order; posts to `trading/cash/received|payment`.
- *  - Everything else (General, business type 4 included): the same trading
- *    endpoint, no extras.
+ *  - Trading (inventory system 4): a "Select Order (Optional)" picker; each
+ *    line carries the linked order; posts to `trading/cash/received|payment`.
+ *  - Everything else (electronics/construction/general inventory systems):
+ *    the same trading endpoint, no extras.
  *
  * All variants are multi-line: "Add New" collects lines into the batch below
  * (with a running total) and Save posts them as one voucher.
@@ -88,7 +88,7 @@ import kotlinx.coroutines.launch
 
 private const val HEAD_OFFICE_BUSINESS_TYPE_ID = 1
 private const val HEAD_OFFICE_BRANCH_TYPES_ID = 1
-private const val TRADING_CASH_BUSINESS_TYPE_ID = 8
+private const val TRADING_INVENTORY_SYSTEM_ID = 4
 
 enum class CashVoucherVariant { GENERAL, TRADING, HEAD_OFFICE }
 
@@ -138,7 +138,9 @@ fun cashVoucherVariant(spec: CashVoucherSpec, settings: Settings?): CashVoucherV
     spec.branchTypeForcesHeadOffice &&
         settings?.branchTypesId == HEAD_OFFICE_BRANCH_TYPES_ID -> CashVoucherVariant.HEAD_OFFICE
     settings?.businessTypeId == HEAD_OFFICE_BUSINESS_TYPE_ID -> CashVoucherVariant.HEAD_OFFICE
-    settings?.businessTypeId == TRADING_CASH_BUSINESS_TYPE_ID -> CashVoucherVariant.TRADING
+    // The web indexes pick Trading from the branch's *inventory system* (4);
+    // electronics (2) / construction (3) fall through to General.
+    settings?.inventorySystemId == TRADING_INVENTORY_SYSTEM_ID -> CashVoucherVariant.TRADING
     else -> CashVoucherVariant.GENERAL
 }
 
@@ -190,10 +192,11 @@ class CashVoucherViewModel(
     private val ledgerRepository: LedgerRepository,
     private val invoiceRepository: InvoiceRepository,
     private val reportRepository: ReportRepository,
-    sessionManager: SessionManager,
+    private val sessionManager: SessionManager,
+    private val sessionRepository: com.example.cashbookbd.data.repository.SessionRepository? = null,
 ) : ViewModel() {
 
-    private val variant: CashVoucherVariant =
+    private var variant: CashVoucherVariant =
         cashVoucherVariant(spec, sessionManager.state.value.settings)
 
     /** The user's own branch — the Head Office variant's default selection. */
@@ -213,6 +216,19 @@ class CashVoucherViewModel(
         if (variant == CashVoucherVariant.HEAD_OFFICE) loadBranches()
         // With no account yet, only the every-party products come back.
         loadTrackedProducts(coa4Id = null)
+        // The branch's type/inventory system may have changed since login —
+        // the web index refetches the current branch on every mount, so mirror
+        // it: refresh settings and re-derive the variant when they land.
+        viewModelScope.launch {
+            if (sessionRepository?.refresh() is Resource.Success) {
+                val fresh = cashVoucherVariant(spec, sessionManager.state.value.settings)
+                if (fresh != variant) {
+                    variant = fresh
+                    _uiState.update { it.copy(variant = fresh) }
+                    if (fresh == CashVoucherVariant.HEAD_OFFICE) loadBranches()
+                }
+            }
+        }
     }
 
     /** "received"/"payment" — what product-tracking/products calls this form. */
@@ -342,6 +358,14 @@ class CashVoucherViewModel(
                     orderText = if (variant == CashVoucherVariant.TRADING) it.order?.orderNumber.orEmpty() else "",
                     trackedProductId = it.trackedProduct?.id.orEmpty(),
                     trackedProductName = it.trackedProduct?.label.orEmpty(),
+                    // HO rows keep the branch they were added under, so one
+                    // batch can carry different branches — like the web.
+                    branchId = if (variant == CashVoucherVariant.HEAD_OFFICE) {
+                        it.selectedBranch?.id?.toString().orEmpty()
+                    } else "",
+                    branchName = if (variant == CashVoucherVariant.HEAD_OFFICE) {
+                        it.selectedBranch?.name.orEmpty()
+                    } else "",
                 ),
                 remarks = "",
                 amount = "",
@@ -460,6 +484,7 @@ class CashVoucherViewModel(
                     invoiceRepository = ServiceLocator.provideInvoiceRepository(appContext),
                     reportRepository = ServiceLocator.provideReportRepository(appContext),
                     sessionManager = ServiceLocator.provideSessionManager(appContext),
+                    sessionRepository = ServiceLocator.provideSessionRepository(appContext),
                 )
             }
         }
@@ -663,6 +688,14 @@ private fun VoucherLinesList(
                         if (line.trackedProductName.isNotBlank()) {
                             Text(
                                 text = "Product: ${line.trackedProductName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        // The web's Project / Branch column on Head Office rows.
+                        if (line.branchName.isNotBlank()) {
+                            Text(
+                                text = "Branch: ${line.branchName}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

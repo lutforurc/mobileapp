@@ -21,6 +21,14 @@ data class TransactionFormUiState(
     val isBankLoading: Boolean = false,
     val bankError: String? = null,
 
+    /**
+     * Product tracking (bank forms): the party-scoped product options and the
+     * picked one. Empty options hide the dropdown — the form never breaks when
+     * the branch doesn't track products.
+     */
+    val trackedProducts: List<SelectorOption> = emptyList(),
+    val trackedProduct: SelectorOption? = null,
+
     val isSubmitting: Boolean = false,
     /** Transient result banner; [isError] chooses success vs error styling. */
     val message: String? = null,

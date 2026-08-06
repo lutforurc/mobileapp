@@ -107,6 +107,15 @@ fun TransactionFormScreen(
                     searchLedgers = viewModel::searchLedgers,
                     searchEmployees = viewModel::searchEmployees,
                 )
+                // The web's TrackedProductField rides under the transaction
+                // account and hides itself when the branch tracks nothing.
+                if (field.key == "account" && state.trackedProducts.isNotEmpty()) {
+                    TrackedProductDropdown(
+                        options = state.trackedProducts,
+                        selected = state.trackedProduct,
+                        onSelected = viewModel::onTrackedProductSelected,
+                    )
+                }
             }
 
             AppTextField(
@@ -183,6 +192,36 @@ private fun AccountField(
             error = state.bankError,
             onSelected = { onSelected(field.key, TxnSelection(it.id, it.label)) },
         )
+    }
+}
+
+/** The optional product-tracking picker (bank forms), shown only with options. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrackedProductDropdown(
+    options: List<SelectorOption>,
+    selected: SelectorOption?,
+    onSelected: (SelectorOption) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        DropdownAnchorField(
+            label = "Select Product (Optional)",
+            valueText = selected?.label,
+            onClick = { expanded = true },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                )
+            }
+        }
     }
 }
 

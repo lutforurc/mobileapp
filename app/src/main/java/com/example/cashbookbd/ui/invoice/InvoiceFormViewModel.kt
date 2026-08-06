@@ -38,6 +38,7 @@ class InvoiceFormViewModel(
     private val ledgerRepository: LedgerRepository,
     private val selectorRepository: SelectorRepository,
     private val sessionManager: SessionManager,
+    private val sessionRepository: com.example.cashbookbd.data.repository.SessionRepository? = null,
 ) : ViewModel() {
 
     private val spec = InvoiceForms.byKey(invoiceKey)
@@ -47,7 +48,7 @@ class InvoiceFormViewModel(
      * SalesIndex switch on. The settings `branch` is the same row the web reads
      * via `user/current-branch`. Resolved once from the loaded settings.
      */
-    private val inventorySystemId: Int? = sessionManager.state.value.settings?.inventorySystemId
+    private var inventorySystemId: Int? = sessionManager.state.value.settings?.inventorySystemId
 
     /**
      * True when this form should submit as an Electronics invoice: the branch
@@ -55,7 +56,7 @@ class InvoiceFormViewModel(
      * electronics endpoint — adds a per-line serial number (both kinds) and the
      * installment plan (sales only).
      */
-    private val isElectronics: Boolean =
+    private var isElectronics: Boolean =
         spec?.electronicsEndpoint != null && inventorySystemId == ELECTRONICS_INVENTORY_SYSTEM_ID
 
     /**
@@ -63,7 +64,7 @@ class InvoiceFormViewModel(
      * pickers and per-line warehouse/bag/variance. Sales (returns included)
      * keeps the shared endpoint; a purchase posts to [InvoiceSpec.tradingEndpoint].
      */
-    private val isTrading: Boolean =
+    private var isTrading: Boolean =
         inventorySystemId == TRADING_INVENTORY_SYSTEM_ID &&
             (spec?.kind == InvoiceKind.SALES || spec?.tradingEndpoint != null)
 
@@ -94,6 +95,29 @@ class InvoiceFormViewModel(
 
     init {
         if (isTrading) loadWarehouses()
+        // The branch's inventory system may have changed since login — the web
+        // index refetches the current branch on mount, so refresh settings and
+        // re-derive the variant flags when they land.
+        viewModelScope.launch {
+            if (sessionRepository?.refresh() !is Resource.Success) return@launch
+            val fresh = sessionManager.state.value.settings?.inventorySystemId
+            if (fresh == inventorySystemId) return@launch
+            inventorySystemId = fresh
+            val wasTrading = isTrading
+            isElectronics = spec?.electronicsEndpoint != null &&
+                fresh == ELECTRONICS_INVENTORY_SYSTEM_ID
+            isTrading = fresh == TRADING_INVENTORY_SYSTEM_ID &&
+                (spec?.kind == InvoiceKind.SALES || spec?.tradingEndpoint != null)
+            _uiState.update {
+                it.copy(
+                    isElectronics = isElectronics,
+                    isTrading = isTrading,
+                    showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
+                    showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
+                )
+            }
+            if (isTrading && !wasTrading) loadWarehouses()
+        }
     }
 
     private fun loadWarehouses() {
@@ -371,6 +395,7 @@ class InvoiceFormViewModel(
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
                     selectorRepository = ServiceLocator.provideSelectorRepository(appContext),
                     sessionManager = ServiceLocator.provideSessionManager(appContext),
+                    sessionRepository = ServiceLocator.provideSessionRepository(appContext),
                 )
             }
         }

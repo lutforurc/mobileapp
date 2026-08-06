@@ -24,6 +24,8 @@ class AddBranchViewModel(
     canClearOpening: Boolean = false,
     canClearTransactions: Boolean = false,
     steps: List<BranchStep> = BranchForm.steps,
+    private val sessionRepository: com.example.cashbookbd.data.repository.SessionRepository? = null,
+    private val ownBranchId: Long? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -172,8 +174,15 @@ class AddBranchViewModel(
                 repository.store(state.values)
             }
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(isSaving = false, savedMessage = result.data)
+                is Resource.Success -> {
+                    _uiState.update { it.copy(isSaving = false, savedMessage = result.data) }
+                    // Editing the signed-in branch may change its business type /
+                    // inventory system — the form variants read those from the
+                    // session, so refetch settings like the web does after a
+                    // branch update. Other branches don't touch the session.
+                    if (state.isEditing && branchId?.toLongOrNull() == ownBranchId) {
+                        sessionRepository?.refresh()
+                    }
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(
@@ -283,6 +292,8 @@ class AddBranchViewModel(
                         "branch.transaction.clear",
                     ),
                     steps = BranchForm.stepsFor(session.permissions),
+                    sessionRepository = ServiceLocator.provideSessionRepository(appContext),
+                    ownBranchId = session.state.value.settings?.branchId,
                 )
             }
         }

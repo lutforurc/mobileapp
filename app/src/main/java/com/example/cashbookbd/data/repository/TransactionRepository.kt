@@ -35,6 +35,13 @@ data class CashVoucherLine(
      */
     val trackedProductId: String = "",
     val trackedProductName: String = "",
+    /**
+     * Head Office only: the branch picked when this row was added — the web
+     * captures it per row, so one batch can pay several branches. "" = use the
+     * submit-time selection.
+     */
+    val branchId: String = "",
+    val branchName: String = "",
 )
 
 /**
@@ -59,6 +66,7 @@ class TransactionRepository(
         selections: Map<String, TxnSelection>,
         amount: Double,
         remarks: String,
+        trackedProductId: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
         val tempId = System.currentTimeMillis()
         try {
@@ -70,12 +78,18 @@ class TransactionRepository(
 
                 TxnKind.BANK_RECEIVED -> api.postObject(
                     spec.endpoint,
-                    bankBody("bankReceivedAccount", "bankReceivedAccountName", tempId, selections, remarks, amount),
+                    bankBody(
+                        "bankReceivedAccount", "bankReceivedAccountName",
+                        tempId, selections, remarks, amount, trackedProductId,
+                    ),
                 )
 
                 TxnKind.BANK_PAYMENT -> api.postObject(
                     spec.endpoint,
-                    bankBody("bankPaymentAccount", "bankPaymentAccountName", tempId, selections, remarks, amount),
+                    bankBody(
+                        "bankPaymentAccount", "bankPaymentAccountName",
+                        tempId, selections, remarks, amount, trackedProductId,
+                    ),
                 )
 
                 TxnKind.JOURNAL -> api.postObject(
@@ -149,9 +163,13 @@ class TransactionRepository(
     ): Resource<String> = postForMessage {
         val rows = JsonArray().apply {
             lines.forEachIndexed { index, line ->
+                // Each row keeps the branch it was added under (web parity);
+                // rows without one fall back to the submit-time selection.
+                val rowBranchId = line.branchId.ifBlank { branch.id }
+                val rowBranchName = if (line.branchId.isBlank()) branch.name else line.branchName
                 add(cashVoucherRow(line, index, trading = false).apply {
-                    addProperty("branchId", branch.id)
-                    addProperty("branchName", branch.name)
+                    addProperty("branchId", rowBranchId)
+                    addProperty("branchName", rowBranchName)
                 })
             }
         }
@@ -473,7 +491,13 @@ class TransactionRepository(
     }
 
     /** One `{id, mtmId, account, accountName, remarks, amount}` line object. */
-    private fun lineRow(tempId: Long, account: TxnSelection, remarks: String, amount: Double): JsonObject =
+    private fun lineRow(
+        tempId: Long,
+        account: TxnSelection,
+        remarks: String,
+        amount: Double,
+        trackedProductId: String = "",
+    ): JsonObject =
         JsonObject().apply {
             addProperty("id", tempId)
             addProperty("mtmId", "")
@@ -481,6 +505,9 @@ class TransactionRepository(
             addProperty("accountName", account.name)
             addProperty("remarks", remarks)
             addProperty("amount", amount)
+            // ProductTrackingService reads `trackedProductId` off each row;
+            // absent, the row simply goes unmapped — never an error.
+            trackedProductId.toLongOrNull()?.let { addProperty("trackedProductId", it) }
         }
 
     private fun bankBody(
@@ -490,6 +517,7 @@ class TransactionRepository(
         selections: Map<String, TxnSelection>,
         remarks: String,
         amount: Double,
+        trackedProductId: String = "",
     ): JsonObject {
         val bank = selections.getValue("bank")
         return JsonObject().apply {
@@ -497,7 +525,7 @@ class TransactionRepository(
             addProperty(accountKey, bank.id)
             addProperty(accountNameKey, bank.name)
             add("transactions", JsonArray().apply {
-                add(lineRow(tempId, selections.getValue("account"), remarks, amount))
+                add(lineRow(tempId, selections.getValue("account"), remarks, amount, trackedProductId))
             })
         }
     }
