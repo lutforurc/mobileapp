@@ -61,10 +61,38 @@ private fun schemeOf(p: BrandPalette, dark: Boolean): ColorScheme {
 
 private val LightScheme = schemeOf(LightPalette, dark = false)
 private val DarkScheme = schemeOf(DarkPalette, dark = true)
+private val DarkSchemeV2 = schemeOf(DarkPaletteV2, dark = true)
 
 // Built once per theme so reading a token costs nothing at recomposition.
 private val LightAppColors = appColorsOf(LightPalette)
 private val DarkAppColors = appColorsOf(DarkPalette)
+private val DarkAppColorsV2 = appColorsOf(DarkPaletteV2)
+
+/**
+ * Trial wrapper for [DarkPaletteV2]: re-themes just its [content] with the
+ * reworked dark palette so one screen can preview it against the rest of the
+ * app. In the light theme it is a pass-through — the trial is a dark-mode
+ * question only. Delete this (and re-point [DarkPalette]) once a verdict
+ * lands; screens keep reading MaterialTheme as always.
+ */
+@Composable
+fun DarkV2Trial(content: @Composable () -> Unit) {
+    if (LocalBrandPalette.current !== DarkPalette) {
+        content()
+        return
+    }
+    CompositionLocalProvider(
+        LocalBrandPalette provides DarkPaletteV2,
+        LocalAppColors provides DarkAppColorsV2,
+    ) {
+        MaterialTheme(
+            colorScheme = DarkSchemeV2,
+            typography = Typography,
+            shapes = MaterialTheme.shapes,
+            content = content,
+        )
+    }
+}
 
 /**
  * The app's theme. Android 12+ dynamic colour is deliberately not offered: the

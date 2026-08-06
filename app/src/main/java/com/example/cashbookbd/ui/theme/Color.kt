@@ -273,6 +273,38 @@ val DarkPalette = BrandPalette(
 )
 
 /**
+ * Dark V2 — the reworked dark theme being trialled on the Dashboard only.
+ *
+ * What changes from [DarkPalette]: the *surfaces*. The current dark paints
+ * every backdrop and card in deep teal, so the whole app reads as one
+ * blue-green wash; V2 rebuilds the surfaces as neutral graphite (a barely-blue
+ * near-black behind slate cards) and lets the brand teal come back only where
+ * it means something — buttons, headers, links, the signature gradient. The
+ * accents, highlight rules and status gradients are inherited unchanged.
+ * Contrast on the card: body text 13.4:1, captions 6.9:1.
+ *
+ * Applied by [CashBookbdTheme]'s trial wrapper in Theme.kt; promote it by
+ * replacing [DarkPalette]'s values once approved.
+ */
+val DarkPaletteV2 = DarkPalette.copy(
+    screen = Color(0xFF0D1117),
+    onScreen = Color(0xFFE6EDF3),
+    card = Color(0xFF161D24),
+    cardRow = Color(0xFF1D252E),
+    cardRaised = Color(0xFF242E39),
+    onCard = Color(0xFFE6EDF3),
+    onCardMuted = Color(0xFF9AA7B4),
+    cardMuted = Color(0xFF1D252E),
+    primaryContainer = Color(0xFF173C46),
+    onPrimaryContainer = BrandSheet.TealTint,
+    secondaryContainer = Color(0xFF25384C),
+    onSecondaryContainer = Color(0xFFD9E6F2),
+    tertiaryContainer = Color(0xFF124A4D),
+    outline = Color(0xFF465361),
+    outlineVariant = Color(0xFF2B3540),
+)
+
+/**
  * Brand accent colours used by the dashboard cards and status text. These sit
  * outside the M3 [androidx.compose.material3.ColorScheme], so each
  * [BrandPalette] carries its own set, picked to stay legible on that palette's

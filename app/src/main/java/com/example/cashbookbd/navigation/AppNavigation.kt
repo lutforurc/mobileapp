@@ -106,6 +106,7 @@ import com.example.cashbookbd.ui.account.ProfileScreen
 import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.reports.GroupReportScreen
 import com.example.cashbookbd.ui.reports.ConnectedMemberScreen
+import com.example.cashbookbd.ui.theme.DarkV2Trial
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
@@ -495,12 +496,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.HOME) {
-            DashboardScreen(
-                navController = navController,
-                onLogout = backToLogin,
-                // Token expired / rejected (401): clear it and force re-login.
-                onSessionExpired = backToLogin,
-            )
+            // The reworked dark palette, trialled on the Dashboard only.
+            DarkV2Trial {
+                DashboardScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    // Token expired / rejected (401): clear it and force re-login.
+                    onSessionExpired = backToLogin,
+                )
+            }
         }
 
         composable(Routes.REPORTS) {
