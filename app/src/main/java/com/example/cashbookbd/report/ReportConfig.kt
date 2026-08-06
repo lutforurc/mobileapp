@@ -729,7 +729,9 @@ object ReportMenu {
                 "unit_sale_rate" to "Unit Sale",
                 "profit" to "Effect",
             ),
-            totalColumns = listOf("sold_qty", "purchase_total", "sale_total"),
+            // The web's Summary row also totals Effect (its "Net Profit/Loss");
+            // here it is the plain signed sum.
+            totalColumns = listOf("sold_qty", "purchase_total", "sale_total", "profit"),
             totalRowLabel = "Summary",
         ),
         ReportConfig(
@@ -889,7 +891,8 @@ object ReportMenu {
                 "vr_date" to "Date",
                 "coa4_name" to "Description",
             ),
-            totalColumns = listOf("qty", "total"),
+            // The web totals only the amount, not the quantity.
+            totalColumns = listOf("total"),
         ),
         ReportConfig(
             key = "purchaseLedger",
@@ -1111,6 +1114,9 @@ object ReportMenu {
             // Show "-" for 0, and suffix the unit ("1 nos") for the stock amounts.
             zeroDashColumns = listOf("opening", "stock_in", "stock_out", "balance"),
             unitColumn = "unit",
+            // The web's Grand Total row over the four stock amounts.
+            totalColumns = listOf("opening", "stock_in", "stock_out", "balance"),
+            totalRowLabel = "Grand Total",
             selectors = listOf(
                 ReportSelector(
                     paramKey = "brand_id",
@@ -1250,7 +1256,7 @@ object ReportMenu {
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
             anyOf = listOf("product.stock.view"),
             startDateDefault = ReportConfig.StartDateDefault.MONTH_FIRST,
-            totalColumns = listOf("opening", "total", "damaged", "short"),
+            totalColumns = listOf("opening", "total", "damaged", "shortage"),
             endpointKey = "branchStockReport",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_BRAND_CATEGORY_PRODUCT_DATE_RANGE,
@@ -1305,7 +1311,8 @@ object ReportMenu {
                 "date_display" to "Date",
                 "stock" to "Balance",
             ),
-            totalColumns = listOf("in_qty", "out_qty", "damage", "over"),
+            // The web also totals the running Balance (stock) column.
+            totalColumns = listOf("in_qty", "out_qty", "damage", "over", "stock"),
         ),
 
         // ---- HRM section (listed by HrmMenu, not the Reports home) ----
