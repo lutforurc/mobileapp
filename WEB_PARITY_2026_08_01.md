@@ -31,6 +31,30 @@ reports, In-App Messages admin (list + form; image by URL), Inventory Systems
 admin, Analytics → Comparison (new drawer entry), Forgot Password (3-step
 OTP), Profile (photo upload), and Subscription plan entry/edit.
 
+## Report-table audit — 2026-08-06 (commit b5b245f)
+
+All 41 reports were compared against their web components by a five-agent
+audit. Config-level mismatches (leaked columns, wrong order, headers) are
+fixed across 19 generic reports, and Monthly Report + Closing Stock/Stock
+Details — silently broken parsers — now render. Purchase/Sales Ledger are
+native rebuilds. Structural gaps that need bespoke screens, largest first:
+
+- Group Report: mobile never sent report_group (every Apply 422s) and the
+  pivot payload needs its own renderer — currently broken, needs a rebuild.
+- Connected Member: employee-keyed groups + client-computed columns — needs
+  a native screen (currently empty).
+- HRM Overtime matrix, Holiday Calendar grid, Branch Attendance aggregation,
+  Employee Attendance day-synthesis (server also ignores employee_id — fix
+  belongs in the API), Attendance absent-row synthesis.
+- Generic-table niceties the web has and the engine lacks: per-report footer
+  Total rows, per-group headings (closing stock brands, labour branches),
+  cell colour rules, running-balance columns (Product In Out, Ledger's
+  Balance), en-IN lakh/crore grouping, dd/MM/yyyy date reformat outside
+  stacked cells, "All Branch" filter option.
+- Native-screen deltas: Cash Book/Bank Book Sl+Action columns and somity
+  lines, Ledger running Balance + netted Opening, P&L 4-column layout,
+  Balance Sheet Opening/Movement columns + equity adjustment.
+
 Still web-only, deliberately:
 
 | Gap | Why |
