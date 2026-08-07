@@ -65,6 +65,9 @@ import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
+import com.example.cashbookbd.data.repository.applyMenuOrder
+import com.example.cashbookbd.data.repository.isMenuDivider
+import com.example.cashbookbd.data.repository.menuDividerLabel
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.realestate.RealEstateMenu
@@ -352,89 +355,56 @@ private fun AppDrawerContent(
             Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(12.dp))
 
-            // Each section is one DrawerItem, in the WEB SIDEBAR'S order —
-            // child screens live inside the section's own home screen,
-            // filtered by permission.
-            DrawerItem("Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME) {
-                onDestinationClick(Routes.HOME)
-            }
-            if (canReseller) {
-                DrawerItem("Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD) {
-                    onDestinationClick(Routes.RESELLER_DASHBOARD)
-                }
-            }
-            if (canTransactions) {
-                DrawerItem("Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS) {
-                    onDestinationClick(Routes.TRANSACTIONS)
-                }
-            }
-            if (canInvoices) {
-                DrawerItem("Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES) {
-                    onDestinationClick(Routes.INVOICES)
-                }
-            }
-            if (canBranchTransfer) {
-                DrawerItem("Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER) {
-                    onDestinationClick(Routes.BRANCH_TRANSFER)
-                }
-            }
-            if (canReports) {
-                DrawerItem(
-                    "Reports",
-                    Icons.AutoMirrored.Filled.List,
-                    currentRoute == Routes.REPORTS ||
-                        currentRoute == Routes.CASHBOOK ||
-                        currentRoute == Routes.BANKBOOK ||
-                        currentRoute == Routes.LEDGER,
-                ) {
-                    onDestinationClick(Routes.REPORTS)
-                }
-            }
-            if (canRequisition) {
-                DrawerItem("Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS) {
-                    onDestinationClick(Routes.REQUISITIONS)
-                }
-            }
-            if (canRealEstate) {
-                DrawerItem("Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE) {
-                    onDestinationClick(Routes.REAL_ESTATE)
-                }
-            }
-            if (canProducts) {
-                DrawerItem("Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS) {
-                    onDestinationClick(Routes.PRODUCTS)
-                }
-            }
-            if (canAdmin) {
-                DrawerItem("Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN) {
-                    onDestinationClick(Routes.ADMIN)
-                }
-            }
-            if (canVrSettings) {
-                DrawerItem("VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS) {
-                    onDestinationClick(Routes.VR_SETTINGS)
-                }
-            }
-            if (canHrm) {
-                DrawerItem("HRM", Icons.Filled.Face, currentRoute == Routes.HRM) {
-                    onDestinationClick(Routes.HRM)
-                }
-            }
-            if (canCustomers) {
-                DrawerItem("Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS) {
-                    onDestinationClick(Routes.CUSTOMERS)
-                }
-            }
-            if (canAnalytics) {
+            // Each section is one DrawerItem — child screens live inside the
+            // section's own home screen, filtered by permission. Declared in
+            // the web sidebar's order under the web's menu ids, then arranged
+            // by the user's own saved preferences (the Arrange Menu page),
+            // which the web sidebar shares.
+            val permitted = buildList {
+                add(DrawerEntry("dashboard", "Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME, Routes.HOME))
+                if (canReseller) add(DrawerEntry("reseller", "Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD, Routes.RESELLER_DASHBOARD))
+                if (canTransactions) add(DrawerEntry("transaction", "Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS, Routes.TRANSACTIONS))
+                if (canInvoices) add(DrawerEntry("invoice", "Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES, Routes.INVOICES))
+                if (canBranchTransfer) add(DrawerEntry("branch-transfer", "Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER, Routes.BRANCH_TRANSFER))
+                if (canReports) add(
+                    DrawerEntry(
+                        "reports", "Reports", Icons.AutoMirrored.Filled.List,
+                        currentRoute == Routes.REPORTS ||
+                            currentRoute == Routes.CASHBOOK ||
+                            currentRoute == Routes.BANKBOOK ||
+                            currentRoute == Routes.LEDGER,
+                        Routes.REPORTS,
+                    )
+                )
+                if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
+                if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
+                if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
+                if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN, Routes.ADMIN))
+                if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
+                if (canHrm) add(DrawerEntry("hrm", "HRM", Icons.Filled.Face, currentRoute == Routes.HRM, Routes.HRM))
+                if (canCustomers) add(DrawerEntry("customer-supplier", "Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS, Routes.CUSTOMERS))
                 // One screen, like the web's one-item Analytics group.
-                DrawerItem("Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON) {
-                    onDestinationClick(Routes.ANALYTICS_COMPARISON)
-                }
+                if (canAnalytics) add(DrawerEntry("al-charts", "Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON, Routes.ANALYTICS_COMPARISON))
+                // Mobile-only tail: the web keeps Subscription in the header menu.
+                if (canSubscription) add(DrawerEntry("subscription", "Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION, Routes.SUBSCRIPTION))
             }
-            // Mobile-only tail: the web keeps Subscription in the header menu.
-            if (canSubscription) {
-                DrawerItem("Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION) {
-                    onDestinationClick(Routes.SUBSCRIPTION)
+
+            val context = LocalContext.current
+            val menuPrefsRepository = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+            val menuPrefs by menuPrefsRepository.state.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { menuPrefsRepository.refresh() }
+
+            val byId = permitted.associateBy { it.id }
+            applyMenuOrder(permitted.map { it.id }, menuPrefs.order).forEach { id ->
+                if (id in menuPrefs.hidden) return@forEach
+                if (isMenuDivider(id)) {
+                    DrawerSectionDivider(menuDividerLabel(id))
+                } else {
+                    byId[id]?.let { entry ->
+                        DrawerItem(entry.label, entry.icon, entry.selected) {
+                            onDestinationClick(entry.route)
+                        }
+                    }
                 }
             }
 
@@ -442,6 +412,37 @@ private fun AppDrawerContent(
             // menu only (as on the web), so the drawer stays pure navigation.
             Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+/** One drawer destination as data, so the user's saved order can place it. */
+private data class DrawerEntry(
+    val id: String,
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val selected: Boolean,
+    val route: String,
+)
+
+/**
+ * A divider the user placed between menus on the Arrange Menu page: a plain
+ * rule when unnamed, a small uppercase heading when named — as on the web.
+ */
+@Composable
+private fun DrawerSectionDivider(label: String) {
+    if (label.isBlank()) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp),
+        )
+    } else {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = AppFontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 10.dp, bottom = 2.dp),
+        )
     }
 }
 

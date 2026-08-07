@@ -42,6 +42,8 @@ object AdminMenu {
         // settings screen; its two reports live in the Reports section.
         AdminItem("productTracking", "Product Tracking", listOf("product.tracking.settings.view"), supported = true),
         AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = true),
+        // Personal setting — no permission, exactly like the web route.
+        AdminItem("arrangeMenu", "Arrange Menu", emptyList(), supported = true),
         AdminItem("userList", "User List", USER_VIEW, supported = true),
         AdminItem("onlineUsers", "Online Users", listOf("online.users", "user.view"), supported = true),
         // Its own permission, not borrowed from online.users: seeing who is
@@ -98,5 +100,5 @@ object AdminMenu {
 
     /** Admin entries the user is allowed to open, in registry order. */
     fun visible(permissions: List<Permission>?): List<AdminItem> =
-        all.filter { Permissions.hasAny(permissions, it.anyOf) }
+        all.filter { it.anyOf.isEmpty() || Permissions.hasAny(permissions, it.anyOf) }
 }

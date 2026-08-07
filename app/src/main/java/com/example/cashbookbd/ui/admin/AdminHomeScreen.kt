@@ -89,6 +89,7 @@ fun AdminHomeScreen(
                             item.key == AdminMenu.ADD_ROLES_KEY -> Routes.ADD_ROLE
                             // Software Information's single-record form.
                             item.key == "softwareInfo" -> Routes.SOFTWARE_INFO
+                            item.key == "arrangeMenu" -> Routes.ARRANGE_MENU
                             item.key == "productTracking" -> Routes.PRODUCT_TRACKING_SETTINGS
                             item.key == "inventorySystems" -> Routes.INVENTORY_SYSTEMS
                             item.key == "inAppMessages" -> Routes.IN_APP_MESSAGES

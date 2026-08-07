@@ -107,6 +107,7 @@ import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.reports.GroupReportScreen
 import com.example.cashbookbd.ui.reports.ConnectedMemberScreen
 import com.example.cashbookbd.ui.theme.DarkV2Trial
+import com.example.cashbookbd.ui.settings.ArrangeMenuScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
@@ -317,6 +318,9 @@ object Routes {
 
     /** Group Report's Operating/Purchase Cost ledger mapping. */
     const val GROUP_REPORT_SETUP = "admin/group-report-setup"
+
+    /** Arrange Menu — the user's own drawer order (no permission, like the web). */
+    const val ARRANGE_MENU = "settings/arrange-menu"
 
     /** Edit Company — base route; the list appends "/{id}" itself. */
     const val COMPANY_EDIT = "company/edit"
@@ -972,6 +976,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             PermissionGate(anyOf = listOf("group.report")) {
                 GroupReportSetupScreen(navController = navController, onLogout = backToLogin)
             }
+        }
+
+        // Arranging one's own drawer is a personal setting — there is nothing
+        // here another user could see or change, so it carries no permission.
+        composable(Routes.ARRANGE_MENU) {
+            ArrangeMenuScreen(navController = navController, onLogout = backToLogin)
         }
 
         composable("${Routes.COMPANY_EDIT}/{${Routes.COMPANY_ID_ARG}}") { entry ->
