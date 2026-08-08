@@ -73,6 +73,7 @@ class SettingsRepository(
                     useBangla = payload?.branch?.useBangla?.trim()?.toDoubleOrNull() == 1.0,
                     stockReportTypeGrouped = payload?.branch?.stockReportType?.trim()
                         ?.toDoubleOrNull() == 1.0,
+                    needDemoTutorial = payload?.branch?.needDemoTutorial?.trim() == "1",
                     // The web checks String(x) === '1' on each of these metas.
                     needCustomerArea = payload?.branch?.needCustomerArea?.trim() == "1",
                     needCustomerSex = payload?.branch?.needCustomerSex?.trim() == "1",

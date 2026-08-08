@@ -128,12 +128,25 @@ fun AppListScreen(
         snackbarHostState.showSnackbar(message)
     }
 
+    // The web's tutorial icon beside the title — spec-declared URL, shown only
+    // while the branch's need_demo_tutorial setting is on.
+    val tutorialUrl = com.example.cashbookbd.applist.AppLists.byKey(listKey)?.tutorialUrl
+    val showTutorial = tutorialUrl != null &&
+        com.example.cashbookbd.di.ServiceLocator
+            .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
+            .state.collectAsStateWithLifecycle().value.settings?.needDemoTutorial == true
+
     AuthenticatedShell(
         title = state.title,
         currentRoute = parentRoute,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        actions = {
+            if (showTutorial) {
+                com.example.cashbookbd.ui.components.TutorialVideoButton(url = tutorialUrl!!)
+            }
+        },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // No title heading here — the app bar already shows the menu name.

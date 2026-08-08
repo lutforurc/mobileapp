@@ -130,7 +130,19 @@ private fun RegistrationForm(
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(24.dp))
+    // The web registration page's walkthrough link — pre-login, so no
+    // settings gate exists to consult; it simply always shows.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    com.example.cashbookbd.ui.components.LinkButton(
+        text = "▶ Watch the video tutorial",
+        onClick = {
+            com.example.cashbookbd.ui.components.openTutorialVideo(
+                context,
+                com.example.cashbookbd.ui.components.TutorialVideos.REGISTRATION,
+            )
+        },
+    )
+    Spacer(Modifier.height(16.dp))
 
     Field(
         label = "Company Name",

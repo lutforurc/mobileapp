@@ -127,12 +127,24 @@ fun UserListScreen(
         snackbarHostState.showSnackbar(message)
     }
 
+    // The web's tutorial icon beside the title, gated on need_demo_tutorial.
+    val showTutorial = com.example.cashbookbd.di.ServiceLocator
+        .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
+        .state.collectAsStateWithLifecycle().value.settings?.needDemoTutorial == true
+
     AuthenticatedShell(
         title = "User List",
         currentRoute = Routes.ADMIN,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        actions = {
+            if (showTutorial) {
+                com.example.cashbookbd.ui.components.TutorialVideoButton(
+                    url = com.example.cashbookbd.ui.components.TutorialVideos.COMPANY_AND_USER_LIST,
+                )
+            }
+        },
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
             SearchToolbar(

@@ -39,6 +39,8 @@ data class Settings(
     val useBangla: Boolean = false,
     /** Branch column `stock_report_type`: product cells carry a category prefix. */
     val stockReportTypeGrouped: Boolean = false,
+    /** Branch meta: shows the tutorial-video links on the list screens. */
+    val needDemoTutorial: Boolean = false,
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,
