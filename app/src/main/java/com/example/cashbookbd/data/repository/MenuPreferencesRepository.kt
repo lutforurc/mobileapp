@@ -97,25 +97,13 @@ class MenuPreferencesRepository(
 
     private var fetching = false
 
-    /** When the last successful server read landed (0 = never). */
-    @Volatile
-    private var lastFetchAt = 0L
-
-    /**
-     * Pulls the server copy; a non-empty answer replaces the local one.
-     * The drawer calls this on every screen, so it is throttled to one
-     * request per five minutes — the local copy is authoritative in between.
-     * [force] skips the throttle (the Arrange Menu page opening, where the
-     * freshest server copy is the whole point).
-     */
-    fun refresh(force: Boolean = false) {
+    /** Pulls the server copy; a non-empty answer replaces the local one. */
+    fun refresh() {
         if (fetching) return
-        if (!force && System.currentTimeMillis() - lastFetchAt < STALE_MS) return
         fetching = true
         scope.launch {
             try {
                 val remote = fetchRemote()
-                if (remote != null) lastFetchAt = System.currentTimeMillis()
                 if (remote != null && !remote.isEmpty && remote != _state.value) {
                     _state.value = remote
                     writeLocal(remote)
@@ -194,8 +182,5 @@ class MenuPreferencesRepository(
     private companion object {
         const val KEY_ORDER = "sidebar_order"
         const val KEY_HIDDEN = "sidebar_hidden"
-
-        /** Five minutes — an arrangement made on the web waits at most this. */
-        const val STALE_MS = 5 * 60 * 1000L
     }
 }
