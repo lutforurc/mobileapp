@@ -23,7 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +42,8 @@ import com.example.cashbookbd.data.repository.CustomerArea
 import com.example.cashbookbd.data.repository.CustomerDetail
 import com.example.cashbookbd.data.repository.CustomerForm
 import com.example.cashbookbd.data.repository.CustomerRepository
+import com.example.cashbookbd.data.repository.toGuarantorRows
+import com.example.cashbookbd.data.repository.toNomineeRows
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -100,6 +104,9 @@ data class EditCustomerUiState(
      * "" = delete; else a freshly encoded data URI.
      */
     val photoAction: String? = null,
+    /** The editable guarantor/nominee rows, prefilled from the detail. */
+    val guarantors: List<com.example.cashbookbd.data.repository.GuarantorRow> = emptyList(),
+    val nominees: List<com.example.cashbookbd.data.repository.NomineeRow> = emptyList(),
 
     val areas: List<CustomerArea> = emptyList(),
 
@@ -166,6 +173,8 @@ class EditCustomerViewModel(
                             ledgerPage = d.ledgerPage,
                             opening = d.openingBalance,
                             customerLogin = d.customerLogin,
+                            guarantors = d.guarantorsRaw.toGuarantorRows(),
+                            nominees = d.nomineesRaw.toNomineeRows(),
                         )
                     }
                 }
@@ -231,6 +240,51 @@ class EditCustomerViewModel(
         it.copy(photoAction = if (it.photoAction?.isNotBlank() == true) null else "")
     }
 
+    // ---- Guarantor / Nominee rows ----
+
+    fun onGuarantorAdd() = _uiState.update {
+        it.copy(guarantors = it.guarantors + com.example.cashbookbd.data.repository.GuarantorRow())
+    }
+
+    fun onGuarantorChange(index: Int, row: com.example.cashbookbd.data.repository.GuarantorRow) =
+        _uiState.update {
+            it.copy(guarantors = it.guarantors.mapIndexed { i, g -> if (i == index) row else g })
+        }
+
+    fun onGuarantorRemove(index: Int) = _uiState.update {
+        it.copy(guarantors = it.guarantors.filterIndexed { i, _ -> i != index })
+    }
+
+    fun onNomineeAdd() = _uiState.update {
+        it.copy(nominees = it.nominees + com.example.cashbookbd.data.repository.NomineeRow())
+    }
+
+    fun onNomineeChange(index: Int, row: com.example.cashbookbd.data.repository.NomineeRow) =
+        _uiState.update {
+            it.copy(nominees = it.nominees.mapIndexed { i, n -> if (i == index) row else n })
+        }
+
+    fun onNomineeRemove(index: Int) = _uiState.update {
+        it.copy(nominees = it.nominees.filterIndexed { i, _ -> i != index })
+    }
+
+    fun onNomineePhotoPicked(context: Context, index: Int, uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val encoded = encodeCustomerPhoto(context.applicationContext, uri)
+            _uiState.update { state ->
+                if (encoded == null) {
+                    state.copy(error = "The photo could not be read, or won't fit under 150 KB.")
+                } else {
+                    state.copy(
+                        nominees = state.nominees.mapIndexed { i, n ->
+                            if (i == index) n.copy(photo = encoded) else n
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     fun save() {
         val state = _uiState.value
         val detail = state.detail ?: return
@@ -262,6 +316,18 @@ class EditCustomerViewModel(
                 ),
                 echo = detail,
                 photo = if (settings?.needCustomerPhoto == true) state.photoAction else null,
+                // The edited rows when the branch shows the panels; null keeps
+                // the fetched arrays untouched otherwise.
+                guarantors = if (settings?.haveIsGuaranter == true) {
+                    state.guarantors.filter { it.name.isNotBlank() }
+                } else {
+                    null
+                },
+                nominees = if (settings?.haveCustomerNominee == true) {
+                    state.nominees.filter { it.name.isNotBlank() }
+                } else {
+                    null
+                },
             )
             when (result) {
                 is Resource.Success -> {
@@ -655,6 +721,40 @@ private fun EditCustomerForm(
                 enabled = state.canSavePassword,
                 isLoading = state.isSavingPassword,
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (settings?.haveIsGuaranter == true) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            GuarantorPanel(
+                rows = state.guarantors,
+                onChange = viewModel::onGuarantorChange,
+                onAdd = viewModel::onGuarantorAdd,
+                onRemove = viewModel::onGuarantorRemove,
+            )
+        }
+        if (settings?.haveCustomerNominee == true) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            var photoRowIndex by androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(-1)
+            }
+            val pickNomineePhoto = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.GetContent()
+            ) { uri ->
+                val index = photoRowIndex
+                photoRowIndex = -1
+                if (uri != null && index >= 0) viewModel.onNomineePhotoPicked(context, index, uri)
+            }
+            NomineePanel(
+                rows = state.nominees,
+                onChange = viewModel::onNomineeChange,
+                onAdd = viewModel::onNomineeAdd,
+                onRemove = viewModel::onNomineeRemove,
+                showPhoto = settings.needNomineePhoto,
+                onPickPhoto = { index ->
+                    photoRowIndex = index
+                    pickNomineePhoto.launch("image/*")
+                },
             )
         }
 

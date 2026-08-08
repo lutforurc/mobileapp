@@ -18,7 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -306,6 +308,38 @@ fun AddCustomerScreen(
                         existingUrl = null,
                         onPick = { pickPhoto.launch("image/*") },
                         onClear = viewModel::onPhotoCleared,
+                    )
+                }
+                if (state.showGuarantors) {
+                    GuarantorPanel(
+                        rows = state.guarantors,
+                        onChange = viewModel::onGuarantorChange,
+                        onAdd = viewModel::onGuarantorAdd,
+                        onRemove = viewModel::onGuarantorRemove,
+                    )
+                }
+                if (state.showNominees) {
+                    val context = LocalContext.current
+                    var photoRowIndex by androidx.compose.runtime.remember {
+                        androidx.compose.runtime.mutableStateOf(-1)
+                    }
+                    val pickNomineePhoto = androidx.activity.compose.rememberLauncherForActivityResult(
+                        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                    ) { uri ->
+                        val index = photoRowIndex
+                        photoRowIndex = -1
+                        if (uri != null && index >= 0) viewModel.onNomineePhotoPicked(context, index, uri)
+                    }
+                    NomineePanel(
+                        rows = state.nominees,
+                        onChange = viewModel::onNomineeChange,
+                        onAdd = viewModel::onNomineeAdd,
+                        onRemove = viewModel::onNomineeRemove,
+                        showPhoto = state.showNomineePhoto,
+                        onPickPhoto = { index ->
+                            photoRowIndex = index
+                            pickNomineePhoto.launch("image/*")
+                        },
                     )
                 }
                 if (!state.canSave) {

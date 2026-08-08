@@ -70,6 +70,12 @@ data class AddCustomerUiState(
     val showPhoto: Boolean = false,
     /** The encoded `data:image/…` URI, or blank when none picked. */
     val photo: String = "",
+    // The branch-gated Guarantor / Nominee panels.
+    val showGuarantors: Boolean = false,
+    val guarantors: List<com.example.cashbookbd.data.repository.GuarantorRow> = emptyList(),
+    val showNominees: Boolean = false,
+    val nominees: List<com.example.cashbookbd.data.repository.NomineeRow> = emptyList(),
+    val showNomineePhoto: Boolean = false,
 
     val isSaving: Boolean = false,
     val error: String? = null,

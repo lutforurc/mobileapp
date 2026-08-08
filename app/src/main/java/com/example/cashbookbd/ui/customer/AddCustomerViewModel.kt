@@ -36,6 +36,9 @@ class AddCustomerViewModel(
             showPermanentAddress = settings?.needCustomerPermanentAddress == true,
             showIdfrCode = settings?.haveCustomerSl == true,
             showPhoto = settings?.needCustomerPhoto == true,
+            showGuarantors = settings?.haveIsGuaranter == true,
+            showNominees = settings?.haveCustomerNominee == true,
+            showNomineePhoto = settings?.needNomineePhoto == true,
         )
     )
     val uiState: StateFlow<AddCustomerUiState> = _uiState.asStateFlow()
@@ -131,6 +134,52 @@ class AddCustomerViewModel(
     }
 
     fun onPhotoCleared() = _uiState.update { it.copy(photo = "") }
+
+    // ---- Guarantor / Nominee rows ----
+
+    fun onGuarantorAdd() = _uiState.update {
+        it.copy(guarantors = it.guarantors + com.example.cashbookbd.data.repository.GuarantorRow())
+    }
+
+    fun onGuarantorChange(index: Int, row: com.example.cashbookbd.data.repository.GuarantorRow) =
+        _uiState.update {
+            it.copy(guarantors = it.guarantors.mapIndexed { i, g -> if (i == index) row else g })
+        }
+
+    fun onGuarantorRemove(index: Int) = _uiState.update {
+        it.copy(guarantors = it.guarantors.filterIndexed { i, _ -> i != index })
+    }
+
+    fun onNomineeAdd() = _uiState.update {
+        it.copy(nominees = it.nominees + com.example.cashbookbd.data.repository.NomineeRow())
+    }
+
+    fun onNomineeChange(index: Int, row: com.example.cashbookbd.data.repository.NomineeRow) =
+        _uiState.update {
+            it.copy(nominees = it.nominees.mapIndexed { i, n -> if (i == index) row else n })
+        }
+
+    fun onNomineeRemove(index: Int) = _uiState.update {
+        it.copy(nominees = it.nominees.filterIndexed { i, _ -> i != index })
+    }
+
+    /** A nominee row's photo, encoded like the customer's own. */
+    fun onNomineePhotoPicked(context: Context, index: Int, uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val encoded = encodeCustomerPhoto(context.applicationContext, uri)
+            _uiState.update { state ->
+                if (encoded == null) {
+                    state.copy(error = "The photo could not be read, or won't fit under 150 KB.")
+                } else {
+                    state.copy(
+                        nominees = state.nominees.mapIndexed { i, n ->
+                            if (i == index) n.copy(photo = encoded) else n
+                        }
+                    )
+                }
+            }
+        }
+    }
     fun onLedgerPage(value: String) = _uiState.update { it.copy(ledgerPage = value) }
     fun onNationalId(value: String) = _uiState.update { it.copy(nationalId = value) }
     fun onOpeningBalance(value: String) = _uiState.update { it.copy(openingBalance = value) }
@@ -167,6 +216,17 @@ class AddCustomerViewModel(
                     customerLogin = state.customerLogin,
                     password = state.password,
                     photo = if (state.showPhoto) state.photo else "",
+                    // Blank-name rows are dropped — the server skips them anyway.
+                    guarantors = if (state.showGuarantors) {
+                        state.guarantors.filter { g -> g.name.isNotBlank() }
+                    } else {
+                        emptyList()
+                    },
+                    nominees = if (state.showNominees) {
+                        state.nominees.filter { n -> n.name.isNotBlank() }
+                    } else {
+                        emptyList()
+                    },
                 )
             )
             when (result) {

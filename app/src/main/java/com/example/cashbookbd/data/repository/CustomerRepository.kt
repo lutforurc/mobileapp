@@ -78,6 +78,9 @@ data class NewCustomer(
     val password: String = "",
     /** A `data:image/…;base64,` URI, or blank for none (key then omitted). */
     val photo: String = "",
+    /** Branch-gated panels; empty lists leave the keys out of the body. */
+    val guarantors: List<GuarantorRow> = emptyList(),
+    val nominees: List<NomineeRow> = emptyList(),
 )
 
 /** One customer area from `area/ddl-list` — the Select Area options. */
@@ -151,6 +154,115 @@ data class CustomerForm(
 
 /** The duplicate-mobile warning (`contact/mobile-check`). */
 data class MobileCheck(val exists: Boolean, val ownerName: String?)
+
+/** One guarantor row — create-only server-side (update recreates the set). */
+data class GuarantorRow(
+    val name: String = "",
+    val fatherName: String = "",
+    val mobile: String = "",
+    val nationalId: String = "",
+    val address: String = "",
+)
+
+/**
+ * One nominee row. [id] is kept on edit so the server upserts instead of
+ * replacing; [photo] may hold the stored path (untouched), a fresh data URI,
+ * or blank. Rows left out of an update are deleted server-side.
+ */
+data class NomineeRow(
+    val id: String = "",
+    val name: String = "",
+    val relation: String = "",
+    val occupation: String = "",
+    val dateOfBirth: String = "",
+    val motherName: String = "",
+    val mobile: String = "",
+    val presentAddress: String = "",
+    val permanentAddress: String = "",
+    val nationalId: String = "",
+    val sharePercentage: String = "",
+    val priorityOrder: String = "",
+    val guardianName: String = "",
+    val guardianMobile: String = "",
+    val status: String = "active",
+    val photo: String = "",
+    val remarks: String = "",
+)
+
+/** The web rows' JSON shape, key for key. */
+fun List<GuarantorRow>.toGuarantorsJson(): JsonArray = JsonArray().apply {
+    this@toGuarantorsJson.forEach { row ->
+        add(JsonObject().apply {
+            addProperty("name", row.name.trim())
+            addProperty("father_name", row.fatherName.trim())
+            addProperty("mobile", row.mobile.trim())
+            addProperty("national_id", row.nationalId.trim())
+            addProperty("address", row.address.trim())
+        })
+    }
+}
+
+fun List<NomineeRow>.toNomineesJson(): JsonArray = JsonArray().apply {
+    this@toNomineesJson.forEach { row ->
+        add(JsonObject().apply {
+            // The id only when it exists — the server upserts owned ids.
+            row.id.takeIf { it.isNotBlank() }?.let { addProperty("id", it) }
+            addProperty("name", row.name.trim())
+            addProperty("relation", row.relation)
+            addProperty("occupation", row.occupation.trim())
+            addProperty("date_of_birth", row.dateOfBirth)
+            addProperty("mother_name", row.motherName.trim())
+            addProperty("mobile", row.mobile.trim())
+            addProperty("present_address", row.presentAddress.trim())
+            addProperty("permanent_address", row.permanentAddress.trim())
+            addProperty("national_id", row.nationalId.trim())
+            addProperty("share_percentage", row.sharePercentage.trim())
+            addProperty("priority_order", row.priorityOrder.trim())
+            addProperty("guardian_name", row.guardianName.trim())
+            addProperty("guardian_mobile", row.guardianMobile.trim())
+            addProperty("status", row.status.ifBlank { "active" })
+            addProperty("photo", row.photo)
+            addProperty("remarks", row.remarks.trim())
+        })
+    }
+}
+
+fun JsonArray.toGuarantorRows(): List<GuarantorRow> = mapNotNull { el ->
+    val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+    GuarantorRow(
+        name = o.rowStr("name"),
+        fatherName = o.rowStr("father_name"),
+        mobile = o.rowStr("mobile"),
+        nationalId = o.rowStr("national_id"),
+        address = o.rowStr("address"),
+    )
+}
+
+fun JsonArray.toNomineeRows(): List<NomineeRow> = mapNotNull { el ->
+    val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+    NomineeRow(
+        id = o.rowStr("id"),
+        name = o.rowStr("name"),
+        relation = o.rowStr("relation"),
+        occupation = o.rowStr("occupation"),
+        dateOfBirth = o.rowStr("date_of_birth"),
+        motherName = o.rowStr("mother_name"),
+        mobile = o.rowStr("mobile"),
+        presentAddress = o.rowStr("present_address"),
+        permanentAddress = o.rowStr("permanent_address"),
+        nationalId = o.rowStr("national_id"),
+        sharePercentage = o.rowStr("share_percentage"),
+        priorityOrder = o.rowStr("priority_order"),
+        guardianName = o.rowStr("guardian_name"),
+        guardianMobile = o.rowStr("guardian_mobile"),
+        status = o.rowStr("status").ifBlank { "active" },
+        photo = o.rowStr("photo"),
+        remarks = o.rowStr("remarks"),
+    )
+}
+
+private fun JsonObject.rowStr(key: String): String =
+    get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
 
 /**
  * Creates a customer/supplier contact (`contact/store`), a port of the web's
@@ -289,8 +401,19 @@ class CustomerRepository(
             // The web's base64 data URI; absent is safely "no photo" on store.
             customer.photo.takeIf { it.isNotBlank() }?.let { put("photo", it) }
         }
+        // The panels are arrays, which the flat form post can't carry — the
+        // whole body travels as one JSON object instead.
+        val jsonBody = JsonObject().apply {
+            body.forEach { (key, value) -> addProperty(key, value) }
+            if (customer.guarantors.isNotEmpty()) {
+                add("guarantors", customer.guarantors.toGuarantorsJson())
+            }
+            if (customer.nominees.isNotEmpty()) {
+                add("nominees", customer.nominees.toNomineesJson())
+            }
+        }
         try {
-            val response = api.post("contact/store", body)
+            val response = api.postObjectRaw("contact/store", jsonBody)
             if (response.code() == HTTP_UNAUTHORIZED) {
                 return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
             }
@@ -429,6 +552,9 @@ class CustomerRepository(
         echo: CustomerDetail,
         /** Null = leave the stored photo; "" = delete it; else a new data URI. */
         photo: String? = null,
+        /** Null = echo the fetched arrays untouched; else the edited rows. */
+        guarantors: List<GuarantorRow>? = null,
+        nominees: List<NomineeRow>? = null,
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
             addProperty("party_type_id", form.partyTypeId)
@@ -453,8 +579,10 @@ class CustomerRepository(
             addProperty("customerLogin", if (form.customerLogin) "1" else "0")
             // The server only touches the photo column when the key is present.
             photo?.let { addProperty("photo", it) }
-            add("guarantors", echo.guarantorsRaw)
-            add("nominees", echo.nomineesRaw)
+            // Edited rows when the panels' UI provided them; the fetched
+            // arrays verbatim otherwise (update delete-and-recreates).
+            add("guarantors", guarantors?.toGuarantorsJson() ?: echo.guarantorsRaw)
+            add("nominees", nominees?.toNomineesJson() ?: echo.nomineesRaw)
         }
         try {
             val response = api.postObjectRaw("contact/update/$id", body)
