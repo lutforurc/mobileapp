@@ -42,6 +42,12 @@ data class CashVoucherLine(
      */
     val branchId: String = "",
     val branchName: String = "",
+    /**
+     * Edit mode only: the voucher's hashed id, round-tripped on every row —
+     * the update endpoint refuses rows that don't all share one. "" on a
+     * fresh voucher.
+     */
+    val mtmId: String = "",
 )
 
 /**
@@ -160,6 +166,8 @@ class TransactionRepository(
         endpoint: String,
         branch: TxnSelection,
         lines: List<CashVoucherLine>,
+        /** The voucher being updated ("" on a fresh store). */
+        mtmId: String = "",
     ): Resource<String> = postForMessage {
         val rows = JsonArray().apply {
             lines.forEachIndexed { index, line ->
@@ -176,7 +184,7 @@ class TransactionRepository(
         api.postObject(
             endpoint,
             JsonObject().apply {
-                addProperty("mtmId", "")
+                addProperty("mtmId", mtmId)
                 addProperty("branchId", branch.id)
                 addProperty("branchName", branch.name)
                 addProperty("projectId", branch.id)
@@ -475,12 +483,86 @@ class TransactionRepository(
         get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
             ?.asString?.replace(",", "")?.trim()?.toDoubleOrNull() ?: 0.0
 
+    /**
+     * Loads an existing cash voucher's rows for editing (`…/api-edit`, body
+     * `{invoiceNo}`). An approved voucher answers success with zero rows and a
+     * message; a missing one answers success:false with a blank message —
+     * both become readable errors here rather than the web's silent nothing.
+     */
+    suspend fun searchCashVoucher(
+        endpoint: String,
+        invoiceNo: String,
+    ): Resource<List<CashVoucherLine>> = withContext(ioDispatcher) {
+        try {
+            val response = api.postObject(
+                endpoint,
+                JsonObject().apply { addProperty("invoiceNo", invoiceNo.trim()) },
+            )
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            val success = body.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            val message = body.get("message")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString?.ifBlank { null }
+            if (success == false) {
+                return@withContext Resource.Error(message ?: "Voucher not found.")
+            }
+            val rows = body.getAsJsonObject("data")?.get("data")
+                ?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject?.toEditLine() }
+                .orEmpty()
+            if (rows.isEmpty()) {
+                // "This voucher is approved!" or an empty voucher — not editable.
+                return@withContext Resource.Error(message ?: "Voucher not found.")
+            }
+            Resource.Success(rows)
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** One api-edit row → a pending line (both the trading and the HO shape). */
+    private fun JsonObject.toEditLine(): CashVoucherLine? {
+        val account = get("account")?.takeUnless { it.isJsonNull }?.asString ?: return null
+        return CashVoucherLine(
+            account = TxnSelection(
+                id = account,
+                name = get("accountName")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+            ),
+            remarks = get("remarks")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            amount = get("amount")?.takeUnless { it.isJsonNull }?.asString
+                ?.replace(",", "")?.toDoubleOrNull() ?: 0.0,
+            orderNumber = get("purchaseOrderNumber")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            orderText = get("purchaseOrderText")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            trackedProductId = get("trackedProductId")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            branchId = get("branchId")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            branchName = get("branchName")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            mtmId = get("mtmId")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+        )
+    }
+
     /** A Cash Received/Payment row, as the web forms shape it. */
     private fun cashVoucherRow(line: CashVoucherLine, index: Int, trading: Boolean): JsonObject =
         JsonObject().apply {
             // Distinct per-row client ids, like the web's Date.now() keys.
             addProperty("id", System.currentTimeMillis() + index)
-            addProperty("mtmId", "")
+            // The voucher's hashed id in edit mode — every row must carry it.
+            addProperty("mtmId", line.mtmId)
             addProperty("account", line.account.id)
             addProperty("accountName", line.account.name)
             addProperty("remarks", line.remarks)

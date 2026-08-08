@@ -106,6 +106,13 @@ data class CashVoucherSpec(
      * off `business_type_id` (false) — each index applies only its own rule.
      */
     val branchTypeForcesHeadOffice: Boolean,
+    // The voucher Search → Edit → Update flow's four endpoints.
+    val rowsEditEndpoint: String,
+    val rowsUpdateEndpoint: String,
+    val headOfficeEditEndpoint: String,
+    val headOfficeUpdateEndpoint: String,
+    /** Gates the Trading/General search box (the web's own gating). */
+    val editPermission: String,
 )
 
 /** The two cash voucher forms, keyed by their TransactionMenu keys. */
@@ -118,6 +125,11 @@ object CashVoucherForms {
         rowsEndpoint = "trading/cash/received",
         headOfficeEndpoint = "accounts/received",
         branchTypeForcesHeadOffice = false,
+        rowsEditEndpoint = "trading/cash/received/api-edit",
+        rowsUpdateEndpoint = "trading/cash/received/api-update",
+        headOfficeEditEndpoint = "accounts/received/api-edit",
+        headOfficeUpdateEndpoint = "accounts/received/api-update",
+        editPermission = "cash.received.edit",
     )
 
     val payment = CashVoucherSpec(
@@ -127,6 +139,11 @@ object CashVoucherForms {
         rowsEndpoint = "trading/cash/payment",
         headOfficeEndpoint = "accounts/payment",
         branchTypeForcesHeadOffice = true,
+        rowsEditEndpoint = "trading/cash/payment/api-edit",
+        rowsUpdateEndpoint = "trading/cash/payment/api-update",
+        headOfficeEditEndpoint = "accounts/payment/api-edit",
+        headOfficeUpdateEndpoint = "accounts/payment/api-update",
+        editPermission = "cash.payment.edit",
     )
 
     fun byKey(key: String?): CashVoucherSpec? = when (key) {
@@ -179,6 +196,14 @@ data class CashVoucherUiState(
 
     val lines: List<CashVoucherLine> = emptyList(),
 
+    // The voucher Search → Edit → Update flow (web parity).
+    val showSearch: Boolean = false,
+    val search: String = "",
+    val isSearching: Boolean = false,
+    val isEditMode: Boolean = false,
+    /** The loaded voucher's hashed id — every row must carry it on update. */
+    val editingMtmId: String = "",
+
     val isSubmitting: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
@@ -216,8 +241,25 @@ class CashVoucherViewModel(
 
     private var suggestionsJob: Job? = null
 
+    /**
+     * The web's own gating: Head Office and General payment always show the
+     * search; Trading/General otherwise need the edit permission.
+     */
+    private fun searchVisible(current: CashVoucherVariant): Boolean = when {
+        current == CashVoucherVariant.HEAD_OFFICE -> true
+        current == CashVoucherVariant.GENERAL && spec.branchTypeForcesHeadOffice -> true
+        else -> com.example.cashbookbd.session.Permissions.has(
+            sessionManager.state.value.settings?.permissions, spec.editPermission,
+        )
+    }
+
     private val _uiState = MutableStateFlow(
-        CashVoucherUiState(title = spec.title, totalLabel = spec.totalLabel, variant = variant)
+        CashVoucherUiState(
+            title = spec.title,
+            totalLabel = spec.totalLabel,
+            variant = variant,
+            showSearch = searchVisible(variant),
+        )
     )
     val uiState: StateFlow<CashVoucherUiState> = _uiState.asStateFlow()
 
@@ -233,7 +275,7 @@ class CashVoucherViewModel(
                 val fresh = cashVoucherVariant(spec, sessionManager.state.value.settings)
                 if (fresh != variant) {
                     variant = fresh
-                    _uiState.update { it.copy(variant = fresh) }
+                    _uiState.update { it.copy(variant = fresh, showSearch = searchVisible(fresh)) }
                     if (fresh == CashVoucherVariant.HEAD_OFFICE) loadBranches()
                 }
             }
@@ -350,6 +392,53 @@ class CashVoucherViewModel(
     fun onAmountChange(value: String) =
         _uiState.update { it.copy(amount = value.decimalOnly()) }
 
+    fun onSearchChange(value: String) = _uiState.update { it.copy(search = value) }
+
+    /**
+     * Loads an existing voucher's rows for editing (the web's Search box).
+     * Found, the batch becomes the voucher and Save becomes Update; the HO
+     * variant also flips the branch selection to the voucher's own.
+     */
+    fun searchVoucher() {
+        val state = _uiState.value
+        if (state.isSearching) return
+        if (state.search.isBlank()) {
+            _uiState.update { it.copy(message = "Please enter a search value.", isError = true) }
+            return
+        }
+        _uiState.update { it.copy(isSearching = true) }
+        viewModelScope.launch {
+            val endpoint = if (variant == CashVoucherVariant.HEAD_OFFICE) {
+                spec.headOfficeEditEndpoint
+            } else {
+                spec.rowsEditEndpoint
+            }
+            when (val result = transactionRepository.searchCashVoucher(endpoint, state.search)) {
+                is Resource.Success -> _uiState.update { current ->
+                    val rows = result.data
+                    current.copy(
+                        isSearching = false,
+                        lines = rows,
+                        isEditMode = true,
+                        editingMtmId = rows.firstOrNull()?.mtmId.orEmpty(),
+                        selectedBranch = rows.firstOrNull()?.branchId?.toLongOrNull()
+                            ?.let { id -> current.branches.firstOrNull { b -> b.id == id } }
+                            ?: current.selectedBranch,
+                    )
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isSearching = false,
+                        message = result.message,
+                        isError = true,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     /** Adds the entry as a pending line; account and order stay for the next. */
     fun addLine() {
         val state = _uiState.value
@@ -375,6 +464,8 @@ class CashVoucherViewModel(
                     branchName = if (variant == CashVoucherVariant.HEAD_OFFICE) {
                         it.selectedBranch?.name.orEmpty()
                     } else "",
+                    // Every row of an edited voucher must share its hashed id.
+                    mtmId = if (it.isEditMode) it.editingMtmId else "",
                 ),
                 remarks = "",
                 amount = "",
@@ -428,13 +519,16 @@ class CashVoucherViewModel(
                 CashVoucherVariant.HEAD_OFFICE -> {
                     val branch = state.selectedBranch!!
                     transactionRepository.submitHeadOfficeCashVoucher(
-                        endpoint = spec.headOfficeEndpoint,
+                        // Editing posts the same wrapped payload to api-update,
+                        // carrying the voucher's hashed id.
+                        endpoint = if (state.isEditMode) spec.headOfficeUpdateEndpoint else spec.headOfficeEndpoint,
                         branch = TxnSelection(branch.id.toString(), branch.name),
                         lines = state.lines,
+                        mtmId = if (state.isEditMode) state.editingMtmId else "",
                     )
                 }
                 else -> transactionRepository.submitCashVoucherRows(
-                    endpoint = spec.rowsEndpoint,
+                    endpoint = if (state.isEditMode) spec.rowsUpdateEndpoint else spec.rowsEndpoint,
                     lines = state.lines,
                     trading = state.variant == CashVoucherVariant.TRADING,
                 )
@@ -458,6 +552,10 @@ class CashVoucherViewModel(
                         remarks = "",
                         amount = "",
                         remarkSuggestions = emptyList(),
+                        // An update ends the edit session too.
+                        isEditMode = false,
+                        editingMtmId = "",
+                        search = "",
                     )
                 }
                 is Resource.Error -> _uiState.update {
@@ -534,6 +632,31 @@ fun CashVoucherScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // The web's voucher search: load an existing voucher for editing.
+            if (state.showSearch) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppTextField(
+                        value = state.search,
+                        onValueChange = viewModel::onSearchChange,
+                        label = if (state.title.contains("Payment")) "Search Payment" else "Search Received",
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        text = "Search",
+                        onClick = viewModel::searchVoucher,
+                        isLoading = state.isSearching,
+                        compact = true,
+                    )
+                }
+                if (state.isEditMode) {
+                    Text(
+                        text = "Editing voucher ${state.search.trim()} — Save is now Update.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             if (state.variant == CashVoucherVariant.HEAD_OFFICE) {
                 AppSelectDropdown(
                     label = "Select Branch",
@@ -610,7 +733,7 @@ fun CashVoucherScreen(
                     modifier = Modifier.weight(1f),
                 )
                 PrimaryButton(
-                    text = "Save",
+                    text = if (state.isEditMode) "Update" else "Save",
                     onClick = viewModel::submit,
                     enabled = state.canSave,
                     isLoading = state.isSubmitting,
