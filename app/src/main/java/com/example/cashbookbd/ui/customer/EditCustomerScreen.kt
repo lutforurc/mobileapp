@@ -130,6 +130,11 @@ fun EditCustomerScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val openingEnabled = remember {
+        com.example.cashbookbd.di.ServiceLocator.provideSessionManager(context)
+            .state.value.settings?.openingOngoing == true
+    }
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -166,14 +171,18 @@ fun EditCustomerScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.appColors.textOnScreenMuted,
                 )
-                AppTextField(
-                    value = state.opening,
-                    onValueChange = viewModel::onOpening,
-                    label = "Enter opening balance",
-                    caption = "Opening Balance",
-                    keyboardType = KeyboardType.Number,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // The web gates the Opening field on the branch's is_opening —
+                // once the branch closes its opening period the field is gone.
+                if (openingEnabled) {
+                    AppTextField(
+                        value = state.opening,
+                        onValueChange = viewModel::onOpening,
+                        label = "Enter opening balance",
+                        caption = "Entered once. Afterwards it can only be changed by clearing the branch's opening.",
+                        keyboardType = KeyboardType.Number,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppTextField(
                     value = state.ledgerPage,
                     onValueChange = viewModel::onLedgerPage,

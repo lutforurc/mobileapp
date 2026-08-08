@@ -58,7 +58,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.R
 import com.example.cashbookbd.core.AmountFormat
+import com.example.cashbookbd.data.repository.DashboardKpi
+import com.example.cashbookbd.data.repository.DashboardSummary
+import com.example.cashbookbd.data.repository.DueAging
+import com.example.cashbookbd.data.repository.LowStock
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.Sparkline
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
@@ -126,6 +131,7 @@ fun DashboardScreen(
                 uiState.dashboard != null ->
                     DashboardContent(
                         dashboard = uiState.dashboard!!,
+                        summary = uiState.summary,
                         isRefreshing = uiState.isRefreshing,
                         isConstruction = uiState.isConstruction,
                         rowActions = uiState.rowActions,
@@ -174,6 +180,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 @Composable
 private fun DashboardContent(
     dashboard: Dashboard,
+    summary: DashboardSummary?,
     isRefreshing: Boolean,
     isConstruction: Boolean,
     rowActions: Map<Int, RowActionState>,
@@ -192,7 +199,13 @@ private fun DashboardContent(
             }
         }
 
-        item { SummaryCard(dashboard) }
+        // The web's KPI row sits above the branch summary, never inside the
+        // widget grid; it renders nothing until the summary arrives.
+        if (!isConstruction && summary != null) {
+            item { KpiRow(summary) }
+        }
+
+        item { SummaryCard(dashboard, summary) }
 
         if (isConstruction) {
             // Construction: Top Purchase only, no Total row — then the
@@ -222,6 +235,11 @@ private fun DashboardContent(
                 }
             }
         } else {
+            // The web's default widget order: ageing and low stock sit between
+            // the summary card and the Top Sales list.
+            summary?.dueAging?.let { item { DueAgingCard(it) } }
+            summary?.lowStock?.let { item { LowStockCard(it) } }
+
             // Everything else: Top Sales + Top Purchase, each with a Total row.
             if (dashboard.topSales.isNotEmpty()) {
                 item {
@@ -267,7 +285,7 @@ private fun LinearRefreshHint() {
  * (each with a tinted icon chip), and a "last updated" footer strip.
  */
 @Composable
-private fun SummaryCard(dashboard: Dashboard) {
+private fun SummaryCard(dashboard: Dashboard, summary: DashboardSummary? = null) {
     val accents = MaterialTheme.accents
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
@@ -301,6 +319,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 label = "TODAY RECEIVED",
                 value = formatMoney(dashboard.todayReceived),
                 valueColor = MaterialTheme.colorScheme.onSurface,
+                spark = summary?.kpis?.get("received")?.spark,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
@@ -309,6 +328,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 label = "TODAY PAYMENT",
                 value = formatMoney(dashboard.todayPayment),
                 valueColor = accents.red,
+                spark = summary?.kpis?.get("payment")?.spark,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SummaryStatRow(
@@ -317,6 +337,7 @@ private fun SummaryCard(dashboard: Dashboard) {
                 label = "BALANCE",
                 value = formatMoney(dashboard.balance),
                 valueColor = accents.blue,
+                spark = summary?.kpis?.get("balance")?.spark,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -339,6 +360,301 @@ private fun SummaryCard(dashboard: Dashboard) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The web's "Today at a glance" band: four KPI tiles in a 2×2 grid (the web's
+ * responsive grid collapses to one column on phones; two-by-two keeps the
+ * glance on one screen). Deltas compare with the previous day in muted ink —
+ * deliberately no green/red. Tile hues are the web's own chart colours.
+ */
+@Composable
+private fun KpiRow(summary: DashboardSummary) {
+    val tiles = listOf(
+        KpiTileSpec("Today Sales", "sales", Color(0xFF14B8A6), money = true),
+        KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
+        KpiTileSpec("New Customers", "newCustomers", Color(0xFF06B6D4), money = false),
+        KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
+    )
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Today at a glance",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = AppFontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "Trx Date: ${isoToDisplay(summary.trxDate)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = "change vs previous day · sparkline last 14 days",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        tiles.chunked(2).forEachIndexed { rowIndex, pair ->
+            if (rowIndex > 0) Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pair.forEach { spec ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        KpiTile(spec = spec, kpi = summary.kpis[spec.key])
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class KpiTileSpec(
+    val label: String,
+    val key: String,
+    val hue: Color,
+    val money: Boolean,
+)
+
+@Composable
+private fun KpiTile(spec: KpiTileSpec, kpi: DashboardKpi?) {
+    kpi ?: return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = spec.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = kpiValue(kpi.value, spec.money),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = AppFontWeight.Bold,
+            )
+            // The web's delta: previous == 0 answers "—", never ∞; the glyph
+            // says the direction, the ink stays muted either way.
+            val delta = if (kpi.previous == 0.0) null
+            else (kpi.value - kpi.previous) / kotlin.math.abs(kpi.previous) * 100
+            Text(
+                text = when {
+                    delta == null -> "—"
+                    delta > 0 -> "▲ ${kotlin.math.abs(delta).toInt()}%"
+                    delta < 0 -> "▼ ${kotlin.math.abs(delta).toInt()}%"
+                    else -> "— 0%"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (kpi.spark.size > 1) {
+                Spacer(Modifier.height(6.dp))
+                Sparkline(
+                    values = kpi.spark,
+                    color = spec.hue,
+                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                )
+            }
+        }
+    }
+}
+
+/** KPI figures round first; a rounded zero prints "0" (not the dash). */
+private fun kpiValue(value: Double, money: Boolean): String {
+    val rounded = Math.round(value)
+    return when {
+        rounded == 0L -> "0"
+        money -> formatMoney(rounded.toDouble())
+        else -> rounded.toString()
+    }
+}
+
+/** Ageing/stock money: rounded, lakh-grouped, zero as "-" (the web's rule). */
+private fun dashMoney(value: Double): String {
+    val rounded = Math.round(value)
+    return if (rounded == 0L) "-" else formatMoney(rounded.toDouble())
+}
+
+/** "2026-08-05" → "05/08/2026". A malformed date passes through unchanged. */
+private fun isoToDisplay(iso: String): String {
+    val parts = iso.split("-")
+    return if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else iso
+}
+
+/** The web's Receivable Ageing card: outstanding, four buckets, advance strip. */
+@Composable
+private fun DueAgingCard(aging: DueAging) {
+    // The web's single-hue amber ramp — older money, darker bar.
+    val ramp = listOf(Color(0xFFFCD34D), Color(0xFFFBBF24), Color(0xFFF59E0B), Color(0xFFB45309))
+    val maxBucket = aging.buckets.maxOfOrNull { it.amount } ?: 0.0
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Receivable Ageing",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = AppFontWeight.Bold,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "Outstanding",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = dashMoney(aging.total),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = AppFontWeight.Bold,
+            )
+            Text(
+                text = "across ${aging.parties} ${if (aging.parties == 1) "party" else "parties"}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            aging.buckets.forEachIndexed { index, bucket ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${bucket.label} days",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(72.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = dashMoney(bucket.amount),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = AppFontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        // Scaled to the largest bucket; a non-zero bucket keeps
+                        // a 2% floor so it never disappears.
+                        val fraction = when {
+                            maxBucket <= 0.0 || bucket.amount <= 0.0 -> 0f
+                            else -> (bucket.amount / maxBucket).toFloat().coerceAtLeast(0.02f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh, AppShape),
+                        ) {
+                            if (fraction > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(fraction)
+                                        .height(6.dp)
+                                        .background(ramp[index % ramp.size], AppShape),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = "${bucket.parties} ${if (bucket.parties == 1) "party" else "parties"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(64.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    )
+                }
+            }
+            if (aging.advance > 0) {
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Advance received",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = dashMoney(aging.advance),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = AppFontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The web's low-stock card: reorder candidates, or the lowest stock instead. */
+@Composable
+private fun LowStockCard(lowStock: LowStock) {
+    val orderLevelMode = lowStock.mode == "order_level"
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = if (orderLevelMode) "Reorder Now" else "Lowest Stock",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = AppFontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            if (lowStock.items.isEmpty()) {
+                Text(
+                    text = "Nothing below its reorder level",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            } else {
+                lowStock.items.forEachIndexed { index, item ->
+                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (item.stock < 0) {
+                            // Issued more than received — check entries.
+                            Text(
+                                text = "⚠",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.accents.red,
+                                modifier = Modifier.padding(end = 4.dp),
+                            )
+                        }
+                        Text(
+                            text = dashMoney(item.stock),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = AppFontWeight.SemiBold,
+                            color = if (item.stock < 0) MaterialTheme.accents.red else Color.Unspecified,
+                        )
+                        if (orderLevelMode) {
+                            Text(
+                                text = " / ${formatAmount(item.orderLevel)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (!orderLevelMode) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "No reorder levels set — showing lowest stock instead",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -371,6 +687,8 @@ private fun SummaryStatRow(
     label: String,
     value: String,
     valueColor: Color,
+    /** The row's last-14-days series; drawn beside the figure when present. */
+    spark: List<Double>? = null,
 ) {
     Row(
         modifier = Modifier
@@ -395,7 +713,7 @@ private fun SummaryStatRow(
             )
         }
         Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = if (spark != null && spark.size > 1) Modifier else Modifier.weight(1f)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
@@ -408,6 +726,16 @@ private fun SummaryStatRow(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = AppFontWeight.Bold,
                 color = valueColor,
+            )
+        }
+        if (spark != null && spark.size > 1) {
+            Spacer(Modifier.width(12.dp))
+            // The web gives the curve the leftover width at 64px tall, in the
+            // row's own colour.
+            Sparkline(
+                values = spark,
+                color = tint,
+                modifier = Modifier.weight(1f).height(64.dp),
             )
         }
     }
@@ -719,6 +1047,7 @@ private fun DashboardContentPreview() {
     CashBookbdTheme(darkTheme = false) {
         DashboardContent(
             dashboard = previewDashboard,
+            summary = null,
             isRefreshing = false,
             isConstruction = false,
             rowActions = emptyMap(),
@@ -737,6 +1066,7 @@ private fun DashboardContentDarkPreview() {
     CashBookbdTheme(darkTheme = true) {
         DashboardContent(
             dashboard = previewDashboard,
+            summary = null,
             isRefreshing = false,
             isConstruction = false,
             rowActions = emptyMap(),

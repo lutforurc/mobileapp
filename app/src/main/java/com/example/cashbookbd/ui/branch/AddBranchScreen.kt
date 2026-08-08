@@ -221,7 +221,7 @@ fun AddBranchScreen(
                                 }
                                 if (state.showClearTransactions) {
                                     PrimaryButton(
-                                        text = "Transaction Clear",
+                                        text = "Clear Transactions",
                                         onClick = viewModel::onClearTransactionsRequested,
                                         compact = true,
                                         containerColor = MaterialTheme.accents.red,

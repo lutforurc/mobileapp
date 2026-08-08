@@ -87,6 +87,35 @@ class UserListViewModel(
         }
     }
 
+    /**
+     * Switches a row's sign-in on/off — the web's toggle: not optimistic (the
+     * switch waits, disabled), and a success writes a local override rather
+     * than refetching the page.
+     */
+    fun toggleStatus(userId: String, enabled: Boolean) {
+        if (_uiState.value.statusBusyId != null) return
+        _uiState.update { it.copy(statusBusyId = userId) }
+        viewModelScope.launch {
+            when (val result = repository.toggleStatus(userId, enabled)) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(
+                        statusBusyId = null,
+                        statusOverrides = it.statusOverrides + (userId to enabled),
+                        actionMessage = result.data,
+                    )
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        statusBusyId = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun dismissTemporaryPassword() = _uiState.update { it.copy(tempPassword = null) }
 
     fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }

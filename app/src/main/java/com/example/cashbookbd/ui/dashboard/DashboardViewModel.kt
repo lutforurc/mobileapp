@@ -99,7 +99,12 @@ class DashboardViewModel(
                     }
                     // Non-construction dashboards take their top-product lists
                     // from a second endpoint; fold them in once they arrive.
-                    if (!isConstruction) loadMonthlyTopProducts()
+                    // The KPI/ageing/low-stock summary rides beside them (the
+                    // web loads it only on the ComputerAccessories layout).
+                    if (!isConstruction) {
+                        loadMonthlyTopProducts()
+                        _uiState.update { it.copy(summary = repository.getDashboardSummary()) }
+                    }
                 }
 
                 is Resource.Error -> _uiState.update {

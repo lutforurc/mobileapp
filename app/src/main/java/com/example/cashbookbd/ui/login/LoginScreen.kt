@@ -118,7 +118,7 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Sign in to continue to CashBook",
+                text = "Sign in to continue to CashBookBD",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

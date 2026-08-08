@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -160,8 +162,10 @@ fun UserListScreen(
                 UserListBody(
                     state = state,
                     isSuperAdmin = isSuperAdmin,
+                    selfUserId = sessionState.settings?.userId,
                     onEdit = { row -> navController.navigate("${Routes.USER_EDIT}/${row.userId}") },
                     onTempPassword = { row -> viewModel.generateTemporaryPassword(row.userId) },
+                    onToggleStatus = { row, enabled -> viewModel.toggleStatus(row.userId, enabled) },
                     onRetry = { viewModel.load(page = 1) },
                 )
                 SnackbarHost(
@@ -232,8 +236,10 @@ private fun SearchToolbar(
 private fun UserListBody(
     state: UserListUiState,
     isSuperAdmin: Boolean,
+    selfUserId: Long?,
     onEdit: (UserRow) -> Unit,
     onTempPassword: (UserRow) -> Unit,
+    onToggleStatus: (UserRow, Boolean) -> Unit,
     onRetry: () -> Unit,
 ) {
     when {
@@ -259,7 +265,7 @@ private fun UserListBody(
         }
 
         else -> ReportTable(
-            columns = userColumns(state, isSuperAdmin, onEdit, onTempPassword),
+            columns = userColumns(state, isSuperAdmin, selfUserId, onEdit, onTempPassword, onToggleStatus),
             data = state.rows,
             noDataMessage = "No users found.",
         )
@@ -271,8 +277,10 @@ private fun UserListBody(
 private fun userColumns(
     state: UserListUiState,
     isSuperAdmin: Boolean,
+    selfUserId: Long?,
     onEdit: (UserRow) -> Unit,
     onTempPassword: (UserRow) -> Unit,
+    onToggleStatus: (UserRow, Boolean) -> Unit,
 ): List<ReportColumn<UserRow>> {
     val onScreen = MaterialTheme.colorScheme.onBackground
     // Serial continues across pages, like the web's offset-based numbering.
@@ -301,14 +309,20 @@ private fun userColumns(
                 }
             }
         },
-        ReportColumn("Action", ReportColWidth.Fixed(if (isSuperAdmin) 104.dp else 64.dp), TextAlign.Center) { row, _ ->
+        ReportColumn("Action", ReportColWidth.Fixed(if (isSuperAdmin) 160.dp else 120.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {
                 UserActionCell(
                     row = row,
                     isSuperAdmin = isSuperAdmin,
                     isGenerating = state.tempPasswordForId == row.userId,
+                    enabled = state.isEnabled(row),
+                    // The web renders the switch on your own row too, just
+                    // disabled — the server refuses a self toggle anyway.
+                    isSelf = selfUserId != null && row.rawId == selfUserId,
+                    isToggling = state.statusBusyId == row.userId,
                     onEdit = onEdit,
                     onTempPassword = onTempPassword,
+                    onToggleStatus = onToggleStatus,
                 )
             }
         },
@@ -320,14 +334,25 @@ private fun UserActionCell(
     row: UserRow,
     isSuperAdmin: Boolean,
     isGenerating: Boolean,
+    enabled: Boolean,
+    isSelf: Boolean,
+    isToggling: Boolean,
     onEdit: (UserRow) -> Unit,
     onTempPassword: (UserRow) -> Unit,
+    onToggleStatus: (UserRow, Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The web's order: switch first, then edit, then the key.
+        Switch(
+            checked = enabled,
+            onCheckedChange = { onToggleStatus(row, it) },
+            enabled = !isSelf && !isToggling,
+            modifier = Modifier.scale(0.8f),
+        )
         IconButton(onClick = { onEdit(row) }, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = Icons.Filled.Edit,

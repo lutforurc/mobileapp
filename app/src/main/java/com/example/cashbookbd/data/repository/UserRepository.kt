@@ -28,11 +28,15 @@ data class NewUser(
 data class UserRow(
     /** Hashed id — the edit and temporary-password routes resolve it, not the raw id. */
     val userId: String,
+    /** Raw numeric id — only for the "is this me?" check on the sign-in switch. */
+    val rawId: Long? = null,
     val name: String,
     val email: String,
     val phone: String,
     val branch: String,
     val role: String,
+    /** Sign-in allowed. Anything but an explicit 0 counts as enabled (web rule). */
+    val enabled: Boolean = true,
 )
 
 /** A page of [UserRow]s with the paginator meta the footer needs. */
@@ -337,6 +341,43 @@ class UserRepository(
     }
 
     /**
+     * Switches a user's sign-in on or off (`POST user/toggle-status`, body
+     * `{usr_id: <hashed id>, status: 1|0}`). The server refuses toggling your
+     * own row (422) and, on disable, kills the target's live sessions.
+     */
+    suspend fun toggleStatus(userId: String, enabled: Boolean): Resource<String> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.postAny(
+                    "user/toggle-status",
+                    mapOf("usr_id" to userId, "status" to if (enabled) 1 else 0),
+                )
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+                }
+                val json = response.jsonBody()
+                val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                    (!response.isSuccessful && response.code() != 201)
+                if (rejected) {
+                    return@withContext Resource.Error(
+                        json?.message() ?: "Failed to change the user status."
+                    )
+                }
+                // The web's own toasts, not the server's blander sentence.
+                Resource.Success(
+                    if (enabled) "User enabled. They can sign in."
+                    else "User disabled. They cannot sign in."
+                )
+            } catch (e: IOException) {
+                Resource.Error(NO_NETWORK)
+            } catch (e: HttpException) {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /**
      * Every branch the user may reassign an edited user to (`branch/ddl/all-branch`),
      * matching the web's Edit User branch picker (Add uses the protected list).
      */
@@ -375,6 +416,7 @@ class UserRepository(
         val userId = str("user_id") ?: return null
         return UserRow(
             userId = userId,
+            rawId = str("id")?.toDoubleOrNull()?.toLong(),
             name = str("name").orEmpty(),
             email = str("email").orEmpty(),
             phone = str("phone").orEmpty(),
@@ -382,6 +424,9 @@ class UserRepository(
             // The row's primary role name (may be "Super Administrator"); the
             // roles[] array drops it, so fall back to that only when blank.
             role = str("role") ?: firstOfArray("roles").orEmpty(),
+            // The web's isUserEnabled: anything but an explicit 0 is enabled,
+            // a missing field included.
+            enabled = str("status")?.trim()?.toDoubleOrNull()?.toInt() != 0,
         )
     }
 

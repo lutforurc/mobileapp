@@ -13,6 +13,11 @@ data class DashboardUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val dashboard: Dashboard? = null,
+    /**
+     * The KPI/ageing/low-stock payload — loaded beside the dashboard, null
+     * until it arrives (or on failure); its cards simply don't render then.
+     */
+    val summary: com.example.cashbookbd.data.repository.DashboardSummary? = null,
     val errorMessage: String? = null,
     val sessionExpired: Boolean = false,
     /** Construction branches get the H/O receive panel and no Top Sales list. */

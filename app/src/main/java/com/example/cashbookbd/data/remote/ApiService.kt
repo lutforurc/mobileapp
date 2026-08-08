@@ -95,6 +95,14 @@ interface ApiService {
     suspend fun getMonthlyTopProducts(): Response<MonthlyTopProductsResponse>
 
     /**
+     * The KPI tiles / receivable ageing / low stock / sparkline payload — no
+     * params, the server reads the branch off the token. Parsed by hand: the
+     * kpis object is a map, which a fixed DTO can't carry.
+     */
+    @GET("dashboard/summary")
+    suspend fun getDashboardSummary(): Response<com.google.gson.JsonElement>
+
+    /**
      * Reseller SELF-SERVICE dashboard (the `reseller/` route prefix self-scopes to
      * the caller's own reseller_id server-side). These four back the web
      * ResellerDashboard: KPI overview, assigned companies, client payments, and

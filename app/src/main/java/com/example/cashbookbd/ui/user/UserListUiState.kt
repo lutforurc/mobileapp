@@ -23,6 +23,14 @@ data class UserListUiState(
     /** The generated password to show in a dialog; null = no dialog. */
     val tempPassword: TempPassword? = null,
 
+    /** Row whose sign-in switch is waiting on the server (it disables). */
+    val statusBusyId: String? = null,
+    /**
+     * Local overrides after a successful toggle, keyed by hashed user id —
+     * the web writes these instead of refetching the page.
+     */
+    val statusOverrides: Map<String, Boolean> = emptyMap(),
+
     /** One-shot snackbar text (a load/temp-password outcome). */
     val actionMessage: String? = null,
     val sessionExpired: Boolean = false,
@@ -30,4 +38,7 @@ data class UserListUiState(
     val canPrev: Boolean get() = currentPage > 1
     val canNext: Boolean get() = currentPage < lastPage
     val showPagination: Boolean get() = lastPage > 1
+
+    /** A row's effective sign-in state: the local override wins over the server row. */
+    fun isEnabled(row: UserRow): Boolean = statusOverrides[row.userId] ?: row.enabled
 }

@@ -8,6 +8,7 @@ import com.example.cashbookbd.data.remote.dto.TopProductDto
 import com.example.cashbookbd.ui.dashboard.model.Dashboard
 import com.example.cashbookbd.ui.dashboard.model.TopProduct
 import com.example.cashbookbd.ui.dashboard.model.toDashboard
+import com.google.gson.JsonObject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,6 +20,41 @@ data class MonthlyTopProducts(
     val days: Int,
     val sales: List<TopProduct>,
     val purchases: List<TopProduct>,
+)
+
+/** One KPI figure: today's value, yesterday's, and its last-14-days series. */
+data class DashboardKpi(
+    val value: Double,
+    val previous: Double,
+    val spark: List<Double>,
+)
+
+/** One receivable-ageing bucket ("0-30", "31-60", "61-90", "90+"). */
+data class AgingBucket(val label: String, val amount: Double, val parties: Int)
+
+data class DueAging(
+    val total: Double,
+    val parties: Int,
+    /** Credit-balance parties' sum — shown only when positive, like the web. */
+    val advance: Double,
+    val buckets: List<AgingBucket>,
+)
+
+data class LowStockItem(val name: String, val stock: Double, val orderLevel: Double)
+
+data class LowStock(
+    /** "order_level" (items at/under their reorder level) or "lowest" (no levels set). */
+    val mode: String,
+    val items: List<LowStockItem>,
+)
+
+/** The `dashboard/summary` payload: KPI tiles, ageing, low stock, sparklines. */
+data class DashboardSummary(
+    /** ISO yyyy-MM-dd branch transaction date. */
+    val trxDate: String,
+    val kpis: Map<String, DashboardKpi>,
+    val dueAging: DueAging?,
+    val lowStock: LowStock?,
 )
 
 /**
@@ -114,6 +150,90 @@ class DashboardRepository(
                 quantity = it.qty?.trim()?.toDoubleOrNull() ?: 0.0,
             )
         }
+
+    /**
+     * The KPI/ageing/low-stock payload (`dashboard/summary`). Null on any
+     * failure — like the top-products lists, a summary miss must never blank
+     * the cards that already work.
+     */
+    suspend fun getDashboardSummary(): DashboardSummary? = withContext(ioDispatcher) {
+        try {
+            val body = api.getDashboardSummary().takeIf { it.isSuccessful }?.body()
+                ?.takeIf { it.isJsonObject }?.asJsonObject
+            if (body?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext null
+            }
+            val payload = body?.getAsJsonObject("data")?.get("data")
+                ?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext null
+            parseSummary(payload)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun parseSummary(p: JsonObject): DashboardSummary {
+        val kpis = p.get("kpis")?.takeIf { it.isJsonObject }?.asJsonObject
+            ?.entrySet().orEmpty()
+            .mapNotNull { (key, value) ->
+                val kpi = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                key to DashboardKpi(
+                    value = kpi.num("value"),
+                    previous = kpi.num("previous"),
+                    spark = kpi.get("spark")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { el -> el.takeIf { it.isJsonPrimitive }?.asString?.toDoubleOrNull() }
+                        .orEmpty(),
+                )
+            }
+            .toMap()
+
+        val aging = p.get("dueAging")?.takeIf { it.isJsonObject }?.asJsonObject?.let { a ->
+            DueAging(
+                total = a.num("total"),
+                parties = a.num("parties").toInt(),
+                advance = a.num("advance"),
+                buckets = a.get("buckets")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapNotNull { el ->
+                        val b = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                        AgingBucket(
+                            label = b.get("label")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+                            amount = b.num("amount"),
+                            parties = b.num("parties").toInt(),
+                        )
+                    }
+                    .orEmpty(),
+            )
+        }
+
+        val lowStock = p.get("lowStock")?.takeIf { it.isJsonObject }?.asJsonObject?.let { l ->
+            LowStock(
+                mode = l.get("mode")?.takeUnless { it.isJsonNull }?.asString ?: "order_level",
+                items = l.get("items")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapNotNull { el ->
+                        val item = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                        LowStockItem(
+                            name = item.get("name")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+                            stock = item.num("stock"),
+                            // camelCase from the PHP service, unlike the rest of the API.
+                            orderLevel = item.num("orderLevel"),
+                        )
+                    }
+                    .orEmpty(),
+            )
+        }
+
+        return DashboardSummary(
+            trxDate = p.get("trxDate")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+            kpis = kpis,
+            dueAging = aging,
+            lowStock = lowStock,
+        )
+    }
+
+    /** A JSON number (or numeric string) as a double; anything else is 0. */
+    private fun JsonObject.num(key: String): Double =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString
+            ?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 
     /**
      * Confirms ("receives") one head-office remittance. Returns the success
