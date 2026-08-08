@@ -11,9 +11,15 @@
 > Balance Sheet Opening/Movement/Closing + equity opening-difference
 > adjustment + tappable group breakdown + Final Position card, Ledger
 > running Balance + netted Opening + "Select All Branch" (per-row branch
-> names in All Branch mode). HRM's matrix reports (Overtime, Holiday
-> Calendar, Branch Attendance, absent-row synthesis) are the remaining
-> structural gap, in progress.
+> names in All Branch mode). The HRM matrix reports are also closed:
+> Overtime's employee × day matrix, the Holiday Calendar month grid (with
+> the web's weekly-policy expansion and default-Friday fallback), Branch
+> Attendance's per-branch roll-up with its eight tiles, plus Monthly
+> Attendance's serial sort, Total column/footer, and Deduction. The web's
+> daily-report absent-row synthesis was NOT ported — on the web it is dead
+> code in practice (branch filter compares a field the employees API never
+> returns; the dedupe key can never match), so mobile matches observable
+> behaviour instead.
 >
 > **Previously matched (2026-08-08 evening):**
 > ```
@@ -90,9 +96,11 @@ native rebuilds. Structural gaps that need bespoke screens, largest first:
   employee rows, computed columns (Pay Member %, DP+Coll, 5% Salary,
   Overview — including the web's own detail-row Overview inconsistency,
   kept for parity), Grand Total tfoot over all rows.
-- HRM Overtime matrix, Holiday Calendar grid, Branch Attendance aggregation,
-  Employee Attendance day-synthesis (server also ignores employee_id — fix
-  belongs in the API), Attendance absent-row synthesis.
+- ~~HRM Overtime matrix, Holiday Calendar grid, Branch Attendance
+  aggregation~~ (closed 2026-08-08, native screens). Still open: Employee
+  Attendance day-synthesis (server also ignores employee_id — fix belongs
+  in the API); the daily report's absent-row synthesis is web dead code
+  (see the top note) and deliberately not ported.
 - Generic-table niceties the web has and the engine lacks: ~~per-report
   footer Total rows~~ (added 2026-08-06 — ReportConfig.totalColumns /
   totalRowLabel now sum 13 reports' web tfoots), per-group headings
