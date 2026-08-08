@@ -18,6 +18,11 @@ data class CustomerListUiState(
     val editing: CustomerRow? = null,
     val editOpening: String = "",
     val editLedger: String = "",
+    /**
+     * A save failure shown inside the dialog. The snackbar sits behind the
+     * dialog's scrim, where a refusal is easy to miss with the dialog open.
+     */
+    val editError: String? = null,
     /** True while the edit is being saved. */
     val isSaving: Boolean = false,
 

@@ -75,12 +75,19 @@ class CustomerListViewModel(
             // Pre-fill opening when it's still editable; the ledger always pre-fills.
             editOpening = if (row.isOpeningSet) row.opening else "",
             editLedger = row.ledgerPage,
+            editError = null,
         )
     }
 
-    fun onEditOpening(value: String) = _uiState.update { it.copy(editOpening = value) }
-    fun onEditLedger(value: String) = _uiState.update { it.copy(editLedger = value) }
-    fun cancelEdit() = _uiState.update { it.copy(editing = null, isSaving = false) }
+    fun onEditOpening(value: String) = _uiState.update { it.copy(editOpening = value, editError = null) }
+    fun onEditLedger(value: String) = _uiState.update { it.copy(editLedger = value, editError = null) }
+
+    /** No-op while a save is in flight: dismissing then would drop the guard
+     *  and let the late result close or overwrite whatever dialog came next. */
+    fun cancelEdit() {
+        if (_uiState.value.isSaving) return
+        _uiState.update { it.copy(editing = null, editError = null) }
+    }
 
     fun saveEdit() {
         val state = _uiState.value
@@ -109,7 +116,7 @@ class CustomerListViewModel(
             _uiState.update { it.copy(editing = null) } // Nothing changed — just close.
             return
         }
-        _uiState.update { it.copy(isSaving = true) }
+        _uiState.update { it.copy(isSaving = true, editError = null) }
         viewModelScope.launch {
             when (val result = repository.updateOpeningLedger(row.id, opening, ledger)) {
                 is Resource.Success -> {
@@ -117,9 +124,12 @@ class CustomerListViewModel(
                     load(_uiState.value.currentPage)
                 }
                 is Resource.Error -> _uiState.update {
+                    // The refusal shows inside the dialog: the snackbar sits
+                    // behind its scrim, where "approved voucher" would go by
+                    // unseen while the dialog just sat there refusing to close.
                     it.copy(
                         isSaving = false,
-                        actionMessage = result.message,
+                        editError = result.message,
                         sessionExpired = it.sessionExpired || result.isUnauthorized,
                     )
                 }
@@ -132,7 +142,11 @@ class CustomerListViewModel(
 
     fun askDeleteOpening(row: CustomerRow) = _uiState.update { it.copy(openingDeleteRow = row) }
 
-    fun cancelDeleteOpening() = _uiState.update { it.copy(openingDeleteRow = null) }
+    /** No-op while the delete is in flight, for the same reason as [cancelEdit]. */
+    fun cancelDeleteOpening() {
+        if (_uiState.value.isDeletingOpening) return
+        _uiState.update { it.copy(openingDeleteRow = null) }
+    }
 
     /**
      * Deletes the pending row's opening balance and its journal voucher. The

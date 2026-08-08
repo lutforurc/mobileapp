@@ -385,7 +385,11 @@ private fun DeleteOpeningDialog(
             )
         },
         dismissButton = {
-            LinkButton(text = "Cancel", onClick = viewModel::cancelDeleteOpening)
+            LinkButton(
+                text = "Cancel",
+                onClick = viewModel::cancelDeleteOpening,
+                enabled = !state.isDeletingOpening,
+            )
         },
     )
 }
@@ -437,6 +441,16 @@ private fun EditDialog(
                     label = "Enter ledger page",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Refusals show here, in the dialog: the snackbar sits behind
+                // the scrim, where "approved voucher" would go by unseen.
+                state.editError?.let { message ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -449,7 +463,9 @@ private fun EditDialog(
             )
         },
         dismissButton = {
-            LinkButton(text = "Cancel", onClick = viewModel::cancelEdit)
+            // Held while the save is in flight — dismissing then would let the
+            // late result close or overwrite whatever dialog came next.
+            LinkButton(text = "Cancel", onClick = viewModel::cancelEdit, enabled = !state.isSaving)
         },
     )
 }
