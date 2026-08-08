@@ -25,6 +25,8 @@ class AppListViewModel(
     private val repository: AppListRepository,
     private val productRepository: ProductRepository,
     private val settings: Settings?,
+    /** voucher.delete — what the opening-stock Delete answers to, like the API. */
+    private val canDeleteVoucher: Boolean = false,
 ) : ViewModel() {
 
     /**
@@ -65,6 +67,7 @@ class AppListViewModel(
             editAction = spec?.editAction,
             deleteAction = spec?.deleteAction,
             openingEnabled = openingEnabled,
+            canDeleteVoucher = canDeleteVoucher,
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
@@ -286,6 +289,54 @@ class AppListViewModel(
         }
     }
 
+    // ---- Opening stock delete (the voucher goes to the trash) ----
+
+    fun requestOpeningDelete(row: AppListRow) {
+        if (row.opening?.vrNo.isNullOrBlank()) return
+        _uiState.update { it.copy(openingDeletePending = row) }
+    }
+
+    fun cancelOpeningDelete() = _uiState.update { it.copy(openingDeletePending = null) }
+
+    /**
+     * Deletes the pending row's opening stock and its voucher. The server may
+     * refuse — approved voucher, another branch, stock already drawn on — with
+     * its reason.
+     */
+    fun confirmOpeningDelete() {
+        val state = _uiState.value
+        val opening = state.openingDeletePending?.opening ?: return
+        if (state.openingDeleting) return
+
+        _uiState.update { it.copy(openingDeleting = true) }
+        viewModelScope.launch {
+            when (val result = productRepository.deleteProductOpening(opening.productId)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            openingDeleting = false,
+                            openingDeletePending = null,
+                            // A dialog draft would read as though the stock
+                            // survived, so any open entry closes with it.
+                            openingEdit = null,
+                            actionMessage = result.data,
+                        )
+                    }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        openingDeleting = false,
+                        openingDeletePending = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     /** Non-blank IMEI/serial entries — newline or comma separated, like the server splits. */
     private fun serialLines(value: String): List<String> =
         value.split('\n', '\r', ',').map(String::trim).filter(String::isNotEmpty)
@@ -297,12 +348,15 @@ class AppListViewModel(
     companion object {
         fun provideFactory(context: Context, listKey: String) = viewModelFactory {
             initializer {
+                val sessionState = ServiceLocator
+                    .provideSessionManager(context.applicationContext).state.value
                 AppListViewModel(
                     listKey = listKey,
                     repository = ServiceLocator.provideAppListRepository(context.applicationContext),
                     productRepository = ServiceLocator.provideProductRepository(context.applicationContext),
-                    settings = ServiceLocator.provideSessionManager(context.applicationContext)
-                        .state.value.settings,
+                    settings = sessionState.settings,
+                    canDeleteVoucher = com.example.cashbookbd.session.Permissions
+                        .hasAny(sessionState.permissions, listOf("voucher.delete")),
                 )
             }
         }

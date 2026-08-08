@@ -80,11 +80,22 @@ fun LedgerScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A preselected account (the deep link behind an opening-balance voucher). */
+    initialAccountId: String = "",
+    initialAccountName: String = "",
     viewModel: LedgerViewModel = viewModel(
         factory = LedgerViewModel.provideFactory(LocalContext.current)
     ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Arrived from somewhere that already knows which account to look at — the
+    // report runs itself once the branch list is in, as on the web.
+    LaunchedEffect(initialAccountId) {
+        if (initialAccountId.isNotBlank()) {
+            viewModel.presetLedger(initialAccountId, initialAccountName)
+        }
+    }
 
     LaunchedEffect(uiState.sessionExpired) {
         if (uiState.sessionExpired) {

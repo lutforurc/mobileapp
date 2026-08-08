@@ -56,6 +56,15 @@ data class AppListUiState(
     val openingQty: String = "",
     val openingRate: String = "",
     val openingSaving: Boolean = false,
+    /**
+     * True when the user may delete an opening stock voucher — voucher.delete,
+     * the permission the API itself checks.
+     */
+    val canDeleteVoucher: Boolean = false,
+    /** The row whose opening-stock delete awaits confirmation; null when closed. */
+    val openingDeletePending: AppListRow? = null,
+    /** True while a confirmed opening delete is in flight. */
+    val openingDeleting: Boolean = false,
 ) {
     val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading
     val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading

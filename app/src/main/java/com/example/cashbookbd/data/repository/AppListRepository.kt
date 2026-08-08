@@ -45,6 +45,8 @@ data class OpeningStockRow(
     val name: String,
     val qty: String,
     val rate: String,
+    /** The voucher the opening stock came in on, when one is live. */
+    val vrNo: String = "",
 )
 
 /** A page of list rows plus the server-side pagination meta. */
@@ -279,6 +281,8 @@ class AppListRepository(
             name = dotGet(this, "name")?.asString.orEmpty(),
             qty = dotGet(this, "openingbalance")?.asString ?: "0",
             rate = dotGet(this, "purchase")?.asString ?: "0",
+            // Joined on status = 1 server-side, so a trashed voucher shows blank.
+            vrNo = dotGet(this, "opening_vr_no")?.asString.orEmpty(),
         )
     }
 

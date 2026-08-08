@@ -54,6 +54,12 @@ class LedgerViewModel(
     /** True once the default date range has been seeded, so later sources don't override it. */
     private var dateDefaulted = false
 
+    /** True while a deep-linked account is waiting for the branch list to run itself. */
+    private var autoSearchPending = false
+
+    /** Guards against the deep link re-applying on every recomposition. */
+    private var presetHandled = false
+
     init {
         applyDashboardTransactionDate()
         loadBranches()
@@ -102,7 +108,7 @@ class LedgerViewModel(
                         startDate = if (applyBranchDate) branchTrDate!!.copy(day = 1) else it.startDate,
                         endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
                     )
-                }
+                }.also { maybeAutoSearch() }
 
                 is Resource.Error -> _uiState.update {
                     it.copy(
@@ -141,6 +147,37 @@ class LedgerViewModel(
     /** Called when the user picks a ledger from the dropdown. */
     fun onLedgerSelected(item: LedgerDropdownItem) {
         _uiState.update { it.copy(selectedLedger = item) }
+    }
+
+    /**
+     * A deep-linked account (the voucher number beside a customer's opening
+     * balance): select it and run the report as soon as a branch is available,
+     * like the web's already-searched ledger link.
+     */
+    fun presetLedger(accountId: String, accountName: String) {
+        if (presetHandled) return
+        presetHandled = true
+        val id = accountId.toIntOrNull() ?: return
+        _uiState.update {
+            it.copy(
+                selectedLedger = LedgerDropdownItem(
+                    id = id,
+                    name = accountName.ifBlank { "Account $id" },
+                    mobile = null,
+                ),
+            )
+        }
+        autoSearchPending = true
+        maybeAutoSearch()
+    }
+
+    /** Runs the deep link's search once both the account and a branch are set. */
+    private fun maybeAutoSearch() {
+        if (!autoSearchPending) return
+        val state = _uiState.value
+        if (state.selectedBranch == null || state.selectedLedger == null) return
+        autoSearchPending = false
+        apply()
     }
 
     // ---- Report ------------------------------------------------------------

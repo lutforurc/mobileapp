@@ -80,10 +80,11 @@ class CustomerListViewModel(
         val state = _uiState.value
         val row = state.editing ?: return
         if (state.isSaving) return
-        // Send only changed fields (like the web): opening only when it's still
-        // unset and was actually entered, ledger only when it changed — re-sending
-        // an unchanged ledger can trip the server's character validation (e.g. '#').
-        val opening = if (!row.isOpeningSet && state.editOpening.isNotBlank() && state.editOpening != row.opening) {
+        // Send only changed fields (like the web skips unchanged ones server-side):
+        // the opening may now be re-saved — the server rewrites its voucher in
+        // place — so only an untouched figure is held back; ledger only when it
+        // changed, since re-sending it can trip the character validation (e.g. '#').
+        val opening = if (state.editOpening.isNotBlank() && state.editOpening != row.opening) {
             state.editOpening
         } else {
             null
@@ -103,6 +104,50 @@ class CustomerListViewModel(
                 is Resource.Error -> _uiState.update {
                     it.copy(
                         isSaving = false,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    // ---- Opening-balance delete (the voucher goes to the trash) ----
+
+    fun askDeleteOpening(row: CustomerRow) = _uiState.update { it.copy(openingDeleteRow = row) }
+
+    fun cancelDeleteOpening() = _uiState.update { it.copy(openingDeleteRow = null) }
+
+    /**
+     * Deletes the pending row's opening balance and its journal voucher. The
+     * server may refuse — approved voucher, another branch — with its reason.
+     */
+    fun confirmDeleteOpening() {
+        val state = _uiState.value
+        val row = state.openingDeleteRow ?: return
+        if (state.isDeletingOpening) return
+
+        _uiState.update { it.copy(isDeletingOpening = true) }
+        viewModelScope.launch {
+            when (val result = repository.deleteOpeningBalance(row.id)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isDeletingOpening = false,
+                            openingDeleteRow = null,
+                            // A dialog draft would read as though the balance
+                            // survived, so any open edit closes with it.
+                            editing = null,
+                            actionMessage = result.data,
+                        )
+                    }
+                    load(_uiState.value.currentPage)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isDeletingOpening = false,
+                        openingDeleteRow = null,
                         actionMessage = result.message,
                         sessionExpired = it.sessionExpired || result.isUnauthorized,
                     )

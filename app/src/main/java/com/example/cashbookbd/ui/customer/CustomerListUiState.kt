@@ -21,6 +21,11 @@ data class CustomerListUiState(
     /** True while the edit is being saved. */
     val isSaving: Boolean = false,
 
+    /** The row whose opening-balance delete is awaiting confirmation. */
+    val openingDeleteRow: CustomerRow? = null,
+    /** True while a confirmed opening delete is in flight. */
+    val isDeletingOpening: Boolean = false,
+
     /** One-shot snackbar text (save outcome / info). */
     val actionMessage: String? = null,
     val sessionExpired: Boolean = false,
@@ -28,7 +33,4 @@ data class CustomerListUiState(
     val canPrev: Boolean get() = currentPage > 1
     val canNext: Boolean get() = currentPage < lastPage
     val showPagination: Boolean get() = lastPage > 1
-
-    /** Opening can be entered only when it isn't already set (one-time on the server). */
-    val openingEditable: Boolean get() = editing?.isOpeningSet == false
 }

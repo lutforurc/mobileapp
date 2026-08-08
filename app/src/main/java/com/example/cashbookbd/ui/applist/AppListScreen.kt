@@ -185,6 +185,10 @@ fun AppListScreen(
         OpeningStockDialog(state = state, viewModel = viewModel)
     }
 
+    if (state.openingDeletePending != null) {
+        OpeningDeleteDialog(state = state, viewModel = viewModel)
+    }
+
     if (state.pendingDelete != null) {
         AlertDialog(
             onDismissRequest = viewModel::cancelDelete,
@@ -225,6 +229,16 @@ private fun OpeningStockDialog(state: AppListUiState, viewModel: AppListViewMode
         title = { Text(opening.name.ifBlank { "Opening stock" }) },
         text = {
             Column {
+                // The voucher the current opening came in on; a re-save trashes
+                // it and raises a fresh one, exactly like the web.
+                if (opening.vrNo.isNotBlank()) {
+                    Text(
+                        text = "Voucher ${opening.vrNo}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 DialogLabel("IMEI / Serial (one per line)")
                 AppTextField(
                     value = state.openingSerial,
@@ -253,6 +267,18 @@ private fun OpeningStockDialog(state: AppListUiState, viewModel: AppListViewMode
                     keyboardType = KeyboardType.Number,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Only where there is a voucher to delete — a product with no
+                // opening stock has nothing to offer here.
+                if (opening.vrNo.isNotBlank() && state.canDeleteVoucher) {
+                    Spacer(Modifier.height(12.dp))
+                    LinkButton(
+                        text = "Delete opening stock…",
+                        onClick = {
+                            state.openingEdit?.let { viewModel.requestOpeningDelete(it) }
+                        },
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -266,6 +292,50 @@ private fun OpeningStockDialog(state: AppListUiState, viewModel: AppListViewMode
         },
         dismissButton = {
             LinkButton(text = "Cancel", onClick = viewModel::cancelOpeningEdit)
+        },
+    )
+}
+
+/**
+ * The web's confirm: it names the quantity and the voucher, not just "are you
+ * sure" — this takes stock back out of the ledger, and this is the last place
+ * to check it is the right product.
+ */
+@Composable
+private fun OpeningDeleteDialog(state: AppListUiState, viewModel: AppListViewModel) {
+    val opening = state.openingDeletePending?.opening ?: return
+    AlertDialog(
+        onDismissRequest = viewModel::cancelOpeningDelete,
+        title = { Text("Delete Opening Stock") },
+        text = {
+            Column {
+                Text("Delete the opening stock of ${opening.name.ifBlank { "this product" }}?")
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Quantity ${opening.qty}  •  Voucher ${opening.vrNo}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = AppFontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "The voucher goes to the trash, not away for good. The product " +
+                        "is not deleted. Stock already sold on cannot be removed this way.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            PrimaryButton(
+                text = "Delete",
+                onClick = viewModel::confirmOpeningDelete,
+                enabled = !state.openingDeleting,
+                isLoading = state.openingDeleting,
+                compact = true,
+            )
+        },
+        dismissButton = {
+            LinkButton(text = "Cancel", onClick = viewModel::cancelOpeningDelete)
         },
     )
 }

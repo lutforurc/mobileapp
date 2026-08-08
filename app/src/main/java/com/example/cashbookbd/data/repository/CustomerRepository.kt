@@ -23,8 +23,12 @@ data class CustomerRow(
     val ledgerPage: String,
     val mobile: String,
     val nationalId: String,
+    /** The party's ledger account — what the opening voucher links into. */
+    val coa4Id: String = "",
+    /** The journal voucher carrying the opening balance, when one is live. */
+    val openingVrNo: String = "",
 ) {
-    /** Opening is one-time: once a non-zero value is set it can't be changed. */
+    /** True once a non-zero opening is stored (used only to pre-fill the edit). */
     val isOpeningSet: Boolean get() = (opening.toDoubleOrNull() ?: 0.0) != 0.0
 }
 
@@ -438,8 +442,9 @@ class CustomerRepository(
     /**
      * Sets a customer's opening balance and/or ledger page from the list
      * (`contact/customer/update/ui/{id}`). Only non-blank fields are sent, so a
-     * blank input never clears an existing value. The opening balance is one-time:
-     * the server rejects a change once it is already set.
+     * blank input never clears an existing value. The opening balance may be
+     * re-saved: the server rewrites its journal voucher in place, refusing only
+     * when the voucher is approved or belongs to another branch.
      */
     suspend fun updateOpeningLedger(
         id: String,
@@ -467,6 +472,38 @@ class CustomerRepository(
                 )
             }
             Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Customer updated successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * Removes a customer's opening balance and sends its journal voucher to the
+     * trash (`contact/customer/opening-balance/delete/{id}`, raw numeric id).
+     * The customer stays. Refusals — an approved voucher, another branch —
+     * arrive as notFound() (success:false at 2xx) with the reason in `message`.
+     */
+    suspend fun deleteOpeningBalance(id: String): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val response = api.post("contact/customer/opening-balance/delete/$id", emptyMap())
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Opening balance could not be deleted."
+                )
+            }
+            Resource.Success(
+                json?.message()?.takeIf { it.isNotBlank() } ?: "Opening balance deleted"
+            )
         } catch (e: IOException) {
             Resource.Error(NO_NETWORK)
         } catch (e: HttpException) {
@@ -674,6 +711,9 @@ class CustomerRepository(
             ledgerPage = str("ledger_page").orEmpty(),
             mobile = str("mobile").orEmpty(),
             nationalId = str("national_id").orEmpty(),
+            coa4Id = str("coa4_id").orEmpty(),
+            // Joined on status = 1 server-side, so a trashed voucher shows blank.
+            openingVrNo = str("opening_vr_no").orEmpty(),
         )
     }
 

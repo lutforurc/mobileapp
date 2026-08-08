@@ -314,6 +314,38 @@ class ProductRepository(
         }
     }
 
+    /**
+     * Removes a product's opening stock and sends its voucher to the trash
+     * (`product/opening/delete`, hashed `product_id` in the body). The product
+     * stays. Refusals — approved voucher, another branch, stock already drawn
+     * on — arrive as notFound() (success:false) with the reason in `message`.
+     */
+    suspend fun deleteProductOpening(productId: String): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val response = api.post("product/opening/delete", mapOf("product_id" to productId))
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Opening stock could not be deleted."
+                )
+            }
+            Resource.Success(
+                json?.message()?.takeIf { it.isNotBlank() } ?: "Opening stock deleted."
+            )
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     /** Maps the `[key]` array of a DDL payload to dropdown options ({id, name}). */
     private fun JsonObject?.optionsAt(key: String): List<SelectorOption> =
         this?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()

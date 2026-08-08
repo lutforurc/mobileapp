@@ -138,6 +138,16 @@ object Routes {
     const val REPORTS = "reports/home"
     const val CASHBOOK = "reports/cash_book"
     const val LEDGER = "reports/ledger"
+
+    // The Ledger accepts an optional preselected account (the deep link behind
+    // a customer's opening-balance voucher number); plain LEDGER still matches.
+    const val LEDGER_PATTERN = "reports/ledger?accountId={accountId}&accountName={accountName}"
+    const val LEDGER_ACCOUNT_ID_ARG = "accountId"
+    const val LEDGER_ACCOUNT_NAME_ARG = "accountName"
+
+    /** The Ledger opened on [accountId] and searched, like the web's link. */
+    fun ledgerFor(accountId: String, accountName: String): String =
+        "reports/ledger?accountId=$accountId&accountName=${android.net.Uri.encode(accountName)}"
     const val BANKBOOK = "reports/bank_book"
     const val CASH_BANK = "reports/cash_bank"
     const val TRIAL_BALANCE_L3 = "reports/trial_balance_l3"
@@ -1459,11 +1469,27 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
-        composable(Routes.LEDGER) {
+        composable(
+            route = Routes.LEDGER_PATTERN,
+            arguments = listOf(
+                navArgument(Routes.LEDGER_ACCOUNT_ID_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(Routes.LEDGER_ACCOUNT_NAME_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
             PermissionGate(anyOf = ReportMenu.permissionsFor("ledger")) {
                 LedgerScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                    initialAccountId = entry.arguments
+                        ?.getString(Routes.LEDGER_ACCOUNT_ID_ARG).orEmpty(),
+                    initialAccountName = entry.arguments
+                        ?.getString(Routes.LEDGER_ACCOUNT_NAME_ARG).orEmpty(),
                 )
             }
         }
