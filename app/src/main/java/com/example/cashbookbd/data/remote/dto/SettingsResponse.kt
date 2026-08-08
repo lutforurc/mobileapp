@@ -94,6 +94,8 @@ data class SettingsBranchDto(
      * [decimalPlaces]; the mapper derives a Boolean.
      */
     @SerializedName("is_opening") val isOpening: String? = null,
+    /** Branch column: the product forms carry the warranty/guarantee fields. */
+    @SerializedName("warranty_controll") val warrantyControll: String? = null,
     /**
      * "Use Bangla" — the customer form asks for a Bangla name too. A column on
      * the branch rather than a meta, so it arrives as a number, never "1".

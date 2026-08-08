@@ -68,6 +68,9 @@ class SettingsRepository(
                     decimalPlaces = payload?.branch?.decimalPlaces?.trim()?.toIntOrNull(),
                     // The web gates the Product List's opening columns on == 1.
                     openingOngoing = payload?.branch?.isOpening?.trim()?.toDoubleOrNull() == 1.0,
+                    // A branch column (numeric) — the web reads it truthily.
+                    warrantyControll = payload?.branch?.warrantyControll?.trim()
+                        ?.toDoubleOrNull() == 1.0,
                     // A branch column, not a meta — arrives as a number. The web
                     // reads it loosely (String(x) === '1'), so parse numerically.
                     useBangla = payload?.branch?.useBangla?.trim()?.toDoubleOrNull() == 1.0,

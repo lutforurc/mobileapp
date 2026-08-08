@@ -67,6 +67,12 @@ data class ListEditAction(
 data class ListDeleteAction(
     val endpointBase: String,
     val idKey: String = "id",
+    /**
+     * When set, the delete POSTs `{bodyKey: id}` to [endpointBase] instead of
+     * appending the id to the path — for ids like the product hash, which is
+     * base64 and can carry "/" or "+" that a route path would mangle.
+     */
+    val bodyKey: String? = null,
 )
 
 /**
@@ -449,6 +455,14 @@ object AppLists {
             anyOf = listOf("products.view"),
             paginated = true,
             addAction = ListAddAction(label = "New Product", route = Routes.PRODUCT_ADD),
+            // The web row's pencil and bin: the full Edit Product form, and a
+            // delete the server refuses once the product has moved on a voucher.
+            editAction = ListEditAction(route = Routes.PRODUCT_EDIT, idKey = "product_id"),
+            deleteAction = ListDeleteAction(
+                endpointBase = "product/delete",
+                idKey = "product_id",
+                bodyKey = "product_id",
+            ),
             openingStock = true,
         ),
         AppListSpec(

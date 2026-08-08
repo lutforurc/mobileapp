@@ -45,6 +45,46 @@ data class ProductFormOptions(
     val brands: List<SelectorOption>,
 )
 
+/**
+ * A product as `product/product-edit/{id}` returns it, for the Edit form.
+ * [warrantyType]/[warrantyDays] are unpacked from the server's `warranty_days`
+ * blob — `{ "<type>": "<label>", "day": <days> }` — like the web's parser.
+ */
+data class ProductEditData(
+    /** The hashed product_id the update endpoint resolves. */
+    val productId: String,
+    val name: String,
+    val description: String,
+    val categoryId: String,
+    val productType: String,
+    val unitId: String,
+    val purchasePrice: String,
+    val salesPrice: String,
+    val orderLevel: String,
+    /** Brand id; "0" or blank means none. Echoed back — the server always writes it. */
+    val manufactureId: String,
+    /** "0" not applicable, "1" warranty, "2" guarantee, "3" custom. */
+    val warrantyType: String,
+    val warrantyDays: String,
+)
+
+/** The fields the Edit Product form posts back (`product/update`). */
+data class ProductUpdate(
+    val productId: String,
+    val name: String,
+    val description: String,
+    val categoryId: String,
+    val productType: String,
+    val unitId: String,
+    val purchasePrice: String,
+    val salesPrice: String,
+    val orderLevel: String,
+    val manufactureId: String,
+    /** Sent only when the branch's warranty_controll is on, like the web. */
+    val warrantyType: String? = null,
+    val warrantyDays: String? = null,
+)
+
 /** The fields the Add Product form collects (web's "New Product"). */
 data class NewProduct(
     val categoryId: String,
@@ -305,6 +345,114 @@ class ProductRepository(
                 )
             }
             Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Opening stock saved successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * The product for the Edit form (`GET product/product-edit/{id}`, hashed id
+     * in the path exactly as the web sends it). The payload sits at data.data.
+     */
+    suspend fun fetchProductEdit(productId: String): Resource<ProductEditData> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.get("product/product-edit/$productId", emptyMap())
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+                }
+                val json = response.jsonBody()
+                if (json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                    return@withContext Resource.Error(json.message() ?: "Product not found")
+                }
+                val item = json?.getAsJsonObject("data")?.get("data")
+                    ?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@withContext Resource.Error("Product not found")
+
+                fun str(key: String): String =
+                    item.get(key)?.takeUnless { it.isJsonNull }
+                        ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+
+                // The web's parseWarrantyDetails: warranty_days is either the
+                // stored blob { "<type>": label, "day": days } or a bare value.
+                var warrantyType = "0"
+                var warrantyDays = ""
+                val blob = item.get("warranty_days")?.takeUnless { it.isJsonNull }
+                if (blob != null && blob.isJsonObject) {
+                    val obj = blob.asJsonObject
+                    warrantyType = obj.keySet().firstOrNull { it.toIntOrNull() != null } ?: "0"
+                    warrantyDays = obj.get("day")?.takeUnless { it.isJsonNull }
+                        ?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+                } else if (blob != null && blob.isJsonPrimitive) {
+                    warrantyDays = blob.asString
+                }
+
+                Resource.Success(
+                    ProductEditData(
+                        productId = str("product_id").ifBlank { productId },
+                        name = str("name"),
+                        description = str("description"),
+                        categoryId = str("category_id"),
+                        productType = str("product_type"),
+                        unitId = str("unit_id"),
+                        purchasePrice = str("purchase_price"),
+                        salesPrice = str("sales_price"),
+                        orderLevel = str("order_level"),
+                        manufactureId = str("manufacture_id"),
+                        warrantyType = warrantyType,
+                        warrantyDays = warrantyDays,
+                    )
+                )
+            } catch (e: IOException) {
+                Resource.Error(NO_NETWORK)
+            } catch (e: HttpException) {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /**
+     * Updates a product (`product/update`). The brand is always echoed —
+     * the server writes `manufacture_id` unconditionally, so omitting it would
+     * clear the brand. Warranty fields travel only when the branch collects
+     * them; the server recomposes its `warranty_days` blob from the pair.
+     */
+    suspend fun updateProduct(update: ProductUpdate): Resource<String> = withContext(ioDispatcher) {
+        val body = buildMap {
+            put("product_id", update.productId)
+            put("category_id", update.categoryId)
+            put("product_type", update.productType)
+            put("name", update.name.trim())
+            put("description", update.description.trim())
+            put("unit_id", update.unitId)
+            put("purchase_price", update.purchasePrice.trim())
+            put("sales_price", update.salesPrice.trim())
+            put("order_level", update.orderLevel.trim())
+            put("manufacture_id", update.manufactureId.ifBlank { "0" })
+            update.warrantyType?.let { put("warranty_type", it) }
+            update.warrantyDays?.let { put("warranty_days", it.trim()) }
+        }
+        try {
+            val response = api.post("product/update", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(
+                json?.message()?.takeIf { it.isNotBlank() } ?: "Product updated successfully."
+            )
         } catch (e: IOException) {
             Resource.Error(NO_NETWORK)
         } catch (e: HttpException) {

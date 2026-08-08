@@ -57,6 +57,7 @@ import com.example.cashbookbd.ui.products.AddBrandScreen
 import com.example.cashbookbd.ui.products.AddCategoryScreen
 import com.example.cashbookbd.ui.products.AddProductScreen
 import com.example.cashbookbd.ui.products.AddUnitScreen
+import com.example.cashbookbd.ui.products.EditProductScreen
 import com.example.cashbookbd.ui.products.ProductsHomeScreen
 import com.example.cashbookbd.ui.subscription.MyPlanScreen
 import com.example.cashbookbd.ui.subscription.PricingScreen
@@ -420,6 +421,10 @@ object Routes {
 
     /** Add Product form, opened from the Product List's "New Product" button. */
     const val PRODUCT_ADD = "products/product/add"
+
+    /** Edit Product form, opened from the Product List's row pencil. */
+    const val PRODUCT_EDIT = "products/product/edit"
+    const val PRODUCT_ID_ARG = "productId"
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
@@ -1344,6 +1349,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 AddUnitScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable("${Routes.PRODUCT_EDIT}/{${Routes.PRODUCT_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("products.view")) {
+                EditProductScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    productId = entry.arguments?.getString(Routes.PRODUCT_ID_ARG).orEmpty(),
                 )
             }
         }

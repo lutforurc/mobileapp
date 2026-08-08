@@ -165,7 +165,9 @@ fun AppListScreen(
                     onEdit = { row ->
                         val edit = state.editAction ?: return@ListBody
                         val id = row.editId ?: return@ListBody
-                        navController.navigate("${edit.route}/$id")
+                        // Encoded: a hashed id (the product list's) is base64
+                        // and can carry "/" or "+" that would split the route.
+                        navController.navigate("${edit.route}/${android.net.Uri.encode(id)}")
                     },
                     onDelete = viewModel::requestDelete,
                     onOpeningEdit = viewModel::startOpeningEdit,

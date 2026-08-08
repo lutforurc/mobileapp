@@ -173,7 +173,13 @@ class AppListRepository(
             val action = spec.deleteAction
                 ?: return@withContext Resource.Error("This list has no delete action.")
             try {
-                val response = api.post("${action.endpointBase}/$id", emptyMap())
+                // Body-style deletes carry the id as a field (hashed ids can
+                // hold "/" or "+"); the rest append it to the path.
+                val response = if (action.bodyKey != null) {
+                    api.post(action.endpointBase, mapOf(action.bodyKey to id))
+                } else {
+                    api.post("${action.endpointBase}/$id", emptyMap())
+                }
                 when (response.code()) {
                     HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                         "Your session has expired. Please log in again.", isUnauthorized = true,

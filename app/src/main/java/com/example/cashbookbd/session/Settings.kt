@@ -33,6 +33,11 @@ data class Settings(
      */
     val openingOngoing: Boolean = false,
     /**
+     * Branch column `warranty_controll` (server's spelling): the product forms
+     * carry the warranty/guarantee type and days fields.
+     */
+    val warrantyControll: Boolean = false,
+    /**
      * Branch column `use_bangla`: the branch keeps its ledgers in Bangla, so the
      * customer form asks for a Bangla name beside the English one.
      */
