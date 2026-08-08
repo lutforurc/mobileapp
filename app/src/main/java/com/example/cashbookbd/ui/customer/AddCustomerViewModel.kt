@@ -35,6 +35,7 @@ class AddCustomerViewModel(
             showContactPerson = settings?.needCustomerContactPerson == true,
             showPermanentAddress = settings?.needCustomerPermanentAddress == true,
             showIdfrCode = settings?.haveCustomerSl == true,
+            showPhoto = settings?.needCustomerPhoto == true,
         )
     )
     val uiState: StateFlow<AddCustomerUiState> = _uiState.asStateFlow()
@@ -114,6 +115,22 @@ class AddCustomerViewModel(
     fun onIdfrCode(value: String) = _uiState.update { it.copy(idfrCode = value) }
     fun onCustomerLogin(value: Boolean) = _uiState.update { it.copy(customerLogin = value) }
     fun onPassword(value: String) = _uiState.update { it.copy(password = value) }
+
+    /** Encodes the picked image to the web's ≤150 KB data URI, off the UI thread. */
+    fun onPhotoPicked(context: Context, uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val encoded = encodeCustomerPhoto(context.applicationContext, uri)
+            _uiState.update {
+                if (encoded == null) {
+                    it.copy(error = "The photo could not be read, or won't fit under 150 KB.")
+                } else {
+                    it.copy(photo = encoded)
+                }
+            }
+        }
+    }
+
+    fun onPhotoCleared() = _uiState.update { it.copy(photo = "") }
     fun onLedgerPage(value: String) = _uiState.update { it.copy(ledgerPage = value) }
     fun onNationalId(value: String) = _uiState.update { it.copy(nationalId = value) }
     fun onOpeningBalance(value: String) = _uiState.update { it.copy(openingBalance = value) }
@@ -149,6 +166,7 @@ class AddCustomerViewModel(
                     idfrCode = if (state.showIdfrCode) state.idfrCode else "",
                     customerLogin = state.customerLogin,
                     password = state.password,
+                    photo = if (state.showPhoto) state.photo else "",
                 )
             )
             when (result) {

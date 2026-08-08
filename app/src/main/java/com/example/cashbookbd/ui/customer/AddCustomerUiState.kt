@@ -67,6 +67,9 @@ data class AddCustomerUiState(
     val password: String = "",
     /** The on-type duplicate-mobile warning — informational, never a gate. */
     val mobileWarning: String? = null,
+    val showPhoto: Boolean = false,
+    /** The encoded `data:image/…` URI, or blank when none picked. */
+    val photo: String = "",
 
     val isSaving: Boolean = false,
     val error: String? = null,

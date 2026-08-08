@@ -95,6 +95,11 @@ data class EditCustomerUiState(
     val opening: String = "",
     val customerLogin: Boolean = false,
     val portalPassword: String = "",
+    /**
+     * The photo change: null = untouched (key omitted, stored photo kept);
+     * "" = delete; else a freshly encoded data URI.
+     */
+    val photoAction: String? = null,
 
     val areas: List<CustomerArea> = emptyList(),
 
@@ -207,6 +212,25 @@ class EditCustomerViewModel(
     fun onCustomerLogin(v: Boolean) = _uiState.update { it.copy(customerLogin = v) }
     fun onPortalPassword(v: String) = _uiState.update { it.copy(portalPassword = v) }
 
+    /** Encodes the picked image to the web's ≤150 KB data URI, off the UI thread. */
+    fun onPhotoPicked(context: Context, uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val encoded = encodeCustomerPhoto(context.applicationContext, uri)
+            _uiState.update {
+                if (encoded == null) {
+                    it.copy(error = "The photo could not be read, or won't fit under 150 KB.")
+                } else {
+                    it.copy(photoAction = encoded)
+                }
+            }
+        }
+    }
+
+    /** A pick is undone back to "untouched"; a stored photo is marked deleted. */
+    fun onPhotoCleared() = _uiState.update {
+        it.copy(photoAction = if (it.photoAction?.isNotBlank() == true) null else "")
+    }
+
     fun save() {
         val state = _uiState.value
         val detail = state.detail ?: return
@@ -237,6 +261,7 @@ class EditCustomerViewModel(
                     customerLogin = state.customerLogin,
                 ),
                 echo = detail,
+                photo = if (settings?.needCustomerPhoto == true) state.photoAction else null,
             )
             when (result) {
                 is Resource.Success -> {
@@ -579,6 +604,24 @@ private fun EditCustomerForm(
                 onValueChange = viewModel::onIdfrCode,
                 label = "Customer Number",
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (settings?.needCustomerPhoto == true) {
+            val pickPhoto = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.GetContent()
+            ) { uri -> uri?.let { viewModel.onPhotoPicked(context, it) } }
+            CustomerPhotoField(
+                photo = state.photoAction?.takeIf { it.isNotBlank() }.orEmpty(),
+                existingUrl = if (state.photoAction == "") {
+                    null // marked deleted
+                } else {
+                    state.detail?.photo?.let {
+                        customerPhotoUrl(it, settings.isLocalEnv)
+                    }
+                },
+                onPick = { pickPhoto.launch("image/*") },
+                onClear = viewModel::onPhotoCleared,
             )
         }
 

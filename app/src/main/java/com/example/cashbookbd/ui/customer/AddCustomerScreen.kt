@@ -296,6 +296,18 @@ fun AddCustomerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (state.showPhoto) {
+                    val context = LocalContext.current
+                    val pickPhoto = androidx.activity.compose.rememberLauncherForActivityResult(
+                        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                    ) { uri -> uri?.let { viewModel.onPhotoPicked(context, it) } }
+                    CustomerPhotoField(
+                        photo = state.photo,
+                        existingUrl = null,
+                        onPick = { pickPhoto.launch("image/*") },
+                        onClear = viewModel::onPhotoCleared,
+                    )
+                }
                 if (!state.canSave) {
                     Text(
                         text = "Type, Name, Present Address and Mobile are required.",

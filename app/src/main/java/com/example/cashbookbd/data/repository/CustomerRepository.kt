@@ -76,6 +76,8 @@ data class NewCustomer(
     /** "Access Customer Login" — with [password] (min 8) when on. */
     val customerLogin: Boolean = false,
     val password: String = "",
+    /** A `data:image/…;base64,` URI, or blank for none (key then omitted). */
+    val photo: String = "",
 )
 
 /** One customer area from `area/ddl-list` — the Select Area options. */
@@ -284,6 +286,8 @@ class CustomerRepository(
             // Applied only when filled (server rule) — and only with login on.
             customer.password.takeIf { customer.customerLogin && it.isNotBlank() }
                 ?.let { put("password", it) }
+            // The web's base64 data URI; absent is safely "no photo" on store.
+            customer.photo.takeIf { it.isNotBlank() }?.let { put("photo", it) }
         }
         try {
             val response = api.post("contact/store", body)
@@ -423,6 +427,8 @@ class CustomerRepository(
         id: String,
         form: CustomerForm,
         echo: CustomerDetail,
+        /** Null = leave the stored photo; "" = delete it; else a new data URI. */
+        photo: String? = null,
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
             addProperty("party_type_id", form.partyTypeId)
@@ -445,6 +451,8 @@ class CustomerRepository(
             addProperty("manual_address", form.manualAddress.trim())
             addProperty("permanent_address", form.permanentAddress.trim())
             addProperty("customerLogin", if (form.customerLogin) "1" else "0")
+            // The server only touches the photo column when the key is present.
+            photo?.let { addProperty("photo", it) }
             add("guarantors", echo.guarantorsRaw)
             add("nominees", echo.nomineesRaw)
         }
