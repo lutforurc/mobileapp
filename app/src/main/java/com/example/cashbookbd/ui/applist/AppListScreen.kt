@@ -468,6 +468,9 @@ private fun ListBody(
             val columns = remember(
                 state.columns, state.hasStatusToggle, state.editAction, state.deleteAction,
                 state.togglingIds, state.openingEnabled,
+                // The serial column bakes in the page offset, so a page turn
+                // (or page-size change) must rebuild the columns.
+                state.currentPage, state.perPage,
             ) {
                 buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit)
             }
@@ -487,9 +490,12 @@ private fun buildColumns(
     onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
 ): List<ReportColumn<AppListRow>> = buildList {
+    // Serials continue across pages, as on the web: page 2 of 10 starts at 11.
+    // Unpaginated lists sit on page 1, so their offset is zero.
+    val slOffset = (state.currentPage - 1) * state.perPage
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
-            cellText((index + 1).toString(), align = TextAlign.Center)
+            cellText((slOffset + index + 1).toString(), align = TextAlign.Center)
         },
     )
     state.columns.forEachIndexed { ci, col ->
