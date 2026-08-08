@@ -2,6 +2,7 @@ package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -69,6 +70,70 @@ data class CustomerArea(
     val thana: String,
     val district: String,
 )
+
+/**
+ * The full customer as `contact/edit/{id}` answers it — every editable field
+ * plus the guarantor/nominee arrays kept raw (echoed back on update so the
+ * server's delete-and-recreate never wipes them).
+ */
+data class CustomerDetail(
+    val id: String,
+    val partyTypeId: String,
+    val areaId: String,
+    val name: String,
+    val bangla: String,
+    val relationId: String,
+    val father: String,
+    val motherName: String,
+    val occupation: String,
+    val sex: String,
+    val dateOfBirth: String,
+    val contactPerson: String,
+    val contactNumber: String,
+    val mobile: String,
+    val email: String,
+    val nationalId: String,
+    val manualAddress: String,
+    val permanentAddress: String,
+    val idfrCode: String,
+    val ledgerPage: String,
+    /** Blank when unset/zero (unlocked); non-blank means one-time-set already. */
+    val openingBalance: String,
+    /** Stored relative path ("images/customer_photo/…"), or blank. */
+    val photo: String,
+    val customerLogin: Boolean,
+    val guarantorsRaw: JsonArray,
+    val nomineesRaw: JsonArray,
+) {
+    /** The web's rule: any non-zero stored opening locks the field. */
+    val openingLocked: Boolean get() = openingBalance.isNotBlank()
+}
+
+/** The scalar fields the full Edit form posts to `contact/update/{id}`. */
+data class CustomerForm(
+    val partyTypeId: String,
+    val areaId: String,
+    val name: String,
+    val bangla: String,
+    val relationId: String,
+    val father: String,
+    val motherName: String,
+    val occupation: String,
+    val sex: String,
+    val dateOfBirth: String,
+    val contactPerson: String,
+    val contactNumber: String,
+    val mobile: String,
+    val nationalId: String,
+    val manualAddress: String,
+    val permanentAddress: String,
+    val idfrCode: String,
+    val ledgerPage: String,
+    val customerLogin: Boolean,
+)
+
+/** The duplicate-mobile warning (`contact/mobile-check`). */
+data class MobileCheck(val exists: Boolean, val ownerName: String?)
 
 /**
  * Creates a customer/supplier contact (`contact/store`), a port of the web's
@@ -255,6 +320,185 @@ class CustomerRepository(
             Resource.Error("Server error (${e.code()}). Please try again later.")
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * The full customer for editing (`GET contact/edit/{id}`, raw numeric id):
+     * every form field plus the guarantor/nominee arrays kept RAW so the
+     * update can echo them back verbatim — the server delete-and-recreates
+     * whatever arrives, and an omitted array must never wipe the panels.
+     */
+    suspend fun fetchCustomerDetail(id: String): Resource<CustomerDetail> = withContext(ioDispatcher) {
+        try {
+            val response = api.get("contact/edit/$id", emptyMap())
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            if (json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Error(json.message() ?: "Contact not found")
+            }
+            // The slice reads data.data; tolerate a single-nested data too.
+            val data = json?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+            val party = data?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject ?: data
+                ?: return@withContext Resource.Error("Contact not found")
+            Resource.Success(
+                CustomerDetail(
+                    id = party.str("id") ?: id,
+                    partyTypeId = party.str("party_type_id").orEmpty(),
+                    areaId = party.str("area_id").orEmpty(),
+                    name = party.str("name").orEmpty(),
+                    bangla = party.str("bangla").orEmpty(),
+                    relationId = party.str("relation_id").orEmpty(),
+                    father = party.str("father").orEmpty(),
+                    motherName = party.str("mother_name").orEmpty(),
+                    occupation = party.str("occupation").orEmpty(),
+                    sex = party.str("sex").orEmpty(),
+                    dateOfBirth = party.str("date_of_birth").orEmpty(),
+                    contactPerson = party.str("contact_person").orEmpty(),
+                    contactNumber = party.str("contact_number").orEmpty(),
+                    mobile = party.str("mobile").orEmpty(),
+                    email = party.str("email").orEmpty(),
+                    nationalId = party.str("national_id").orEmpty(),
+                    manualAddress = party.str("manual_address").orEmpty(),
+                    permanentAddress = party.str("permanent_address").orEmpty(),
+                    idfrCode = party.str("idfr_code").orEmpty(),
+                    ledgerPage = party.str("ledger_page").orEmpty(),
+                    // The web's prefill rule: null/0 reads as blank (unlocked).
+                    openingBalance = party.str("openingbalance")
+                        ?.takeIf { it.toDoubleOrNull() != 0.0 }.orEmpty(),
+                    photo = party.str("photo").orEmpty(),
+                    customerLogin = party.str("customer_login")?.trim()?.toDoubleOrNull() == 1.0,
+                    guarantorsRaw = party.get("guarantors")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?: JsonArray(),
+                    nomineesRaw = party.get("nominees")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?: JsonArray(),
+                )
+            )
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * The full customer update (`POST contact/update/{id}`). Never carries
+     * `openingbalance` (this endpoint silently ignores it — an opening goes
+     * through [updateOpeningLedger], the one path that raises the voucher) and
+     * never carries `photo` (omitting the key preserves the stored one). The
+     * guarantor/nominee arrays echo [CustomerDetail]'s raw copies until their
+     * own screens land.
+     */
+    suspend fun updateCustomer(
+        id: String,
+        form: CustomerForm,
+        echo: CustomerDetail,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            addProperty("party_type_id", form.partyTypeId)
+            addProperty("area_id", form.areaId)
+            addProperty("name", form.name.trim())
+            addProperty("bangla", form.bangla.trim())
+            addProperty("relation_id", form.relationId)
+            addProperty("father", form.father.trim())
+            addProperty("mother_name", form.motherName.trim())
+            addProperty("occupation", form.occupation.trim())
+            addProperty("sex", form.sex)
+            addProperty("date_of_birth", form.dateOfBirth)
+            addProperty("contact_person", form.contactPerson.trim())
+            addProperty("contact_number", form.contactNumber.trim())
+            addProperty("idfr_code", form.idfrCode.trim())
+            addProperty("mobile", form.mobile.trim())
+            addProperty("email", echo.email)
+            addProperty("national_id", form.nationalId.trim())
+            addProperty("ledger_page", form.ledgerPage.trim())
+            addProperty("manual_address", form.manualAddress.trim())
+            addProperty("permanent_address", form.permanentAddress.trim())
+            addProperty("customerLogin", if (form.customerLogin) "1" else "0")
+            add("guarantors", echo.guarantorsRaw)
+            add("nominees", echo.nomineesRaw)
+        }
+        try {
+            val response = api.postObjectRaw("contact/update/$id", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Customer updated successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * Sets (or, with a blank password, revokes) the customer's portal access —
+     * `POST contact/customer/set-password/{id}`. The server wants min 8 chars;
+     * a blank body nulls the password and kills the portal tokens.
+     */
+    suspend fun setPortalPassword(id: String, password: String): Resource<String> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.post(
+                    "contact/customer/set-password/$id",
+                    mapOf("password" to password),
+                )
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+                }
+                val json = response.jsonBody()
+                val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                    (!response.isSuccessful && response.code() != 201)
+                if (rejected) {
+                    return@withContext Resource.Error(
+                        json?.message() ?: "Couldn't save the portal password."
+                    )
+                }
+                Resource.Success(
+                    json?.message()?.takeIf { it.isNotBlank() }
+                        ?: if (password.isBlank()) "Portal access revoked." else "Portal password saved."
+                )
+            } catch (e: IOException) {
+                Resource.Error(NO_NETWORK)
+            } catch (e: HttpException) {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /**
+     * The web's on-blur duplicate check (`POST contact/mobile-check`). Null on
+     * any failure — this is a warning, never a gate; the save stays allowed.
+     */
+    suspend fun checkMobile(mobile: String): MobileCheck? = withContext(ioDispatcher) {
+        try {
+            val json = api.post("contact/mobile-check", mapOf("mobile" to mobile.trim()))
+                .takeIf { it.isSuccessful }?.body()
+                ?.takeIf { it.isJsonObject }?.asJsonObject ?: return@withContext null
+            val data = json.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+            val payload = data?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject ?: data
+                ?: return@withContext null
+            val exists = payload.get("exists")?.takeUnless { it.isJsonNull }?.asBoolean == true
+            val owner = payload.get("items")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.firstOrNull()?.takeIf { it.isJsonObject }?.asJsonObject?.str("name")
+            MobileCheck(exists = exists, ownerName = owner)
+        } catch (e: Exception) {
+            null
         }
     }
 

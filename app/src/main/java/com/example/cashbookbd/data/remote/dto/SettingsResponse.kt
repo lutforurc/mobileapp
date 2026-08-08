@@ -114,6 +114,28 @@ data class SettingsBranchDto(
     @SerializedName("need_customer_area") val needCustomerArea: String? = null,
     /** Customer form shows the Sex field. */
     @SerializedName("need_customer_sex") val needCustomerSex: String? = null,
+    /** Customer form shows Date of Birth. */
+    @SerializedName("need_customer_date_of_birth") val needCustomerDateOfBirth: String? = null,
+    /** Customer form shows Occupation. */
+    @SerializedName("need_customer_occupation") val needCustomerOccupation: String? = null,
+    /** Customer form shows Permanent Address. */
+    @SerializedName("need_customer_permanent_address") val needCustomerPermanentAddress: String? = null,
+    /** Customer form shows the Photo field. */
+    @SerializedName("need_customer_photo") val needCustomerPhoto: String? = null,
+    /** A nominee row also carries a photo. */
+    @SerializedName("need_nominee_photo") val needNomineePhoto: String? = null,
+    /** Customer form shows Mother's Name. */
+    @SerializedName("need_customer_mother_name") val needCustomerMotherName: String? = null,
+    /** Customer form shows Contact Person + Contact Number. */
+    @SerializedName("need_customer_contact_person") val needCustomerContactPerson: String? = null,
+    /** Customer form shows Relation + Relation's Name. */
+    @SerializedName("need_relation_info") val needRelationInfo: String? = null,
+    /** Customer form carries the Guarantor panel. */
+    @SerializedName("have_is_guaranter") val haveIsGuaranter: String? = null,
+    /** Customer form carries the Nominee panel. */
+    @SerializedName("have_customer_nominee") val haveCustomerNominee: String? = null,
+    /** Branch COLUMN (numeric, like use_bangla): shows Customer Number. */
+    @SerializedName("have_customer_sl") val haveCustomerSl: String? = null,
     /** One order may carry several products (the multi-product order grid). */
     @SerializedName("multi_product_order") val multiProductOrder: String? = null,
     /** Ledger/cashbook reports show the voucher image column. */

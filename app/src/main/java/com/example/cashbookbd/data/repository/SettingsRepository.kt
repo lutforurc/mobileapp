@@ -76,6 +76,18 @@ class SettingsRepository(
                     needDemoTutorial = payload?.branch?.needDemoTutorial?.trim() == "1",
                     // The web checks String(x) === '1' on each of these metas.
                     needCustomerArea = payload?.branch?.needCustomerArea?.trim() == "1",
+                    needCustomerDateOfBirth = payload?.branch?.needCustomerDateOfBirth?.trim() == "1",
+                    needCustomerOccupation = payload?.branch?.needCustomerOccupation?.trim() == "1",
+                    needCustomerPermanentAddress = payload?.branch?.needCustomerPermanentAddress?.trim() == "1",
+                    needCustomerPhoto = payload?.branch?.needCustomerPhoto?.trim() == "1",
+                    needNomineePhoto = payload?.branch?.needNomineePhoto?.trim() == "1",
+                    needCustomerMotherName = payload?.branch?.needCustomerMotherName?.trim() == "1",
+                    needCustomerContactPerson = payload?.branch?.needCustomerContactPerson?.trim() == "1",
+                    needRelationInfo = payload?.branch?.needRelationInfo?.trim() == "1",
+                    haveIsGuaranter = payload?.branch?.haveIsGuaranter?.trim() == "1",
+                    haveCustomerNominee = payload?.branch?.haveCustomerNominee?.trim() == "1",
+                    // A branch column like use_bangla — arrives numeric ("1"/"1.0").
+                    haveCustomerSl = payload?.branch?.haveCustomerSl?.trim()?.toDoubleOrNull() == 1.0,
                     needCustomerSex = payload?.branch?.needCustomerSex?.trim() == "1",
                     multiProductOrder = payload?.branch?.multiProductOrder?.trim() == "1",
                     showVoucherImage = payload?.branch?.showVoucherImage?.trim() == "1",

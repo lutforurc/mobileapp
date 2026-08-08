@@ -58,6 +58,28 @@ data class Settings(
     val needCustomerArea: Boolean = false,
     /** Branch meta: the customer form shows the Sex field. */
     val needCustomerSex: Boolean = false,
+    /** Branch meta: the customer form shows Date of Birth. */
+    val needCustomerDateOfBirth: Boolean = false,
+    /** Branch meta: the customer form shows Occupation (free text). */
+    val needCustomerOccupation: Boolean = false,
+    /** Branch meta: the customer form shows Permanent Address. */
+    val needCustomerPermanentAddress: Boolean = false,
+    /** Branch meta: the customer form shows the Photo field. */
+    val needCustomerPhoto: Boolean = false,
+    /** Branch meta: a nominee row also carries a photo. */
+    val needNomineePhoto: Boolean = false,
+    /** Branch meta: the customer form shows Mother's Name. */
+    val needCustomerMotherName: Boolean = false,
+    /** Branch meta: the customer form shows Contact Person + Contact Number. */
+    val needCustomerContactPerson: Boolean = false,
+    /** Branch meta: the customer form shows Relation + Relation's Name. */
+    val needRelationInfo: Boolean = false,
+    /** Branch meta: the customer form carries the Guarantor panel. */
+    val haveIsGuaranter: Boolean = false,
+    /** Branch meta: the customer form carries the Nominee panel. */
+    val haveCustomerNominee: Boolean = false,
+    /** Branch COLUMN (numeric): the customer form shows Customer Number (idfr_code). */
+    val haveCustomerSl: Boolean = false,
     /** Branch meta: one order may carry several products (multi-product grid). */
     val multiProductOrder: Boolean = false,
     /** Branch meta: ledger/cashbook reports show the voucher image column. */
