@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,6 +82,8 @@ fun CustomerListScreen(
     // Deleting an opening balance deletes a voucher, so it answers to the
     // voucher permission — the same one the API checks (not cs.delete).
     val canDeleteVoucher = Permissions.hasAny(sessionState.permissions, listOf("voucher.delete"))
+    // The full Edit Customer form rides cs.edit, like the web's edit button.
+    val canEditCustomer = Permissions.hasAny(sessionState.permissions, listOf("cs.edit"))
     val showTutorial = sessionState.settings?.needDemoTutorial == true
     // The branch's "Opening ongoing" flag: off, the web list drops the Opening
     // column — its input, voucher link and Delete — leaving only the ledger page.
@@ -192,7 +195,11 @@ fun CustomerListScreen(
                             currentPage = state.currentPage,
                             openingEnabled = openingEnabled,
                             canDeleteVoucher = canDeleteVoucher,
+                            canEditCustomer = canEditCustomer,
                             onEdit = viewModel::startEdit,
+                            onEditCustomer = { row ->
+                                navController.navigate("${Routes.CUSTOMER_EDIT}/${row.id}")
+                            },
                             onOpenLedger = { row ->
                                 if (row.coa4Id.isNotBlank()) {
                                     navController.navigate(Routes.ledgerFor(row.coa4Id, row.name))
@@ -227,7 +234,9 @@ private fun customerColumns(
     currentPage: Int,
     openingEnabled: Boolean,
     canDeleteVoucher: Boolean,
+    canEditCustomer: Boolean,
     onEdit: (CustomerRow) -> Unit,
+    onEditCustomer: (CustomerRow) -> Unit,
     onOpenLedger: (CustomerRow) -> Unit,
     onDeleteOpening: (CustomerRow) -> Unit,
 ): List<ReportColumn<CustomerRow>> {
@@ -287,17 +296,29 @@ private fun customerColumns(
         ReportColumn("Mobile", ReportColWidth.Fixed(120.dp)) { row, _ ->
             cellText(row.mobile.ifBlank { "-" }, color = onScreen)
         },
-        ReportColumn("Action", ReportColWidth.Fixed(92.dp), TextAlign.Center) { row, _ ->
+        ReportColumn("Action", ReportColWidth.Fixed(120.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // The full Edit Customer form (every field, photo, panels) —
+                    // the web's row edit, behind the same cs.edit.
+                    if (canEditCustomer) {
+                        IconButton(onClick = { onEditCustomer(row) }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = "Edit customer ${row.name}",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                            )
+                        }
+                    }
+                    // The quick opening/ledger-page entry (the web's inline inputs).
                     IconButton(onClick = { onEdit(row) }, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
-                            contentDescription = "Edit ${row.name}",
+                            contentDescription = "Edit opening/ledger of ${row.name}",
                             tint = MaterialTheme.colorScheme.onBackground,
                         )
                     }
