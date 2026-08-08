@@ -44,6 +44,30 @@ data class AddCustomerUiState(
     // the customer list reads before showing its Opening column.
     val showOpening: Boolean = false,
     val openingBalance: String = "",
+
+    // The web form's remaining branch-gated fields.
+    val showRelation: Boolean = false,
+    val relation: SelectorOption? = null,
+    val father: String = "",
+    val showMotherName: Boolean = false,
+    val motherName: String = "",
+    val showDateOfBirth: Boolean = false,
+    /** yyyy-MM-dd, or blank. */
+    val dateOfBirth: String = "",
+    val showOccupation: Boolean = false,
+    val occupation: String = "",
+    val showContactPerson: Boolean = false,
+    val contactPerson: String = "",
+    val contactNumber: String = "",
+    val showPermanentAddress: Boolean = false,
+    val permanentAddress: String = "",
+    val showIdfrCode: Boolean = false,
+    val idfrCode: String = "",
+    val customerLogin: Boolean = false,
+    val password: String = "",
+    /** The on-type duplicate-mobile warning — informational, never a gate. */
+    val mobileWarning: String? = null,
+
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMessage: String? = null,
@@ -55,5 +79,7 @@ data class AddCustomerUiState(
             type != null &&
             name.isNotBlank() &&
             address.isNotBlank() &&
-            mobile.isNotBlank()
+            mobile.isNotBlank() &&
+            // The server wants min 8 when a portal password rides along.
+            (!customerLogin || password.isBlank() || password.length >= 8)
 }

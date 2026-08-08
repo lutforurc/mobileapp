@@ -1,6 +1,25 @@
 package com.example.cashbookbd.ui.customer
 
+import android.app.DatePickerDialog
+import android.content.Context
 import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.example.cashbookbd.ui.reports.model.SimpleDate
+import java.util.Locale
+
+/** Picks a date and hands back yyyy-MM-dd — the customer forms' DOB fields. */
+internal fun pickCustomerDate(context: Context, current: String, onPicked: (String) -> Unit) {
+    val parts = current.split("-").mapNotNull { it.toIntOrNull() }
+    val initial = if (parts.size == 3) SimpleDate(parts[0], parts[1], parts[2]) else SimpleDate.today()
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onPicked(String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth))
+        },
+        initial.year,
+        initial.month - 1,
+        initial.day,
+    ).show()
+}
 
 /** The web's ClientType select (Partytype ids). */
 val CLIENT_TYPES: List<SelectorOption> = listOf(

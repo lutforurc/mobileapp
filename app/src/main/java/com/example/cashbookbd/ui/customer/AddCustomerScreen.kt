@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -119,6 +120,32 @@ fun AddCustomerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (state.showRelation) {
+                    AppSelectDropdown(
+                        label = "Relation",
+                        options = RELATION_TYPES,
+                        selected = state.relation,
+                        onSelected = viewModel::onRelation,
+                        placeholder = "Select Relation",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    AppTextField(
+                        value = state.father,
+                        onValueChange = viewModel::onFather,
+                        label = "Enter relation's name",
+                        caption = "Relation's Name",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (state.showMotherName) {
+                    AppTextField(
+                        value = state.motherName,
+                        onValueChange = viewModel::onMotherName,
+                        label = "Enter mother's name",
+                        caption = "Mother's Name",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 // Shown only when the branch collects customer sex.
                 if (state.showSex) {
                     AppSelectDropdown(
@@ -130,6 +157,69 @@ fun AddCustomerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (state.showDateOfBirth) {
+                    val context = LocalContext.current
+                    AppTextField(
+                        value = state.dateOfBirth,
+                        onValueChange = {},
+                        label = "Date of Birth",
+                        enabled = false,
+                        trailingIcon = {
+                            androidx.compose.material3.IconButton(onClick = {
+                                pickCustomerDate(context, state.dateOfBirth, viewModel::onDateOfBirth)
+                            }) {
+                                androidx.compose.material3.Icon(
+                                    androidx.compose.material.icons.Icons.Filled.DateRange,
+                                    contentDescription = "Pick date of birth",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (state.showOccupation) {
+                    AppTextField(
+                        value = state.occupation,
+                        onValueChange = viewModel::onOccupation,
+                        label = "Enter occupation",
+                        caption = "Occupation",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (state.showContactPerson) {
+                    AppTextField(
+                        value = state.contactPerson,
+                        onValueChange = viewModel::onContactPerson,
+                        label = "Enter contact person",
+                        caption = "Contact Person",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    AppTextField(
+                        value = state.contactNumber,
+                        onValueChange = viewModel::onContactNumber,
+                        label = "Enter contact number",
+                        caption = "Contact Number",
+                        keyboardType = KeyboardType.Phone,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                AppTextField(
+                    value = state.nationalId,
+                    onValueChange = viewModel::onNationalId,
+                    label = "Enter national ID",
+                    caption = "National ID (optional)",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = state.mobile,
+                    onValueChange = viewModel::onMobile,
+                    label = "Enter mobile number",
+                    // The web's on-blur duplicate warning — informational only.
+                    caption = state.mobileWarning ?: "Mobile Number",
+                    keyboardType = KeyboardType.Phone,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 AppTextField(
                     value = state.address,
                     onValueChange = viewModel::onAddress,
@@ -137,14 +227,15 @@ fun AddCustomerScreen(
                     caption = "Present Address",
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = state.mobile,
-                    onValueChange = viewModel::onMobile,
-                    label = "Enter mobile number",
-                    caption = "Mobile Number",
-                    keyboardType = KeyboardType.Phone,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (state.showPermanentAddress) {
+                    AppTextField(
+                        value = state.permanentAddress,
+                        onValueChange = viewModel::onPermanentAddress,
+                        label = "Enter Permanent Address",
+                        caption = "Permanent Address",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppTextField(
                     value = state.ledgerPage,
                     onValueChange = viewModel::onLedgerPage,
@@ -168,13 +259,43 @@ fun AddCustomerScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                AppTextField(
-                    value = state.nationalId,
-                    onValueChange = viewModel::onNationalId,
-                    label = "Enter national ID",
-                    caption = "National ID (optional)",
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (state.showIdfrCode) {
+                    AppTextField(
+                        value = state.idfrCode,
+                        onValueChange = viewModel::onIdfrCode,
+                        label = "Enter customer number",
+                        caption = "Customer Number",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Access Customer Login",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = "Lets this customer sign in to the portal.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.appColors.textOnScreenMuted,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = state.customerLogin,
+                        onCheckedChange = viewModel::onCustomerLogin,
+                    )
+                }
+                if (state.customerLogin) {
+                    AppTextField(
+                        value = state.password,
+                        onValueChange = viewModel::onPassword,
+                        label = "Portal Password",
+                        caption = "Min 8 characters (optional — can be set later).",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 if (!state.canSave) {
                     Text(
                         text = "Type, Name, Present Address and Mobile are required.",

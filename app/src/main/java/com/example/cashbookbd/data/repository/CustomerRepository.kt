@@ -61,6 +61,21 @@ data class NewCustomer(
      * the ledger never heard of.
      */
     val openingBalance: String = "",
+    // The branch-gated extras the web form carries; blank when ungated.
+    val relationId: String = "",
+    val father: String = "",
+    val motherName: String = "",
+    /** yyyy-MM-dd, or blank. */
+    val dateOfBirth: String = "",
+    val occupation: String = "",
+    val contactPerson: String = "",
+    val contactNumber: String = "",
+    val permanentAddress: String = "",
+    /** Customer Number (idfr_code), gated on the branch's have_customer_sl. */
+    val idfrCode: String = "",
+    /** "Access Customer Login" — with [password] (min 8) when on. */
+    val customerLogin: Boolean = false,
+    val password: String = "",
 )
 
 /** One customer area from `area/ddl-list` — the Select Area options. */
@@ -251,13 +266,24 @@ class CustomerRepository(
             // exactly as the web sends the unused fields.
             "sex" to customer.sex,
             "area_id" to customer.areaId,
-            // "Access Customer Login" is off for this essential form.
-            "customerLogin" to "0",
+            "relation_id" to customer.relationId,
+            "father" to customer.father.trim(),
+            "mother_name" to customer.motherName.trim(),
+            "date_of_birth" to customer.dateOfBirth,
+            "occupation" to customer.occupation.trim(),
+            "contact_person" to customer.contactPerson.trim(),
+            "contact_number" to customer.contactNumber.trim(),
+            "permanent_address" to customer.permanentAddress.trim(),
+            "idfr_code" to customer.idfrCode.trim(),
+            "customerLogin" to if (customer.customerLogin) "1" else "0",
         ) + buildMap {
             // Left out entirely when blank: the server acts on the key's
             // presence, and an empty one would be a figure nobody entered.
             customer.openingBalance.trim().takeIf { it.isNotEmpty() }
                 ?.let { put("openingbalance", it) }
+            // Applied only when filled (server rule) — and only with login on.
+            customer.password.takeIf { customer.customerLogin && it.isNotBlank() }
+                ?.let { put("password", it) }
         }
         try {
             val response = api.post("contact/store", body)
