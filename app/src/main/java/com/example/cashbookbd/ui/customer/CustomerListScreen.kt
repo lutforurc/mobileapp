@@ -82,6 +82,9 @@ fun CustomerListScreen(
     // voucher permission — the same one the API checks (not cs.delete).
     val canDeleteVoucher = Permissions.hasAny(sessionState.permissions, listOf("voucher.delete"))
     val showTutorial = sessionState.settings?.needDemoTutorial == true
+    // The branch's "Opening ongoing" flag: off, the web list drops the Opening
+    // column — its input, voucher link and Delete — leaving only the ledger page.
+    val openingEnabled = sessionState.settings?.openingOngoing == true
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -187,6 +190,7 @@ fun CustomerListScreen(
                     else -> ReportTable(
                         columns = customerColumns(
                             currentPage = state.currentPage,
+                            openingEnabled = openingEnabled,
                             canDeleteVoucher = canDeleteVoucher,
                             onEdit = viewModel::startEdit,
                             onOpenLedger = { row ->
@@ -210,7 +214,7 @@ fun CustomerListScreen(
     }
 
     state.editing?.let { row ->
-        EditDialog(state = state, row = row, viewModel = viewModel)
+        EditDialog(state = state, row = row, openingEnabled = openingEnabled, viewModel = viewModel)
     }
 
     state.openingDeleteRow?.let { row ->
@@ -221,6 +225,7 @@ fun CustomerListScreen(
 @Composable
 private fun customerColumns(
     currentPage: Int,
+    openingEnabled: Boolean,
     canDeleteVoucher: Boolean,
     onEdit: (CustomerRow) -> Unit,
     onOpenLedger: (CustomerRow) -> Unit,
@@ -228,14 +233,20 @@ private fun customerColumns(
 ): List<ReportColumn<CustomerRow>> {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val offset = (currentPage - 1) * CUSTOMERS_PER_PAGE
-    return listOf(
+    return listOf<ReportColumn<CustomerRow>>(
         ReportColumn("#", ReportColWidth.Fixed(40.dp), TextAlign.Center) { _, index ->
             cellText((offset + index + 1).toString(), align = TextAlign.Center, color = onScreen)
         },
         ReportColumn("Name", ReportColWidth.Fixed(140.dp)) { row, _ ->
             cellText(row.name.ifBlank { "-" }, color = onScreen, maxLines = 2)
         },
-        ReportColumn("Opening", ReportColWidth.Fixed(96.dp), TextAlign.End) { row, _ ->
+    ) + listOfNotNull(
+        // The whole Opening column rides the branch's "Opening ongoing" flag,
+        // exactly like the web's isOpeningColumns: switched off, the figure,
+        // its voucher link and the Delete all leave the list.
+        if (!openingEnabled) null else ReportColumn<CustomerRow>(
+            "Opening", ReportColWidth.Fixed(96.dp), TextAlign.End,
+        ) { row, _ ->
             if (row.openingVrNo.isBlank()) {
                 cellText(openingText(row), align = TextAlign.End, color = onScreen)
             } else {
@@ -266,6 +277,7 @@ private fun customerColumns(
                 }
             }
         },
+    ) + listOf<ReportColumn<CustomerRow>>(
         ReportColumn("Address", ReportColWidth.Fixed(150.dp)) { row, _ ->
             cellText(row.address.ifBlank { "-" }, color = onScreen, maxLines = 2)
         },
@@ -290,8 +302,9 @@ private fun customerColumns(
                         )
                     }
                     // Only where there is a voucher to delete — a row that never
-                    // had an opening balance has nothing to offer here.
-                    if (row.openingVrNo.isNotBlank() && canDeleteVoucher) {
+                    // had an opening balance has nothing to offer here — and only
+                    // while the branch is still keying openings, like the web.
+                    if (openingEnabled && row.openingVrNo.isNotBlank() && canDeleteVoucher) {
                         IconButton(
                             onClick = { onDeleteOpening(row) },
                             modifier = Modifier.size(36.dp),
@@ -364,6 +377,7 @@ private fun openingText(row: CustomerRow): String =
 private fun EditDialog(
     state: CustomerListUiState,
     row: CustomerRow,
+    openingEnabled: Boolean,
     viewModel: CustomerListViewModel,
 ) {
     AlertDialog(
@@ -371,25 +385,30 @@ private fun EditDialog(
         title = { Text(row.name.ifBlank { "Edit customer" }) },
         text = {
             Column {
-                DialogLabel("Opening Balance")
-                AppTextField(
-                    value = state.editOpening,
-                    onValueChange = viewModel::onEditOpening,
-                    label = "Enter opening balance",
-                    keyboardType = KeyboardType.Number,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // Re-saving rewrites this voucher in place, so its number — and
-                // anything printed carrying it — stays put.
-                if (row.openingVrNo.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Voucher ${row.openingVrNo}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Shown only while the branch is keying openings ("Opening
+                // ongoing") — off, the web list has no opening entry at all
+                // and this dialog is only the ledger page's.
+                if (openingEnabled) {
+                    DialogLabel("Opening Balance")
+                    AppTextField(
+                        value = state.editOpening,
+                        onValueChange = viewModel::onEditOpening,
+                        label = "Enter opening balance",
+                        keyboardType = KeyboardType.Number,
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    // Re-saving rewrites this voucher in place, so its number —
+                    // and anything printed carrying it — stays put.
+                    if (row.openingVrNo.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Voucher ${row.openingVrNo}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(12.dp))
                 DialogLabel("Ledger Page")
                 AppTextField(
                     value = state.editLedger,

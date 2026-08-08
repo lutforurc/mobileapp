@@ -18,6 +18,12 @@ import kotlinx.coroutines.launch
 /** Backs the Customers list: search, pagination, and the per-row opening/ledger edit. */
 class CustomerListViewModel(
     private val repository: CustomerRepository,
+    /**
+     * The branch's "Opening ongoing" flag (`is_opening == 1`). Off, the web
+     * list drops its Opening column entirely — so the edit sends no opening
+     * figure either, whatever the dialog was seeded with.
+     */
+    private val openingEnabled: Boolean = false,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CustomerListUiState())
@@ -90,6 +96,7 @@ class CustomerListViewModel(
         // (e.g. '#').
         val voucherLost = row.isOpeningSet && row.openingVrNo.isBlank()
         val opening = if (
+            openingEnabled &&
             state.editOpening.isNotBlank() &&
             (state.editOpening != row.opening || voucherLost)
         ) {
@@ -171,7 +178,11 @@ class CustomerListViewModel(
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
-                CustomerListViewModel(ServiceLocator.provideCustomerRepository(context.applicationContext))
+                CustomerListViewModel(
+                    repository = ServiceLocator.provideCustomerRepository(context.applicationContext),
+                    openingEnabled = ServiceLocator.provideSessionManager(context.applicationContext)
+                        .state.value.settings?.openingOngoing == true,
+                )
             }
         }
     }
