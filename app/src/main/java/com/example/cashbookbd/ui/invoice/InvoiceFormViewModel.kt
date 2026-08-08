@@ -109,11 +109,12 @@ class InvoiceFormViewModel(
         // Trading invoices carry the invoice-level tracked product; with no
         // party picked yet, only the every-party products come back.
         if (isTrading && spec?.isReturn != true) loadTrackedProducts(coa4Id = null)
-        // The branch's inventory system may have changed since login — the web
-        // index refetches the current branch on mount, so refresh settings and
-        // re-derive the variant flags when they land.
+        // The branch's inventory system may have changed since login —
+        // re-derive the variant flags from fresh-enough settings. Throttled to
+        // one request per five minutes so form after form doesn't hit the
+        // server each time.
         viewModelScope.launch {
-            if (sessionRepository?.refresh() !is Resource.Success) return@launch
+            if (sessionRepository?.refreshIfStale() !is Resource.Success) return@launch
             val fresh = sessionManager.state.value.settings?.inventorySystemId
             if (fresh == inventorySystemId) return@launch
             inventorySystemId = fresh

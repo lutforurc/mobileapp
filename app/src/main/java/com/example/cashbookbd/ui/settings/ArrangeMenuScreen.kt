@@ -69,7 +69,8 @@ class ArrangeMenuViewModel(
     val prefs = repository.state
 
     init {
-        repository.refresh()
+        // The page exists to edit the server copy — fetch it regardless of age.
+        repository.refresh(force = true)
     }
 
     /** Every arrangeable menu plus the user's dividers, in the saved order. */

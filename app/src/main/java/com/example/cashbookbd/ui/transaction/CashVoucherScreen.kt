@@ -226,10 +226,11 @@ class CashVoucherViewModel(
         // With no account yet, only the every-party products come back.
         loadTrackedProducts(coa4Id = null)
         // The branch's type/inventory system may have changed since login —
-        // the web index refetches the current branch on every mount, so mirror
-        // it: refresh settings and re-derive the variant when they land.
+        // re-derive the variant from fresh-enough settings. Throttled to one
+        // request per five minutes so opening voucher after voucher doesn't
+        // hit the server each time.
         viewModelScope.launch {
-            if (sessionRepository?.refresh() is Resource.Success) {
+            if (sessionRepository?.refreshIfStale() is Resource.Success) {
                 val fresh = cashVoucherVariant(spec, sessionManager.state.value.settings)
                 if (fresh != variant) {
                     variant = fresh
