@@ -400,36 +400,6 @@ private val HRM_ATTENDANCE_WEB_ORDER = listOf(
     "in_time", "out_time", "work_minutes", "status", "approval_status",
 )
 
-/** Internal columns dropped from the monthly-summary report tables. */
-private val HRM_SUMMARY_HIDDEN = listOf(
-    "employee_id", "branch_id", "company_id", "summary_month",
-)
-
-/** Header overrides for the monthly-summary report tables. */
-private val HRM_SUMMARY_LABELS = mapOf(
-    "employee_serial" to "ID",
-    "employee_name" to "Employee",
-    "branch_name" to "Branch",
-    "month_days" to "Month Days",
-    "present_days" to "Present",
-    "leave_days" to "Leave",
-    "paid_leave_days" to "Paid Leave",
-    "unpaid_leave_days" to "Unpaid Leave",
-    "holiday_days" to "Holiday",
-    "weekly_holiday_days" to "Weekly Holiday",
-    "absent_days" to "Absent",
-    "half_days" to "Half Day",
-    "late_count" to "Late",
-    "early_out_count" to "Early Out",
-    "pending_days" to "Pending",
-    "payable_days" to "Payable",
-    "deduction_days" to "Deduction",
-    "late_deduction_days" to "Late Ded.",
-    "early_out_deduction_days" to "Early Ded.",
-    "overtime_minutes" to "OT Min",
-    "overtime_amount" to "OT Amount",
-)
-
 /** Status filter shared by the two installment reports (blank = all statuses). */
 private val INSTALLMENT_STATUS_CHOICE = ReportChoiceParam(
     paramKey = "status",
@@ -1334,23 +1304,8 @@ object ReportMenu {
             columnOrder = HRM_ATTENDANCE_WEB_ORDER,
             textColumns = listOf("employee_serial"),
         ),
-        ReportConfig(
-            key = "hrmOvertimeReport",
-            title = "Overtime Report",
-            routeName = "HrmOvertimeReport",
-            webPath = "/hrms/attendance/overtime-report",
-            anyOf = HRM_ATTENDANCE_PERMISSIONS,
-            endpointKey = "hrmAttendanceReport",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_DATE_RANGE,
-            startParam = "date_from",
-            endParam = "date_to",
-            extraParams = mapOf("overtime_only" to "1", "overtime_eligible" to "1"),
-            section = ReportConfig.SECTION_HRM,
-            hiddenColumns = HRM_ATTENDANCE_HIDDEN,
-            columnLabels = HRM_ATTENDANCE_LABELS,
-            textColumns = listOf("employee_serial"),
-        ),
+        // Overtime Report is NOT here: it needs the web's employee × day
+        // matrix — see ui/hrm/OvertimeMatrixScreen, reached via the HRM form route.
         ReportConfig(
             key = "hrmAuditHistory",
             title = "Audit History",
@@ -1456,63 +1411,10 @@ object ReportMenu {
             columnLabels = HRM_ATTENDANCE_LABELS,
             textColumns = listOf("employee_serial"),
         ),
-        ReportConfig(
-            key = "hrmBranchAttendance",
-            title = "Branch Attendance",
-            routeName = "HrmBranchAttendance",
-            webPath = "/hrms/attendance/branch-summary",
-            anyOf = HRM_ATTENDANCE_PERMISSIONS,
-            endpointKey = "hrmMonthlySummary",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_MONTH_YEAR,
-            startParam = null,
-            endParam = null,
-            monthParam = "month",
-            yearParam = "year",
-            section = ReportConfig.SECTION_HRM,
-            hiddenColumns = HRM_SUMMARY_HIDDEN,
-            columnLabels = HRM_SUMMARY_LABELS,
-            textColumns = listOf("employee_serial"),
-        ),
-        ReportConfig(
-            key = "hrmHolidayCalendar",
-            title = "Holiday Calendar",
-            routeName = "HrmHolidayCalendar",
-            webPath = "/hrms/attendance/holiday-calendar",
-            anyOf = HRM_ATTENDANCE_PERMISSIONS,
-            endpointKey = "hrmHolidays",
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_DATE_RANGE,
-            startParam = "date_from",
-            endParam = "date_to",
-            choiceParam = ReportChoiceParam(
-                paramKey = "holiday_type",
-                label = "Holiday Type",
-                options = listOf(
-                    ReportChoice("All Types", ""),
-                    ReportChoice("Government", "government"),
-                    ReportChoice("Festival", "festival"),
-                    ReportChoice("Company", "company"),
-                    ReportChoice("Optional", "optional"),
-                    ReportChoice("Project", "project"),
-                    ReportChoice("Weekly", "weekly"),
-                    ReportChoice("Other", "other"),
-                ),
-            ),
-            extraParams = mapOf("per_page" to "100"),
-            section = ReportConfig.SECTION_HRM,
-            hiddenColumns = listOf(
-                "id", "company_id", "branch_id", "branch_type_id", "department_id",
-                "created_by", "updated_by", "created_at", "updated_at",
-            ),
-            columnLabels = mapOf(
-                "holiday_date" to "Date",
-                "holiday_name" to "Holiday",
-                "holiday_type" to "Type",
-                "is_paid" to "Paid",
-                "is_optional" to "Optional",
-            ),
-        ),
+        // Branch Attendance and Holiday Calendar are NOT here: they need the
+        // web's branch aggregation table and calendar grid — see
+        // ui/hrm/BranchAttendanceScreen and ui/hrm/HolidayCalendarScreen,
+        // reached via the HRM form route.
         ReportConfig(
             key = "hrmLoanBalance",
             title = "Loan Balance",

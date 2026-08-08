@@ -219,7 +219,13 @@ class MonthlyAttendanceViewModel(
                     isLoading = false,
                     loaded = true,
                     summaryRows = (summary as Resource.Success).data,
-                    matrixRows = byEmployee.values.sortedBy { row -> row.name },
+                    // The web sorts by numeric employee serial, then name.
+                    matrixRows = byEmployee.values.sortedWith(
+                        compareBy(
+                            { row -> row.serial.toDoubleOrNull() ?: Double.MAX_VALUE },
+                            { row -> row.name },
+                        )
+                    ),
                 )
             }
         }
@@ -365,37 +371,101 @@ private fun SummaryTab(state: MonthlyAttendanceUiState) {
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
     ) {
         items(state.summaryRows, key = { it.employeeId }) { row ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
-                    Text(
-                        text = row.employeeName +
-                            row.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = AppFontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row {
-                        LabelValue("Present", row.presentDays.dash(), Modifier.weight(1f))
-                        LabelValue("Paid Lv", row.paidLeaveDays.dash(), Modifier.weight(1f))
-                        LabelValue("Unpaid Lv", row.unpaidLeaveDays.dash(), Modifier.weight(1f))
-                        LabelValue("Absent", row.absentDays.dash(), Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Row {
-                        LabelValue("Late", row.lateCount.dash(), Modifier.weight(1f))
-                        LabelValue("Early Out", row.earlyOutCount.dash(), Modifier.weight(1f))
-                        LabelValue("Half Day", row.halfDays.dash(), Modifier.weight(1f))
-                        LabelValue("Payable", row.payableDays.dash(), Modifier.weight(1f))
-                    }
-                }
-            }
+            SummaryCard(
+                title = row.employeeName +
+                    row.employeeSerial.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty(),
+                present = row.presentDays,
+                paidLeave = row.paidLeaveDays,
+                unpaidLeave = row.unpaidLeaveDays,
+                absent = row.absentDays,
+                late = row.lateCount,
+                earlyOut = row.earlyOutCount,
+                halfDay = row.halfDays,
+                payable = row.payableDays,
+                deduction = row.deductionDays,
+            )
             Spacer(Modifier.height(8.dp))
+        }
+        // The web's totals footer, as a closing card over every row.
+        item {
+            val rows = state.summaryRows
+            SummaryCard(
+                title = "Total",
+                present = rows.sumOf { it.presentDays },
+                paidLeave = rows.sumOf { it.paidLeaveDays },
+                unpaidLeave = rows.sumOf { it.unpaidLeaveDays },
+                absent = rows.sumOf { it.absentDays },
+                late = rows.sumOf { it.lateCount },
+                earlyOut = rows.sumOf { it.earlyOutCount },
+                halfDay = rows.sumOf { it.halfDays },
+                payable = rows.sumOf { it.payableDays },
+                deduction = rows.sumOf { it.deductionDays },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(
+    title: String,
+    present: Double,
+    paidLeave: Double,
+    unpaidLeave: Double,
+    absent: Double,
+    late: Double,
+    earlyOut: Double,
+    halfDay: Double,
+    payable: Double,
+    deduction: Double,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = AppFontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row {
+                LabelValue("Present", present.dash(), Modifier.weight(1f))
+                LabelValue("Paid Lv", paidLeave.dash(), Modifier.weight(1f))
+                LabelValue("Unpaid Lv", unpaidLeave.dash(), Modifier.weight(1f))
+                LabelValue("Absent", absent.dash(), Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(6.dp))
+            Row {
+                LabelValue("Late", late.dash(), Modifier.weight(1f))
+                LabelValue("Early Out", earlyOut.dash(), Modifier.weight(1f))
+                LabelValue("Half Day", halfDay.dash(), Modifier.weight(1f))
+                LabelValue("Payable", payable.dash(), Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(6.dp))
+            Row {
+                LabelValue("Deduction", deduction.dash(), Modifier.weight(1f))
+                Spacer(Modifier.weight(3f))
+            }
         }
     }
 }
 
 private val NAME_COL = 128.dp
 private val DAY_COL = 30.dp
+private val TOTAL_COL = 48.dp
+
+/** The web's per-day counting weight: worked/holiday/leave 1, half day ½. */
+private fun glyphWeight(glyph: String?): Double = when (glyph) {
+    "✓", "!", "○", GLYPH_LEAVE -> 1.0
+    "½" -> 0.5
+    else -> 0.0
+}
+
+/** The web's formatTotal: integers plain, fractions to one decimal. */
+private fun formatTotal(value: Double): String =
+    if (value == value.toLong().toDouble()) {
+        value.toLong().toString()
+    } else {
+        String.format(Locale.US, "%.1f", value)
+    }
 
 @Composable
 private fun MatrixTab(state: MonthlyAttendanceUiState) {
@@ -439,6 +509,14 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                         modifier = Modifier.width(DAY_COL),
                     )
                 }
+                Text(
+                    text = "Total",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = AppFontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(TOTAL_COL),
+                )
             }
         }
         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -488,6 +566,58 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                                 )
                             }
                         }
+                        // The web's per-employee Total column.
+                        Text(
+                            text = formatTotal(days.sumOf { glyphWeight(row.days[it]) }),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = AppFontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.width(TOTAL_COL),
+                        )
+                    }
+                }
+            }
+            // The web's day-total footer row, plus the grand total.
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Total",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = AppFontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(NAME_COL).padding(start = 16.dp),
+                    )
+                    Row(modifier = Modifier.horizontalScroll(hScroll)) {
+                        days.forEach { day ->
+                            Text(
+                                text = formatTotal(
+                                    state.matrixRows.sumOf { glyphWeight(it.days[day]) }
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = AppFontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.width(DAY_COL),
+                            )
+                        }
+                        Text(
+                            text = formatTotal(
+                                state.matrixRows.sumOf { row ->
+                                    days.sumOf { glyphWeight(row.days[it]) }
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = AppFontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.width(TOTAL_COL),
+                        )
                     }
                 }
             }

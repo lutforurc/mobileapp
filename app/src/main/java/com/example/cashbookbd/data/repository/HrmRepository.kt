@@ -5,7 +5,12 @@ import com.example.cashbookbd.data.remote.HrmApiService
 import com.example.cashbookbd.ui.hrm.model.AttendanceDayRow
 import com.example.cashbookbd.ui.hrm.model.AttendanceEntry
 import com.example.cashbookbd.ui.hrm.model.AttendanceSummary
+import com.example.cashbookbd.ui.hrm.model.BranchAttendanceRow
+import com.example.cashbookbd.ui.hrm.model.HolidayRecord
 import com.example.cashbookbd.ui.hrm.model.MonthlySummaryRow
+import com.example.cashbookbd.ui.hrm.model.OvertimeMatrixData
+import com.example.cashbookbd.ui.hrm.model.OvertimeMatrixRow
+import com.example.cashbookbd.ui.hrm.model.WeeklyHolidayPolicy
 import com.example.cashbookbd.ui.hrm.model.SalaryDetailRow
 import com.example.cashbookbd.ui.hrm.model.SalarySheetDetail
 import com.example.cashbookbd.ui.hrm.model.SalarySheetSummary
@@ -642,6 +647,164 @@ class HrmRepository(
     }
 
     /**
+     * The Overtime Report matrix: the entry report with the web's
+     * `overtime_eligible=1&overtime_only=1` extras, grouped per employee with
+     * OT minutes accumulated into hours per date — the web's client-side
+     * matrix computation, verbatim.
+     */
+    suspend fun overtimeMatrix(
+        branchId: Long,
+        dateFrom: String,
+        dateTo: String,
+    ): Resource<OvertimeMatrixData> = request {
+        val response = api.get(
+            "hrms/attendance/entries/report",
+            mapOf(
+                "branch_id" to branchId.toString(),
+                "date_from" to dateFrom,
+                "date_to" to dateTo,
+                // The web sends both filters even when blank.
+                "status" to "",
+                "approval_status" to "",
+                "overtime_eligible" to "1",
+                "overtime_only" to "1",
+            ),
+        )
+        parseEnvelope(response) { payload ->
+            val byEmployee = LinkedHashMap<String, OvertimeAgg>()
+            var otMinutes = 0.0
+            var otAmount = 0.0
+            rowsOf(payload).forEach { row ->
+                val obj = row.asObjectOrNull() ?: return@forEach
+                // The web's getEmployeeId fallback chain.
+                val key = obj.text("employee_id")?.takeIf { it.isNotBlank() }
+                    ?: obj.text("id")?.takeIf { it.isNotBlank() }
+                    ?: obj.text("employee_serial")?.takeIf { it.isNotBlank() }
+                    ?: obj.text("employee_name").orEmpty()
+                val date = obj.text("attendance_date").orEmpty().take(10)
+                if (key.isBlank() || date.isBlank()) return@forEach
+                val minutes = obj.number("overtime_minutes")
+                otMinutes += minutes
+                otAmount += obj.number("overtime_amount")
+                val agg = byEmployee.getOrPut(key) { OvertimeAgg(key) }
+                if (agg.serial.isBlank()) agg.serial = obj.text("employee_serial").orEmpty()
+                if (agg.name.isBlank()) {
+                    agg.name = obj.text("employee_name")?.takeIf { it.isNotBlank() }
+                        ?: obj.text("name").orEmpty()
+                }
+                agg.hours[date] = (agg.hours[date] ?: 0.0) + minutes / 60.0
+            }
+            val rows = byEmployee.values
+                .map { OvertimeMatrixRow(it.id, it.serial, it.name, it.hours) }
+                .sortedWith(
+                    compareBy(
+                        { it.employeeSerial.toDoubleOrNull() ?: Double.MAX_VALUE },
+                        { it.employeeName },
+                    )
+                )
+            OvertimeMatrixData(rows = rows, totalOtMinutes = otMinutes, totalOtAmount = otAmount)
+        }
+    }
+
+    /**
+     * Stored holidays for the calendar month. The web sends only the date pair;
+     * per_page dodges the server's 20-row default truncating a busy month.
+     */
+    suspend fun holidays(dateFrom: String, dateTo: String): Resource<List<HolidayRecord>> =
+        request {
+            val response = api.get(
+                "hrms/attendance/holidays",
+                mapOf("date_from" to dateFrom, "date_to" to dateTo, "per_page" to "100"),
+            )
+            parseEnvelope(response) { payload ->
+                rowsOf(payload).mapNotNull { row ->
+                    val obj = row.asObjectOrNull() ?: return@mapNotNull null
+                    HolidayRecord(
+                        id = obj.text("id").orEmpty(),
+                        branchId = obj.text("branch_id").orEmpty(),
+                        holidayDate = obj.text("holiday_date").orEmpty().take(10),
+                        holidayName = obj.text("holiday_name").orEmpty(),
+                        holidayType = obj.text("holiday_type").orEmpty(),
+                        isPaid = obj.number("is_paid") != 0.0,
+                        isOptional = obj.number("is_optional") != 0.0,
+                        remarks = obj.text("remarks").orEmpty(),
+                    )
+                }
+            }
+        }
+
+    /** Weekly-holiday policies (the web calls this with no filters at all). */
+    suspend fun weeklyHolidays(): Resource<List<WeeklyHolidayPolicy>> = request {
+        val response = api.get("hrms/attendance/weekly-holidays", mapOf("per_page" to "100"))
+        parseEnvelope(response) { payload ->
+            rowsOf(payload).mapNotNull { row ->
+                val obj = row.asObjectOrNull() ?: return@mapNotNull null
+                WeeklyHolidayPolicy(
+                    id = obj.text("id").orEmpty(),
+                    branchId = obj.text("branch_id").orEmpty(),
+                    dayOfWeek = obj.number("day_of_week").toInt(),
+                    isEnabled = obj.number("is_enabled") != 0.0,
+                    effectiveFrom = obj.text("effective_from").orEmpty().take(10),
+                    effectiveTo = obj.text("effective_to").orEmpty().take(10),
+                    remarks = obj.text("remarks").orEmpty(),
+                )
+            }
+        }
+    }
+
+    /**
+     * The Branch Attendance summary: monthly-summary rows rolled up per branch,
+     * exactly like the web's client-side branchRows aggregation. [branchId] 0
+     * means All Branches (sent as ""); [branchNames] resolves ids the rows
+     * don't carry a name for.
+     */
+    suspend fun branchAttendanceRows(
+        branchId: Long,
+        month: Int,
+        year: Int,
+        branchNames: Map<String, String> = emptyMap(),
+    ): Resource<List<BranchAttendanceRow>> = request {
+        val filterId = if (branchId == 0L) "" else branchId.toString()
+        val response = api.get(
+            "hrms/attendance/monthly-summary",
+            mapOf(
+                "branch_id" to filterId,
+                "month" to month.toString(),
+                "year" to year.toString(),
+            ),
+        )
+        parseEnvelope(response) { payload ->
+            val groups = LinkedHashMap<String, BranchAgg>()
+            rowsOf(payload).forEach { row ->
+                val obj = row.asObjectOrNull() ?: return@forEach
+                val id = obj.text("branch_id")?.takeIf { it.isNotBlank() }
+                    ?: filterId.ifBlank { "all" }
+                val agg = groups.getOrPut(id) { BranchAgg(id) }
+                if (agg.name.isBlank()) {
+                    agg.name = obj.text("branch_name")?.takeIf { it.isNotBlank() }
+                        ?: branchNames[id] ?: "All Branches"
+                }
+                agg.employeeCount += 1
+                // `working_days` is a key the server never sends; the web sums
+                // it anyway and shows 0 — kept for column parity.
+                agg.workingDays += obj.number("working_days")
+                agg.presentDays += obj.number("present_days")
+                agg.paidLeaveDays += obj.number("paid_leave_days")
+                agg.unpaidLeaveDays += obj.number("unpaid_leave_days")
+                agg.absentDays += obj.number("absent_days")
+                agg.lateCount += obj.number("late_count")
+                agg.earlyOutCount += obj.number("early_out_count")
+                agg.halfDays += obj.number("half_days")
+                agg.payableDays += obj.number("payable_days")
+                agg.deductionDays += obj.number("deduction_days")
+            }
+            groups.values
+                .map { it.toRow() }
+                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.branchName })
+        }
+    }
+
+    /**
      * Generates the salary sheet. The `employees` array must carry the same
      * client-computed rows the web sends — the server trusts them as given.
      */
@@ -991,4 +1154,43 @@ class HrmRepository(
         if (value.isNullOrBlank()) add(key, com.google.gson.JsonNull.INSTANCE)
         else addProperty(key, value)
     }
+}
+
+/** Mutable accumulator behind [HrmRepository.overtimeMatrix]. */
+private class OvertimeAgg(val id: String) {
+    var serial: String = ""
+    var name: String = ""
+    val hours: LinkedHashMap<String, Double> = LinkedHashMap()
+}
+
+/** Mutable accumulator behind [HrmRepository.branchAttendanceRows]. */
+private class BranchAgg(val id: String) {
+    var name: String = ""
+    var employeeCount: Int = 0
+    var workingDays: Double = 0.0
+    var presentDays: Double = 0.0
+    var paidLeaveDays: Double = 0.0
+    var unpaidLeaveDays: Double = 0.0
+    var absentDays: Double = 0.0
+    var lateCount: Double = 0.0
+    var earlyOutCount: Double = 0.0
+    var halfDays: Double = 0.0
+    var payableDays: Double = 0.0
+    var deductionDays: Double = 0.0
+
+    fun toRow(): BranchAttendanceRow = BranchAttendanceRow(
+        branchId = id,
+        branchName = name,
+        employeeCount = employeeCount,
+        workingDays = workingDays,
+        presentDays = presentDays,
+        paidLeaveDays = paidLeaveDays,
+        unpaidLeaveDays = unpaidLeaveDays,
+        absentDays = absentDays,
+        lateCount = lateCount,
+        earlyOutCount = earlyOutCount,
+        halfDays = halfDays,
+        payableDays = payableDays,
+        deductionDays = deductionDays,
+    )
 }

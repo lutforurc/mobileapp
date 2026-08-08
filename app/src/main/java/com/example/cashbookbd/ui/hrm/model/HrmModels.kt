@@ -96,6 +96,85 @@ data class MonthlySummaryRow(
     val deductionDays: Double,
 )
 
+/** One employee row of the overtime matrix: date ("YYYY-MM-DD") → OT hours. */
+data class OvertimeMatrixRow(
+    val employeeId: String,
+    val employeeSerial: String,
+    val employeeName: String,
+    val hoursByDate: Map<String, Double>,
+) {
+    val totalHours: Double get() = hoursByDate.values.sum()
+}
+
+/** The overtime report: matrix rows plus the month's OT totals. */
+data class OvertimeMatrixData(
+    val rows: List<OvertimeMatrixRow>,
+    val totalOtMinutes: Double,
+    val totalOtAmount: Double,
+)
+
+/** One stored holiday row from `hrms/attendance/holidays`. */
+data class HolidayRecord(
+    val id: String,
+    val branchId: String,
+    val holidayDate: String,
+    val holidayName: String,
+    val holidayType: String,
+    val isPaid: Boolean,
+    val isOptional: Boolean,
+    val remarks: String,
+)
+
+/** One weekly-holiday policy row from `hrms/attendance/weekly-holidays`. */
+data class WeeklyHolidayPolicy(
+    val id: String,
+    val branchId: String,
+    /** 0 = Sunday … 6 = Saturday, as stored. */
+    val dayOfWeek: Int,
+    val isEnabled: Boolean,
+    val effectiveFrom: String,
+    val effectiveTo: String,
+    val remarks: String,
+)
+
+/** One calendar entry (a stored holiday, or one expanded weekly-holiday day). */
+data class HolidayEvent(
+    val id: String,
+    val calendarDate: String,
+    val title: String,
+    /** "Holiday" | "Weekly Holiday" — the web's type strings, verbatim. */
+    val type: String,
+    val subType: String,
+    val branchName: String,
+    val paid: Boolean,
+    val optional: Boolean,
+    val remarks: String,
+) {
+    val isHoliday: Boolean get() = type == "Holiday"
+    val isWeekly: Boolean get() = type == "Weekly Holiday"
+}
+
+/** One branch's rolled-up month figures (client-side, like the web's branchRows). */
+data class BranchAttendanceRow(
+    val branchId: String,
+    val branchName: String,
+    val employeeCount: Int,
+    /**
+     * The web sums `working_days`, a key the API never sends, so this is always
+     * zero on both clients — kept for column parity, not information.
+     */
+    val workingDays: Double,
+    val presentDays: Double,
+    val paidLeaveDays: Double,
+    val unpaidLeaveDays: Double,
+    val absentDays: Double,
+    val lateCount: Double,
+    val earlyOutCount: Double,
+    val halfDays: Double,
+    val payableDays: Double,
+    val deductionDays: Double,
+)
+
 /** One (employee, day) attendance cell from the month's entry report. */
 data class AttendanceDayRow(
     val employeeId: Long,
