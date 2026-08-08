@@ -78,12 +78,12 @@ fun CustomerHomeScreen(
                 CustomerRowItem(
                     item = item,
                     onClick = {
-                        // The customer list is the bespoke screen (inline opening/ledger
-                        // edit); the rest use the shared read-only list.
-                        val route = if (item.key == "customers") {
-                            Routes.CUSTOMERS_LIST
-                        } else {
-                            Routes.appListView(item.key)
+                        // The customer list and Bank Opening are bespoke screens;
+                        // the rest use the shared read-only list.
+                        val route = when (item.key) {
+                            "customers" -> Routes.CUSTOMERS_LIST
+                            "bankOpening" -> Routes.BANK_OPENING
+                            else -> Routes.appListView(item.key)
                         }
                         navController.navigate(route)
                     },

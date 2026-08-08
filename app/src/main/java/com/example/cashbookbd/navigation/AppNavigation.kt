@@ -50,6 +50,7 @@ import com.example.cashbookbd.ui.admin.AdminHomeScreen
 import com.example.cashbookbd.ui.admin.HighlightRulesScreen
 import com.example.cashbookbd.ui.branch.AddBranchScreen
 import com.example.cashbookbd.ui.customer.AddCustomerScreen
+import com.example.cashbookbd.ui.customer.BankOpeningScreen
 import com.example.cashbookbd.ui.customer.CustomerHomeScreen
 import com.example.cashbookbd.ui.customer.CustomerListScreen
 import com.example.cashbookbd.ui.customer.EditCustomerScreen
@@ -399,6 +400,9 @@ object Routes {
     /** Set a customer's opening/ledger, opened from the Customers list row pencil. */
     const val CUSTOMER_EDIT = "customer/edit"
     const val CUSTOMER_ID_ARG = "customerId"
+
+    /** Bank/cash opening balances (the web's Bank Opening page). */
+    const val BANK_OPENING = "customers/bank-opening"
 
     /** Add CoA L3 form, opened from the CoA L3 list's "New COA L3" button. */
     const val COA_L3_ADD = "coa/l3/add"
@@ -1045,6 +1049,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.SOFTWARE_INFO) {
             PermissionGate(anyOf = listOf("software.information")) {
                 SoftwareInfoScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.BANK_OPENING) {
+            PermissionGate(anyOf = listOf("bank.opening.view")) {
+                BankOpeningScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

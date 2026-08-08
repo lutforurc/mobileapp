@@ -27,6 +27,11 @@ object CustomerMenu {
         CustomerItem("coaL2", "CoA L2", listOf("coa.l2.view")),
         CustomerItem("coaL3", "CoA L3", listOf("coa.l3.view")),
         CustomerItem("coaL4", "CoA L4", listOf("coa.l4.view")),
+        // Kept out of the CoA L4 list itself: most of that chart is expense and
+        // sales heads, which open at nothing. Its own permission too — reading
+        // the chart and opening a bank account with a figure are not the same
+        // trust, and the second one writes a journal voucher.
+        CustomerItem("bankOpening", "Bank Opening", listOf("bank.opening.view")),
     )
 
     private val byKey: Map<String, CustomerItem> = all.associateBy { it.key }
