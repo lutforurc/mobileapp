@@ -1,6 +1,21 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-08 evening):**
+> **Gap-closure batch (2026-08-08 night, same web baseline as below):** the
+> long-standing structural gaps are closed — full Customer Add/Edit forms
+> (all gated fields, photo, guarantor/nominee panels, portal password),
+> company logo upload (light+dark, multipart), cash voucher
+> Search→Edit→Update (all three variants incl. Head Office), dashboard
+> widget customization (order/hide/density, per-user-per-branch), Arrange
+> Menu's inside-a-menu panel (sidebar-sub), and the three financial report
+> layouts: P&L four-column (with the sumByIds and max(0,·) numeric fixes),
+> Balance Sheet Opening/Movement/Closing + equity opening-difference
+> adjustment + tappable group breakdown + Final Position card, Ledger
+> running Balance + netted Opening + "Select All Branch" (per-row branch
+> names in All Branch mode). HRM's matrix reports (Overtime, Holiday
+> Calendar, Branch Attendance, absent-row synthesis) are the remaining
+> structural gap, in progress.
+>
+> **Previously matched (2026-08-08 evening):**
 > ```
 > cashbookbd_react : 08febd9 (2026-08-08 17:02)
 > cashbook_api     : 6fe3b31b (2026-08-08 17:01)
@@ -82,12 +97,14 @@ native rebuilds. Structural gaps that need bespoke screens, largest first:
   footer Total rows~~ (added 2026-08-06 — ReportConfig.totalColumns /
   totalRowLabel now sum 13 reports' web tfoots), per-group headings
   (closing stock brands, labour branches), cell colour rules,
-  running-balance columns (Product In Out, Ledger's Balance), en-IN
-  lakh/crore grouping, dd/MM/yyyy date reformat outside stacked cells,
-  "All Branch" filter option.
+  running-balance columns (Product In Out; ~~Ledger's Balance~~ closed
+  2026-08-08), en-IN lakh/crore grouping, dd/MM/yyyy date reformat outside
+  stacked cells, "All Branch" filter option (~~Ledger~~ closed 2026-08-08;
+  other reports pending).
 - Native-screen deltas: Cash Book/Bank Book Sl+Action columns and somity
-  lines, Ledger running Balance + netted Opening, P&L 4-column layout,
-  Balance Sheet Opening/Movement columns + equity adjustment.
+  lines, ~~Ledger running Balance + netted Opening~~, ~~P&L 4-column
+  layout~~, ~~Balance Sheet Opening/Movement columns + equity adjustment~~
+  (all three closed 2026-08-08).
 
 Still web-only, deliberately:
 
