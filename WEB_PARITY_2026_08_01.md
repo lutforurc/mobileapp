@@ -1,10 +1,29 @@
 # Web parity — 2026-08-01
 
+> **Catch-up list (2026-08-09 early morning) — NOT yet ported:**
+> ```
+> cashbookbd_react : 979e081..4599d7b   (6 commits, 2026-08-09 00:01–02:03)
+> cashbook_api     : 35bf16c7..95d881f3 (5 commits, 2026-08-09 00:14–02:04)
+> ```
+> The Bank Opening batch: a new bank/cash opening-balance screen with its own
+> permission pair, journal vouchers made visible in the Cash/Bank Book, and an
+> owner-only gate on clearing a branch's transactions. Contract and port list
+> in **"Catch-up — 2026-08-09"** below; the design write-up is
+> `docs/bank-opening-balance-spec.md` in the react repo (in Bangla).
+>
 > **Matched to (2026-08-08 late night):**
 > ```
 > cashbookbd_react : 979e081  (2026-08-08 — bank-opening write-up, docs only)
 > cashbook_api     : 35bf16c7 (2026-08-08 18:39)
 > ```
+> Mobile-side additions after this note was first written (same web baseline,
+> commits `f2d24df..7de533e`): the customer list hides its Opening column,
+> field, and Delete when the branch's `is_opening` flag is off; the customer
+> list's Action column gained a second edit — the full Edit Customer form —
+> beside the quick opening/ledger dialog; the Product List gained Edit Product
+> (full form, warranty fields included) and Delete row actions; list serial
+> numbers continue across pages instead of restarting at 1; and the opening
+> list re-saves a matching opening figure when its voucher is found gone.
 > The opening-voucher tracking batch is ported: customer and product opening
 > balances are tied to their journal voucher (`opening_vr_no` on both lists),
 > the voucher number links into the Ledger (new deep-link route, auto-run
@@ -81,6 +100,112 @@
 > Statement and the Tracking Summary reports (`product-tracking/settings`,
 > `reports/product-financial-statement`, `reports/product-tracking-summary`).
 > `git log 549ad6b..HEAD` in the react repo is the next catch-up list.
+
+## Catch-up — 2026-08-09: the Bank Opening batch (pending)
+
+Read off the controllers as they stand at `95d881f3`, not off the messages.
+
+### A. Bank Opening — the feature to port
+
+A new screen (web: `AccountOpeningBalance.tsx`, menu item **"Bank Opening"**
+in the Chart of Accounts group, global-search entry too) sets opening balances
+for the money accounts — Cash, Bank Account, Mobile Banking, i.e. the level-3
+groups in `config('accounts.opening_account_groups')` = `[1, 2, 28]`. Kept off
+the CoA L4 list deliberately: most of that chart is expense and sales heads,
+which open at nothing.
+
+```
+POST /api/account/opening-balance/list          bank.opening.view
+POST /api/account/opening-balance/update/{id}   bank.opening.edit
+POST /api/account/opening-balance/delete/{id}   bank.opening.edit + voucher.delete
+```
+
+All three POST (so none collides with the `coal4/{id}` catch-all). `{id}` is
+the hashed coa4 id. `foundData()` wraps twice — the list reads from
+`response.data.data.data`, with `transaction_date` beside it.
+
+Behaviour is the customer opening's, on the shared `OpeningVoucher` machinery
+(extracted from `PartyOpeningBalanceService`, which shrank 289 → 93 lines with
+behaviour unchanged):
+
+- No voucher + non-zero figure → journal voucher raised (two lines, contra
+  coa4 14), `main_trx_id` saved on `acc_coa_level4s`.
+- Voucher exists + figure changed → same voucher rewritten in place, `vr_no`
+  kept. Figure 0 → voucher trashed, link nulled. Delete → soft delete.
+- Amount is read back from the voucher's own rows (`debit - credit`), not
+  from any column — there is no `openingbalance` column here, on purpose.
+  Positive = money in the bank (debit); negative = overdraft.
+- Guards: approved voucher (on `main_trx_master.is_approved`) blocks edit and
+  delete; another branch's voucher blocks; `lockForUpdate` inside the
+  transaction; the whole screen and API sit behind the branch's
+  `is_opening == 1` — the same switch the customer list reads.
+- One opening per account, company-wide — `acc_coa_level4s` has no
+  `branch_id`, so there is no per-branch opening to model.
+- Inactive accounts are hidden, except one that still holds a live opening
+  voucher: it stays listed with an "Inactive" badge, delete-only.
+- The voucher number is a link into the Ledger — the deep-link route mobile
+  already has from the opening-voucher batch.
+
+**Mobile port:** a drawer entry + screen shaped like the customer list's
+opening rows (amount field, Save/Cancel, Delete behind the confirm naming
+account, amount and voucher number), grouped by level-3 group.
+
+### B. Permissions — new names, seeded from the old
+
+`branch_opening_permissions.sql` / the patch command create a **Branch
+Opening** permission group and seed each new name from the one it replaces,
+so nobody loses a screen on ship day:
+
+| New | Seeded from | Enforced today? |
+|---|---|---|
+| `bank.opening.view` | `coa.l4.view` | yes — the three endpoints above |
+| `bank.opening.edit` | `coa.l4.edit` | yes |
+| `party.opening.view` / `.edit` | `cs.view` / `cs.edit` | **no — seeded only, no controller checks yet** |
+| `product.opening.view` / `.edit` | `products.view` / `products.edit` | **no — seeded only** |
+
+`branch.opening.clear` and the transaction-clear permission are moved into the
+same group by `35e06296`. The patch also activates `acc_coa_level4s` rows
+above id 240 whose `status` a form had left at `'0'`, hiding those banks from
+the very screen that exists to open them.
+
+**Server prerequisite per tenant:** `account_opening_balance_tracking.sql`
+(adds `main_trx_id` to `acc_coa_level4s`; MariaDB-only `IF NOT EXISTS`
+syntax) and `branch_opening_permissions.sql` or the patch command, then the
+permission cache reset. Without the first, every save fails; without the
+second, only privileged roles reach the screen.
+
+### C. Cash Book / Bank Book now count journal vouchers — no port, numbers change
+
+Both books only ever counted transaction_type 1 and 2, while an opening
+balance arrives as a journal (type 5) — a bank opened with 57,000 showed
+nothing in the Bank Book while its ledger counted it. Now the opening line
+includes type 5, and a seventh union lists journal rows inside the range
+(the entry set holds a bank leg — account 17 for the cash book — and the row
+shown is the other side of it; nothing is double-counted against the
+cash-to-bank rows, and bank-to-bank transfers still net to no row). Mobile
+renders these reports off the API, so the correction arrives by itself —
+just don't read changed numbers as a regression.
+
+### D. Clearing transactions is owner-gated — mobile is affected
+
+`POST /api/branch/clear-transaction` now refuses anyone not in
+`config('subscription.platform_owner_user_ids')` (env
+`PLATFORM_OWNER_USER_IDS`, default `[1]`), **even with the permission** — a
+tenant's own administrator holds every permission their company has, and one
+click here empties a branch's books. The 403 carries `severity: "info"` and
+*"Only the system administrator can clear transactions. Please call the
+administrator."*
+
+**Mobile owes two small things** (the branch form already has both Clear
+buttons): show that refusal once, and as a notice rather than an error — the
+web now marks interceptor-toasted errors (`toastReported`) so handlers stay
+quiet, and paints `severity: "info"` refusals in the notice voice, not red.
+
+### E. Web-only, nothing to do
+
+The shared row-button shape (`CustomButtons.tsx`) adopted by Customers and
+the new screen — mobile already routes row actions through its shared list
+components.
 
 ## Full-surface audit — 2026-08-06
 
