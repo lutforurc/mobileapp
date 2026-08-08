@@ -197,6 +197,21 @@ fun InvoiceFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            // Trading's invoice-level tracked product: which product this
+            // invoice counts against. Hidden for the cash customer and when
+            // the branch tracks nothing — the web's own two rules.
+            if (state.isTrading && state.trackedProducts.isNotEmpty() &&
+                state.party?.id != "17"
+            ) {
+                AppSelectDropdown(
+                    label = "Select Product (Optional)",
+                    options = state.trackedProducts,
+                    selected = state.trackedProduct,
+                    onSelected = viewModel::onTrackedProductSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             if (state.showInstallment) {
                 InstallmentSection(state = state, viewModel = viewModel)
             }

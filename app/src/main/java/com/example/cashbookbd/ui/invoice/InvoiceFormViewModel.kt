@@ -42,6 +42,7 @@ class InvoiceFormViewModel(
     private val selectorRepository: SelectorRepository,
     private val sessionManager: SessionManager,
     private val sessionRepository: com.example.cashbookbd.data.repository.SessionRepository? = null,
+    private val transactionRepository: com.example.cashbookbd.data.repository.TransactionRepository? = null,
 ) : ViewModel() {
 
     private val spec = InvoiceForms.byKey(invoiceKey)
@@ -105,6 +106,9 @@ class InvoiceFormViewModel(
     init {
         // Every web variant has the per-line warehouse picker.
         loadWarehouses()
+        // Trading invoices carry the invoice-level tracked product; with no
+        // party picked yet, only the every-party products come back.
+        if (isTrading && spec?.isReturn != true) loadTrackedProducts(coa4Id = null)
         // The branch's inventory system may have changed since login — the web
         // index refetches the current branch on mount, so refresh settings and
         // re-derive the variant flags when they land.
@@ -176,6 +180,7 @@ class InvoiceFormViewModel(
     fun onPartySelected(party: TxnSelection) {
         val wasCash = _uiState.value.party?.id == CASH_ACCOUNT_ID
         val isCash = party.id == CASH_ACCOUNT_ID
+        val partyChanged = _uiState.value.party?.id != party.id
         cashAmountManuallyEdited = false
         _uiState.update {
             it.copy(
@@ -190,6 +195,35 @@ class InvoiceFormViewModel(
                 },
             )
         }
+        // A new party means a new tracked-product list (party-scoped, web).
+        if (partyChanged && isTrading && spec?.isReturn != true) {
+            _uiState.update { it.copy(trackedProduct = null) }
+            loadTrackedProducts(coa4Id = party.id)
+        }
+    }
+
+    /**
+     * The party-scoped tracked products a Trading invoice may be counted
+     * against. Empty (tracking off, no permission) hides the dropdown.
+     */
+    private fun loadTrackedProducts(coa4Id: String?) {
+        val repo = transactionRepository ?: return
+        val context = if (spec?.kind == InvoiceKind.SALES) "sales" else "purchase"
+        viewModelScope.launch {
+            val products = repo.fetchTrackedProducts(context, coa4Id)
+                .map { (id, name) -> SelectorOption(id, name) }
+            _uiState.update { state ->
+                val stillValid = state.trackedProduct?.let { sel -> products.any { it.id == sel.id } } == true
+                state.copy(
+                    trackedProducts = products,
+                    trackedProduct = if (stillValid) state.trackedProduct else null,
+                )
+            }
+        }
+    }
+
+    fun onTrackedProductSelected(option: SelectorOption) {
+        _uiState.update { it.copy(trackedProduct = option) }
     }
 
     /** Party accounts (customers/suppliers) — COA level-4 with acType=3. */
@@ -339,7 +373,12 @@ class InvoiceFormViewModel(
         val order = orderCache[option.id] ?: return
         _uiState.update { it.copy(salesOrder = order) }
         viewModelScope.launch {
-            if (order.customerName.isNotBlank()) {
+            if (order.partyId.isNotBlank()) {
+                // The order names its party by id — the name search matches on
+                // substrings ("Trade Link" also finds "N S Trade Link") and is
+                // only the fallback for orders that carry no id (web ea40a1d).
+                _uiState.update { it.copy(party = TxnSelection(order.partyId, order.customerName)) }
+            } else if (order.customerName.isNotBlank()) {
                 (ledgerRepository.searchLedgers(order.customerName, acType = "3") as? Resource.Success)
                     ?.data?.firstOrNull()
                     ?.let { c -> _uiState.update { it.copy(party = TxnSelection(c.id.toString(), c.name)) } }
@@ -434,6 +473,12 @@ class InvoiceFormViewModel(
                 serviceCharge = state.serviceCharge.toDoubleOrNull() ?: 0.0,
                 tdsAmount = state.tdsAmount.toDoubleOrNull() ?: 0.0,
                 transportationAmt = state.transportationAmt.toDoubleOrNull() ?: 0.0,
+                // The cash customer's invoice leaves nothing owing to track.
+                trackedProductId = if (state.party?.id == CASH_ACCOUNT_ID) {
+                    ""
+                } else {
+                    state.trackedProduct?.id.orEmpty()
+                },
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -470,6 +515,7 @@ class InvoiceFormViewModel(
                         tdsAmount = "",
                         transportationAmt = "",
                         amountLocked = false,
+                        trackedProduct = null,
                     )
                 }
                 is Resource.Error -> _uiState.update {
@@ -501,6 +547,7 @@ class InvoiceFormViewModel(
                     selectorRepository = ServiceLocator.provideSelectorRepository(appContext),
                     sessionManager = ServiceLocator.provideSessionManager(appContext),
                     sessionRepository = ServiceLocator.provideSessionRepository(appContext),
+                    transactionRepository = ServiceLocator.provideTransactionRepository(appContext),
                 )
             }
         }

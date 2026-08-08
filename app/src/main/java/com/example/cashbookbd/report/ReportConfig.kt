@@ -508,28 +508,9 @@ object ReportMenu {
         // The two product-tracking memo reports — bespoke screens: summary
         // cards, running balances and the unmapped-transactions notice don't
         // fit the generic table.
-        ReportConfig(
-            key = "productStatement",
-            title = "Product Statement",
-            routeName = "ReportProductStatement",
-            webPath = "/reports/product-financial-statement",
-            anyOf = listOf("product.tracking.report.view"),
-            endpointKey = "cashbook", // unused: native screen fetches itself
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_DATE_RANGE,
-            native = true,
-        ),
-        ReportConfig(
-            key = "productTrackingSummary",
-            title = "Product Receivable / Payable",
-            routeName = "ReportProductTrackingSummary",
-            webPath = "/reports/product-receivable-payable",
-            anyOf = listOf("product.tracking.report.view"),
-            endpointKey = "cashbook", // unused: native screen fetches itself
-            method = ReportMethod.GET,
-            filterType = ReportFilterType.BRANCH_DATE_RANGE,
-            native = true,
-        ),
+        // Product Statement / Product Receivable-Payable moved out to the
+        // Product Tracking drawer section, next to the settings screen that
+        // decides what they report on (web db96532).
 
         ReportConfig(
             key = "bankbook",
@@ -643,6 +624,19 @@ object ReportMenu {
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             // Rendered by the bespoke TrialBalanceScreen (real table), not the generic flow.
+            native = true,
+        ),
+        ReportConfig(
+            key = "expenseReport",
+            title = "Expense Report",
+            routeName = "ReportExpense",
+            webPath = "/reports/expense-report",
+            anyOf = listOf("expense.report"),
+            endpointKey = "expenseReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // The bespoke ExpenseReportScreen: Trial Balance Group's layout
+            // narrowed to expense heads, with tap-to-open detail rows.
             native = true,
         ),
 

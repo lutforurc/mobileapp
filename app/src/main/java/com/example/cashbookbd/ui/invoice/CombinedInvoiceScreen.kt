@@ -174,7 +174,7 @@ class CombinedInvoiceViewModel(
                 purchaseRate = order.rate?.takeIf { r -> r > 0 }?.toString() ?: it.purchaseRate,
             )
         }
-        resolveParty(order.customerName) { party -> _uiState.update { it.copy(supplier = party) } }
+        resolveParty(order) { party -> _uiState.update { it.copy(supplier = party) } }
     }
 
     /** A sales order resolves the customer and pre-fills the sales rate. */
@@ -186,13 +186,22 @@ class CombinedInvoiceViewModel(
                 salesRate = order.rate?.takeIf { r -> r > 0 }?.toString() ?: it.salesRate,
             )
         }
-        resolveParty(order.customerName) { party -> _uiState.update { it.copy(customer = party) } }
+        resolveParty(order) { party -> _uiState.update { it.copy(customer = party) } }
     }
 
-    private fun resolveParty(name: String, apply: (TxnSelection) -> Unit) {
-        if (name.isBlank()) return
+    /**
+     * The order's party, by id when the server names one — the name search
+     * matches on substrings and keeps the first hit ("Trade Link" also finds
+     * "N S Trade Link"), so it stays only as the fallback (web ea40a1d).
+     */
+    private fun resolveParty(order: OrderOption, apply: (TxnSelection) -> Unit) {
+        if (order.partyId.isNotBlank()) {
+            apply(TxnSelection(order.partyId, order.customerName))
+            return
+        }
+        if (order.customerName.isBlank()) return
         viewModelScope.launch {
-            (ledgerRepository.searchLedgers(name, acType = "3") as? Resource.Success)
+            (ledgerRepository.searchLedgers(order.customerName, acType = "3") as? Resource.Success)
                 ?.data?.firstOrNull()
                 ?.let { apply(TxnSelection(it.id.toString(), it.name)) }
         }

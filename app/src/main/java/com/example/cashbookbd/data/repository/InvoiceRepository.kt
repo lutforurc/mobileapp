@@ -143,6 +143,7 @@ class InvoiceRepository(
         serviceCharge: Double = 0.0,
         tdsAmount: Double = 0.0,
         transportationAmt: Double = 0.0,
+        trackedProductId: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
         val useElectronics = electronics && spec.electronicsEndpoint != null
         val body = if (spec.isReturn) {
@@ -151,7 +152,7 @@ class InvoiceRepository(
             invoiceBody(
                 spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate,
                 useElectronics, installment, trading, vehicleNumber,
-                serviceCharge, tdsAmount, transportationAmt,
+                serviceCharge, tdsAmount, transportationAmt, trackedProductId,
             )
         }
         // Variant → store endpoint, as the web's PurchaseIndex/SalesIndex resolve
@@ -312,6 +313,7 @@ class InvoiceRepository(
         serviceCharge: Double,
         tdsAmount: Double,
         transportationAmt: Double,
+        trackedProductId: String,
     ): JsonObject = JsonObject().apply {
         addProperty("mtmId", "")
         addProperty("account", party.id)
@@ -344,6 +346,11 @@ class InvoiceRepository(
             }
             addProperty("purchaseOrderNumber", trading.purchaseOrderNumber)
             addProperty("purchaseOrderText", trading.purchaseOrderText)
+            // The invoice-level tracked product; the web always sends the key
+            // (null when unset), and the server maps the whole invoice to it.
+            trackedProductId.toLongOrNull()
+                ?.let { addProperty("trackedProductId", it) }
+                ?: add("trackedProductId", com.google.gson.JsonNull.INSTANCE)
         }
         add("products", JsonArray().apply { lines.forEach { add(productJson(it, electronics, trading != null)) } })
         if (electronics && spec.kind == InvoiceKind.SALES) {
@@ -425,6 +432,8 @@ class InvoiceRepository(
                 id = id,
                 orderNumber = o.str("label") ?: id,
                 customerName = o.str("label_2").orEmpty(),
+                // The order's party by id — label_2 is only its display name.
+                partyId = o.str("party_id").orEmpty(),
                 productName = o.str("label_3").orEmpty(),
                 rate = o.str("label_5")?.replace(",", "")?.toDoubleOrNull(),
                 remainingQty = o.str("label_8")?.replace(",", "")?.toDoubleOrNull(),

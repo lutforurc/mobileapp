@@ -76,6 +76,14 @@ data class InvoiceFormUiState(
     val tdsAmount: String = "",
     val transportationAmt: String = "",
 
+    /**
+     * Product tracking (Trading invoices): one product for the whole invoice.
+     * Hidden for the cash customer, whose sale leaves nothing owing to track,
+     * and when the branch tracks nothing (empty options).
+     */
+    val trackedProducts: List<SelectorOption> = emptyList(),
+    val trackedProduct: SelectorOption? = null,
+
     // Installment plan (Electronics sales, non-Cash customer).
     val isInstallment: Boolean = false,
     val installmentAmount: String = "",

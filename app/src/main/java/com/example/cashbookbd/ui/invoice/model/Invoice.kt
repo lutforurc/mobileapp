@@ -9,6 +9,12 @@ data class OrderOption(
     val id: String,
     val orderNumber: String,
     val customerName: String,
+    /**
+     * The party the order is for, by id ("" when the server named none).
+     * Names cannot do this job — two parties can share one name — so the id
+     * wins and the name search stays only as the fallback (web ea40a1d).
+     */
+    val partyId: String = "",
     val productName: String,
     val rate: Double?,
     val remainingQty: Double?,

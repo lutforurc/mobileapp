@@ -19,6 +19,7 @@ object DrawerMenus {
         DrawerMenuDef("invoice", "Invoice"),
         DrawerMenuDef("branch-transfer", "Branch Transfer"),
         DrawerMenuDef("reports", "Reports"),
+        DrawerMenuDef("product_tracking", "Product Tracking"),
         DrawerMenuDef("requisition", "Requisition"),
         DrawerMenuDef("real-estate", "Real Estate"),
         DrawerMenuDef("products", "Products"),

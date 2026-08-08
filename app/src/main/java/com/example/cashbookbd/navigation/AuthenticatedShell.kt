@@ -167,6 +167,9 @@ fun AuthenticatedShell(
     // "Branch Transfer" — the web's own group for stock crossing a branch line.
     val canBranchTransfer = com.example.cashbookbd.inventory.BranchTransferMenu
         .hasParentAccess(sessionState.permissions)
+    // "Product Tracking" — the web's group for the settings + two reports.
+    val canProductTracking = com.example.cashbookbd.producttracking.ProductTrackingMenu
+        .hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -212,6 +215,7 @@ fun AuthenticatedShell(
                 canReseller = canReseller,
                 canAnalytics = canAnalytics,
                 canBranchTransfer = canBranchTransfer,
+                canProductTracking = canProductTracking,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -341,6 +345,7 @@ private fun AppDrawerContent(
     canReseller: Boolean,
     canAnalytics: Boolean,
     canBranchTransfer: Boolean,
+    canProductTracking: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -376,6 +381,8 @@ private fun AppDrawerContent(
                         Routes.REPORTS,
                     )
                 )
+                // The web's Product Tracking group sits right after Reports.
+                if (canProductTracking) add(DrawerEntry("product_tracking", "Product Tracking", Icons.Filled.Settings, currentRoute == Routes.PRODUCT_TRACKING, Routes.PRODUCT_TRACKING))
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))

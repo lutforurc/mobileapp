@@ -241,7 +241,16 @@ class AppListRepository(
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             AppListRow(
                 cells = spec.columns.map { col ->
-                    format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap)
+                    val primary = format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap)
+                    val subline = col.sublineKey
+                        ?.let { format(dotGet(obj, it), numeric = false) }
+                        ?.takeIf { it.isNotBlank() && it != "-" }
+                    when {
+                        subline == null -> primary
+                        // "-" only when both fields are empty, like the web.
+                        primary.isBlank() || primary == "-" -> subline
+                        else -> "$primary\n$subline"
+                    }
                 },
                 id = toggle?.let { dotGet(obj, it.idKey)?.asString },
                 statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,

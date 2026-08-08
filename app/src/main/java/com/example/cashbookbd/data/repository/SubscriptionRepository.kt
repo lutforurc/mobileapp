@@ -42,6 +42,7 @@ class SubscriptionRepository(
             // An empty subscription has no plan_id/status — treat as "none".
             if (obj.str("plan_id") == null && obj.str("status") == null) return@call null
             CurrentSubscription(
+                planId = obj.str("plan_id").orEmpty(),
                 planName = obj.str("plan_name").orEmpty(),
                 status = obj.str("status").orEmpty(),
                 accessStatus = obj.str("access_status").orEmpty(),

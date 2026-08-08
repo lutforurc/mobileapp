@@ -108,8 +108,20 @@ data class PaymentSubmitUiState(
 
     val canSubmit: Boolean
         get() = !isSubmitting && submittedMessage == null && selectedPlan != null &&
+            // A free plan leaves nothing to submit — the web disables the
+            // button on a zero amount rather than accepting an empty payment.
+            amount > 0.0 &&
             months != null && paidAt.isNotBlank() && transactionId.isNotBlank() &&
             senderNumber.isNotBlank()
+
+    /** The web's hint under the amount when there is nothing to pay. */
+    val zeroAmountHint: String?
+        get() = when {
+            selectedPlan != null && amount <= 0.0 ->
+                "This plan is free, so there is no payment to submit."
+            selectedPlan == null -> "Select a plan to see the amount."
+            else -> null
+        }
     // submittedMessage == null closes the double-submit window: the button
     // stays dead while the success snackbar shows and the screen navigates
     // away — a second tap there would post a second REAL payment.
@@ -129,6 +141,22 @@ class PaymentSubmitViewModel(
 
     init {
         loadPlans()
+        preselectHeldPlan()
+    }
+
+    /**
+     * Opens the form on the plan the tenant already holds (web fb6178b) — a
+     * lapsed tenant almost always pays for the plan they were on. A manual
+     * pick made before the answer lands is never overwritten.
+     */
+    private fun preselectHeldPlan() {
+        viewModelScope.launch {
+            val current = (subscriptionRepository.getCurrent() as? Resource.Success)?.data
+            val planId = current?.planId?.takeIf { it.isNotBlank() } ?: return@launch
+            _uiState.update {
+                if (it.selectedPlanId != null) it else it.copy(selectedPlanId = planId)
+            }
+        }
     }
 
     fun loadPlans() {
@@ -319,7 +347,7 @@ fun PaymentSubmitScreen(
                     value = state.amountText,
                     onValueChange = {},
                     label = "Select a plan first",
-                    caption = "Amount (plan × months)",
+                    caption = state.zeroAmountHint ?: "Amount (plan × months)",
                     enabled = false,
                     modifier = Modifier.fillMaxWidth(),
                 )

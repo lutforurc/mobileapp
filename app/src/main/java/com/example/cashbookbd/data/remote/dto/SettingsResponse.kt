@@ -102,6 +102,11 @@ data class SettingsBranchDto(
     /** Branch column: the stock report (and ledger product cells) group by
      *  Brand → Category → Item, so product names carry their category prefix. */
     @SerializedName("stock_report_type") val stockReportType: String? = null,
+    /**
+     * "1" shows the tutorial-video links on the list screens (web gates its
+     * YouTube icons on this). New branches default to on server-side.
+     */
+    @SerializedName("need_demo_tutorial") val needDemoTutorial: String? = null,
     // The 2026-07 branch metas. Each arrives as "1"/"0", or the boolean `false`
     // when the meta row was never written (Gson reads that into "false") — the
     // mapper treats only "1" as on.

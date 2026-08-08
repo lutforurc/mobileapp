@@ -134,6 +134,7 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "salesLedger" -> Routes.tradeLedger("sales")
         "groupReport" -> Routes.GROUP_REPORT
         "connectedMember" -> Routes.CONNECTED_MEMBER
+        "expenseReport" -> Routes.EXPENSE_REPORT
         else -> Routes.reportView(report.key)
     }
     navigate(route)

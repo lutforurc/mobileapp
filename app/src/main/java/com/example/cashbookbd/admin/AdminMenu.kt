@@ -38,9 +38,8 @@ object AdminMenu {
         // branch.view / all.user.view (which was leaking items into the menu).
         AdminItem("companyList", "Company List", listOf("company.view"), supported = true),
         AdminItem("branchList", "Branch List", listOf("branch.view"), supported = true),
-        // Which products carry their own bill/collection ledger — the module's
-        // settings screen; its two reports live in the Reports section.
-        AdminItem("productTracking", "Product Tracking", listOf("product.tracking.settings.view"), supported = true),
+        // Product Tracking moved to its own drawer section (with its two
+        // reports), mirroring the web's product_tracking sidebar group.
         AdminItem("softwareInfo", "Software Information", listOf("software.information"), supported = true),
         // Personal setting — no permission, exactly like the web route.
         AdminItem("arrangeMenu", "Arrange Menu", emptyList(), supported = true),

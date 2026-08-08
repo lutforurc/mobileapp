@@ -106,6 +106,7 @@ import com.example.cashbookbd.ui.account.ProfileScreen
 import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.reports.GroupReportScreen
 import com.example.cashbookbd.ui.reports.ConnectedMemberScreen
+import com.example.cashbookbd.ui.reports.ExpenseReportScreen
 import com.example.cashbookbd.ui.theme.DarkV2Trial
 import com.example.cashbookbd.ui.settings.ArrangeMenuScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
@@ -205,6 +206,9 @@ object Routes {
 
     /** Connected Member's employee/area collection summary (native screen). */
     const val CONNECTED_MEMBER = "reports/connected-member"
+
+    /** Expense Report — Trial Balance Group narrowed to expense heads (native). */
+    const val EXPENSE_REPORT = "reports/expense-report"
 
     /** The Analytics section's one screen: the two-period item comparison. */
     const val ANALYTICS_COMPARISON = "analytics/comparison"
@@ -321,6 +325,9 @@ object Routes {
 
     /** Arrange Menu — the user's own drawer order (no permission, like the web). */
     const val ARRANGE_MENU = "settings/arrange-menu"
+
+    /** Product Tracking home — the web's group of the settings + two reports. */
+    const val PRODUCT_TRACKING = "product-tracking"
 
     /** Edit Company — base route; the list appends "/{id}" itself. */
     const val COMPANY_EDIT = "company/edit"
@@ -672,6 +679,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable(Routes.EXPENSE_REPORT) {
+            PermissionGate(anyOf = listOf("expense.report")) {
+                ExpenseReportScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
         composable(Routes.PROFILE) {
             ProfileScreen(navController = navController, onLogout = backToLogin)
         }
@@ -982,6 +995,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         // here another user could see or change, so it carries no permission.
         composable(Routes.ARRANGE_MENU) {
             ArrangeMenuScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        composable(Routes.PRODUCT_TRACKING) {
+            PermissionGate(anyOf = com.example.cashbookbd.producttracking.ProductTrackingMenu.PARENT_PERMISSIONS) {
+                com.example.cashbookbd.ui.producttracking.ProductTrackingHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
         }
 
         composable("${Routes.COMPANY_EDIT}/{${Routes.COMPANY_ID_ARG}}") { entry ->

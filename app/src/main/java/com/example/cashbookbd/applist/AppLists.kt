@@ -16,6 +16,11 @@ data class AppListColumn(
      * A value with no entry falls through to the normal formatting.
      */
     val valueMap: Map<String, String> = emptyMap(),
+    /**
+     * A second field stacked under the first in the same cell (the web's
+     * phone-under-email). Blank sublines simply don't render.
+     */
+    val sublineKey: String? = null,
 )
 
 /**
@@ -213,7 +218,8 @@ object AppLists {
                 AppListColumn("name", "User Name"),
                 AppListColumn("company", "Company"),
                 AppListColumn("branch", "Branch"),
-                AppListColumn("email", "Email"),
+                // The web stacks the phone under the email in the same column.
+                AppListColumn("email", "Email", sublineKey = "phone"),
             ),
             // Company User is gated on company.user in the web sidebar, matching
             // its Admin menu entry.

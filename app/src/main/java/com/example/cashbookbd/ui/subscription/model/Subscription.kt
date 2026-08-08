@@ -31,6 +31,8 @@ data class SubscriptionPlan(
 
 /** The current company's subscription (web `formatSubscription`), shown on My Plan. */
 data class CurrentSubscription(
+    /** The held plan's id — the payment form preselects it (web fb6178b). */
+    val planId: String = "",
     val planName: String,
     val status: String,
     val accessStatus: String,
