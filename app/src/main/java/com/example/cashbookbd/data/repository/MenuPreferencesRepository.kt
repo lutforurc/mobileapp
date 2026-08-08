@@ -95,7 +95,68 @@ class MenuPreferencesRepository(
     private val _state = MutableStateFlow(readLocal())
     val state: StateFlow<MenuPreferences> = _state.asStateFlow()
 
+    /**
+     * The inside-a-menu record (`dashboard=sidebar-sub`): one flat {order,
+     * hidden} whose ids are namespaced "menuId/entryId" — the web's encoding,
+     * so an arrangement made on either client drives both.
+     */
+    private val _subState = MutableStateFlow(readLocalSub())
+    val subState: StateFlow<MenuPreferences> = _subState.asStateFlow()
+
     private var fetching = false
+    private var fetchingSub = false
+
+    /** Pulls the sidebar-sub server copy; non-empty answers replace local. */
+    fun refreshSub() {
+        if (fetchingSub) return
+        fetchingSub = true
+        scope.launch {
+            try {
+                val remote = fetchRemote("sidebar-sub")
+                if (remote != null && !remote.isEmpty && remote != _subState.value) {
+                    _subState.value = remote
+                    writeLocalSub(remote)
+                }
+            } finally {
+                fetchingSub = false
+            }
+        }
+    }
+
+    /** Saves a sidebar-sub change locally at once, then fire-and-forget. */
+    fun updateSub(next: MenuPreferences) {
+        _subState.value = next
+        writeLocalSub(next)
+        scope.launch {
+            try {
+                api.postAny(
+                    "user/dashboard-preferences",
+                    mapOf(
+                        "dashboard" to "sidebar-sub",
+                        "preferences" to mapOf("order" to next.order, "hidden" to next.hidden),
+                    ),
+                )
+            } catch (_: Exception) {
+                // The local copy already has it; nothing to report.
+            }
+        }
+    }
+
+    private fun readLocalSub(): MenuPreferences = try {
+        MenuPreferences(
+            order = prefs.getString(KEY_SUB_ORDER, null)?.let { fromJson(it) } ?: emptyList(),
+            hidden = prefs.getString(KEY_SUB_HIDDEN, null)?.let { fromJson(it) } ?: emptyList(),
+        )
+    } catch (_: Exception) {
+        MenuPreferences()
+    }
+
+    private fun writeLocalSub(value: MenuPreferences) {
+        prefs.edit()
+            .putString(KEY_SUB_ORDER, gson.toJson(value.order))
+            .putString(KEY_SUB_HIDDEN, gson.toJson(value.hidden))
+            .apply()
+    }
 
     /** Pulls the server copy; a non-empty answer replaces the local one. */
     fun refresh() {
@@ -103,7 +164,7 @@ class MenuPreferencesRepository(
         fetching = true
         scope.launch {
             try {
-                val remote = fetchRemote()
+                val remote = fetchRemote("sidebar")
                 if (remote != null && !remote.isEmpty && remote != _state.value) {
                     _state.value = remote
                     writeLocal(remote)
@@ -137,8 +198,8 @@ class MenuPreferencesRepository(
         }
     }
 
-    private suspend fun fetchRemote(): MenuPreferences? = try {
-        val body = api.get("user/dashboard-preferences", mapOf("dashboard" to "sidebar"))
+    private suspend fun fetchRemote(dashboard: String): MenuPreferences? = try {
+        val body = api.get("user/dashboard-preferences", mapOf("dashboard" to dashboard))
             .takeIf { it.isSuccessful }?.body()
             ?.takeIf { it.isJsonObject }?.asJsonObject
         val data = body?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
@@ -182,5 +243,7 @@ class MenuPreferencesRepository(
     private companion object {
         const val KEY_ORDER = "sidebar_order"
         const val KEY_HIDDEN = "sidebar_hidden"
+        const val KEY_SUB_ORDER = "sidebar_sub_order"
+        const val KEY_SUB_HIDDEN = "sidebar_sub_hidden"
     }
 }

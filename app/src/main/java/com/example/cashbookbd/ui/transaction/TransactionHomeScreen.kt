@@ -49,7 +49,14 @@ fun TransactionHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = TransactionMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "transaction", TransactionMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Transaction",

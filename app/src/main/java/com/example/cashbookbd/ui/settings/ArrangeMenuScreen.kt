@@ -70,6 +70,7 @@ class ArrangeMenuViewModel(
 
     init {
         repository.refresh()
+        repository.refreshSub()
     }
 
     /** Every arrangeable menu plus the user's dividers, in the saved order. */
@@ -124,6 +125,69 @@ class ArrangeMenuViewModel(
     }
 
     fun reset() = repository.update(MenuPreferences())
+
+    // ---- The second panel: entries INSIDE one menu (sidebar-sub) ----
+
+    val subPrefs = repository.subState
+
+    /** One menu's entries in the user's order, as (mobileKey, webId, title). */
+    fun subEntries(menuId: String): List<Triple<String, String, String>> {
+        val table = com.example.cashbookbd.navigation.WebMenuIds.forMenu(menuId)
+        val titles = subTitles(menuId)
+        val keys = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+            menuId, titles.keys.toList(), subPrefs.value,
+        ) { it }
+        return keys.mapNotNull { key ->
+            val webId = table[key] ?: return@mapNotNull null
+            Triple(key, webId, titles[key] ?: key)
+        }
+    }
+
+    private fun subTitles(menuId: String): Map<String, String> = when (menuId) {
+        "reports" -> com.example.cashbookbd.report.ReportMenu.all
+            .filter { it.key in com.example.cashbookbd.navigation.WebMenuIds.forMenu("reports") }
+            .associate { it.key to it.title }
+        "transaction" -> com.example.cashbookbd.transaction.TransactionMenu.all
+            .associate { it.key to it.title }
+        "admin" -> com.example.cashbookbd.admin.AdminMenu.all
+            .associate { it.key to it.title }
+        else -> emptyMap()
+    }
+
+    fun subIsHidden(menuId: String, webId: String): Boolean =
+        "$menuId/$webId" in subPrefs.value.hidden
+
+    fun subToggleHidden(menuId: String, webId: String) {
+        val id = "$menuId/$webId"
+        val current = subPrefs.value
+        val hidden = if (id in current.hidden) current.hidden - id else current.hidden + id
+        repository.updateSub(current.copy(hidden = hidden))
+    }
+
+    /** Swaps within the menu and writes the whole menu's stretch back. */
+    fun subMove(menuId: String, webId: String, up: Boolean) {
+        val current = subPrefs.value
+        val ids = subEntries(menuId).map { it.second }.toMutableList()
+        val from = ids.indexOf(webId)
+        val to = if (up) from - 1 else from + 1
+        if (from < 0 || to < 0 || to >= ids.size) return
+        ids[from] = ids[to].also { ids[to] = ids[from] }
+        // The web's writeGroup: every other menu's ids stay untouched.
+        val prefix = "$menuId/"
+        val others = current.order.filter { !it.startsWith(prefix) }
+        repository.updateSub(current.copy(order = others + ids.map { "$prefix$it" }))
+    }
+
+    fun subReset(menuId: String) {
+        val prefix = "$menuId/"
+        val current = subPrefs.value
+        repository.updateSub(
+            MenuPreferences(
+                order = current.order.filter { !it.startsWith(prefix) },
+                hidden = current.hidden.filter { !it.startsWith(prefix) },
+            )
+        )
+    }
 
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
@@ -212,6 +276,75 @@ fun ArrangeMenuScreen(
                     }
                 }
             }
+
+            // ---- The web page's second panel: inside one menu ----
+            val subPrefs by viewModel.subPrefs.collectAsStateWithLifecycle()
+            var selectedMenu by rememberSaveable { mutableStateOf("reports") }
+            Text(
+                text = "Inside a menu",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = AppFontWeight.Bold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("reports" to "Reports", "transaction" to "Transaction", "admin" to "Admin")
+                    .forEach { (id, label) ->
+                        SecondaryButton(
+                            text = if (selectedMenu == id) "$label ✓" else label,
+                            onClick = { selectedMenu = id },
+                            compact = true,
+                        )
+                    }
+            }
+            // subPrefs read keeps this block recomposing on every change.
+            @Suppress("UNUSED_EXPRESSION") subPrefs
+            val entries = viewModel.subEntries(selectedMenu)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    entries.forEachIndexed { index, (key, webId, title) ->
+                        if (index > 0) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        val hidden = viewModel.subIsHidden(selectedMenu, webId)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (hidden) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = { viewModel.subMove(selectedMenu, webId, up = true) },
+                                enabled = index > 0,
+                            ) {
+                                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up")
+                            }
+                            IconButton(
+                                onClick = { viewModel.subMove(selectedMenu, webId, up = false) },
+                                enabled = index < entries.lastIndex,
+                            ) {
+                                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
+                            }
+                            SecondaryButton(
+                                text = if (hidden) "Show" else "Hide",
+                                onClick = { viewModel.subToggleHidden(selectedMenu, webId) },
+                                compact = true,
+                            )
+                        }
+                    }
+                }
+            }
+            SecondaryButton(
+                text = "Reset this menu",
+                onClick = { viewModel.subReset(selectedMenu) },
+                compact = true,
+            )
         }
     }
 }
