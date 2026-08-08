@@ -80,11 +80,19 @@ class CustomerListViewModel(
         val state = _uiState.value
         val row = state.editing ?: return
         if (state.isSaving) return
-        // Send only changed fields (like the web skips unchanged ones server-side):
-        // the opening may now be re-saved — the server rewrites its voucher in
-        // place — so only an untouched figure is held back; ledger only when it
-        // changed, since re-sending it can trip the character validation (e.g. '#').
-        val opening = if (state.editOpening.isNotBlank() && state.editOpening != row.opening) {
+        // The opening may now be re-saved — the server rewrites its voucher in
+        // place — so it is sent when changed, and also when the figure stands
+        // but its voucher is gone (trashed from the Voucher Delete screen):
+        // re-posting the same figure is how the entry comes back, as on the
+        // web, which sends the field on every save. An untouched figure with a
+        // live voucher is held back to spare the ledger the churn. Ledger only
+        // when it changed — re-sending it can trip the character validation
+        // (e.g. '#').
+        val voucherLost = row.isOpeningSet && row.openingVrNo.isBlank()
+        val opening = if (
+            state.editOpening.isNotBlank() &&
+            (state.editOpening != row.opening || voucherLost)
+        ) {
             state.editOpening
         } else {
             null
