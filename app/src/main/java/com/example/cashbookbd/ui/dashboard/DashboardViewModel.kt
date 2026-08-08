@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 class DashboardViewModel(
     private val repository: DashboardRepository,
     sessionManager: SessionManager,
+    private val prefsRepository: com.example.cashbookbd.data.repository.DashboardPreferencesRepository? = null,
 ) : ViewModel() {
 
     /**
@@ -32,12 +33,65 @@ class DashboardViewModel(
     private val isConstruction: Boolean =
         sessionManager.state.value.settings?.businessTypeId == CONSTRUCTION_BUSINESS_TYPE_ID
 
+    /** The web's dashboard-preferences keys — the record is per-user-per-branch. */
+    private val dashboardKey: String = if (isConstruction) "construction" else "normal"
+    private val branchId: Long? = sessionManager.state.value.settings?.branchId
+
+    /** The user's layout: widget order, hidden ids, density. */
+    val widgetPrefs = prefsRepository?.state
+
     private val _uiState = MutableStateFlow(DashboardUiState(isConstruction = isConstruction))
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
+        prefsRepository?.load(dashboardKey, branchId)
         start()
     }
+
+    /** The widget ids this dashboard can arrange (mobile has no chart cards). */
+    fun declaredWidgets(): List<String> = if (isConstruction) {
+        listOf("summary", "top-purchase", "receive-details")
+    } else {
+        listOf("kpi-row", "summary", "due-aging", "low-stock", "top-sales", "top-purchase")
+    }
+
+    private fun currentPrefs() =
+        prefsRepository?.state?.value ?: com.example.cashbookbd.data.repository.DashboardPrefs()
+
+    fun toggleWidget(id: String) {
+        val current = currentPrefs()
+        val hidden = if (id in current.hidden) current.hidden - id else current.hidden + id
+        prefsRepository?.update(dashboardKey, branchId, current.copy(hidden = hidden))
+    }
+
+    fun moveWidget(id: String, up: Boolean) {
+        val current = currentPrefs()
+        val ids = com.example.cashbookbd.data.repository
+            .applyMenuOrder(declaredWidgets(), current.order).toMutableList()
+        val from = ids.indexOf(id)
+        val to = if (up) from - 1 else from + 1
+        if (from < 0 || to < 0 || to >= ids.size) return
+        ids[from] = ids[to].also { ids[to] = ids[from] }
+        prefsRepository?.update(dashboardKey, branchId, current.copy(order = ids))
+    }
+
+    fun setDensity(compact: Boolean) {
+        val current = currentPrefs()
+        prefsRepository?.update(
+            dashboardKey, branchId,
+            current.copy(
+                density = if (compact) {
+                    com.example.cashbookbd.data.repository.DashboardPrefs.DENSITY_COMPACT
+                } else {
+                    com.example.cashbookbd.data.repository.DashboardPrefs.DENSITY_COMFORTABLE
+                },
+            ),
+        )
+    }
+
+    fun resetLayout() = prefsRepository?.update(
+        dashboardKey, branchId, com.example.cashbookbd.data.repository.DashboardPrefs(),
+    ) ?: Unit
 
     /** Folds the month's top sold/purchased products into the loaded dashboard. */
     private suspend fun loadMonthlyTopProducts() {
@@ -198,6 +252,7 @@ class DashboardViewModel(
                 DashboardViewModel(
                     repository = ServiceLocator.provideDashboardRepository(app),
                     sessionManager = ServiceLocator.provideSessionManager(app),
+                    prefsRepository = ServiceLocator.provideDashboardPreferencesRepository(app),
                 )
             }
         }

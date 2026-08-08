@@ -58,6 +58,7 @@ import com.example.cashbookbd.data.repository.GroupReportRepository
 import com.example.cashbookbd.data.repository.ConnectedMemberRepository
 import com.example.cashbookbd.data.repository.MenuPreferencesRepository
 import com.example.cashbookbd.data.repository.ExpenseReportRepository
+import com.example.cashbookbd.data.repository.DashboardPreferencesRepository
 import com.example.cashbookbd.data.repository.SmsRepository
 import com.example.cashbookbd.data.repository.CompanyRepository
 import com.example.cashbookbd.data.repository.OrderReportsRepository
@@ -155,6 +156,7 @@ object ServiceLocator {
     private var connectedMemberRepository: ConnectedMemberRepository? = null
     private var menuPreferencesRepository: MenuPreferencesRepository? = null
     private var expenseReportRepository: ExpenseReportRepository? = null
+    private var dashboardPreferencesRepository: DashboardPreferencesRepository? = null
 
     @Volatile
     private var realEstateApiService: RealEstateApiService? = null
@@ -621,6 +623,14 @@ object ServiceLocator {
             tradeLedgerRepository ?: TradeLedgerRepository(
                 api = provideReportApiService(context),
             ).also { tradeLedgerRepository = it }
+        }
+
+    fun provideDashboardPreferencesRepository(context: Context): DashboardPreferencesRepository =
+        dashboardPreferencesRepository ?: synchronized(this) {
+            dashboardPreferencesRepository ?: DashboardPreferencesRepository(
+                context = context.applicationContext,
+                api = provideReportApiService(context),
+            ).also { dashboardPreferencesRepository = it }
         }
 
     fun provideExpenseReportRepository(context: Context): ExpenseReportRepository =

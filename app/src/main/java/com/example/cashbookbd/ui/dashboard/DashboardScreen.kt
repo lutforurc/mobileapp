@@ -27,8 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -41,7 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,6 +109,11 @@ fun DashboardScreen(
         }
     }
 
+    // The user's dashboard layout (order/hidden/density), live like the web's.
+    val widgetPrefs = viewModel.widgetPrefs?.collectAsStateWithLifecycle()?.value
+        ?: com.example.cashbookbd.data.repository.DashboardPrefs()
+    var showCustomize by remember { androidx.compose.runtime.mutableStateOf(false) }
+
     AuthenticatedShell(
         title = "Dashboard",
         currentRoute = Routes.HOME,
@@ -111,6 +121,10 @@ fun DashboardScreen(
         onLogout = onLogout,
         modifier = modifier,
         actions = {
+            // The web's Customize panel, as a dialog.
+            IconButton(onClick = { showCustomize = true }) {
+                Icon(Icons.Filled.Settings, contentDescription = "Customize dashboard")
+            }
             IconButton(
                 onClick = viewModel::refresh,
                 enabled = !uiState.isLoading && !uiState.isRefreshing,
@@ -119,6 +133,17 @@ fun DashboardScreen(
             }
         },
     ) {
+        if (showCustomize) {
+            CustomizeDialog(
+                widgets = viewModel.declaredWidgets(),
+                prefs = widgetPrefs,
+                onToggle = viewModel::toggleWidget,
+                onMove = viewModel::moveWidget,
+                onDensity = viewModel::setDensity,
+                onReset = viewModel::resetLayout,
+                onDismiss = { showCustomize = false },
+            )
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 // First load with nothing to show yet.
@@ -132,6 +157,7 @@ fun DashboardScreen(
                     DashboardContent(
                         dashboard = uiState.dashboard!!,
                         summary = uiState.summary,
+                        prefs = widgetPrefs,
                         isRefreshing = uiState.isRefreshing,
                         isConstruction = uiState.isConstruction,
                         rowActions = uiState.rowActions,
@@ -181,17 +207,30 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 private fun DashboardContent(
     dashboard: Dashboard,
     summary: DashboardSummary?,
+    prefs: com.example.cashbookbd.data.repository.DashboardPrefs,
     isRefreshing: Boolean,
     isConstruction: Boolean,
     rowActions: Map<Int, RowActionState>,
     onReceive: (ReceivedFromHo) -> Unit,
 ) {
+    // The user's saved order over the widgets this dashboard has; the web's
+    // Compact density tightens the gaps.
+    val declared = if (isConstruction) {
+        listOf("summary", "top-purchase", "receive-details")
+    } else {
+        listOf("summary", "due-aging", "low-stock", "top-sales", "top-purchase")
+    }
+    val ordered = com.example.cashbookbd.data.repository.applyMenuOrder(
+        declared, prefs.order.filter { it != "kpi-row" },
+    )
+    val compact = prefs.density == com.example.cashbookbd.data.repository.DashboardPrefs.DENSITY_COMPACT
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp),
     ) {
         if (isRefreshing) {
             item {
@@ -199,74 +238,155 @@ private fun DashboardContent(
             }
         }
 
-        // The web's KPI row sits above the branch summary, never inside the
-        // widget grid; it renders nothing until the summary arrives.
-        if (!isConstruction && summary != null) {
+        // The web's KPI row sits above the widget grid — only its hidden flag
+        // counts, its saved order position is ignored.
+        if (!isConstruction && summary != null && "kpi-row" !in prefs.hidden) {
             item { KpiRow(summary) }
         }
 
-        item { SummaryCard(dashboard, summary) }
+        ordered.forEach { id ->
+            if (id in prefs.hidden) return@forEach
+            when (id) {
+                "summary" -> item { SummaryCard(dashboard, summary) }
 
-        if (isConstruction) {
-            // Construction: Top Purchase only, no Total row — then the
-            // head-office receive panel.
-            if (dashboard.topPurchases.isNotEmpty()) {
-                item {
-                    TopProductsCard(
-                        title = "Top Purchase",
-                        products = dashboard.topPurchases,
-                        days = dashboard.topPurchaseDays,
-                        accent = MaterialTheme.accents.amber,
-                        showTotal = false,
-                        periodPrefix = "Last ",
-                    )
-                }
-            }
-            // Hide the whole H/O panel when there's nothing to receive.
-            if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
-                item {
-                    ReceivedFromHoPanel(
-                        title = dashboard.receiveDetailsTitle,
-                        total = dashboard.receivedTotal,
-                        groups = dashboard.receivedGroups,
-                        rowActions = rowActions,
-                        onReceive = onReceive,
-                    )
-                }
-            }
-        } else {
-            // The web's default widget order: ageing and low stock sit between
-            // the summary card and the Top Sales list.
-            summary?.dueAging?.let { item { DueAgingCard(it) } }
-            summary?.lowStock?.let { item { LowStockCard(it) } }
+                "due-aging" -> summary?.dueAging?.let { item { DueAgingCard(it) } }
 
-            // Everything else: Top Sales + Top Purchase, each with a Total row.
-            if (dashboard.topSales.isNotEmpty()) {
-                item {
-                    TopProductsCard(
-                        title = "Top Sales",
-                        products = dashboard.topSales,
-                        days = dashboard.topPurchaseDays,
-                        accent = MaterialTheme.appColors.success,
-                        showTotal = true,
-                        periodPrefix = "",
-                    )
+                "low-stock" -> summary?.lowStock?.let { item { LowStockCard(it) } }
+
+                "top-sales" -> if (dashboard.topSales.isNotEmpty()) {
+                    item {
+                        TopProductsCard(
+                            title = "Top Sales",
+                            products = dashboard.topSales,
+                            days = dashboard.topPurchaseDays,
+                            accent = MaterialTheme.appColors.success,
+                            showTotal = true,
+                            periodPrefix = "",
+                        )
+                    }
                 }
-            }
-            if (dashboard.topPurchases.isNotEmpty()) {
-                item {
-                    TopProductsCard(
-                        title = "Top Purchase",
-                        products = dashboard.topPurchases,
-                        days = dashboard.topPurchaseDays,
-                        accent = MaterialTheme.accents.amber,
-                        showTotal = true,
-                        periodPrefix = "",
-                    )
+
+                "top-purchase" -> if (dashboard.topPurchases.isNotEmpty()) {
+                    item {
+                        TopProductsCard(
+                            title = "Top Purchase",
+                            products = dashboard.topPurchases,
+                            days = dashboard.topPurchaseDays,
+                            accent = MaterialTheme.accents.amber,
+                            // Construction shows it without a Total, "Last N days".
+                            showTotal = !isConstruction,
+                            periodPrefix = if (isConstruction) "Last " else "",
+                        )
+                    }
+                }
+
+                "receive-details" -> if (dashboard.receivedGroups.any { it.rows.isNotEmpty() }) {
+                    item {
+                        ReceivedFromHoPanel(
+                            title = dashboard.receiveDetailsTitle,
+                            total = dashboard.receivedTotal,
+                            groups = dashboard.receivedGroups,
+                            rowActions = rowActions,
+                            onReceive = onReceive,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+/** The web's widget titles, id for id. */
+private fun widgetTitle(id: String): String = when (id) {
+    "kpi-row" -> "Today at a Glance"
+    "summary" -> "Balance Summary"
+    "due-aging" -> "Receivable Ageing"
+    "low-stock" -> "Low Stock"
+    "top-sales" -> "Top Sales Products"
+    "top-purchase" -> "Top Purchase Products"
+    "receive-details" -> "Receive Details"
+    else -> id
+}
+
+/**
+ * The web's Customize panel as a dialog: per widget an eye toggle and
+ * up/down movers, the Expanded/Compact density pair, and Reset Layout.
+ * Every change saves as it is made — there is nothing else to press.
+ */
+@Composable
+private fun CustomizeDialog(
+    widgets: List<String>,
+    prefs: com.example.cashbookbd.data.repository.DashboardPrefs,
+    onToggle: (String) -> Unit,
+    onMove: (String, Boolean) -> Unit,
+    onDensity: (Boolean) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val ordered = com.example.cashbookbd.data.repository.applyMenuOrder(widgets, prefs.order)
+    val compact = prefs.density == com.example.cashbookbd.data.repository.DashboardPrefs.DENSITY_COMPACT
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Customize") },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Density",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    com.example.cashbookbd.ui.components.SecondaryButton(
+                        text = if (compact) "Compact ✓" else "Compact",
+                        onClick = { onDensity(!compact) },
+                        compact = true,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                ordered.forEachIndexed { index, id ->
+                    val hidden = id in prefs.hidden
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = widgetTitle(id),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (hidden) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = { onMove(id, true) },
+                            enabled = index > 0,
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up")
+                        }
+                        IconButton(
+                            onClick = { onMove(id, false) },
+                            enabled = index < ordered.lastIndex,
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
+                        }
+                        androidx.compose.material3.TextButton(onClick = { onToggle(id) }) {
+                            Text(if (hidden) "Show" else "Hide")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                com.example.cashbookbd.ui.components.SecondaryButton(
+                    text = "Reset Layout",
+                    onClick = onReset,
+                    compact = true,
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done") }
+        },
+    )
 }
 
 @Composable
@@ -1048,6 +1168,7 @@ private fun DashboardContentPreview() {
         DashboardContent(
             dashboard = previewDashboard,
             summary = null,
+            prefs = com.example.cashbookbd.data.repository.DashboardPrefs(),
             isRefreshing = false,
             isConstruction = false,
             rowActions = emptyMap(),
@@ -1067,6 +1188,7 @@ private fun DashboardContentDarkPreview() {
         DashboardContent(
             dashboard = previewDashboard,
             summary = null,
+            prefs = com.example.cashbookbd.data.repository.DashboardPrefs(),
             isRefreshing = false,
             isConstruction = false,
             rowActions = emptyMap(),
