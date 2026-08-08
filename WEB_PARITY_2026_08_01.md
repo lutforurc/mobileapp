@@ -1,5 +1,20 @@
 # Web parity — 2026-08-01
 
+> **Matched to (2026-08-08 late night):**
+> ```
+> cashbookbd_react : 979e081  (2026-08-08 — bank-opening write-up, docs only)
+> cashbook_api     : 35bf16c7 (2026-08-08 18:39)
+> ```
+> The opening-voucher tracking batch is ported: customer and product opening
+> balances are tied to their journal voucher (`opening_vr_no` on both lists),
+> the voucher number links into the Ledger (new deep-link route, auto-run
+> search), Delete-opening on both lists behind voucher.delete with the
+> amount-and-voucher confirm, the customer opening's "already set" gate
+> removed (the server now rewrites the voucher in place), and the customer
+> list's demo-video link. Server prerequisite: the `main_trx_id` columns from
+> `opening_balance_tracking.sql` / the patch command must be applied per
+> tenant, or the new fields stay empty and Delete never shows.
+>
 > **Gap-closure batch (2026-08-08 night, same web baseline as below):** the
 > long-standing structural gaps are closed — full Customer Add/Edit forms
 > (all gated fields, photo, guarantor/nominee panels, portal password),
