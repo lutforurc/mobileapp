@@ -214,6 +214,7 @@ class AddBranchViewModel(
                 confirmClearOpening = false,
                 isClearingOpening = true,
                 clearedOpeningMessage = null,
+                clearNotice = null,
                 error = null,
             )
         }
@@ -223,11 +224,18 @@ class AddBranchViewModel(
                     it.copy(isClearingOpening = false, clearedOpeningMessage = result.data)
                 }
                 is Resource.Error -> _uiState.update {
-                    it.copy(
-                        isClearingOpening = false,
-                        error = result.message,
-                        sessionExpired = it.sessionExpired || result.isUnauthorized,
-                    )
+                    // A refusal the server voiced as a notice stays on screen in
+                    // that voice; a real fault passes by in the error snackbar.
+                    // One register or the other — never the same words twice.
+                    if (result.isNotice) {
+                        it.copy(isClearingOpening = false, clearNotice = result.message)
+                    } else {
+                        it.copy(
+                            isClearingOpening = false,
+                            error = result.message,
+                            sessionExpired = it.sessionExpired || result.isUnauthorized,
+                        )
+                    }
                 }
                 Resource.Loading -> Unit
             }
@@ -251,6 +259,7 @@ class AddBranchViewModel(
                 confirmClearTransactions = false,
                 isClearingTransactions = true,
                 clearedTransactionsMessage = null,
+                clearNotice = null,
                 error = null,
             )
         }
@@ -260,11 +269,19 @@ class AddBranchViewModel(
                     it.copy(isClearingTransactions = false, clearedTransactionsMessage = result.data)
                 }
                 is Resource.Error -> _uiState.update {
-                    it.copy(
-                        isClearingTransactions = false,
-                        error = result.message,
-                        sessionExpired = it.sessionExpired || result.isUnauthorized,
-                    )
+                    // Clearing transactions is owner-gated server-side: even the
+                    // permission-holder is refused with who to call, marked
+                    // severity "info". That answer belongs inline in the notice
+                    // voice, not in red — nothing has gone wrong.
+                    if (result.isNotice) {
+                        it.copy(isClearingTransactions = false, clearNotice = result.message)
+                    } else {
+                        it.copy(
+                            isClearingTransactions = false,
+                            error = result.message,
+                            sessionExpired = it.sessionExpired || result.isUnauthorized,
+                        )
+                    }
                 }
                 Resource.Loading -> Unit
             }

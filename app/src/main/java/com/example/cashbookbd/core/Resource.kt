@@ -20,7 +20,16 @@ sealed interface Resource<out T> {
          * action must NOT be retried on this; re-fetch to reconcile instead.
          */
         val isAmbiguous: Boolean = false,
-    ) : Resource<Nothing>
+        /**
+         * How the server asked for the refusal to be voiced, when it said.
+         * "info" marks a normal answer rather than a fault — e.g. "only the
+         * system administrator can clear transactions" — so the UI shows it
+         * as a notice instead of painting it red.
+         */
+        val severity: String? = null,
+    ) : Resource<Nothing> {
+        val isNotice: Boolean get() = severity?.equals("info", ignoreCase = true) == true
+    }
 
     data object Loading : Resource<Nothing>
 }

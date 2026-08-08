@@ -192,8 +192,19 @@ class BranchRepository(
             response.code() == HTTP_UNAUTHORIZED ->
                 Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
 
-            response.code() == HTTP_FORBIDDEN ->
-                Resource.Error("You do not have permission to do this.")
+            response.code() == HTTP_FORBIDDEN -> {
+                // The body may say more than "no" — clearing transactions, for
+                // one, refuses with who to call and severity: "info" so the
+                // refusal reads as a notice, not a fault. Carry both through
+                // instead of flattening every 403 to the generic line.
+                val json = response.jsonBody()
+                Resource.Error(
+                    message = json?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                        ?.takeIf { it.isNotBlank() }
+                        ?: "You do not have permission to do this.",
+                    severity = json?.get("severity")?.takeUnless { it.isJsonNull }?.asString,
+                )
+            }
 
             else -> {
                 val json = response.jsonBody()

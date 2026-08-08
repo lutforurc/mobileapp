@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -243,6 +244,27 @@ fun AddBranchScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.appColors.textOnScreenMuted,
                             )
+                        }
+                        // A refusal the server voiced as a notice — "call the
+                        // administrator", not a fault — stays inline in the
+                        // info tone rather than passing by red in the snackbar.
+                        state.clearNotice?.let { message ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.appColors.info,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.appColors.info,
+                                )
+                            }
                         }
                     }
 

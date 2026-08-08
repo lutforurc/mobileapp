@@ -53,6 +53,12 @@ data class AddBranchUiState(
     val isClearingTransactions: Boolean = false,
     val clearedTransactionsMessage: String? = null,
     /**
+     * A refusal the server marked severity "info" — a normal answer naming who
+     * to call, not a fault. Shown inline in the notice voice, never as the red
+     * snackbar error, and never both.
+     */
+    val clearNotice: String? = null,
+    /**
      * The wizard for this user — [BranchForm.stepsFor]. The SaaS step is absent
      * for anyone who cannot reach anything on it.
      */
