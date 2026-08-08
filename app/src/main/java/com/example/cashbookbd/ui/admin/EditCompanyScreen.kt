@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -21,7 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +65,9 @@ data class EditCompanyUiState(
     val email: String = "",
     val address: String = "",
     val notes: String = "",
+    /** Freshly picked logo bytes (JPEG, ≤2 MB); null leaves the stored one. */
+    val lightLogo: ByteArray? = null,
+    val darkLogo: ByteArray? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMessage: String? = null,
@@ -117,6 +123,24 @@ class EditCompanyViewModel(
     fun onAddress(value: String) = _uiState.update { it.copy(address = value) }
     fun onNotes(value: String) = _uiState.update { it.copy(notes = value) }
 
+    /** Encodes a picked logo to JPEG within the server's 2 MB rule. */
+    fun onLogoPicked(context: Context, uri: android.net.Uri, dark: Boolean) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val bytes = encodeCompanyLogo(context.applicationContext, uri)
+            _uiState.update {
+                when {
+                    bytes == null -> it.copy(error = "The logo could not be read, or won't fit under 2 MB.")
+                    dark -> it.copy(darkLogo = bytes)
+                    else -> it.copy(lightLogo = bytes)
+                }
+            }
+        }
+    }
+
+    fun onLogoCleared(dark: Boolean) = _uiState.update {
+        if (dark) it.copy(darkLogo = null) else it.copy(lightLogo = null)
+    }
+
     fun save() {
         val state = _uiState.value
         if (!state.canSave) return
@@ -130,6 +154,8 @@ class EditCompanyViewModel(
                 email = state.email,
                 address = state.address,
                 notes = state.notes,
+                lightLogo = state.lightLogo,
+                darkLogo = state.darkLogo,
             )
             when (result) {
                 is Resource.Success -> _uiState.update { it.copy(isSaving = false, savedMessage = result.data) }
@@ -312,9 +338,30 @@ private fun CompanyForm(state: EditCompanyUiState, viewModel: EditCompanyViewMod
                 color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
+        // The web form's two logo uploads — light, and the optional dark-mode
+        // variant that falls back to the light one everywhere it is missing.
+        val context = LocalContext.current
+        var pickingDark by androidx.compose.runtime.remember {
+            androidx.compose.runtime.mutableStateOf(false)
+        }
+        val pickLogo = androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        ) { uri -> uri?.let { viewModel.onLogoPicked(context, it, dark = pickingDark) } }
+        LogoPickRow(
+            title = "Company Logo",
+            picked = state.lightLogo != null,
+            onPick = { pickingDark = false; pickLogo.launch("image/*") },
+            onClear = { viewModel.onLogoCleared(dark = false) },
+        )
+        LogoPickRow(
+            title = "Company Logo (Dark Mode)",
+            picked = state.darkLogo != null,
+            onPick = { pickingDark = true; pickLogo.launch("image/*") },
+            onClear = { viewModel.onLogoCleared(dark = true) },
+        )
         Text(
-            text = "The company logo can only be uploaded from the web for now. " +
-                "Everything else on this page saves normally.",
+            text = "Optional — leave empty to keep the stored logos. The dark " +
+                "one falls back to the light-mode logo everywhere it is missing.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.appColors.textOnScreenMuted,
         )
@@ -326,4 +373,67 @@ private fun CompanyForm(state: EditCompanyUiState, viewModel: EditCompanyViewMod
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+/** One logo row: its title, a picked marker, and Choose/Clear. */
+@Composable
+private fun LogoPickRow(
+    title: String,
+    picked: Boolean,
+    onPick: () -> Unit,
+    onClear: () -> Unit,
+) {
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = title + if (picked) "  ✓ selected" else "",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        com.example.cashbookbd.ui.components.SecondaryButton(
+            text = "Choose",
+            onClick = onPick,
+            compact = true,
+        )
+        if (picked) {
+            Spacer(Modifier.width(8.dp))
+            com.example.cashbookbd.ui.components.SecondaryButton(
+                text = "Clear",
+                onClick = onClear,
+                compact = true,
+            )
+        }
+    }
+}
+
+/** Decodes and re-encodes a picked logo as JPEG within the server's 2 MB cap. */
+private fun encodeCompanyLogo(context: Context, uri: android.net.Uri): ByteArray? {
+    val maxBytes = 2 * 1024 * 1024
+    val source = runCatching {
+        context.contentResolver.openInputStream(uri)?.use {
+            android.graphics.BitmapFactory.decodeStream(it)
+        }
+    }.getOrNull() ?: return null
+    val scale = 1200f / maxOf(source.width, source.height)
+    val bitmap = if (scale < 1f) {
+        android.graphics.Bitmap.createScaledBitmap(
+            source,
+            (source.width * scale).toInt().coerceAtLeast(1),
+            (source.height * scale).toInt().coerceAtLeast(1),
+            true,
+        )
+    } else {
+        source
+    }
+    var quality = 92
+    var bytes: ByteArray
+    do {
+        val out = java.io.ByteArrayOutputStream()
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
+        bytes = out.toByteArray()
+        quality -= 10
+    } while (bytes.size > maxBytes && quality >= 40)
+    return bytes.takeIf { it.size <= maxBytes }
 }

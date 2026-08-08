@@ -5,6 +5,8 @@ import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.data.remote.TransactionApiService
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -77,22 +79,62 @@ class CompanyRepository(
         email: String,
         address: String,
         notes: String,
+        /** JPEG bytes for the light/dark logos; null leaves the stored one. */
+        lightLogo: ByteArray? = null,
+        darkLogo: ByteArray? = null,
     ): Resource<String> = withContext(ioDispatcher) {
-        val body = JsonObject().apply {
-            addProperty("company_id", companyId)
-            addProperty("name", name.trim())
-            addProperty("contact_person", contactPerson.trim())
-            addProperty("phone", phone.trim())
-            addProperty("mobile", phone.trim())
-            addProperty("email", email.trim())
-            addProperty("address", address.trim())
-            addProperty("notes", notes.trim())
-        }
-        request({ responseBody ->
+        val readMessage: (JsonObject?) -> String = { responseBody ->
             responseBody?.get("message")?.takeUnless { it.isJsonNull }?.asString
                 ?.takeIf { it.isNotBlank() }
                 ?: "Company updated successfully."
-        }) { transactionApi.postObject("company/company-update", body) }
+        }
+        if (lightLogo == null && darkLogo == null) {
+            val body = JsonObject().apply {
+                addProperty("company_id", companyId)
+                addProperty("name", name.trim())
+                addProperty("contact_person", contactPerson.trim())
+                addProperty("phone", phone.trim())
+                addProperty("mobile", phone.trim())
+                addProperty("email", email.trim())
+                addProperty("address", address.trim())
+                addProperty("notes", notes.trim())
+            }
+            return@withContext request(readMessage) {
+                transactionApi.postObject("company/company-update", body)
+            }
+        }
+        // A logo rides multipart, the web form's own shape: text fields plus
+        // the `company_logo` / `company_logo_dark` file parts (≤2 MB each).
+        val text = { value: String ->
+            value.toRequestBody("text/plain".toMediaType())
+        }
+        val fields = mapOf(
+            "company_id" to text(companyId),
+            "name" to text(name.trim()),
+            "contact_person" to text(contactPerson.trim()),
+            "phone" to text(phone.trim()),
+            "mobile" to text(phone.trim()),
+            "email" to text(email.trim()),
+            "address" to text(address.trim()),
+            "notes" to text(notes.trim()),
+        )
+        val parts = buildList {
+            lightLogo?.let {
+                add(
+                    okhttp3.MultipartBody.Part.createFormData(
+                        "company_logo", "logo.jpg", it.toRequestBody("image/jpeg".toMediaType()),
+                    )
+                )
+            }
+            darkLogo?.let {
+                add(
+                    okhttp3.MultipartBody.Part.createFormData(
+                        "company_logo_dark", "logo_dark.jpg", it.toRequestBody("image/jpeg".toMediaType()),
+                    )
+                )
+            }
+        }
+        request(readMessage) { reportApi.postMultipart("company/company-update", fields, parts) }
     }
 
     /**

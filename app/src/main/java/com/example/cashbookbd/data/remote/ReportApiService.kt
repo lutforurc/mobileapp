@@ -70,6 +70,18 @@ interface ReportApiService {
         @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
     ): Response<JsonElement>
 
+    /**
+     * A general multipart POST: text fields plus any file parts — the company
+     * update with its light/dark logo uploads.
+     */
+    @retrofit2.http.Multipart
+    @POST
+    suspend fun postMultipart(
+        @Url url: String,
+        @retrofit2.http.PartMap fields: Map<String, @JvmSuppressWildcards okhttp3.RequestBody>,
+        @retrofit2.http.Part parts: List<okhttp3.MultipartBody.Part>,
+    ): Response<JsonElement>
+
     /** A bodiless DELETE — withdrawing an issued allotment letter/booking form. */
     @DELETE
     suspend fun delete(@Url url: String): Response<JsonElement>
