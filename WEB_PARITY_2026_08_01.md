@@ -1,6 +1,20 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-08):**
+> **Matched to (2026-08-08 evening):**
+> ```
+> cashbookbd_react : 08febd9 (2026-08-08 17:02)
+> cashbook_api     : 6fe3b31b (2026-08-08 17:01)
+> ```
+> The 08-08 batch is ported: the dashboard/summary features (KPI band,
+> Receivable Ageing, Low Stock, monotone-cubic sparklines in the summary
+> card), the user list's sign-in switch, Edit Customer's is_opening gate,
+> and the two label fixes. Known deviations: KPI tiles sit 2×2 (web
+> collapses to one column on phones); mobile has no dashboard widget
+> customization, so the new cards are unconditional; the full Edit Customer
+> form port (all fields, locked opening, contact/update endpoint) remains a
+> separate pre-existing gap.
+>
+> **Previously matched (2026-08-08 morning):**
 > ```
 > cashbookbd_react : a5307aa (2026-08-08 01:48)
 > cashbook_api     : 0a92544f (2026-08-07 18:50)
