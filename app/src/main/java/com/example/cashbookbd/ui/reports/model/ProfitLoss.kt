@@ -1,31 +1,32 @@
 package com.example.cashbookbd.ui.reports.model
 
-/** One line of the Trading or Profit & Loss account (a computed head or a raw row). */
+/**
+ * One line of the four-column Profit & Loss statement — the web's layout:
+ * Particulars | (working) | Debit (Tk.) | Credit (Tk.). Component rows
+ * (Purchase, "(-) Purchase Return", each expense/income head) carry their
+ * amount in [working] only; netted heads land in [debit] or [credit].
+ * A null amount renders as a blank cell.
+ */
 data class ProfitLossAccountLine(
     val label: String,
-    val amount: Double,
-    /** Bold styling for subtotals / gross / net lines. */
+    val working: Double? = null,
+    val debit: Double? = null,
+    val credit: Double? = null,
+    /** Bold styling for subtotals / gross / net / total lines. */
     val emphasis: Boolean = false,
-)
-
-/** A single summary-box figure (Opening Stock, Net Sales, Gross Profit, …). */
-data class ProfitLossSummaryItem(
-    val label: String,
-    val value: Double,
+    /** Component rows are indented under their head (the web's pl-6). */
+    val indent: Boolean = false,
 )
 
 /**
- * A parsed Profit & Loss statement following the web app's logic: a Trading
- * Account (from `trading[]`) and a Profit & Loss Account (from `netprofit[]`),
- * with the summary figures and the bottom-line Net Profit/Loss.
+ * A parsed Profit & Loss statement following the web app's logic: a
+ * "PROFIT OR LOSS A/C (TRADING A/C)" section (from `trading[]`) and a
+ * "NET PROFIT OR LOSS A/C" section (from `netprofit[]`), each ending in its
+ * balancing Total row.
  */
 data class ProfitLossReport(
     val trading: List<ProfitLossAccountLine>,
     val profitLoss: List<ProfitLossAccountLine>,
-    val summary: List<ProfitLossSummaryItem>,
-    val netLabel: String,
-    val netAmount: Double,
-    val isNetProfit: Boolean,
 ) {
     val isEmpty: Boolean get() = trading.isEmpty() && profitLoss.isEmpty()
 }

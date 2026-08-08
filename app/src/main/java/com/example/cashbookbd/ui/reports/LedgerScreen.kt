@@ -249,18 +249,22 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
             )
         }
 
-        else -> LedgerTable(statement = state.statement)
+        else -> LedgerTable(
+            statement = state.statement,
+            showBranchNames = state.appliedAllBranches,
+        )
     }
 }
 
 // Columns for the horizontally-scrollable ledger table.
-// Order: SL. NO | VR DATE | VR NO | DESCRIPTION | DEBIT | CREDIT
+// Order: SL. NO | VR DATE | VR NO | DESCRIPTION | DEBIT | CREDIT | BALANCE
 private val COL_SL = 56.dp
 private val COL_DATE = 96.dp
 private val COL_VR = 116.dp
 private val COL_DESCRIPTION = 220.dp
 private val COL_DEBIT = 120.dp
 private val COL_CREDIT = 120.dp
+private val COL_BALANCE = 130.dp
 
 /** The trailing thumbnail column's context, captured outside the render lambdas. */
 private data class LedgerVoucherColumn(
@@ -274,6 +278,7 @@ private fun ledgerColumns(
     rules: List<HighlightRule>,
     summaryColor: Color,
     voucherColumn: LedgerVoucherColumn? = null,
+    showBranchNames: Boolean = false,
 ) = listOf(
     ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
         cellText(r.sl, bold = r.isSummary, align = TextAlign.Center, color = r.summaryInk(summaryColor))
@@ -285,11 +290,16 @@ private fun ledgerColumns(
         cellText(r.voucherNo, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
     ReportColumn<LedgerDisplayRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESCRIPTION)) { r, _ ->
-        if (r.remarks.isBlank()) {
+        val branchLine = showBranchNames && r.branchName.isNotBlank()
+        if (r.remarks.isBlank() && !branchLine) {
             cellText(r.description, bold = r.isSummary, maxLines = 3, color = r.summaryInk(summaryColor))
         } else {
             ReportTableCell.Slot {
-                LedgerDescriptionCell(row = r, rule = matchHighlightRule(r.remarks, rules))
+                LedgerDescriptionCell(
+                    row = r,
+                    rule = matchHighlightRule(r.remarks, rules),
+                    showBranchName = branchLine,
+                )
             }
         }
     },
@@ -298,6 +308,9 @@ private fun ledgerColumns(
     },
     ReportColumn<LedgerDisplayRow>("CREDIT", ReportColWidth.Fixed(COL_CREDIT), TextAlign.End) { r, _ ->
         cellText(r.credit, align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
+    },
+    ReportColumn<LedgerDisplayRow>("BALANCE", ReportColWidth.Fixed(COL_BALANCE), TextAlign.End) { r, _ ->
+        cellText(r.balance, align = TextAlign.End, bold = r.isSummary, color = r.summaryInk(summaryColor))
     },
 ) + listOfNotNull(
     voucherColumn?.let { vc ->
@@ -325,9 +338,15 @@ private fun LedgerDisplayRow.summaryInk(summaryColor: Color): Color =
  * Description plus the voucher's free-text remarks beneath it (as on the web
  * report), the remarks boxed in a highlight rule's colour when one matches.
  * When the remarks ARE the description (blank `name`), the single line is boxed.
+ * In All Branch mode the row's branch name is shown as a final line, mirroring
+ * the web's per-row branch tag.
  */
 @Composable
-private fun LedgerDescriptionCell(row: LedgerDisplayRow, rule: HighlightRule?) {
+private fun LedgerDescriptionCell(
+    row: LedgerDisplayRow,
+    rule: HighlightRule?,
+    showBranchName: Boolean = false,
+) {
     val remarksOnly = row.description == row.remarks
     // Normal rows draw on the screen backdrop (light on-teal ink); summary rows
     // draw on the pale secondaryContainer band and need its dark on-colour, or
@@ -348,12 +367,23 @@ private fun LedgerDescriptionCell(row: LedgerDisplayRow, rule: HighlightRule?) {
             )
             Spacer(Modifier.height(2.dp))
         }
-        HighlightedText(
-            text = row.remarks,
-            borderColor = highlightBorderColor(rule),
-            color = if (remarksOnly) onScreen else onScreen.muted(),
-            maxLines = 3,
-        )
+        if (row.remarks.isNotBlank()) {
+            HighlightedText(
+                text = row.remarks,
+                borderColor = highlightBorderColor(rule),
+                color = if (remarksOnly) onScreen else onScreen.muted(),
+                maxLines = 3,
+            )
+        }
+        if (showBranchName && row.branchName.isNotBlank()) {
+            Text(
+                text = row.branchName,
+                style = MaterialTheme.typography.labelSmall,
+                color = onScreen.muted(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -366,22 +396,31 @@ private data class LedgerDisplayRow(
     val remarks: String,
     val debit: String,
     val credit: String,
+    /** The running Balance column; footer-style rows show "-". */
+    val balance: String,
     val isSummary: Boolean,
+    /** The voucher's branch — a final description line in All Branch mode. */
+    val branchName: String = "",
     /** The voucher's attachments — the flag-gated VOUCHER column. */
     val attachments: List<VoucherAttachment> = emptyList(),
 )
 
-/** Opening Balance line first, then the transaction rows numbered from 1. */
+/**
+ * Opening line first (netted, as on the web: only one side non-zero, the
+ * Balance cell seeded from it), then the transaction rows numbered from 1 with
+ * their cumulative running balance.
+ */
 private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
     val list = ArrayList<LedgerDisplayRow>(rows.size + 1)
     list += LedgerDisplayRow(
         sl = "-",
         date = "",
         voucherNo = "",
-        description = "Opening Balance",
+        description = "Opening",
         remarks = "",
-        debit = amountOrDash(openingDebit),
-        credit = amountOrDash(openingCredit),
+        debit = amountOrDash(openingNetDebit),
+        credit = amountOrDash(openingNetCredit),
+        balance = amountOrDash(openingRunning),
         isSummary = true,
     )
     rows.forEachIndexed { index, r ->
@@ -393,7 +432,9 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
             remarks = r.remarks,
             debit = amountOrDash(r.debit),
             credit = amountOrDash(r.credit),
+            balance = amountOrDash(r.runningBalance),
             isSummary = false,
+            branchName = r.branchName,
             attachments = r.attachments,
         )
     }
@@ -401,7 +442,7 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
 }
 
 @Composable
-private fun LedgerTable(statement: LedgerStatement) {
+private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean) {
     val rules = rememberHighlightRules()
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
@@ -414,7 +455,7 @@ private fun LedgerTable(statement: LedgerStatement) {
     val isLocalEnv = settings?.isLocalEnv == true
     var viewing by remember { mutableStateOf<VoucherAttachment?>(null) }
 
-    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv) {
+    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv, showBranchNames) {
         ledgerColumns(
             rules = rules,
             summaryColor = summaryInk,
@@ -429,6 +470,7 @@ private fun LedgerTable(statement: LedgerStatement) {
             } else {
                 null
             },
+            showBranchNames = showBranchNames,
         )
     }
     ReportTable(
@@ -451,11 +493,17 @@ private fun LedgerTable(statement: LedgerStatement) {
 /** Range Total, Total, and the net Balance line — each label sits under DESCRIPTION. */
 private fun ledgerFooterRows(statement: LedgerStatement): List<List<ReportFooterCell>> {
     val balance = statement.balance
+    // The web's getLedgerRowName: the label follows the side the balance is on.
+    val balanceLabel = when {
+        balance > 0.0 -> "Balance Receivable"
+        balance < 0.0 -> "Balance Payable"
+        else -> "Balance"
+    }
     return listOf(
         ledgerFooterRow("Range Total", statement.rangeDebit, statement.rangeCredit),
         ledgerFooterRow("Total", statement.totalDebit, statement.totalCredit),
         ledgerFooterRow(
-            "Balance Receivable",
+            balanceLabel,
             // Net balance sits on its side: receivable => debit, payable => credit.
             if (balance > 0.0) balance else 0.0,
             if (balance < 0.0) -balance else 0.0,
@@ -470,6 +518,8 @@ private fun ledgerFooterRow(label: String, debit: Double, credit: Double): List<
         ReportFooterCell(cellText(label, bold = true)),
         ReportFooterCell(cellText(amountOrDash(debit), align = TextAlign.End, bold = true)),
         ReportFooterCell(cellText(amountOrDash(credit), align = TextAlign.End, bold = true)),
+        // Footer rows carry no running balance — a "-" under BALANCE, as on the web.
+        ReportFooterCell(cellText("-", align = TextAlign.End, bold = true)),
     )
 
 /** Debit/Credit cells show "-" for zero/empty, else the branch-formatted amount. */

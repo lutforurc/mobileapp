@@ -45,9 +45,17 @@ class BalanceSheetRepository(
         )
 
         private val DESCRIPTION_KEYS = listOf("name", "group_name", "head", "description", "title")
-        private val AMOUNT_KEYS = listOf("balance", "amount", "total", "value")
         private val GROUP_TITLE_KEYS = listOf("group_name", "name", "title")
-        private val GROUP_TOTAL_KEYS = listOf("total", "amount", "balance", "group_total")
+
+        // The web's fallback chains: item closing = closing || balance,
+        // group closing = closing || total (older keys kept as extra fallbacks).
+        private val ITEM_CLOSING_KEYS = listOf("closing", "balance", "amount", "total", "value")
+        private val GROUP_CLOSING_KEYS = listOf("closing", "total", "amount", "balance", "group_total")
+        private val OPENING_KEYS = listOf("opening")
+        private val MOVEMENT_KEYS = listOf("movement")
+
+        /** The web's 0.01 threshold for "this column is effectively zero". */
+        private const val EPSILON = 0.01
     }
 
     suspend fun fetch(
@@ -102,38 +110,38 @@ class BalanceSheetRepository(
 
         val apiData = locateApiData(root) ?: return Resource.Error(noDataMessage(root))
 
-        val sections = SECTION_KEYS.mapNotNull { (key, title) ->
+        var sections = SECTION_KEYS.mapNotNull { (key, title) ->
             val records = apiData.sectionRecords(key)
             if (records.isEmpty()) null else parseSection(title, records)
         }
+        if (sections.isEmpty()) return Resource.Error(noDataMessage(root))
 
-        val totals = apiData.get("totals")?.asObjectOrNull()
-        val assets = totals.numberOrNull("assets") ?: sectionTotal(sections, "Assets")
-        val liabilities = totals.numberOrNull("liabilities") ?: sectionTotal(sections, "Liabilities")
-        val equity = totals.numberOrNull("equity") ?: sectionTotal(sections, "Equity")
-        val liabAndEquity = totals.numberOrNull("liabilities_and_equity")
-            ?: ((liabilities ?: 0.0) + (equity ?: 0.0))
-        val difference = totals.numberOrNull("difference")
-            ?: ((assets ?: 0.0) - liabAndEquity)
+        // The web folds the totals' opening difference into the Equity section's
+        // Net Profit/Loss group before computing any figure.
+        val openingDifference = apiData.get("totals")?.asObjectOrNull()
+            ?.get("difference_columns")?.asObjectOrNull()
+            .numberOrNull("opening") ?: 0.0
+        sections = applyEquityAdjustment(sections, openingDifference)
 
-        if (sections.isEmpty() && totals == null) {
-            return Resource.Error(noDataMessage(root))
-        }
+        // Column totals are summed client-side, like the web's sumReportColumns;
+        // the headline summary cards read the closing column.
+        val assets = sections.firstOrNull { it.title == "Assets" }
+        val liabilities = sections.firstOrNull { it.title == "Liabilities" }
+        val equity = sections.firstOrNull { it.title == "Equity" }
+        val liabAndEquity = (liabilities?.closing ?: 0.0) + (equity?.closing ?: 0.0)
+        val difference = (assets?.closing ?: 0.0) - liabAndEquity
 
-        val summary = buildList {
-            assets?.let { add(BalanceSheetSummaryItem("Assets", it)) }
-            liabilities?.let { add(BalanceSheetSummaryItem("Liabilities", it)) }
-            equity?.let { add(BalanceSheetSummaryItem("Equity", it)) }
-            add(BalanceSheetSummaryItem("Liabilities + Equity", liabAndEquity))
-            add(BalanceSheetSummaryItem("Difference", difference))
-        }
+        val summary = listOf(
+            BalanceSheetSummaryItem("Total Assets", assets?.closing ?: 0.0),
+            BalanceSheetSummaryItem("Liabilities + Equity", liabAndEquity),
+            BalanceSheetSummaryItem("Difference", difference),
+        )
 
         return Resource.Success(BalanceSheetReport(sections = sections, summary = summary))
     }
 
     private fun parseSection(title: String, records: List<JsonObject>): BalanceSheetSection {
         val groups = mutableListOf<BalanceSheetGroup>()
-        val looseItems = mutableListOf<BalanceSheetItem>()
 
         for (record in records) {
             val itemEls = record.get("items")?.takeUnless { it.isJsonNull }
@@ -141,32 +149,99 @@ class BalanceSheetRepository(
 
             if (itemEls != null && itemEls.size() > 0) {
                 val items = itemEls.mapNotNull { it.asObjectOrNull()?.toItem() }
-                val groupTitle = record.fieldMap().string(GROUP_TITLE_KEYS)
-                val groupTotal = record.fieldMap().numberOrNull(GROUP_TOTAL_KEYS)
-                    ?: items.sumOf { it.amount }
+                val f = record.fieldMap()
                 groups += BalanceSheetGroup(
-                    title = groupTitle.ifBlank { null },
+                    title = f.string(GROUP_TITLE_KEYS),
                     items = items,
-                    total = groupTotal,
+                    opening = f.numberOrNull(OPENING_KEYS) ?: items.sumOf { it.opening },
+                    movement = f.numberOrNull(MOVEMENT_KEYS) ?: items.sumOf { it.movement },
+                    closing = f.numberOrNull(GROUP_CLOSING_KEYS) ?: items.sumOf { it.closing },
                 )
             } else {
-                looseItems += record.toItem()
+                // A record with no items renders as its own single-item group,
+                // so every table row keeps the group-with-breakdown shape.
+                val item = record.toItem()
+                groups += BalanceSheetGroup(
+                    title = item.description,
+                    items = listOf(item),
+                    opening = item.opening,
+                    movement = item.movement,
+                    closing = item.closing,
+                )
             }
         }
 
-        if (looseItems.isNotEmpty()) {
-            groups += BalanceSheetGroup(
-                title = null,
-                items = looseItems,
-                total = looseItems.sumOf { it.amount },
-            )
-        }
+        return sectionOf(title, groups)
+    }
 
-        return BalanceSheetSection(
+    /** A section whose column totals are the sums of its groups. */
+    private fun sectionOf(title: String, groups: List<BalanceSheetGroup>): BalanceSheetSection =
+        BalanceSheetSection(
             title = title,
             groups = groups,
-            total = groups.sumOf { it.total },
+            opening = groups.sumOf { it.opening },
+            movement = groups.sumOf { it.movement },
+            closing = groups.sumOf { it.closing },
         )
+
+    /**
+     * The web's equity adjustment, verbatim: when the totals carry a non-zero
+     * opening difference, fold it into the Equity section's "Net Profit"/"Net
+     * Loss" group (only if that group's own opening is still zero) — adjusting
+     * the group's opening/closing and its first item — or append a synthetic
+     * Net Profit/Net Loss group when none matches.
+     */
+    private fun applyEquityAdjustment(
+        sections: List<BalanceSheetSection>,
+        openingDifference: Double,
+    ): List<BalanceSheetSection> {
+        if (kotlin.math.abs(openingDifference) < EPSILON) return sections
+        return sections.map { section ->
+            if (section.title != "Equity") return@map section
+
+            var matched = false
+            val groups = section.groups.map { group ->
+                val name = group.title.trim().lowercase(Locale.US)
+                val isNetHead = name == "net profit" || name == "net loss"
+                if (matched || !isNetHead || kotlin.math.abs(group.opening) >= EPSILON) {
+                    group
+                } else {
+                    matched = true
+                    val items = group.items.toMutableList()
+                    if (items.isNotEmpty()) {
+                        val first = items[0]
+                        items[0] = first.copy(
+                            opening = first.opening + openingDifference,
+                            closing = first.closing + openingDifference,
+                        )
+                    }
+                    group.copy(
+                        opening = group.opening + openingDifference,
+                        closing = group.closing + openingDifference,
+                        items = items,
+                    )
+                }
+            }
+
+            val adjusted = if (matched) groups else {
+                val name = if (openingDifference >= 0) "Net Profit" else "Net Loss"
+                groups + BalanceSheetGroup(
+                    title = name,
+                    items = listOf(
+                        BalanceSheetItem(
+                            description = name,
+                            opening = openingDifference,
+                            movement = 0.0,
+                            closing = openingDifference,
+                        )
+                    ),
+                    opening = openingDifference,
+                    movement = 0.0,
+                    closing = openingDifference,
+                )
+            }
+            sectionOf(section.title, adjusted)
+        }
     }
 
     /** Locates the object carrying assets/liabilities/equity, unwrapping envelopes. */
@@ -194,12 +269,11 @@ class BalanceSheetRepository(
         val f = fieldMap()
         return BalanceSheetItem(
             description = f.string(DESCRIPTION_KEYS),
-            amount = f.numberOrNull(AMOUNT_KEYS) ?: 0.0,
+            opening = f.numberOrNull(OPENING_KEYS) ?: 0.0,
+            movement = f.numberOrNull(MOVEMENT_KEYS) ?: 0.0,
+            closing = f.numberOrNull(ITEM_CLOSING_KEYS) ?: 0.0,
         )
     }
-
-    private fun sectionTotal(sections: List<BalanceSheetSection>, title: String): Double? =
-        sections.firstOrNull { it.title == title }?.total
 
     private fun noDataMessage(root: JsonElement): String {
         if (!BuildConfig.DEBUG) return "No Balance Sheet data for this selection."

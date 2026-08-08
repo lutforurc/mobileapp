@@ -6,12 +6,10 @@ import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -52,21 +49,19 @@ import com.example.cashbookbd.ui.components.FilterActions
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
-import com.example.cashbookbd.ui.components.SummaryTile
-import com.example.cashbookbd.ui.components.SummaryTileRow
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.ProfitLossAccountLine
 import com.example.cashbookbd.ui.reports.model.ProfitLossReport
-import com.example.cashbookbd.ui.reports.model.ProfitLossSummaryItem
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.core.AmountFormat
 
 /**
- * Profit & Loss statement: filter area, summary boxes (income/expense/gross/net,
- * plus stock if returned), and grouped Income/Expense sections rendered as
- * tables with subtotals and a Net Profit/Loss line at the bottom.
+ * Profit & Loss statement, laid out exactly like the web report: two centred
+ * sections — "PROFIT OR LOSS A/C (TRADING A/C)" and "NET PROFIT OR LOSS A/C" —
+ * each a four-column table (Particulars | working | Debit | Credit) ending in
+ * its balancing Total row.
  */
 @Composable
 fun ProfitLossReportScreen(
@@ -271,107 +266,63 @@ private fun ReportContent(
             )
         }
 
-        // Summary boxes
-        if (report.summary.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                report.summary.forEach { SummaryBox(it) }
-            }
-        }
-
-        // Trading Account first, Profit & Loss Account second.
+        // The two account sections, in the web's order; the Net Profit/Loss and
+        // balancing Total rows sit inside the tables.
+        Spacer(Modifier.height(8.dp))
         if (report.trading.isNotEmpty()) {
-            AccountTable(title = "Trading Account", lines = report.trading)
-            Spacer(Modifier.height(12.dp))
+            AccountTable(title = "PROFIT OR LOSS A/C (TRADING A/C)", lines = report.trading)
+            Spacer(Modifier.height(16.dp))
         }
         if (report.profitLoss.isNotEmpty()) {
-            AccountTable(title = "Profit & Loss Account", lines = report.profitLoss)
-            Spacer(Modifier.height(12.dp))
+            AccountTable(title = "NET PROFIT OR LOSS A/C", lines = report.profitLoss)
         }
-
-        // Net Profit / Loss line
-        NetLine(report)
     }
 }
 
-@Composable
-private fun SummaryBox(item: ProfitLossSummaryItem) {
-    SummaryTile {
-        Text(
-            text = item.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = formatAmount(item.value),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = AppFontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-// PARTICULARS | AMOUNT, filling the width. Emphasis lines (subtotals/gross) bold.
+// PARTICULARS | (working) | DEBIT (TK.) | CREDIT (TK.) — the web's four-column
+// layout. Component rows fill only the unlabelled working column; netted heads
+// land in Debit or Credit. Null amounts stay blank; zeros render as "-".
 private val profitLossColumns = listOf(
-    ReportColumn<ProfitLossAccountLine>("PARTICULARS", ReportColWidth.Weight(1f)) { line, _ ->
-        cellText(line.label, bold = line.emphasis)
+    ReportColumn<ProfitLossAccountLine>("PARTICULARS", ReportColWidth.Fixed(180.dp)) { line, _ ->
+        cellText(
+            line.label,
+            bold = line.emphasis,
+            maxLines = 2,
+            startPadding = if (line.indent) 12.dp else 0.dp,
+        )
     },
-    ReportColumn<ProfitLossAccountLine>("AMOUNT", ReportColWidth.Weight(0.5f), TextAlign.End) { line, _ ->
-        cellText(formatAmount(line.amount), align = TextAlign.End, bold = line.emphasis)
+    ReportColumn<ProfitLossAccountLine>("", ReportColWidth.Fixed(96.dp), TextAlign.End) { line, _ ->
+        line.working?.let { cellText(amountOrDash(it), align = TextAlign.End) }
+            ?: ReportTableCell.Empty
+    },
+    ReportColumn<ProfitLossAccountLine>("DEBIT (TK.)", ReportColWidth.Fixed(110.dp), TextAlign.End) { line, _ ->
+        line.debit?.let { cellText(amountOrDash(it), align = TextAlign.End, bold = line.emphasis) }
+            ?: ReportTableCell.Empty
+    },
+    ReportColumn<ProfitLossAccountLine>("CREDIT (TK.)", ReportColWidth.Fixed(110.dp), TextAlign.End) { line, _ ->
+        line.credit?.let { cellText(amountOrDash(it), align = TextAlign.End, bold = line.emphasis) }
+            ?: ReportTableCell.Empty
     },
 )
 
 @Composable
 private fun AccountTable(title: String, lines: List<ProfitLossAccountLine>) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Account title
+        // Centred section title, as on the web report.
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = AppFontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
         )
         ReportTable(
             columns = profitLossColumns,
             data = lines,
             // Embedded in the screen's outer vertical scroll.
             scrollable = false,
-        )
-    }
-}
-
-@Composable
-private fun NetLine(report: ProfitLossReport) {
-    val accent = if (report.isNetProfit) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
-    SummaryTileRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Text(
-            text = report.netLabel,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = AppFontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = formatAmount(report.netAmount),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = AppFontWeight.Bold,
-            color = accent,
         )
     }
 }
@@ -386,7 +337,8 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-private fun formatAmount(value: Double): String = AmountFormat.format(value)
+/** Zero amounts render as "-", per the app-wide report-table convention. */
+private fun amountOrDash(value: Double): String = AmountFormat.formatOrDash(value)
 
 private fun showDatePicker(
     context: Context,

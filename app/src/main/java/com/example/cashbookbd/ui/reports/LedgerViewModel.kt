@@ -10,6 +10,7 @@ import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
@@ -23,7 +24,29 @@ class LedgerViewModel(
     private val ledgerRepository: LedgerRepository,
     private val reportRepository: ReportRepository,
     private val dashboardRepository: DashboardRepository,
+    private val sessionManager: SessionManager,
 ) : ViewModel() {
+
+    companion object {
+        /**
+         * The Head Office "Select All Branch" sentinel: branch id 0 is
+         * normalised to "no branch filter" by the backend, exactly like the
+         * web's empty-string option.
+         */
+        val ALL_BRANCHES = BranchOption(id = 0L, name = "Select All Branch")
+
+        fun provideFactory(context: Context) = viewModelFactory {
+            initializer {
+                val appContext = context.applicationContext
+                LedgerViewModel(
+                    ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
+                    reportRepository = ServiceLocator.provideReportRepository(appContext),
+                    dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
+                    sessionManager = ServiceLocator.provideSessionManager(appContext),
+                )
+            }
+        }
+    }
 
     private val _uiState = MutableStateFlow(LedgerUiState())
     val uiState: StateFlow<LedgerUiState> = _uiState.asStateFlow()
@@ -61,9 +84,19 @@ class LedgerViewModel(
                     val branchTrDate = result.data.transactionDate
                     val applyBranchDate = !dateDefaulted && branchTrDate != null
                     if (applyBranchDate) dateDefaulted = true
+                    // Head Office (branch_types_id == 1) gets the web's
+                    // "Select All Branch" option at the top of the dropdown;
+                    // the default selection stays on the first real branch.
+                    val isHeadOffice =
+                        sessionManager.state.value.settings?.branchTypesId == 1
+                    val branches = if (isHeadOffice) {
+                        listOf(ALL_BRANCHES) + result.data.branches
+                    } else {
+                        result.data.branches
+                    }
                     it.copy(
                         isBranchesLoading = false,
-                        branches = result.data.branches,
+                        branches = branches,
                         selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
                         // Start from the month's first day, like the seed above.
                         startDate = if (applyBranchDate) branchTrDate!!.copy(day = 1) else it.startDate,
@@ -129,7 +162,12 @@ class LedgerViewModel(
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
-                    it.copy(isReportLoading = false, statement = result.data, reportError = null)
+                    it.copy(
+                        isReportLoading = false,
+                        statement = result.data,
+                        reportError = null,
+                        appliedAllBranches = branch.id == ALL_BRANCHES.id,
+                    )
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -147,18 +185,5 @@ class LedgerViewModel(
 
     fun onSessionExpiredHandled() {
         _uiState.update { it.copy(sessionExpired = false) }
-    }
-
-    companion object {
-        fun provideFactory(context: Context) = viewModelFactory {
-            initializer {
-                val appContext = context.applicationContext
-                LedgerViewModel(
-                    ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
-                    reportRepository = ServiceLocator.provideReportRepository(appContext),
-                    dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
-                )
-            }
-        }
     }
 }

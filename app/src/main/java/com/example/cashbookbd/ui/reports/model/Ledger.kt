@@ -9,15 +9,15 @@ import com.example.cashbookbd.ui.components.LedgerDropdownItem
 /**
  * A ledger statement returned by `/reports/api-ledger`: an opening balance
  * (carried from before the start date) followed by the transaction rows in the
- * range. No running/closing balance is computed — the report only lists the
- * opening line and the raw debit/credit of each voucher.
+ * range. As on the web, the opening is presented **netted** (only one side
+ * non-zero) and every row carries a cumulative running balance seeded from it.
  */
 data class LedgerStatement(
     val openingDebit: Double,
     val openingCredit: Double,
     val rows: List<LedgerRow>,
     // Report footer. When the backend supplies these (see [toLedgerStatement]),
-    // they win; otherwise they're derived from the opening balance + rows.
+    // they win; otherwise they're derived from the netted opening + rows.
     val rangeDebit: Double,
     val rangeCredit: Double,
     val totalDebit: Double,
@@ -27,6 +27,13 @@ data class LedgerStatement(
 
     /** Net balance: positive => receivable (debit side), negative => payable. */
     val balance: Double get() = totalDebit - totalCredit
+
+    // The web nets the opening before showing it: exactly one side is non-zero.
+    val openingNetDebit: Double get() = maxOf(openingDebit - openingCredit, 0.0)
+    val openingNetCredit: Double get() = maxOf(openingCredit - openingDebit, 0.0)
+
+    /** The running-balance seed: netted opening, debit positive. */
+    val openingRunning: Double get() = openingNetDebit - openingNetCredit
 }
 
 /** One transaction line of the statement. */
@@ -38,6 +45,10 @@ data class LedgerRow(
     val remarks: String,
     val debit: Double,
     val credit: Double,
+    /** Cumulative balance after this row, seeded from the netted opening. */
+    val runningBalance: Double = 0.0,
+    /** The voucher's branch — shown under the description in All Branch mode. */
+    val branchName: String = "",
     /** The voucher's photo/document attachments — the flag-gated Voucher column. */
     val attachments: List<VoucherAttachment> = emptyList(),
 )
@@ -54,9 +65,18 @@ fun LedgerSearchItemDto.toLedgerDropdownItem(): LedgerDropdownItem? {
 }
 
 fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
+    val openingDebit = openingBalance?.totalDebit ?: 0.0
+    val openingCredit = openingBalance?.totalCredit ?: 0.0
+
+    // The running balance is seeded from the *netted* opening, then accumulates
+    // debit − credit per row — the web's generateTableData loop.
+    var running = maxOf(openingDebit - openingCredit, 0.0) -
+        maxOf(openingCredit - openingDebit, 0.0)
+
     val rows = details.orEmpty().map { dto ->
         // "-" is the backend's empty-remarks placeholder.
         val remarks = dto.remarks?.trim().orEmpty().takeUnless { it == "-" }.orEmpty()
+        running += (dto.debit ?: 0.0) - (dto.credit ?: 0.0)
         LedgerRow(
             date = dto.vrDate?.trim().orEmpty(),
             voucherNo = dto.vrNo?.trim().orEmpty(),
@@ -67,6 +87,8 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
             remarks = remarks,
             debit = dto.debit ?: 0.0,
             credit = dto.credit ?: 0.0,
+            runningBalance = running,
+            branchName = dto.branchName?.trim().orEmpty(),
             attachments = VoucherImages.attachments(
                 dto.voucherImage,
                 VoucherImages.branchPad(dto.branchId),
@@ -74,14 +96,14 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
         )
     }
 
-    val openingDebit = openingBalance?.totalDebit ?: 0.0
-    val openingCredit = openingBalance?.totalCredit ?: 0.0
-
     // Prefer backend-supplied footer totals; otherwise derive from the rows.
+    // The Total row combines the netted opening with the range, as on the web.
+    val openingNetDebit = maxOf(openingDebit - openingCredit, 0.0)
+    val openingNetCredit = maxOf(openingCredit - openingDebit, 0.0)
     val rangeDebit = summary?.rangeDebit ?: rows.sumOf { it.debit }
     val rangeCredit = summary?.rangeCredit ?: rows.sumOf { it.credit }
-    val totalDebit = summary?.totalDebit ?: (openingDebit + rangeDebit)
-    val totalCredit = summary?.totalCredit ?: (openingCredit + rangeCredit)
+    val totalDebit = summary?.totalDebit ?: (openingNetDebit + rangeDebit)
+    val totalCredit = summary?.totalCredit ?: (openingNetCredit + rangeCredit)
 
     return LedgerStatement(
         openingDebit = openingDebit,

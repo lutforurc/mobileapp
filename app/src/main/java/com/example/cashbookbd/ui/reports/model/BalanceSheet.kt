@@ -1,36 +1,44 @@
 package com.example.cashbookbd.ui.reports.model
 
-/** A single line within a Balance Sheet group. */
+/** A single line within a Balance Sheet group, with the web's three columns. */
 data class BalanceSheetItem(
     val description: String,
-    val amount: Double,
+    val opening: Double,
+    val movement: Double,
+    val closing: Double,
 )
 
 /**
- * A group of items inside a section. [title] is null for a flat section that has
- * no sub-groups (its items render directly under the section).
+ * One Balance Sheet table row — a group of items. The web renders a single row
+ * per group (name + "N items" badge + Opening/Movement/Closing) that opens the
+ * group's item breakdown on tap.
  */
 data class BalanceSheetGroup(
-    val title: String?,
+    val title: String,
     val items: List<BalanceSheetItem>,
-    val total: Double,
+    val opening: Double,
+    val movement: Double,
+    val closing: Double,
 )
 
 /** A top-level section: Assets, Liabilities, or Equity. */
 data class BalanceSheetSection(
     val title: String,
     val groups: List<BalanceSheetGroup>,
-    val total: Double,
+    val opening: Double,
+    val movement: Double,
+    val closing: Double,
 )
 
-/** A summary-box figure (Assets, Liabilities + Equity, Difference, …). */
+/** A summary-box figure (Total Assets, Liabilities + Equity, Difference). */
 data class BalanceSheetSummaryItem(
     val label: String,
     val value: Double,
 )
 
 /**
- * A parsed Balance Sheet: the grouped [sections] and the [summary] totals. Built
+ * A parsed Balance Sheet: the grouped [sections] (after the web's equity
+ * opening-difference adjustment) and the [summary] closing-column totals. Built
  * from the structured `{ assets, liabilities, equity, totals }` response.
  */
 data class BalanceSheetReport(

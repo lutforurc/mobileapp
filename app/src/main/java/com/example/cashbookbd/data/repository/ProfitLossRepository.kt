@@ -6,7 +6,6 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.ui.reports.model.ProfitLossAccountLine
 import com.example.cashbookbd.ui.reports.model.ProfitLossReport
-import com.example.cashbookbd.ui.reports.model.ProfitLossSummaryItem
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -109,12 +108,12 @@ class ProfitLossRepository(
         val purchase = trading.pick(coal3 = 9, coal4 = 35) { it.debit }
         val purchaseReturn = trading.pick(coal3 = 9, coal4 = 16) { it.credit }
         val purchaseDiscount = trading.pick(coal3 = 8, coal4 = 40) { it.credit }
-        val netPurchase = purchase - purchaseReturn - purchaseDiscount
+        val netPurchase = maxOf(0.0, purchase - purchaseReturn - purchaseDiscount)
 
         val sales = trading.pick(coal3 = 7, coal4 = 15) { it.credit }
         val salesDiscount = trading.pick(coal3 = 7, coal4 = 23) { it.debit }
         val salesReturn = trading.pick(coal3 = 7, coal4 = 19) { it.debit }
-        val netSales = sales - salesDiscount - salesReturn
+        val netSales = maxOf(0.0, sales - salesDiscount - salesReturn)
 
         val debitBase = openingStock + netPurchase
         val creditBase = closingStock + netSales
@@ -133,51 +132,71 @@ class ProfitLossRepository(
         val netLossValue = if (debitPlBase > creditPlBase) debitPlBase - creditPlBase else 0.0
         val isNetProfit = netLossValue <= 0.0
 
+        // Balancing totals — Gross Profit / Net Profit fall on the debit side,
+        // Gross Loss / Net Loss on the credit side, so both columns agree.
+        val tradingTotalDebit = debitBase + grossProfit
+        val tradingTotalCredit = creditBase + grossLoss
+        val netTotalDebit = debitPlBase + netProfitValue
+        val netTotalCredit = creditPlBase + netLossValue
+
         // ---- Build display model --------------------------------------------
+        // The purchase/sales component breakdown (working column) only appears
+        // when there is a return/discount to net off, as on the web.
         val tradingLines = buildList {
-            add(ProfitLossAccountLine("Opening Stock", openingStock))
-            add(ProfitLossAccountLine("Purchase", purchase))
-            add(ProfitLossAccountLine("Less: Purchase Return", purchaseReturn))
-            add(ProfitLossAccountLine("Less: Purchase Discount", purchaseDiscount))
-            add(ProfitLossAccountLine("Net Purchase", netPurchase, emphasis = true))
-            add(ProfitLossAccountLine("Sales", sales))
-            add(ProfitLossAccountLine("Less: Sales Return", salesReturn))
-            add(ProfitLossAccountLine("Less: Sales Discount", salesDiscount))
-            add(ProfitLossAccountLine("Net Sales", netSales, emphasis = true))
-            add(ProfitLossAccountLine("Closing Stock", closingStock))
-            if (grossProfit > 0) add(ProfitLossAccountLine("Gross Profit", grossProfit, emphasis = true))
-            if (grossLoss > 0) add(ProfitLossAccountLine("Gross Loss", grossLoss, emphasis = true))
+            add(ProfitLossAccountLine("Opening Stock", debit = openingStock, credit = 0.0))
+            add(ProfitLossAccountLine("Closing Stock", debit = 0.0, credit = closingStock))
+            if (purchaseReturn > 0 || purchaseDiscount > 0) {
+                add(ProfitLossAccountLine("Purchase", working = purchase, indent = true))
+                if (purchaseReturn > 0) {
+                    add(ProfitLossAccountLine("(-) Purchase Return", working = purchaseReturn, indent = true))
+                }
+                if (purchaseDiscount > 0) {
+                    add(ProfitLossAccountLine("(-) Purchase Discount", working = purchaseDiscount, indent = true))
+                }
+            }
+            add(ProfitLossAccountLine("Net Purchase", debit = netPurchase, credit = 0.0, emphasis = true))
+            if (salesDiscount > 0 || salesReturn > 0) {
+                add(ProfitLossAccountLine("Sales", working = sales, indent = true))
+                if (salesDiscount > 0) {
+                    add(ProfitLossAccountLine("(-) Sales Discount", working = salesDiscount, indent = true))
+                }
+                if (salesReturn > 0) {
+                    add(ProfitLossAccountLine("(-) Sales Return", working = salesReturn, indent = true))
+                }
+            }
+            add(ProfitLossAccountLine("Net Sales", debit = 0.0, credit = netSales, emphasis = true))
+            if (grossProfit > 0) {
+                add(ProfitLossAccountLine("Gross Profit", debit = grossProfit, credit = 0.0, emphasis = true))
+            } else {
+                add(ProfitLossAccountLine("Gross Loss", debit = 0.0, credit = grossLoss, emphasis = true))
+            }
+            add(ProfitLossAccountLine("Total", debit = tradingTotalDebit, credit = tradingTotalCredit, emphasis = true))
         }
 
+        // Gross P/L brought forward flips sides: a profit lands on the credit
+        // side of the Net account, a loss on the debit side.
         val profitLossLines = buildList {
-            if (grossProfit > 0) add(ProfitLossAccountLine("Gross Profit b/d", grossProfit, emphasis = true))
-            if (grossLoss > 0) add(ProfitLossAccountLine("Gross Loss b/d", grossLoss, emphasis = true))
-            incomeRows.forEach { add(ProfitLossAccountLine(it.name, it.credit)) }
-            if (incomeRows.isNotEmpty()) add(ProfitLossAccountLine("Total Income", totalIncome, emphasis = true))
-            expenseRows.forEach { add(ProfitLossAccountLine(it.name, it.debit)) }
-            if (expenseRows.isNotEmpty()) add(ProfitLossAccountLine("Total Expense", totalExpense, emphasis = true))
-        }
-
-        val summary = buildList {
-            add(ProfitLossSummaryItem("Opening Stock", openingStock))
-            add(ProfitLossSummaryItem("Closing Stock", closingStock))
-            add(ProfitLossSummaryItem("Net Purchase", netPurchase))
-            add(ProfitLossSummaryItem("Net Sales", netSales))
-            if (grossProfit > 0) add(ProfitLossSummaryItem("Gross Profit", grossProfit))
-            if (grossLoss > 0) add(ProfitLossSummaryItem("Gross Loss", grossLoss))
-            add(ProfitLossSummaryItem("Total Income", totalIncome))
-            add(ProfitLossSummaryItem("Total Expense", totalExpense))
+            if (grossProfit > 0) {
+                add(ProfitLossAccountLine("Gross Profit B/F", debit = 0.0, credit = grossProfit, emphasis = true))
+            } else {
+                add(ProfitLossAccountLine("Gross Loss B/F", debit = grossLoss, credit = 0.0, emphasis = true))
+            }
+            expenseRows.forEach { add(ProfitLossAccountLine("(-) ${it.name}", working = it.debit, indent = true)) }
+            add(ProfitLossAccountLine("Total Expense", debit = totalExpense, credit = 0.0, emphasis = true))
+            if (incomeRows.isNotEmpty()) {
+                incomeRows.forEach { add(ProfitLossAccountLine(it.name, working = it.credit, indent = true)) }
+                add(ProfitLossAccountLine("Total Income", debit = 0.0, credit = totalIncome, emphasis = true))
+            }
+            if (isNetProfit) {
+                add(ProfitLossAccountLine("Net Profit", debit = netProfitValue, credit = 0.0, emphasis = true))
+            } else {
+                add(ProfitLossAccountLine("Net Loss", debit = 0.0, credit = netLossValue, emphasis = true))
+            }
+            add(ProfitLossAccountLine("Total", debit = netTotalDebit, credit = netTotalCredit, emphasis = true))
         }
 
         return Resource.Success(
-            ProfitLossReport(
-                trading = tradingLines,
-                profitLoss = profitLossLines,
-                summary = summary,
-                netLabel = if (isNetProfit) "Net Profit" else "Net Loss",
-                netAmount = if (isNetProfit) netProfitValue else netLossValue,
-                isNetProfit = isNetProfit,
-            )
+            ProfitLossReport(trading = tradingLines, profitLoss = profitLossLines)
         )
     }
 
@@ -235,11 +254,12 @@ class ProfitLossRepository(
         )
     }
 
-    /** Selects the trading row for (coal3_id, coal4_id) and reads [side] (debit/credit). */
-    private fun List<TradingRow>.pick(coal3: Int, coal4: Int, side: (TradingRow) -> Double): Double {
-        val row = firstOrNull { it.coal3 == coal3 && it.coal4 == coal4 } ?: return 0.0
-        return side(row)
-    }
+    /**
+     * Sums [side] (debit/credit) over every trading row matching (coal3_id,
+     * coal4_id) — the web's `sumByIds` adds all matches, not just the first.
+     */
+    private fun List<TradingRow>.pick(coal3: Int, coal4: Int, side: (TradingRow) -> Double): Double =
+        filter { it.coal3 == coal3 && it.coal4 == coal4 }.sumOf(side)
 
     private fun JsonObject.fieldMap(): Map<String, JsonElement> =
         entrySet().associate { it.key.lowercase(Locale.US) to it.value }

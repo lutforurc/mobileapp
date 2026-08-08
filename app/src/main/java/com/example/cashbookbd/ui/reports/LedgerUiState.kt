@@ -23,6 +23,8 @@ data class LedgerUiState(
     val isReportLoading: Boolean = false,
     val reportError: String? = null,
     val statement: LedgerStatement? = null,
+    /** True when the applied report ran with "Select All Branch" (branch id 0). */
+    val appliedAllBranches: Boolean = false,
 
     val sessionExpired: Boolean = false,
 ) {
