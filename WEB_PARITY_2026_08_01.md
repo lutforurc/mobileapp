@@ -1,6 +1,19 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-06):**
+> **Matched to (2026-08-08):**
+> ```
+> cashbookbd_react : a5307aa (2026-08-08 01:48)
+> cashbook_api     : 0a92544f (2026-08-07 18:50)
+> ```
+> The 08-07 batch is ported: Expense Report (native, expense.report), order
+> party-by-id (name search now only the fallback), the Trading invoice-level
+> tracked product, the Product Tracking drawer group (out of Admin/Reports),
+> subscription payment preselect + zero-amount guard, Company User's
+> phone-under-email, and the need_demo_tutorial settings key. Skipped as
+> web-only: dark-logo upload/columns (mobile has no logo upload), tutorial
+> YouTube links, favicon, and the SoftwareInfo/EditCompany restyles.
+>
+> **Previously matched (2026-08-06):**
 > ```
 > cashbookbd_react : 549ad6b (2026-08-06 02:01)
 > cashbook_api     : af14b5a0 (2026-08-06 02:13)
