@@ -1,15 +1,25 @@
 # Web parity — 2026-08-01
 
-> **Catch-up list (2026-08-09 early morning) — NOT yet ported:**
+> **Matched to (2026-08-09 early morning):**
 > ```
-> cashbookbd_react : 979e081..4599d7b   (6 commits, 2026-08-09 00:01–02:03)
-> cashbook_api     : 35bf16c7..95d881f3 (5 commits, 2026-08-09 00:14–02:04)
+> cashbookbd_react : 4599d7b (2026-08-09 02:03)
+> cashbook_api     : 95d881f3 (2026-08-09 02:04)
 > ```
-> The Bank Opening batch: a new bank/cash opening-balance screen with its own
-> permission pair, journal vouchers made visible in the Cash/Bank Book, and an
-> owner-only gate on clearing a branch's transactions. Contract and port list
-> in **"Catch-up — 2026-08-09"** below; the design write-up is
-> `docs/bank-opening-balance-spec.md` in the react repo (in Bangla).
+> The Bank Opening batch is ported (see **"Catch-up — 2026-08-09"** below for
+> the contract): the Bank Opening screen lives in the Customers section beside
+> the CoA lists (grouped account sections with subtotals and a Total opening
+> line, dialog-based row edit like the customer list's opening entry, delete
+> behind the amount-and-voucher confirm, voucher number deep-linking into the
+> Ledger, the switched-off notice when `is_opening` is off), behind
+> `bank.opening.view`/`bank.opening.edit`; and the branch form's Clear buttons
+> now show a `severity: "info"` 403 as an inline notice in the info tone
+> instead of a red snackbar (the server's message is no longer flattened to
+> the generic 403 line). The Cash/Bank Book journal-voucher change needed no
+> port — the numbers correct themselves server-side. Known deviations,
+> deliberate: the Delete icon asks for `bank.opening.edit` AND
+> `voucher.delete` (the web shows it on `voucher.delete` alone and the API
+> then always refuses); mobile has no global search, so no search entry; the
+> per-group serial restart matches the web's actual rendering.
 >
 > **Matched to (2026-08-08 late night):**
 > ```
@@ -101,9 +111,13 @@
 > `reports/product-financial-statement`, `reports/product-tracking-summary`).
 > `git log 549ad6b..HEAD` in the react repo is the next catch-up list.
 
-## Catch-up — 2026-08-09: the Bank Opening batch (pending)
+## Catch-up — 2026-08-09: the Bank Opening batch (ported same night)
 
 Read off the controllers as they stand at `95d881f3`, not off the messages.
+Ported to mobile 2026-08-09: `BankOpeningRepository` + `ui/customer/BankOpening*`
+(menu key `bankOpening` in the Customers section, route
+`customers/bank-opening`), and the §D notice handling in `BranchRepository` /
+the Add Branch screen. The section below stands as the contract record.
 
 ### A. Bank Opening — the feature to port
 
