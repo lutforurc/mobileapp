@@ -124,6 +124,9 @@ import com.example.cashbookbd.requisition.RequisitionMenu
 import com.example.cashbookbd.realestate.RealEstateMenu
 import com.example.cashbookbd.ui.realestate.FlatLayoutScreen
 import com.example.cashbookbd.ui.realestate.InstallmentCreateScreen
+import com.example.cashbookbd.ui.realestate.ProjectCostReportScreen
+import com.example.cashbookbd.ui.realestate.ProjectExpenseScreen
+import com.example.cashbookbd.ui.realestate.ProjectPurchaseScreen
 import com.example.cashbookbd.ui.realestate.RealEstateCrudFormScreen
 import com.example.cashbookbd.ui.realestate.RealEstateHomeScreen
 import com.example.cashbookbd.ui.realestate.SoldUnitsScreen
@@ -261,6 +264,21 @@ object Routes {
     const val FLAT_LAYOUT = "realestate/layout"
 
     /** Check Register payment entry; edit appends the payment id. */
+    /** Project Expense — cash payments tagged per project/building. The
+     *  untagged report deep-links here with a voucher number to load. */
+    const val PROJECT_EXPENSE = "realestate/project-expense"
+    const val PROJECT_EXPENSE_PATTERN = "realestate/project-expense?vrNo={vrNo}"
+    const val PROJECT_EXPENSE_VR_ARG = "vrNo"
+
+    fun projectExpenseFor(vrNo: String): String =
+        "realestate/project-expense?vrNo=${android.net.Uri.encode(vrNo)}"
+
+    /** Project Purchase — the purchase invoice with Building for Warehouse. */
+    const val PROJECT_PURCHASE = "realestate/project-purchase"
+
+    /** Project Cost — summary / building detail / untagged, one screen. */
+    const val PROJECT_COST_REPORT = "realestate/project-cost-report"
+
     const val UNIT_PAYMENT_ADD = "realestate/payment/add"
     const val UNIT_PAYMENT_EDIT = "realestate/payment/edit"
     const val UNIT_PAYMENT_ID_ARG = "paymentId"
@@ -884,6 +902,43 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.FLAT_LAYOUT) {
             PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.FLAT_LAYOUT_KEY)) {
                 FlatLayoutScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.PROJECT_EXPENSE_PATTERN,
+            arguments = listOf(
+                navArgument(Routes.PROJECT_EXPENSE_VR_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_EXPENSE_KEY)) {
+                ProjectExpenseScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    initialVrNo = entry.arguments?.getString(Routes.PROJECT_EXPENSE_VR_ARG)
+                        ?.takeIf { it.isNotBlank() },
+                )
+            }
+        }
+
+        composable(Routes.PROJECT_PURCHASE) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_PURCHASE_KEY)) {
+                ProjectPurchaseScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PROJECT_COST_REPORT) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_COST_REPORT_KEY)) {
+                ProjectCostReportScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

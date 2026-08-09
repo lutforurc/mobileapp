@@ -29,6 +29,9 @@ object RealEstateMenu {
     const val SOLD_UNITS_KEY = "soldUnits"
     const val INSTALLMENT_CREATE_KEY = "reInstallmentCreate"
     const val FLAT_LAYOUT_KEY = "flatLayout"
+    const val PROJECT_EXPENSE_KEY = "projectExpense"
+    const val PROJECT_PURCHASE_KEY = "projectPurchase"
+    const val PROJECT_COST_REPORT_KEY = "projectCostReport"
 
     val all: List<RealEstateItem> = listOf(
         // Check Register carries its own permission on the web route.
@@ -43,6 +46,10 @@ object RealEstateMenu {
         RealEstateItem(UNIT_SALES_KEY, "Unit Sales", listOf(SECTION_PERMISSION)),
         RealEstateItem(SOLD_UNITS_KEY, "Sold Units", listOf(SECTION_PERMISSION)),
         RealEstateItem(INSTALLMENT_CREATE_KEY, "Installment Create", listOf(SECTION_PERMISSION)),
+        // The project-and-building cost batch (web sidebar order: last).
+        RealEstateItem(PROJECT_EXPENSE_KEY, "Project Expense", listOf(SECTION_PERMISSION)),
+        RealEstateItem(PROJECT_PURCHASE_KEY, "Project Purchase", listOf(SECTION_PERMISSION)),
+        RealEstateItem(PROJECT_COST_REPORT_KEY, "Project Cost Report", listOf(SECTION_PERMISSION)),
     )
 
     private val byKey: Map<String, RealEstateItem> = all.associateBy { it.key }

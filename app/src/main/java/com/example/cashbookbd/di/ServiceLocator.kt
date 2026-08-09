@@ -38,6 +38,7 @@ import com.example.cashbookbd.data.repository.SubscriptionRepository
 import com.example.cashbookbd.data.repository.CashBankRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
 import com.example.cashbookbd.data.repository.BankOpeningRepository
+import com.example.cashbookbd.data.repository.ProjectCostRepository
 import com.example.cashbookbd.data.repository.CustomerRepository
 import com.example.cashbookbd.data.repository.ProductRepository
 import com.example.cashbookbd.data.repository.ResellerRepository
@@ -225,6 +226,9 @@ object ServiceLocator {
 
     @Volatile
     private var bankOpeningRepository: BankOpeningRepository? = null
+
+    @Volatile
+    private var projectCostRepository: ProjectCostRepository? = null
 
     @Volatile
     private var productRepository: ProductRepository? = null
@@ -734,6 +738,13 @@ object ServiceLocator {
             bankOpeningRepository ?: BankOpeningRepository(
                 api = provideReportApiService(context),
             ).also { bankOpeningRepository = it }
+        }
+
+    fun provideProjectCostRepository(context: Context): ProjectCostRepository =
+        projectCostRepository ?: synchronized(this) {
+            projectCostRepository ?: ProjectCostRepository(
+                api = provideReportApiService(context),
+            ).also { projectCostRepository = it }
         }
 
     fun provideProductRepository(context: Context): ProductRepository =

@@ -84,6 +84,9 @@ fun RealEstateHomeScreen(
                             item.key == RealEstateMenu.SOLD_UNITS_KEY -> Routes.SOLD_UNITS
                             item.key == RealEstateMenu.INSTALLMENT_CREATE_KEY -> Routes.RE_INSTALLMENT_CREATE
                             item.key == RealEstateMenu.FLAT_LAYOUT_KEY -> Routes.FLAT_LAYOUT
+                            item.key == RealEstateMenu.PROJECT_EXPENSE_KEY -> Routes.PROJECT_EXPENSE
+                            item.key == RealEstateMenu.PROJECT_PURCHASE_KEY -> Routes.PROJECT_PURCHASE
+                            item.key == RealEstateMenu.PROJECT_COST_REPORT_KEY -> Routes.PROJECT_COST_REPORT
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> return@RealEstateRowItem
                         }
