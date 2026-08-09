@@ -292,11 +292,20 @@ native rebuilds. Structural gaps that need bespoke screens, largest first:
 - Generic-table niceties the web has and the engine lacks: ~~per-report
   footer Total rows~~ (added 2026-08-06 — ReportConfig.totalColumns /
   totalRowLabel now sum 13 reports' web tfoots), per-group headings
-  (closing stock brands, labour branches), cell colour rules,
-  running-balance columns (Product In Out; ~~Ledger's Balance~~ closed
-  2026-08-08), en-IN lakh/crore grouping, dd/MM/yyyy date reformat outside
-  stacked cells, "All Branch" filter option (~~Ledger~~ closed 2026-08-08;
-  other reports pending).
+  (closing stock brands, labour branches), cell colour rules (web's
+  sign-based red/green/amber on Date Wise In Out, Bank Information,
+  Branch Stock/Receive/Transfer, Product Stock, Salary Mismatch),
+  ~~running-balance columns~~ (Product In Out's Stock closed 2026-08-09 —
+  ReportConfig.runningBalance computes it client-side with the synthetic
+  Opening row, exactly the web's algorithm; ~~Ledger's Balance~~ closed
+  2026-08-08), en-IN lakh/crore grouping (deliberate deviation — the app
+  formats through AmountFormat), ~~dd/MM/yyyy date reformat outside
+  stacked cells~~ (closed 2026-08-09 — ReportConfig.dateColumns; applied
+  to Product In Out, Mitch Match, Salary Mismatch, Product Profit Loss),
+  "All Branch" filter option (~~Ledger~~ closed 2026-08-08; still pending
+  on Bank Information ('' always), Branch Stock (null), Date Wise In Out
+  (null/omit), IMEI Stock (''), Labour Ledger ('Select All', '' when >1
+  branch) — each sends a different empty-value idiom).
 - Native-screen deltas: Cash Book/Bank Book Sl+Action columns and somity
   lines, ~~Ledger running Balance + netted Opening~~, ~~P&L 4-column
   layout~~, ~~Balance Sheet Opening/Movement columns + equity adjustment~~

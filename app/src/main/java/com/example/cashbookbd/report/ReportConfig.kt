@@ -106,6 +106,25 @@ data class ReportStackedColumn(
 )
 
 /**
+ * A client-computed running-balance column, the web's Product In Out "Stock":
+ * seeded from the payload's sibling `opening` object (first non-blank of
+ * [openingKeys]), then per detail row `+= Σ addKeys − Σ subtractKeys`. A
+ * synthetic Opening row leads the table — the web renders that row even when
+ * no opening exists — carrying the word "Opening" in [labelCellKey]'s column.
+ */
+data class ReportRunningBalance(
+    val openingKeys: List<String>,
+    val addKeys: List<String>,
+    val subtractKeys: List<String>,
+    /** The computed column's row key. */
+    val columnKey: String = "stock",
+    /** The opening figure's own column (dash on every detail row). */
+    val openingColumnKey: String = "opening",
+    /** Which column carries the word "Opening" on the synthetic first row. */
+    val labelCellKey: String = "vr_no",
+)
+
+/**
  * A single-select dropdown filter some reports need (e.g. Bank Information's
  * balance/loan type). The chosen [ReportChoice.value] is sent under [paramKey].
  */
@@ -241,6 +260,14 @@ data class ReportConfig(
      * value doesn't match either pattern.
      */
     val monthColumns: List<String> = emptyList(),
+    /**
+     * Raw API row keys (case-insensitive) holding a `yyyy-MM-dd` (or ISO
+     * datetime) date, rendered as `dd/MM/yyyy` the way the web reformats its
+     * date cells. Anything that does not parse passes through verbatim.
+     */
+    val dateColumns: List<String> = emptyList(),
+    /** A client-computed running balance (Product In Out's Stock column). */
+    val runningBalance: ReportRunningBalance? = null,
     /**
      * Highlight rules (the "phrase → coloured border" list): ordered fallback
      * dot-paths into the raw row JSON whose first non-blank value is the text
@@ -663,6 +690,7 @@ object ReportMenu {
             endpointKey = "productProfitLoss",
             method = ReportMethod.POST,
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            dateColumns = listOf("vr_date"),
             // Internal ids, the opening/closing stock pair and the invoice
             // count/detail columns aren't useful on a phone-width table; the
             // profit figures are what the report is for.
@@ -817,7 +845,25 @@ object ReportMenu {
             dateStyle = ReportDateStyle.DISPLAY,
             // Internal ids the web never shows.
             hiddenColumns = listOf("mtmid", "product_id"),
-            columnLabels = mapOf("vr_no" to "Invoice No."),
+            columnLabels = mapOf(
+                "vr_no" to "Invoice No.",
+                "vr_date" to "Vr. Date",
+                "opening" to "Opening",
+                "stock" to "Stock",
+            ),
+            dateColumns = listOf("vr_date"),
+            // The web computes the Stock column client-side: opening stock,
+            // then + purchase + sales_return − sales − purchase_return per row,
+            // with a synthetic Opening row leading the table.
+            runningBalance = ReportRunningBalance(
+                openingKeys = listOf("stock", "opening", "opening_qty"),
+                addKeys = listOf("purchase", "sales_return"),
+                subtractKeys = listOf("sales", "purchase_return"),
+            ),
+            columnOrder = listOf(
+                "vr_no", "vr_date", "opening",
+                "purchase", "sales_return", "sales", "purchase_return", "stock",
+            ),
             totalColumns = listOf("purchase", "sales_return", "sales", "purchase_return"),
         ),
         ReportConfig(
@@ -913,6 +959,7 @@ object ReportMenu {
                 "total_debit" to "Debit (Tk)",
                 "total_credit" to "Credit (Tk)",
             ),
+            dateColumns = listOf("vr_date"),
         ),
         ReportConfig(
             key = "groupReport",
@@ -1503,6 +1550,7 @@ object ReportMenu {
             startParam = "start_date",
             endParam = "end_date",
             section = ReportConfig.SECTION_HRM,
+            dateColumns = listOf("vr_date"),
             // serial_number is appended LAST server-side, so it landed as a
             // trailing Sl column — the engine's own # column already numbers.
             hiddenColumns = listOf("main_trx_id", "emp_id", "serial_number"),

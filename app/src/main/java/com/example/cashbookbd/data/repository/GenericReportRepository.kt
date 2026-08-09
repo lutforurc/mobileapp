@@ -189,15 +189,69 @@ class GenericReportRepository(
         // The highlight column holds free text (a note), never an amount.
         val text = (config.textColumns.map { it.lowercase(Locale.US) } + listOfNotNull(highlightKey)).toSet()
         val months = config.monthColumns.map { it.lowercase(Locale.US) }.toSet()
+        val dates = config.dateColumns.map { it.lowercase(Locale.US) }.toSet()
         val voucherSpec = config.voucherImages
         val order = config.columnOrder.map { it.lowercase(Locale.US) }
         return when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
-            ReportResponseShape.NORMAL -> extractRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.NORMAL -> {
+                val raw = extractRows(payload)
+                val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
+                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            }
         }
     }
+
+    /**
+     * The web's Product In Out shape: a running Stock column computed client
+     * side, seeded from the payload's sibling `opening` object, plus the
+     * synthetic Opening row the web always leads with. The payload's own
+     * `total` object is ignored — the footer sums come from `totalColumns`.
+     */
+    private fun applyRunningBalance(
+        payload: JsonElement,
+        rows: List<JsonElement>,
+        spec: com.example.cashbookbd.report.ReportRunningBalance,
+    ): List<JsonElement> {
+        val openingObj = payload.takeIf { it.isJsonObject }?.asJsonObject?.let { obj ->
+            listOf("opening", "opening_row").firstNotNullOfOrNull { key ->
+                obj.get(key)?.takeIf { it.isJsonObject }?.asJsonObject
+            }
+        }
+        val openingValue = openingObj?.let { o ->
+            spec.openingKeys.firstNotNullOfOrNull { key -> o.numberOrNull(key) }
+        }
+        var running = openingValue ?: 0.0
+
+        val out = mutableListOf<JsonElement>()
+        // Row 0 is always Opening, dashes where a figure has no meaning there.
+        out += com.google.gson.JsonObject().apply {
+            addProperty(spec.labelCellKey, "Opening")
+            addProperty(spec.openingColumnKey, openingValue?.let { plainNumber(it) } ?: "-")
+            (spec.addKeys + spec.subtractKeys).forEach { addProperty(it, "-") }
+            addProperty(spec.columnKey, openingValue?.let { plainNumber(it) } ?: "-")
+        }
+        rows.forEach { element ->
+            val obj = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            running += spec.addKeys.sumOf { obj.numberOrNull(it) ?: 0.0 }
+            running -= spec.subtractKeys.sumOf { obj.numberOrNull(it) ?: 0.0 }
+            out += obj.apply {
+                addProperty(spec.openingColumnKey, "-")
+                addProperty(spec.columnKey, plainNumber(running))
+            }
+        }
+        return out
+    }
+
+    private fun com.google.gson.JsonObject.numberOrNull(key: String): Double? =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.replace(",", "")?.toDoubleOrNull()
+
+    /** A number the cell formatter reads back as numeric (no grouping). */
+    private fun plainNumber(value: Double): String =
+        if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
 
     /**
      * Requisition Comparison: an object `{ "<id>": {row}, … }` keyed by a
@@ -309,6 +363,7 @@ class GenericReportRepository(
         labels: Map<String, String> = emptyMap(),
         text: Set<String> = emptySet(),
         months: Set<String> = emptySet(),
+        dates: Set<String> = emptySet(),
         highlightPaths: List<String> = emptyList(),
         highlightKey: String? = null,
         voucherSpec: com.example.cashbookbd.report.ReportVoucherImages? = null,
@@ -330,6 +385,7 @@ class GenericReportRepository(
                     val keyLower = entry.key.lowercase(Locale.US)
                     var value = when {
                         keyLower in months -> formatMonthCode(entry.value)
+                        keyLower in dates -> reformatIsoDate(rawText(entry.value))
                         keyLower in text -> rawText(entry.value)
                         keyLower in zeroDash -> formatAmount(entry.value, unit)
                         else -> formatValue(entry.value)
