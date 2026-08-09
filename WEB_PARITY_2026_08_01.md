@@ -1,6 +1,40 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-09 early morning):**
+> **Matched to (2026-08-09 evening):**
+> ```
+> cashbookbd_react : 9a0ea46 (2026-08-09 15:31)
+> cashbook_api     : e1d2117d (2026-08-09 15:25)
+> ```
+> The project-and-building cost batch is ported: the Real Estate section
+> gained Project Expense (cash payment voucher, each line tagged
+> project/building, voucher pulled up by number and rewritten in place, bank
+> funding preserved with the amber banner), Project Purchase (the purchase
+> invoice with Building for Warehouse — per-line project/building, cash /
+> credit / partial shapes decided server-side, price prefilled from the last
+> purchase), and the Project Cost Report (Summary / Building Detail /
+> Untagged tabs + the amber integrity panel; the untagged rows' Tag button
+> deep-links into Project Expense with `?vrNo=`, or shows a lock where
+> approval closed the door). One repository (`ProjectCostRepository`) holds
+> the whole contract: raw int ids, hashed `mtm_id` only, refusals as
+> success:false at HTTP 201, `data.data` double wrap. Design record:
+> `docs/project-building-expense-spec.md` (react repo, Bangla).
+>
+> Skipped as web-only: `ProjectCostReportPrint` (print stream), the ledger
+> print-button restyle (9a0ea46 — print is web-only here), rows-per-page and
+> font-size controls (the mobile table has no pagination), and the
+> `FilterMenuShell` popover (mobile filters are already inline). Server-side
+> only, nothing to port: `e1d2117d` (settings permissions now
+> `effectivePermissions` — platform admins' lists shrink to what their role
+> grants; `remove.approval` enforced on the two remove-approval endpoints)
+> and the `acc_coa_level4s.status` INT conversion. Deviations kept: money
+> cells follow the app's zero-as-dash and en-US/decimal_places AmountFormat
+> (web prints '0.00' and en-IN lakh grouping here); "not recorded"/"no area"
+> keep their words. **Server prerequisite per tenant:** the two dimension
+> tables — `php artisan patch:add-unit-type` or
+> `project_building_expense_dimensions.sql` by hand, then `route:clear`;
+> without them every endpoint of the batch fails.
+>
+> **Previously matched (2026-08-09 early morning):**
 > ```
 > cashbookbd_react : 4599d7b (2026-08-09 02:03)
 > cashbook_api     : 95d881f3 (2026-08-09 02:04)
