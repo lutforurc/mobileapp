@@ -45,6 +45,7 @@ import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
 import com.example.cashbookbd.ui.reports.ReportTable
@@ -54,11 +55,16 @@ import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.ui.theme.appColors
 
 /**
- * Project Expense — the web's form of the same name. An ordinary cash payment
- * voucher whose every expense line also records the project (and optionally
- * the building) that money belongs to; the reports read those tags. A saved
- * voucher can be pulled up by number and rewritten in place — the untagged
- * report's Tag button arrives here with the voucher preloaded.
+ * The cash payment screen a real-estate branch uses — the web's form of the
+ * same name, reached both from Real Estate ("Project Expense") and as the
+ * branch's ordinary Cash Payment, hence [title].
+ *
+ * Every line is an ordinary payment line. An expense line may additionally
+ * record the project (and optionally the building) the money belongs to, and
+ * the project cost reports read those tags; a line on any other account is
+ * saved without a project dimension at all. A saved voucher can be pulled up by
+ * number and rewritten in place — the untagged report's Tag button arrives here
+ * with the voucher preloaded.
  */
 @Composable
 fun ProjectExpenseScreen(
@@ -66,6 +72,9 @@ fun ProjectExpenseScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     initialVrNo: String? = null,
+    title: String = "Project Expense",
+    /** Which drawer section to light up — this screen answers to two of them. */
+    drawerRoute: String = Routes.REAL_ESTATE,
     viewModel: ProjectExpenseViewModel = viewModel(
         factory = ProjectExpenseViewModel.provideFactory(
             androidx.compose.ui.platform.LocalContext.current,
@@ -89,8 +98,8 @@ fun ProjectExpenseScreen(
     }
 
     AuthenticatedShell(
-        title = "Project Expense",
-        currentRoute = Routes.REAL_ESTATE,
+        title = title,
+        currentRoute = drawerRoute,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
@@ -103,8 +112,9 @@ fun ProjectExpenseScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Text(
-                    text = "Each line records which project — and which building — the money " +
-                        "belongs to. The voucher itself is an ordinary cash payment.",
+                    text = "An ordinary cash payment. An expense line may also say which " +
+                        "project — and which building — the money belongs to; without one " +
+                        "it stays a branch expense.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.appColors.textOnScreenMuted,
                 )
@@ -176,20 +186,62 @@ fun ProjectExpenseScreen(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                AppSelectDropdown(
-                    label = "Project",
-                    options = state.projects,
-                    selected = state.projects.firstOrNull { it.id == state.projectId },
-                    onSelected = viewModel::onProjectSelected,
-                    placeholder = if (state.isLoadingDdls) "Loading…" else "Select project",
+                SearchableSelectDropdown(
+                    selected = state.order,
+                    onSelected = viewModel::onOrderSelected,
+                    search = viewModel::searchOrders,
+                    label = "Select Order (Optional)",
+                    placeholder = "Type 3+ chars to search…",
+                    emptyText = "No order found",
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
+                // Searched rather than listed: this is the whole chart of
+                // accounts now, not the expense heads alone.
+                SearchableSelectDropdown(
+                    selected = state.account.takeIf { it.isNotBlank() }
+                        ?.let { SelectorOption(id = it, label = state.accountName) },
+                    onSelected = viewModel::onAccountSelected,
+                    search = viewModel::searchAccounts,
+                    label = "Select Account",
+                    placeholder = "Type 3+ chars to search…",
+                    emptyText = "No account found",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                // Only an expense head takes a project, so until one is picked
+                // the box stays empty and says why rather than showing a choice
+                // that would not be saved.
+                val projectChoices = projectOptions(state.projects)
+                AppSelectDropdown(
+                    label = "Project (Optional)",
+                    options = projectChoices,
+                    selected = if (state.isExpenseAccount) {
+                        projectChoices.firstOrNull { it.id == state.projectId }
+                    } else {
+                        null
+                    },
+                    onSelected = viewModel::onProjectSelected,
+                    enabled = state.isExpenseAccount,
+                    placeholder = when {
+                        state.isLoadingDdls -> "Loading…"
+                        state.account.isBlank() -> "Pick an account first"
+                        else -> "Not tracked — this is not an expense account"
+                    },
+                )
+                Spacer(Modifier.height(10.dp))
+                val buildingChoices = buildingOptions(state.buildings)
+                val buildingEnabled = state.isExpenseAccount && state.projectId.isNotBlank()
                 AppSelectDropdown(
                     label = "Building",
-                    options = buildingOptions(state.buildings),
-                    selected = buildingOptions(state.buildings).firstOrNull { it.id == state.buildingId },
+                    options = buildingChoices,
+                    selected = if (buildingEnabled) {
+                        buildingChoices.firstOrNull { it.id == state.buildingId }
+                    } else {
+                        null
+                    },
                     onSelected = viewModel::onBuildingSelected,
-                    enabled = state.projectId.isNotBlank(),
+                    enabled = buildingEnabled,
                     placeholder = "Whole project (no single building)",
                 )
                 Text(
@@ -198,14 +250,6 @@ fun ProjectExpenseScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.appColors.textOnScreenMuted,
                     modifier = Modifier.padding(top = 3.dp, start = 4.dp),
-                )
-                Spacer(Modifier.height(10.dp))
-                AppSelectDropdown(
-                    label = "Expense Account",
-                    options = state.accounts,
-                    selected = state.accounts.firstOrNull { it.id == state.account },
-                    onSelected = viewModel::onAccountSelected,
-                    placeholder = "Select an expense account",
                 )
                 Spacer(Modifier.height(10.dp))
                 AppTextField(
@@ -309,6 +353,16 @@ private fun buildingOptions(buildings: List<SelectorOption>): List<SelectorOptio
         listOf(SelectorOption(id = "", label = "Whole project (no single building)")) + buildings
     }
 
+/**
+ * The projects ddl with the web's empty option on top. A project is optional,
+ * and choosing none is a real answer — the expense stays with the branch.
+ */
+@Composable
+private fun projectOptions(projects: List<SelectorOption>): List<SelectorOption> =
+    remember(projects) {
+        listOf(SelectorOption(id = "", label = "Branch expense (no project)")) + projects
+    }
+
 @Composable
 private fun expenseColumns(
     editingRowKey: String?,
@@ -344,17 +398,26 @@ private fun expenseColumns(
             ReportTableCell.Slot {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
                     Text(
-                        text = row.projectName.ifBlank { "—" },
+                        // Three different things, and the row must not read as
+                        // one of the others: a project, a branch expense that
+                        // could have carried one, and a line that never can.
+                        text = when {
+                            !row.isExpense -> "Not tracked"
+                            row.projectId == null -> "Branch expense"
+                            else -> row.projectName.ifBlank { "—" }
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = ink(row.key == editingRowKey),
                         maxLines = 2,
                     )
-                    Text(
-                        text = row.buildingName.ifBlank { "Whole project" },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
+                    if (row.isExpense && row.projectId != null) {
+                        Text(
+                            text = row.buildingName.ifBlank { "Whole project" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         },

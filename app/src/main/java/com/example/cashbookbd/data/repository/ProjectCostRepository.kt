@@ -19,24 +19,31 @@ import java.io.IOException
 // Models
 // ---------------------------------------------------------------------------
 
-/** One line of a project expense voucher, as the form and the table hold it. */
+/** One line of a cash payment voucher, as the form and the table hold it. */
 data class ProjectExpenseLine(
     /** Local list key; edit/update replaces in place by it. */
     val key: String,
-    /** Expense head (coa4), raw int id — nothing in this module is hashed except mtm_id. */
+    /** The account (coa4), raw int id — nothing in this module is hashed except mtm_id. */
     val account: Int,
     val accountName: String,
     val remarks: String,
     /** Kept a string like the web sends it; the server asks only `numeric|gt:0`. */
     val amount: String,
-    val projectId: Int,
+    /**
+     * Only an expense head may carry a project, and even then it is optional —
+     * null on an expense line means a branch expense, and on any other account
+     * means the line is not project-tracked at all.
+     */
+    val projectId: Int?,
     val projectName: String,
     /** Null = "whole project" — a cost no single building carries. */
     val buildingId: Int?,
     val buildingName: String,
+    /** True when the account is an expense head; only those take a project. */
+    val isExpense: Boolean = false,
 )
 
-/** A project expense voucher loaded for correction (`edit` by vr_no). */
+/** A cash payment voucher loaded for correction (`edit` by vr_no). */
 data class ProjectExpenseVoucher(
     val vrNo: String,
     /** Hashed main_trx_master id, echoed back verbatim on update. */
@@ -45,7 +52,25 @@ data class ProjectExpenseVoucher(
     /** The single credit line's account; 17 is cash, anything else is a bank. */
     val paidFrom: Int?,
     val paidFromName: String,
+    /** The linked order, when the voucher was saved against one. */
+    val orderId: String,
+    val orderText: String,
     val rows: List<ProjectExpenseLine>,
+)
+
+/**
+ * One account of the payment form's picker.
+ *
+ * The list is every active account now, not the expense heads alone — a
+ * real-estate branch raises its ordinary cash payments here too. [isExpense]
+ * is what decides whether the line may carry a project.
+ */
+data class ExpenseAccountOption(
+    val id: Int,
+    val name: String,
+    /** The level-3 group the account sits under, for the picker's second line. */
+    val group: String,
+    val isExpense: Boolean,
 )
 
 /** One product line of a project purchase invoice. */
@@ -164,6 +189,9 @@ class ProjectCostRepository(
 
         /** Cash's coa4 — the funding default, and the "cash supplier" marker. */
         const val CASH_COA4_ID = 17
+
+        /** Below this the account search stays quiet, like the web's picker. */
+        const val MIN_ACCOUNT_SEARCH_CHARS = 3
     }
 
     // -----------------------------------------------------------------------
@@ -175,9 +203,27 @@ class ProjectCostRepository(
         ddl("real-estate/project-expense/projects/ddl", emptyMap())
     }
 
-    /** Expense heads only (level1 = 4): `[{value, label, label_2: group}]`. */
-    suspend fun accountsDdl(): Resource<List<SelectorOption>> = withContext(ioDispatcher) {
-        ddl("real-estate/project-expense/accounts/ddl", emptyMap())
+    /**
+     * Account type-ahead for the payment form: every active account, each
+     * carrying whether it is an expense head (`is_expense`). Short queries come
+     * back empty rather than pulling the whole chart, as on the web.
+     */
+    suspend fun searchAccounts(query: String): Resource<List<ExpenseAccountOption>> = withContext(ioDispatcher) {
+        val q = query.trim()
+        if (q.length < MIN_ACCOUNT_SEARCH_CHARS) return@withContext Resource.Success(emptyList())
+        request { api.get("real-estate/project-expense/accounts/ddl", mapOf("search" to q)) }.map { json ->
+            json.dataArray().mapNotNull { el ->
+                val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                val id = o.intOr("value") ?: return@mapNotNull null
+                ExpenseAccountOption(
+                    id = id,
+                    name = o.str("label").orEmpty().ifBlank { id.toString() },
+                    group = o.str("label_2").orEmpty(),
+                    // The server sends 1/0; anything non-zero means expense.
+                    isExpense = (o.str("is_expense")?.toDoubleOrNull() ?: 0.0) != 0.0,
+                )
+            }
+        }
     }
 
     /** The project's active buildings; empty for a falsy project id. */
@@ -224,6 +270,8 @@ class ProjectCostRepository(
                 note = data.str("note").orEmpty(),
                 paidFrom = data.intOr("paid_from"),
                 paidFromName = data.str("paid_from_name").orEmpty(),
+                orderId = data.intOr("purchase_order_number")?.toString().orEmpty(),
+                orderText = data.str("purchase_order_text").orEmpty(),
                 rows = data.get("rows")?.takeIf { it.isJsonArray }?.asJsonArray
                     ?.mapIndexedNotNull { index, el ->
                         val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
@@ -233,10 +281,15 @@ class ProjectCostRepository(
                             accountName = o.str("account_name").orEmpty(),
                             remarks = o.str("remarks").orEmpty(),
                             amount = o.str("amount").orEmpty(),
-                            projectId = o.intOr("project_id") ?: 0,
+                            projectId = o.intOr("project_id"),
                             projectName = "",
                             buildingId = o.intOr("building_id"),
                             buildingName = "",
+                            // A JSON true/false here, unlike the ddl's 1/0.
+                            isExpense = o.get("is_expense")?.takeUnless { it.isJsonNull }
+                                ?.takeIf { it.isJsonPrimitive }?.asString?.let {
+                                    it == "true" || (it.toDoubleOrNull() ?: 0.0) != 0.0
+                                } == true,
                         )
                     }.orEmpty(),
             )
@@ -244,27 +297,37 @@ class ProjectCostRepository(
     }
 
     /**
-     * Saves a project expense voucher — a create, or a rewrite of [mtmId]'s.
-     * The figure lines each carry their project/building tag; the credit side
-     * is the server's business ([paidFrom] is only honoured on update, so a
-     * bank payment reached from the untagged report stays a bank payment).
+     * Saves a cash payment voucher — a create, or a rewrite of [mtmId]'s.
+     * Expense lines carry their project/building tag where one was chosen; the
+     * credit side is the server's business ([paidFrom] is only honoured on
+     * update, so a bank payment reached from the untagged report stays one).
      */
     suspend fun expenseSave(
         note: String,
         paidFrom: Int?,
+        orderId: String,
         rows: List<ProjectExpenseLine>,
         mtmId: String?,
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
             addProperty("note", note)
             if (paidFrom != null) addProperty("paid_from", paidFrom) else add("paid_from", JsonNull.INSTANCE)
+            orderId.toIntOrNull()
+                ?.let { addProperty("purchaseOrderNumber", it) }
+                ?: add("purchaseOrderNumber", JsonNull.INSTANCE)
             add("rows", JsonArray().apply {
                 rows.forEach { line ->
                     add(JsonObject().apply {
                         addProperty("account", line.account)
                         addProperty("remarks", line.remarks)
                         addProperty("amount", line.amount)
-                        addProperty("project_id", line.projectId)
+                        // Null on a line that carries no project: the server
+                        // then leaves it a plain payment line, untagged.
+                        if (line.projectId != null) {
+                            addProperty("project_id", line.projectId)
+                        } else {
+                            add("project_id", JsonNull.INSTANCE)
+                        }
                         if (line.buildingId != null) {
                             addProperty("building_id", line.buildingId)
                         } else {

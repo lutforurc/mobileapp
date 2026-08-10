@@ -21,9 +21,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -791,16 +791,19 @@ private fun ScheduleForm(
             },
         )
 
+        // A switch, not a tick box: this turns a feature on for the whole
+        // schedule, which is what a switch says (web 54be937).
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
+            Switch(
                 checked = state.earlyPayment,
                 onCheckedChange = viewModel::onEarlyPaymentToggle,
                 enabled = !locked,
             )
             Text(
-                text = "Early Payment",
+                text = "Early Payment Discount?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = onScreen,
+                modifier = Modifier.padding(start = 10.dp),
             )
         }
 

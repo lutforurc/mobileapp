@@ -40,6 +40,7 @@ import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
+import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -88,6 +89,12 @@ data class CombinedInvoiceUiState(
     /** "both" | "purchase" | "sales" — only meaningful when [showNotesApplyTo]. */
     val notesApplyTo: String = "both",
 
+    // Product tracking: which product this entry counts against. Both parties'
+    // lists are offered together — tracking is configured per party, and the
+    // server decides which leg (purchase, sales, or both) each product tags.
+    val trackedProducts: List<SelectorOption> = emptyList(),
+    val trackedProduct: SelectorOption? = null,
+
     // Current line entry
     val selectedProduct: InvoiceProduct? = null,
     val bag: String = "",
@@ -126,11 +133,16 @@ data class CombinedInvoiceUiState(
 class CombinedInvoiceViewModel(
     private val invoiceRepository: InvoiceRepository,
     private val ledgerRepository: LedgerRepository,
+    private val transactionRepository: TransactionRepository,
     sessionManager: SessionManager,
 ) : ViewModel() {
 
     private var productCache: Map<String, InvoiceProduct> = emptyMap()
     private var orderCache: Map<String, OrderOption> = emptyMap()
+
+    /** The two parties' tracked-product lists, kept apart so either can reload. */
+    private var supplierProducts: List<SelectorOption> = emptyList()
+    private var customerProducts: List<SelectorOption> = emptyList()
 
     private val _uiState = MutableStateFlow(
         CombinedInvoiceUiState(
@@ -141,8 +153,45 @@ class CombinedInvoiceViewModel(
 
     // ---- Parties -----------------------------------------------------------
 
-    fun onSupplierSelected(party: TxnSelection) = _uiState.update { it.copy(supplier = party) }
-    fun onCustomerSelected(party: TxnSelection) = _uiState.update { it.copy(customer = party) }
+    fun onSupplierSelected(party: TxnSelection) {
+        _uiState.update { it.copy(supplier = party) }
+        loadTrackedProducts(supplier = party, customer = _uiState.value.customer)
+    }
+
+    fun onCustomerSelected(party: TxnSelection) {
+        _uiState.update { it.copy(customer = party) }
+        loadTrackedProducts(supplier = _uiState.value.supplier, customer = party)
+    }
+
+    /**
+     * The products this entry may be counted against: the supplier's
+     * purchase-tracked ones and the customer's sales-tracked ones, together.
+     * Offering one side's list alone would hide the other's products for no
+     * reason the clerk could see — the server sorts out which leg each tags.
+     */
+    private fun loadTrackedProducts(supplier: TxnSelection?, customer: TxnSelection?) {
+        viewModelScope.launch {
+            supplier?.let {
+                supplierProducts = transactionRepository.fetchTrackedProducts("purchase", it.id)
+                    .map { (id, name) -> SelectorOption(id, name) }
+            }
+            customer?.let {
+                customerProducts = transactionRepository.fetchTrackedProducts("sales", it.id)
+                    .map { (id, name) -> SelectorOption(id, name) }
+            }
+            val merged = (supplierProducts + customerProducts).distinctBy { it.id }
+            _uiState.update { state ->
+                state.copy(
+                    trackedProducts = merged,
+                    // A product the new parties do not track cannot stay picked.
+                    trackedProduct = state.trackedProduct?.takeIf { sel -> merged.any { it.id == sel.id } },
+                )
+            }
+        }
+    }
+
+    fun onTrackedProductSelected(option: SelectorOption) =
+        _uiState.update { it.copy(trackedProduct = option) }
 
     /** Party accounts (suppliers/customers) — COA level-4 with acType=3. */
     suspend fun searchAccounts(query: String): Resource<List<LedgerDropdownItem>> =
@@ -174,7 +223,7 @@ class CombinedInvoiceViewModel(
                 purchaseRate = order.rate?.takeIf { r -> r > 0 }?.toString() ?: it.purchaseRate,
             )
         }
-        resolveParty(order) { party -> _uiState.update { it.copy(supplier = party) } }
+        resolveParty(order, ::onSupplierSelected)
     }
 
     /** A sales order resolves the customer and pre-fills the sales rate. */
@@ -186,7 +235,7 @@ class CombinedInvoiceViewModel(
                 salesRate = order.rate?.takeIf { r -> r > 0 }?.toString() ?: it.salesRate,
             )
         }
-        resolveParty(order) { party -> _uiState.update { it.copy(customer = party) } }
+        resolveParty(order, ::onCustomerSelected)
     }
 
     /**
@@ -303,6 +352,7 @@ class CombinedInvoiceViewModel(
                 vehicleNumber = state.vehicleNumber.trim(),
                 notes = state.notes.trim(),
                 notesApplyTo = if (state.showNotesApplyTo) state.notesApplyTo else "both",
+                trackedProductId = state.trackedProduct?.id.orEmpty(),
                 lines = state.lines,
             )
             when (result) {
@@ -312,6 +362,8 @@ class CombinedInvoiceViewModel(
                         // Keep the parties for the next entry, like the cash forms.
                         supplier = it.supplier,
                         customer = it.customer,
+                        // Their product lists go with them; the pick does not.
+                        trackedProducts = it.trackedProducts,
                         message = result.data,
                         isError = false,
                     )
@@ -341,6 +393,7 @@ class CombinedInvoiceViewModel(
                 CombinedInvoiceViewModel(
                     invoiceRepository = ServiceLocator.provideInvoiceRepository(appContext),
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
+                    transactionRepository = ServiceLocator.provideTransactionRepository(appContext),
                     sessionManager = ServiceLocator.provideSessionManager(appContext),
                 )
             }
@@ -467,6 +520,20 @@ fun CombinedInvoiceScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             ProductEntry(state = state, viewModel = viewModel)
+
+            // After the lines and before Save, like the Purchase Invoice it
+            // borrows this from: it is not part of entering a line, it says
+            // what the whole entry counts against. Hidden where neither party
+            // tracks anything.
+            if (state.trackedProducts.isNotEmpty()) {
+                AppSelectDropdown(
+                    label = "Select Product (Optional)",
+                    options = state.trackedProducts,
+                    selected = state.trackedProduct,
+                    onSelected = viewModel::onTrackedProductSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             PrimaryButton(
                 text = "Save Combined Invoice",

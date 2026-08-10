@@ -209,6 +209,7 @@ class InvoiceRepository(
         vehicleNumber: String,
         notes: String,
         notesApplyTo: String,
+        trackedProductId: String,
         lines: List<CombinedLine>,
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
@@ -228,6 +229,11 @@ class InvoiceRepository(
             addBlankAsNull("vehicleNumber", vehicleNumber)
             addBlankAsNull("notes", notes)
             addProperty("notesApplyTo", notesApplyTo)
+            // One product for the whole entry; the server decides which leg it
+            // belongs to and clears a leg the product is not mappable for.
+            trackedProductId.toLongOrNull()
+                ?.let { addProperty("trackedProductId", it) }
+                ?: add("trackedProductId", JsonNull.INSTANCE)
             add("products", JsonArray().apply {
                 lines.forEachIndexed { index, line -> add(combinedLineJson(line, index)) }
             })

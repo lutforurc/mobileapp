@@ -174,6 +174,16 @@ fun ProjectPurchaseScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
+                // Notes finishes the supplier's row; the invoice's own number
+                // and date then start the next one together, which is the order
+                // they are read off the supplier's bill in (web 234df22).
+                AppTextField(
+                    value = state.notes,
+                    onValueChange = viewModel::onNotes,
+                    label = "Notes",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppTextField(
                         value = state.invoiceNo,
@@ -194,20 +204,12 @@ fun ProjectPurchaseScreen(
                     )
                 }
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AppTextField(
-                        value = state.vehicleNo,
-                        onValueChange = viewModel::onVehicleNo,
-                        label = "Vehicle No",
-                        modifier = Modifier.weight(1f),
-                    )
-                    AppTextField(
-                        value = state.notes,
-                        onValueChange = viewModel::onNotes,
-                        label = "Notes",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                AppTextField(
+                    value = state.vehicleNo,
+                    onValueChange = viewModel::onVehicleNo,
+                    label = "Vehicle No",
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppTextField(
@@ -228,21 +230,39 @@ fun ProjectPurchaseScreen(
                     )
                 }
                 Spacer(Modifier.height(6.dp))
+                // Two figures of the same weight, not a total with the due in
+                // small print beside it — what is still owed is read as often
+                // as what the invoice came to (web dbcf0fc).
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = "Total  ${AmountFormat.format(state.total)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = AppFontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = "Due  ${AmountFormat.format(state.due)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.appColors.textOnScreenMuted,
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Total Tk.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.appColors.textOnScreenMuted,
+                        )
+                        Text(
+                            text = AmountFormat.format(state.total),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = AppFontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Due Tk.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.appColors.textOnScreenMuted,
+                        )
+                        Text(
+                            text = AmountFormat.format(state.due),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = AppFontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(14.dp))

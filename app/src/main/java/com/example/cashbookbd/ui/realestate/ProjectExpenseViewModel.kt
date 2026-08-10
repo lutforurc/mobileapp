@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.data.repository.OrderReportsRepository
 import com.example.cashbookbd.data.repository.ProjectCostRepository
 import com.example.cashbookbd.data.repository.ProjectExpenseLine
 import com.example.cashbookbd.di.ServiceLocator
@@ -18,7 +19,6 @@ import kotlinx.coroutines.launch
 
 data class ProjectExpenseUiState(
     val projects: List<SelectorOption> = emptyList(),
-    val accounts: List<SelectorOption> = emptyList(),
     val buildings: List<SelectorOption> = emptyList(),
     val isLoadingDdls: Boolean = false,
     val ddlError: String? = null,
@@ -33,11 +33,15 @@ data class ProjectExpenseUiState(
     val buildingName: String = "",
     val account: String = "",
     val accountName: String = "",
+    /** Whether the chosen account is an expense head — only those take a project. */
+    val isExpenseAccount: Boolean = false,
     val remarks: String = "",
     val amount: String = "",
 
     /** Voucher-level note. */
     val note: String = "",
+    /** The order this voucher is against, if any (the web's optional picker). */
+    val order: SelectorOption? = null,
     val rows: List<ProjectExpenseLine> = emptyList(),
     /** The table line open in the form, or null. */
     val editingRowKey: String? = null,
@@ -66,12 +70,14 @@ data class ProjectExpenseUiState(
 }
 
 /**
- * Backs the Project Expense form: an ordinary cash payment voucher whose every
- * expense line also records the project (and optionally building) that money
- * belongs to. A voucher can be pulled up by number and rewritten in place.
+ * Backs the real-estate branch's cash payment form. Every line is an ordinary
+ * payment line; an expense line may additionally record the project (and
+ * optionally the building) the money belongs to, which is what the project cost
+ * reports read. A voucher can be pulled up by number and rewritten in place.
  */
 class ProjectExpenseViewModel(
     private val repository: ProjectCostRepository,
+    private val orderRepository: OrderReportsRepository,
     /** A voucher number handed in by the untagged report's Tag button. */
     private val initialVrNo: String? = null,
 ) : ViewModel() {
@@ -82,6 +88,9 @@ class ProjectExpenseViewModel(
     private var lineCounter = 0
     private var autoLoaded = false
 
+    /** Whether each account picked so far is an expense head, by its id. */
+    private var expenseHeads: Map<String, Boolean> = emptyMap()
+
     init {
         loadDdls()
     }
@@ -90,17 +99,13 @@ class ProjectExpenseViewModel(
         _uiState.update { it.copy(isLoadingDdls = true, ddlError = null) }
         viewModelScope.launch {
             val projects = repository.projectsDdl()
-            val accounts = repository.accountsDdl()
-            val error = (projects as? Resource.Error)?.message ?: (accounts as? Resource.Error)?.message
             _uiState.update {
                 it.copy(
                     isLoadingDdls = false,
-                    ddlError = error,
+                    ddlError = (projects as? Resource.Error)?.message,
                     projects = (projects as? Resource.Success)?.data ?: it.projects,
-                    accounts = (accounts as? Resource.Success)?.data ?: it.accounts,
                     sessionExpired = it.sessionExpired ||
-                        (projects as? Resource.Error)?.isUnauthorized == true ||
-                        (accounts as? Resource.Error)?.isUnauthorized == true,
+                        (projects as? Resource.Error)?.isUnauthorized == true,
                 )
             }
             // The untagged report's deep link: load its voucher once, and only
@@ -113,9 +118,16 @@ class ProjectExpenseViewModel(
         }
     }
 
+    /** A blank id is the picker's "branch expense" option — no project at all. */
     fun onProjectSelected(option: SelectorOption) {
         _uiState.update {
-            it.copy(projectId = option.id, projectName = option.label, buildingId = "", buildingName = "", buildings = emptyList())
+            it.copy(
+                projectId = option.id,
+                projectName = if (option.id.isBlank()) "" else option.label,
+                buildingId = "",
+                buildingName = "",
+                buildings = emptyList(),
+            )
         }
         loadBuildings(option.id.toIntOrNull() ?: return)
     }
@@ -139,9 +151,57 @@ class ProjectExpenseViewModel(
         it.copy(buildingId = option.id, buildingName = if (option.id.isBlank()) "" else option.label)
     }
 
-    fun onAccountSelected(option: SelectorOption) = _uiState.update {
-        it.copy(account = option.id, accountName = option.label)
+    /**
+     * Account type-ahead. The `is_expense` flag each option carries is kept
+     * aside — [SelectorOption] has nowhere to hold it — and read back when one
+     * of them is picked.
+     */
+    suspend fun searchAccounts(query: String): Resource<List<SelectorOption>> =
+        when (val result = repository.searchAccounts(query)) {
+            is Resource.Success -> {
+                expenseHeads = expenseHeads + result.data.associate { it.id.toString() to it.isExpense }
+                Resource.Success(
+                    result.data.map {
+                        SelectorOption(
+                            id = it.id.toString(),
+                            label = it.name,
+                            sublabel = it.group.ifBlank { null },
+                        )
+                    }
+                )
+            }
+            is Resource.Error -> result
+            Resource.Loading -> Resource.Loading
+        }
+
+    /**
+     * Picking a non-expense account drops whatever project was on the form:
+     * only an expense line may carry one, and leaving a stale project sitting
+     * in a disabled box is how a line gets saved against the wrong place.
+     */
+    fun onAccountSelected(option: SelectorOption) {
+        val isExpense = expenseHeads[option.id] == true
+        _uiState.update {
+            it.copy(
+                account = option.id,
+                accountName = option.label,
+                isExpenseAccount = isExpense,
+                projectId = if (isExpense) it.projectId else "",
+                projectName = if (isExpense) it.projectName else "",
+                buildingId = if (isExpense) it.buildingId else "",
+                buildingName = if (isExpense) it.buildingName else "",
+                buildings = if (isExpense) it.buildings else emptyList(),
+            )
+        }
     }
+
+    /** Order type-ahead for the voucher's optional order link. */
+    suspend fun searchOrders(query: String): Resource<List<SelectorOption>> =
+        orderRepository.searchOrders(query)
+
+    fun onOrderSelected(option: SelectorOption) = _uiState.update { it.copy(order = option) }
+
+    fun onOrderCleared() = _uiState.update { it.copy(order = null) }
 
     fun onRemarks(value: String) = _uiState.update { it.copy(remarks = value) }
     fun onAmount(value: String) = _uiState.update { it.copy(amount = value) }
@@ -152,7 +212,6 @@ class ProjectExpenseViewModel(
     fun saveLine() {
         val state = _uiState.value
         val message = when {
-            state.projectId.isBlank() -> "Choose the project this money belongs to."
             state.account.isBlank() -> "Choose an account."
             (state.amount.trim().toDoubleOrNull() ?: 0.0) <= 0.0 -> "Enter an amount greater than zero."
             else -> null
@@ -161,16 +220,21 @@ class ProjectExpenseViewModel(
             _uiState.update { it.copy(actionMessage = message) }
             return
         }
+        // The project is optional, and belongs to expense lines alone: without
+        // one an expense line is a plain branch expense, and any other account
+        // is never project-tracked at all.
+        val tagged = state.isExpenseAccount
         val line = ProjectExpenseLine(
             key = state.editingRowKey ?: "new-${lineCounter++}",
             account = state.account.toIntOrNull() ?: return,
             accountName = state.accountName,
             remarks = state.remarks.trim(),
             amount = state.amount.trim(),
-            projectId = state.projectId.toIntOrNull() ?: return,
-            projectName = state.projectName,
-            buildingId = state.buildingId.toIntOrNull(),
-            buildingName = state.buildingName,
+            projectId = if (tagged) state.projectId.toIntOrNull() else null,
+            projectName = if (tagged) state.projectName else "",
+            buildingId = if (tagged) state.buildingId.toIntOrNull() else null,
+            buildingName = if (tagged) state.buildingName else "",
+            isExpense = tagged,
         )
         _uiState.update {
             it.copy(
@@ -185,6 +249,7 @@ class ProjectExpenseViewModel(
                 // Project and building stay for the next line.
                 account = "",
                 accountName = "",
+                isExpenseAccount = false,
                 remarks = "",
                 amount = "",
             )
@@ -197,21 +262,29 @@ class ProjectExpenseViewModel(
         _uiState.update {
             it.copy(
                 editingRowKey = key,
-                projectId = row.projectId.toString(),
+                projectId = row.projectId?.toString().orEmpty(),
                 projectName = row.projectName,
                 buildingId = row.buildingId?.toString().orEmpty(),
                 buildingName = row.buildingName,
                 account = row.account.toString(),
                 accountName = row.accountName,
+                isExpenseAccount = row.isExpense,
                 remarks = row.remarks,
                 amount = row.amount,
             )
         }
-        loadBuildings(row.projectId)
+        row.projectId?.let { loadBuildings(it) }
     }
 
     fun cancelRowEdit() = _uiState.update {
-        it.copy(editingRowKey = null, account = "", accountName = "", remarks = "", amount = "")
+        it.copy(
+            editingRowKey = null,
+            account = "",
+            accountName = "",
+            isExpenseAccount = false,
+            remarks = "",
+            amount = "",
+        )
     }
 
     fun removeRow(key: String) {
@@ -237,6 +310,7 @@ class ProjectExpenseViewModel(
             val result = repository.expenseSave(
                 note = state.note.trim(),
                 paidFrom = state.paidFrom,
+                orderId = state.order?.id.orEmpty(),
                 rows = state.rows,
                 mtmId = state.editingMtmId,
             )
@@ -248,6 +322,7 @@ class ProjectExpenseViewModel(
                         actionMessage = result.data,
                         rows = emptyList(),
                         note = "",
+                        order = null,
                         editingVrNo = null,
                         editingMtmId = null,
                         paidFrom = null,
@@ -255,6 +330,7 @@ class ProjectExpenseViewModel(
                         editingRowKey = null,
                         account = "",
                         accountName = "",
+                        isExpenseAccount = false,
                         remarks = "",
                         amount = "",
                         searchQuery = "",
@@ -292,7 +368,7 @@ class ProjectExpenseViewModel(
                     val projectNames = _uiState.value.projects
                         .mapNotNull { o -> o.id.toIntOrNull()?.let { it to o.label } }.toMap()
                     val buildingNames = buildingNames(
-                        voucher.rows.filter { it.buildingId != null }.map { it.projectId },
+                        voucher.rows.mapNotNull { row -> row.projectId.takeIf { row.buildingId != null } },
                     )
                     _uiState.update {
                         it.copy(
@@ -305,6 +381,9 @@ class ProjectExpenseViewModel(
                                 )
                             },
                             note = voucher.note,
+                            order = voucher.orderId.takeIf { id -> id.isNotBlank() }?.let { id ->
+                                SelectorOption(id = id, label = voucher.orderText.ifBlank { id })
+                            },
                             editingVrNo = voucher.vrNo,
                             editingMtmId = voucher.mtmId,
                             paidFrom = voucher.paidFrom,
@@ -346,8 +425,10 @@ class ProjectExpenseViewModel(
     companion object {
         fun provideFactory(context: Context, initialVrNo: String? = null) = viewModelFactory {
             initializer {
+                val appContext = context.applicationContext
                 ProjectExpenseViewModel(
-                    repository = ServiceLocator.provideProjectCostRepository(context.applicationContext),
+                    repository = ServiceLocator.provideProjectCostRepository(appContext),
+                    orderRepository = ServiceLocator.provideOrderReportsRepository(appContext),
                     initialVrNo = initialVrNo,
                 )
             }

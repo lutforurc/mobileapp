@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -597,8 +598,22 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             // Cash Received/Payment have business-type variants (Head Office /
             // Trading / General), so they get their own multi-line screen.
             val cashVoucher = CashVoucherForms.byKey(key)
+            // A real-estate branch pays out through the project form instead:
+            // the same cash voucher, with the project dimension the ordinary
+            // screen cannot record (web CashPaymentIndex, business type 9).
+            val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+            val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+            val realEstatePayment = cashVoucher?.key == CashVoucherForms.payment.key &&
+                RealEstateMenu.visibleForBranch(sessionState.settings?.businessTypeId)
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
-                if (cashVoucher != null) {
+                if (realEstatePayment) {
+                    ProjectExpenseScreen(
+                        navController = navController,
+                        onLogout = backToLogin,
+                        title = CashVoucherForms.payment.title,
+                        drawerRoute = Routes.TRANSACTIONS,
+                    )
+                } else if (cashVoucher != null) {
                     CashVoucherScreen(
                         spec = cashVoucher,
                         navController = navController,
