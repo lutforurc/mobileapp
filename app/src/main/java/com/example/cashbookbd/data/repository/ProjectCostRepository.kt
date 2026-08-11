@@ -87,6 +87,40 @@ data class ProjectPurchaseLine(
     val buildingName: String,
 )
 
+/**
+ * One labour line of a project labour invoice.
+ *
+ * The purchase line's twin, and the same shape on the wire — the server's two
+ * controllers read the same `products` array. Only what the id names differs:
+ * a labour item here, a product there.
+ */
+data class ProjectLabourLine(
+    val key: String,
+    val itemId: Int,
+    val itemName: String,
+    val qty: String,
+    val price: String,
+    val projectId: Int,
+    val projectName: String,
+    val buildingId: Int?,
+    val buildingName: String,
+)
+
+/** A project labour invoice loaded for correction. */
+data class ProjectLabourVoucher(
+    val vrNo: String,
+    val mtmId: String,
+    val supplier: Int,
+    val supplierName: String,
+    val invoiceNo: String,
+    /** `YYYY-MM-DD` or blank. */
+    val invoiceDate: String,
+    val notes: String,
+    val discount: String,
+    val paid: String,
+    val lines: List<ProjectLabourLine>,
+)
+
 /** A project purchase invoice loaded for correction. */
 data class ProjectPurchaseVoucher(
     val vrNo: String,
@@ -426,6 +460,91 @@ class ProjectCostRepository(
             mtmId?.let { addProperty("mtm_id", it) }
         }
         val path = if (mtmId == null) "real-estate/project-purchase/store" else "real-estate/project-purchase/update"
+        request { api.postObjectRaw(path, body) }.map { json ->
+            json.message()?.takeIf { it.isNotBlank() } ?: "Voucher saved"
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Project Labour
+    // -----------------------------------------------------------------------
+
+    /** Loads a labour invoice for correction, by voucher number. */
+    suspend fun labourEdit(vrNo: String): Resource<ProjectLabourVoucher> = withContext(ioDispatcher) {
+        request { api.postAny("real-estate/project-labour/edit", mapOf("vr_no" to vrNo)) }.map { json ->
+            val data = json.dataObject() ?: throw IllegalStateException("Empty voucher payload")
+            ProjectLabourVoucher(
+                vrNo = data.str("vr_no").orEmpty(),
+                mtmId = data.str("mtm_id").orEmpty(),
+                supplier = data.intOr("supplier") ?: 0,
+                supplierName = data.str("supplier_name").orEmpty(),
+                invoiceNo = data.str("invoice_no").orEmpty(),
+                invoiceDate = data.str("invoice_date").orEmpty().take(10),
+                notes = data.str("notes").orEmpty(),
+                discount = data.str("discount").orEmpty().ifBlank { "0" },
+                paid = data.str("paid").orEmpty().ifBlank { "0" },
+                // The reply names the array `products`, as the purchase one
+                // does — the two controllers are twins down to the key.
+                lines = data.get("products")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapIndexedNotNull { index, el ->
+                        val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
+                        ProjectLabourLine(
+                            key = "${o.intOr("product") ?: index}-$index",
+                            itemId = o.intOr("product") ?: return@mapIndexedNotNull null,
+                            itemName = o.str("product_name").orEmpty(),
+                            qty = o.str("qty").orEmpty(),
+                            price = o.str("price").orEmpty(),
+                            projectId = o.intOr("project_id") ?: 0,
+                            projectName = "",
+                            buildingId = o.intOr("building_id"),
+                            buildingName = "",
+                        )
+                    }.orEmpty(),
+            )
+        }
+    }
+
+    /**
+     * Saves a project labour invoice. Labour carries no stock and no vehicle,
+     * so the body is the purchase one without them; everything else — the
+     * voucher shape, the per-building Labour Expense debits, the discount
+     * split — is the server's business.
+     */
+    suspend fun labourSave(
+        supplier: Int,
+        invoiceNo: String,
+        invoiceDate: String,
+        notes: String,
+        discount: Double,
+        paid: Double,
+        lines: List<ProjectLabourLine>,
+        mtmId: String?,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            addProperty("supplier", supplier)
+            addNullable("invoice_no", invoiceNo)
+            addNullable("invoice_date", invoiceDate)
+            addNullable("notes", notes)
+            addProperty("discount", discount)
+            addProperty("paid", paid)
+            add("products", JsonArray().apply {
+                lines.forEach { line ->
+                    add(JsonObject().apply {
+                        addProperty("product", line.itemId)
+                        addProperty("qty", line.qty)
+                        addProperty("price", line.price)
+                        addProperty("project_id", line.projectId)
+                        if (line.buildingId != null) {
+                            addProperty("building_id", line.buildingId)
+                        } else {
+                            add("building_id", JsonNull.INSTANCE)
+                        }
+                    })
+                }
+            })
+            mtmId?.let { addProperty("mtm_id", it) }
+        }
+        val path = if (mtmId == null) "real-estate/project-labour/store" else "real-estate/project-labour/update"
         request { api.postObjectRaw(path, body) }.map { json ->
             json.message()?.takeIf { it.isNotBlank() } ?: "Voucher saved"
         }

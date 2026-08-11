@@ -127,6 +127,7 @@ import com.example.cashbookbd.ui.realestate.FlatLayoutScreen
 import com.example.cashbookbd.ui.realestate.InstallmentCreateScreen
 import com.example.cashbookbd.ui.realestate.ProjectCostReportScreen
 import com.example.cashbookbd.ui.realestate.ProjectExpenseScreen
+import com.example.cashbookbd.ui.realestate.ProjectLabourScreen
 import com.example.cashbookbd.ui.realestate.ProjectPurchaseScreen
 import com.example.cashbookbd.ui.realestate.RealEstateCrudFormScreen
 import com.example.cashbookbd.ui.realestate.RealEstateHomeScreen
@@ -276,6 +277,9 @@ object Routes {
 
     /** Project Purchase — the purchase invoice with Building for Warehouse. */
     const val PROJECT_PURCHASE = "realestate/project-purchase"
+
+    /** Project Labour — the purchase form's twin, for work rather than material. */
+    const val PROJECT_LABOUR = "realestate/project-labour"
 
     /** Project Cost — summary / building detail / untagged, one screen. */
     const val PROJECT_COST_REPORT = "realestate/project-cost-report"
@@ -945,6 +949,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.PROJECT_PURCHASE) {
             PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_PURCHASE_KEY)) {
                 ProjectPurchaseScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PROJECT_LABOUR) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_LABOUR_KEY)) {
+                ProjectLabourScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

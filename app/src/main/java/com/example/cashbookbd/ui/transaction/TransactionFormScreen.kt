@@ -92,6 +92,15 @@ fun TransactionFormScreen(
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        actions = {
+            // Only Bank Payment has a walkthrough on file; the rest find
+            // nothing and show no link, which is the point of looking it up.
+            if (txnKey == "bankPayment") {
+                com.example.cashbookbd.ui.components.TutorialVideoLink(
+                    screenKey = com.example.cashbookbd.ui.components.TutorialScreens.BANK_PAYMENT,
+                )
+            }
+        },
     ) {
         if (!state.isSupported) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {

@@ -598,6 +598,26 @@ class CashVoucherViewModel(
     }
 }
 
+/**
+ * The walkthrough key for one cash form, by kind and variant. The table keeps
+ * a row per variant because they are different screens on the web, and a
+ * clerk on a head-office branch should not be shown the trading video.
+ */
+private fun cashVoucherTutorialKey(spec: CashVoucherSpec, variant: CashVoucherVariant): String =
+    if (spec.key == CashVoucherForms.payment.key) {
+        when (variant) {
+            CashVoucherVariant.TRADING -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_PAYMENT_TRADING
+            CashVoucherVariant.HEAD_OFFICE -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_PAYMENT_HEAD_OFFICE
+            CashVoucherVariant.GENERAL -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_PAYMENT_GENERAL
+        }
+    } else {
+        when (variant) {
+            CashVoucherVariant.TRADING -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_RECEIVED_TRADING
+            CashVoucherVariant.HEAD_OFFICE -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_RECEIVED_HEAD_OFFICE
+            CashVoucherVariant.GENERAL -> com.example.cashbookbd.ui.components.TutorialScreens.CASH_RECEIVED_GENERAL
+        }
+    }
+
 @Composable
 fun CashVoucherScreen(
     spec: CashVoucherSpec,
@@ -624,6 +644,13 @@ fun CashVoucherScreen(
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        // One route, four forms — so the key names the variant, as the web's
+        // own pinned keys do.
+        actions = {
+            com.example.cashbookbd.ui.components.TutorialVideoLink(
+                screenKey = cashVoucherTutorialKey(spec, state.variant),
+            )
+        },
     ) {
         Column(
             modifier = Modifier

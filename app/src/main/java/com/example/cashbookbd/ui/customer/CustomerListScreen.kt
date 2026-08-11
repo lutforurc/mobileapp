@@ -47,7 +47,8 @@ import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.session.Permissions
-import com.example.cashbookbd.ui.components.TutorialVideoButton
+import com.example.cashbookbd.ui.components.TutorialScreens
+import com.example.cashbookbd.ui.components.TutorialVideoLink
 import com.example.cashbookbd.ui.components.AddButton
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.FormFieldHeight
@@ -84,7 +85,6 @@ fun CustomerListScreen(
     val canDeleteVoucher = Permissions.hasAny(sessionState.permissions, listOf("voucher.delete"))
     // The full Edit Customer form rides cs.edit, like the web's edit button.
     val canEditCustomer = Permissions.hasAny(sessionState.permissions, listOf("cs.edit"))
-    val showTutorial = sessionState.settings?.needDemoTutorial == true
     // The branch's "Opening ongoing" flag: off, the web list drops the Opening
     // column — its input, voucher link and Delete — leaving only the ledger page.
     val openingEnabled = sessionState.settings?.openingOngoing == true
@@ -124,11 +124,10 @@ fun CustomerListScreen(
         onLogout = onLogout,
         modifier = modifier,
         actions = {
-            // The web's demo-video link on the customer list header, behind the
-            // same need_demo_tutorial gate as every other video link.
-            if (showTutorial) {
-                TutorialVideoButton(url = "https://www.youtube.com/watch?v=YW7R8KeWC2Y")
-            }
+            // The web's demo-video link on the customer list header. The URL is
+            // the operator's now, looked up by screen key — the link gates
+            // itself on need_demo_tutorial and on a video being on file.
+            TutorialVideoLink(screenKey = TutorialScreens.CUSTOMER_SUPPLIER)
         },
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {

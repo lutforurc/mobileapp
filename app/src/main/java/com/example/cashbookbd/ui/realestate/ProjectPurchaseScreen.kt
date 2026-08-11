@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,11 +44,13 @@ import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
-import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
+import com.example.cashbookbd.ui.components.TutorialScreens
+import com.example.cashbookbd.ui.components.TutorialVideoLink
+import com.example.cashbookbd.ui.components.VoucherSearchRow
 import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
@@ -100,6 +101,7 @@ fun ProjectPurchaseScreen(
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        actions = { TutorialVideoLink(screenKey = TutorialScreens.PROJECT_PURCHASE) },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -117,33 +119,12 @@ fun ProjectPurchaseScreen(
                 )
                 Spacer(Modifier.height(10.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AppTextField(
-                        value = state.searchQuery,
-                        onValueChange = viewModel::onSearchQuery,
-                        label = "Voucher number…",
-                        modifier = Modifier.weight(1f),
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                    PrimaryButton(
-                        text = "Search",
-                        onClick = viewModel::onSearch,
-                        compact = true,
-                        enabled = !state.isSearching,
-                        isLoading = state.isSearching,
-                        modifier = Modifier.height(FormFieldHeight),
-                    )
-                }
+                VoucherSearchRow(
+                    query = state.searchQuery,
+                    onQuery = viewModel::onSearchQuery,
+                    onSearch = viewModel::onSearch,
+                    isSearching = state.isSearching,
+                )
                 state.editingVrNo?.let { vrNo ->
                     Spacer(Modifier.height(8.dp))
                     Text(

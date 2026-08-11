@@ -50,7 +50,9 @@ class DashboardViewModel(
 
     /** The widget ids this dashboard can arrange (mobile has no chart cards). */
     fun declaredWidgets(): List<String> = if (isConstruction) {
-        listOf("summary", "top-purchase", "receive-details")
+        // The KPI band is arrangeable here too now that construction has its
+        // own two tiles — the web put it at the head of its list (863f16b).
+        listOf("kpi-row", "summary", "top-purchase", "receive-details")
     } else {
         listOf("kpi-row", "summary", "due-aging", "low-stock", "top-sales", "top-purchase")
     }

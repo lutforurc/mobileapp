@@ -239,9 +239,11 @@ private fun DashboardContent(
         }
 
         // The web's KPI row sits above the widget grid — only its hidden flag
-        // counts, its saved order position is ignored.
-        if (!isConstruction && summary != null && "kpi-row" !in prefs.hidden) {
-            item { KpiRow(summary) }
+        // counts, its saved order position is ignored. A construction site
+        // sells nothing and registers no customers of its own, so it gets the
+        // two figures it does move rather than a band of zeros (web 863f16b).
+        if (summary != null && "kpi-row" !in prefs.hidden) {
+            item { KpiRow(summary, isConstruction = isConstruction) }
         }
 
         ordered.forEach { id ->
@@ -492,13 +494,22 @@ private fun SummaryCard(dashboard: Dashboard, summary: DashboardSummary? = null)
  * deliberately no green/red. Tile hues are the web's own chart colours.
  */
 @Composable
-private fun KpiRow(summary: DashboardSummary) {
-    val tiles = listOf(
-        KpiTileSpec("Today Sales", "sales", Color(0xFF14B8A6), money = true),
-        KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
-        KpiTileSpec("New Customers", "newCustomers", Color(0xFF06B6D4), money = false),
-        KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
-    )
+private fun KpiRow(summary: DashboardSummary, isConstruction: Boolean = false) {
+    // A construction site buys and pays; it does not sell, and it registers no
+    // customers of its own — those two tiles would print a permanent zero.
+    val tiles = if (isConstruction) {
+        listOf(
+            KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
+            KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
+        )
+    } else {
+        listOf(
+            KpiTileSpec("Today Sales", "sales", Color(0xFF14B8A6), money = true),
+            KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
+            KpiTileSpec("New Customers", "newCustomers", Color(0xFF06B6D4), money = false),
+            KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
+        )
+    }
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),

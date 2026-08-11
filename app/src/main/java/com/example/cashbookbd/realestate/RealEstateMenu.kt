@@ -31,6 +31,7 @@ object RealEstateMenu {
     const val FLAT_LAYOUT_KEY = "flatLayout"
     const val PROJECT_EXPENSE_KEY = "projectExpense"
     const val PROJECT_PURCHASE_KEY = "projectPurchase"
+    const val PROJECT_LABOUR_KEY = "projectLabour"
     const val PROJECT_COST_REPORT_KEY = "projectCostReport"
 
     val all: List<RealEstateItem> = listOf(
@@ -49,6 +50,7 @@ object RealEstateMenu {
         // The project-and-building cost batch (web sidebar order: last).
         RealEstateItem(PROJECT_EXPENSE_KEY, "Project Expense", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_PURCHASE_KEY, "Project Purchase", listOf(SECTION_PERMISSION)),
+        RealEstateItem(PROJECT_LABOUR_KEY, "Project Labour", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_COST_REPORT_KEY, "Project Cost Report", listOf(SECTION_PERMISSION)),
     )
 
