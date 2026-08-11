@@ -138,7 +138,7 @@ private fun RegistrationForm(
         onClick = {
             com.example.cashbookbd.ui.components.openTutorialVideo(
                 context,
-                com.example.cashbookbd.ui.components.TutorialVideos.REGISTRATION,
+                com.example.cashbookbd.ui.components.TutorialScreens.REGISTRATION_URL,
             )
         },
     )

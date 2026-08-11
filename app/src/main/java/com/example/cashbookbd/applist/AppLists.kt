@@ -97,11 +97,13 @@ data class AppListSpec(
     /** When set, the toolbar shows a "+ Add" button opening the create screen. */
     val addAction: ListAddAction? = null,
     /**
-     * The screen's YouTube walkthrough. Shown as a play button in the app bar
-     * only while the branch's `need_demo_tutorial` setting is on — the web's
-     * own gate for its tutorial icons.
+     * The screen's key in the `tutorial_videos` table. Shown as a play button
+     * in the app bar while the branch's `need_demo_tutorial` setting is on and
+     * an operator has recorded a video against that key — the web's own gate.
+     * The URL is not compiled in; see
+     * [com.example.cashbookbd.ui.components.TutorialScreens].
      */
-    val tutorialUrl: String? = null,
+    val tutorialScreen: String? = null,
     /** When set, each row gets an edit pencil in the Action column. */
     val editAction: ListEditAction? = null,
     /** When set, each row gets a delete bin (with confirm) in the Action column. */
@@ -175,7 +177,7 @@ object AppLists {
                 AppListColumn("phone", "Phone"),
                 AppListColumn("mobile", "Mobile"),
             ),
-            tutorialUrl = com.example.cashbookbd.ui.components.TutorialVideos.COMPANY_AND_USER_LIST,
+            tutorialScreen = com.example.cashbookbd.ui.components.TutorialScreens.COMPANY_LIST,
             // Company List is gated on company.view in the web sidebar, matching
             // its Admin menu entry (not branch.view).
             anyOf = listOf("company.view"),
@@ -198,7 +200,7 @@ object AppLists {
                 AppListColumn("phone", "Phone"),
                 // No Status column — the Action toggle already shows it.
             ),
-            tutorialUrl = com.example.cashbookbd.ui.components.TutorialVideos.BRANCH_LIST,
+            tutorialScreen = com.example.cashbookbd.ui.components.TutorialScreens.BRANCH_LIST,
             anyOf = listOf("branch.view"),
             paginated = true,
             statusToggle = ListStatusToggle(endpoint = "branch/branch-status"),

@@ -46,6 +46,15 @@ data class Settings(
     val stockReportTypeGrouped: Boolean = false,
     /** Branch meta: shows the tutorial-video links on the list screens. */
     val needDemoTutorial: Boolean = false,
+    /**
+     * `screen_key -> walkthrough URL` for this app, as the settings payload
+     * sends it. The links used to be compiled in; they are the operator's to
+     * change now, and a screen with no row here simply shows no link.
+     *
+     * These are the app's own recordings, not the browser's — the table keeps a
+     * column for each and the payload hands each app only its own.
+     */
+    val tutorialVideos: Map<String, String> = emptyMap(),
     /** Signed-in user's display name, shown in the account menu header. */
     val userName: String? = null,
     val userEmail: String? = null,

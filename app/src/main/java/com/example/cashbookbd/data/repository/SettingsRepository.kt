@@ -77,6 +77,11 @@ class SettingsRepository(
                     stockReportTypeGrouped = payload?.branch?.stockReportType?.trim()
                         ?.toDoubleOrNull() == 1.0,
                     needDemoTutorial = payload?.branch?.needDemoTutorial?.trim() == "1",
+                    // Blank URLs are dropped server-side; drop them again here
+                    // so a bad row cannot put a link on a screen that opens
+                    // nothing.
+                    tutorialVideos = payload?.tutorialVideos
+                        ?.filterValues { it.isNotBlank() }.orEmpty(),
                     // The web checks String(x) === '1' on each of these metas.
                     needCustomerArea = payload?.branch?.needCustomerArea?.trim() == "1",
                     needCustomerDateOfBirth = payload?.branch?.needCustomerDateOfBirth?.trim() == "1",

@@ -48,6 +48,19 @@ data class SettingsPayload(
      * the `/public` prefix on a local server, exactly like the web's ImagePopup.
      */
     @SerializedName("env") val env: String? = null,
+    /**
+     * `screen_key -> walkthrough URL`, for every screen an operator has
+     * recorded one against **for this app**. Rides along with the settings
+     * payload rather than having an endpoint of its own — there is no read
+     * route for ordinary users. Rows without a URL are dropped server-side, so
+     * a key that is missing here simply has no video yet.
+     *
+     * The payload carries the browser's links too, under `tutorial_videos`, and
+     * this deliberately does not read them: one table holds a row per screen
+     * with a column per platform, because a web walkthrough shows a mouse
+     * moving around a page the app does not have.
+     */
+    @SerializedName("tutorial_videos_mobile") val tutorialVideos: Map<String, String>? = null,
 )
 
 /** The signed-in user, from `settings/get-settings`. Only the fields the app reads. */

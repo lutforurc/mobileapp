@@ -50,6 +50,8 @@ import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.TutorialScreens
+import com.example.cashbookbd.ui.components.TutorialVideoLink
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SecondaryButton
@@ -425,6 +427,7 @@ fun CombinedInvoiceScreen(
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
+        actions = { TutorialVideoLink(screenKey = TutorialScreens.COMBINED_ENTRY_TRADING) },
     ) {
         Column(
             modifier = Modifier

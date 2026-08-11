@@ -128,13 +128,9 @@ fun AppListScreen(
         snackbarHostState.showSnackbar(message)
     }
 
-    // The web's tutorial icon beside the title — spec-declared URL, shown only
-    // while the branch's need_demo_tutorial setting is on.
-    val tutorialUrl = com.example.cashbookbd.applist.AppLists.byKey(listKey)?.tutorialUrl
-    val showTutorial = tutorialUrl != null &&
-        com.example.cashbookbd.di.ServiceLocator
-            .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
-            .state.collectAsStateWithLifecycle().value.settings?.needDemoTutorial == true
+    // The web's tutorial icon beside the title. The spec names the screen; the
+    // URL comes from the settings payload, and the link gates itself.
+    val tutorialScreen = com.example.cashbookbd.applist.AppLists.byKey(listKey)?.tutorialScreen
 
     AuthenticatedShell(
         title = state.title,
@@ -143,8 +139,8 @@ fun AppListScreen(
         onLogout = onLogout,
         modifier = modifier,
         actions = {
-            if (showTutorial) {
-                com.example.cashbookbd.ui.components.TutorialVideoButton(url = tutorialUrl!!)
+            tutorialScreen?.let { screen ->
+                com.example.cashbookbd.ui.components.TutorialVideoLink(screenKey = screen)
             }
         },
     ) {
