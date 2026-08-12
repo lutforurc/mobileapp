@@ -35,7 +35,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 // val baseUrl = "https://aft.cashbookbd.com/api/"
 
 // val baseUrl = "https://eworld.cashbookbd.com/api/"
- val baseUrl = "https://sinthia.cashbookbd.com/api/" 
+// val baseUrl = "https://sinthia.cashbookbd.com/api/" 
 // val baseUrl = "https://nibirnirman.cashbookbd.com/api/" 
 // val baseUrl = "https://gme.cashbookbd.com/api/" 
 // val baseUrl = "https://krf.cashbookbd.com/api/" 
@@ -43,7 +43,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 // val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
 // val baseUrl = "https://kps.cashbookbd.com/api/" 
 // val baseUrl = "https://kbr.cashbookbd.com/api/" 
-// val baseUrl = "https://my.cashbookbd.com/api/"
+val baseUrl = "https://my.cashbookbd.com/api/"
 
 
 

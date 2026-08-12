@@ -1,0 +1,137 @@
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1024px; height:500px; overflow:hidden; }
+  body { font-family:"Segoe UI", Roboto, system-ui, sans-serif; position:relative;
+         background:linear-gradient(120deg,#1BAFB3 0%,#178A9E 42%,#1D5379 100%); }
+
+  /* decorative glows on the gradient */
+  .glow { position:absolute; border-radius:50%; filter:blur(2px); }
+  .g1 { width:420px; height:420px; right:-120px; top:-180px; background:rgba(255,255,255,.05); }
+  .g2 { width:300px; height:300px; right:240px; bottom:-160px; background:rgba(255,255,255,.04); }
+  .g3 { width:160px; height:160px; right:60px; bottom:40px; background:rgba(29,83,121,.25); }
+
+  /* left white panel with diagonal edge */
+  .panel { position:absolute; left:0; top:0; width:432px; height:500px; background:#ffffff;
+           clip-path:polygon(0 0, 100% 0, 88% 100%, 0 100%); z-index:5;
+           display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 64px 0 34px; }
+  .panel img { width:274px; display:block; }
+  .tag-bn { margin-top:18px; font-size:19px; font-weight:600; color:#1D5379; text-align:center; }
+  .tag-en { margin-top:8px; font-size:13px; font-weight:600; letter-spacing:2px; color:#178A9E; text-align:center; text-transform:uppercase; }
+
+  /* ---------- phones ---------- */
+  .phone { position:absolute; width:232px; background:#0b0f14; border-radius:30px; padding:10px 8px;
+           box-shadow:0 30px 60px rgba(10,20,30,.45); }
+  .phone .notch { position:absolute; left:50%; top:14px; transform:translateX(-50%); width:70px; height:5px;
+                  border-radius:3px; background:#232a31; z-index:9; }
+  .screen { width:216px; height:470px; border-radius:22px; overflow:hidden; padding:16px 9px 0; }
+  .ph-light { right:288px; top:44px; transform:rotate(-4deg); z-index:4; }
+  .ph-dark  { right:66px;  top:78px; transform:rotate(4deg);  z-index:3; }
+
+  /* theme tokens */
+  .theme-light .screen { background:#f7f8fa; }
+  .theme-light { --card:#eef1f4; --ink:#1f2935; --muted:#5a6470; --tile:#ffffff; --line:#ffffff; --bal:#1D5379; }
+  .theme-dark .screen { background:#0d1114; }
+  .theme-dark { --card:#161c22; --ink:#e8edf2; --muted:#94a1ac; --tile:#0d1114; --line:#0d1114; --bal:#6cb1f0; }
+
+  .hdr { display:flex; align-items:center; gap:7px; color:var(--ink); margin:2px 2px 10px; }
+  .hdr .title { font-size:13px; font-weight:700; flex:1; }
+  .burger { width:14px; }
+  .burger div { height:2px; border-radius:1px; background:var(--ink); margin:2.5px 0; }
+  .hico { width:11px; height:11px; }
+  .avatar { width:15px; height:15px; border-radius:50%; background:#1D5379; display:flex; align-items:center; justify-content:center; }
+  .avatar div { width:6px; height:6px; border-radius:50%; background:#cfe3ef; }
+
+  .glance { display:flex; align-items:baseline; margin:0 2px; }
+  .glance b { font-size:10px; font-weight:700; color:var(--ink); flex:1; }
+  .glance span { font-size:6.5px; color:var(--muted); }
+  .caption { font-size:6.5px; color:var(--muted); margin:3px 2px 7px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .stat { background:var(--card); border-radius:6px; padding:7px 8px 5px; }
+  .stat .t { font-size:7px; color:var(--muted); }
+  .stat .v { font-size:13px; font-weight:700; color:var(--ink); margin:2px 0 1px; }
+  .stat .d { font-size:6.5px; color:var(--muted); height:9px; }
+  .stat svg { width:100%; height:22px; display:block; }
+
+  .company { margin-top:9px; background:var(--card); border-radius:6px 6px 0 0; padding:10px 9px; display:flex; align-items:center; }
+  .company b { flex:1; font-size:11.5px; font-weight:700; color:var(--ink); }
+  .pin { width:20px; height:20px; border-radius:4px; background:#cfdbe6; display:flex; align-items:center; justify-content:center; }
+
+  .row { margin-top:2px; background:var(--card); padding:8px 9px; display:flex; align-items:center; gap:8px; }
+  .tile { width:22px; height:22px; border-radius:4px; background:var(--tile); flex:none;
+          display:flex; align-items:center; justify-content:center; }
+  .rl { flex:1; min-width:0; }
+  .rl .lab { font-size:6px; letter-spacing:1px; color:var(--muted); }
+  .rl .val { font-size:11.5px; font-weight:700; margin-top:1px; color:var(--ink); }
+  .row svg.spark { width:78px; height:26px; flex:none; }
+  .green { color:#1e9e50 !important; } .red { color:#e4443a !important; } .blue { color:var(--bal) !important; }
+</style>
+
+<div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+
+<div class="panel">
+  <img src="logo.png" alt="">
+  <div class="tag-bn">আপনার ব্যবসার পূর্ণাঙ্গ হিসাব<br>— এক অ্যাপে</div>
+  <div class="tag-en">Sales · Purchase · Vouchers · Reports</div>
+</div>
+
+<!-- sparkline defs -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <path id="sp1" d="M2 22 C8 22 10 12 16 12 S26 20 32 19 S40 8 46 15 S56 22 62 21 S68 6 76 10 S90 20 98 17"/>
+    <path id="sp2" d="M2 21 C10 21 14 15 20 17 S30 21 36 20 S44 10 50 16 S58 21 64 21 S70 4 78 8 S90 21 98 20"/>
+    <path id="sp3" d="M2 20 C8 20 10 6 16 6 S22 20 30 21 S38 17 44 19 S54 21 60 20 S70 17 78 19 S90 20 98 19"/>
+    <path id="sp4" d="M2 18 C6 12 10 8 16 9 S24 18 30 17 S38 14 44 16 S52 20 58 18 S66 8 74 10 S88 18 98 15"/>
+    <path id="sp5" d="M2 20 C8 20 10 6 18 5 S28 16 34 12 S42 6 48 10 S56 22 62 20 S68 4 76 5 S88 18 98 21"/>
+    <path id="sp6" d="M2 21 C8 21 12 18 18 19 S26 21 32 20 S38 6 44 8 S52 21 58 20 S64 18 70 19 S76 7 84 9 S92 20 98 20"/>
+    <path id="sp7" d="M2 24 C10 23 14 12 20 13 S28 20 34 18 S40 14 46 15 S54 8 60 10 S68 18 74 16 S82 6 90 8 L98 7"/>
+  </defs>
+</svg>
+
+<script>
+function phone(theme,key){
+  const S=(id,color,fid)=>`<svg class="spark" viewBox="0 0 100 28">
+      <defs><linearGradient id="${fid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <g><use href="#${id}" fill="url(#${fid})" stroke="none" transform="translate(0,0)"></use></g>
+      <use href="#${id}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+      <circle r="2.2" fill="${color}" cx="98" cy="${id=='sp1'?17:id=='sp2'?20:id=='sp3'?19:id=='sp4'?15:id=='sp5'?21:id=='sp6'?20:7}"/>
+    </svg>`;
+  const stat=(t,v,d,sp,c,f)=>`<div class="stat"><div class="t">${t}</div><div class="v">${v}</div>
+     <div class="d">${d}</div>${S(sp,c,f)}</div>`;
+  const ico=(p,c)=>`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const cal=ico('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>','#178A9E');
+  const dn =ico('<path d="M12 4v10m0 0l-4-4m4 4l4-4M4 20h16"/>','#1e9e50');
+  const up =ico('<path d="M12 20V10m0 0l-4 4m4-4l4 4M4 4h16"/>','#e4443a');
+  const wal=ico('<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M15 15h2"/>','#8b5cf6');
+  const pin=ico('<path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/>','#1D5379');
+  const g=ico('<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>','currentColor');
+  const rf=ico('<path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/>','currentColor');
+  const bl=ico('<path d="M18 16H6c1.5-1.5 2-3 2-6a4 4 0 0 1 8 0c0 3 .5 4.5 2 6zM10 19a2 2 0 0 0 4 0"/>','currentColor');
+  const row=(icon,lab,val,cls,spark)=>`<div class="row"><div class="tile">${icon}</div>
+     <div class="rl"><div class="lab">${lab}</div><div class="val ${cls}">${val}</div></div>${spark||''}</div>`;
+  return `<div class="phone ${theme}"><div class="notch"></div><div class="screen">
+    <div class="hdr"><div class="burger"><div></div><div></div><div></div></div>
+      <div class="title">Dashboard</div>
+      <span style="color:var(--ink)">${g}</span><span style="color:var(--ink)">${rf}</span>
+      <span style="color:var(--ink)">${bl}</span><div class="avatar"><div></div></div></div>
+    <div class="glance"><b>Today at a glance</b><span>Trx Date: 12/08/2026</span></div>
+    <div class="caption">change vs previous day · sparkline last 14 days</div>
+    <div class="grid">
+      ${stat('Today Sales','0','▼ 100%','sp1','#14b8a6',key+'f1')}
+      ${stat('Today Purchase','0','—','sp2','#f0a11c',key+'f2')}
+      ${stat('New Customers','1','—','sp3','#22c3ee',key+'f3')}
+      ${stat('Today Vouchers','3','▼ 81%','sp4','#7d8b99',key+'f4')}
+    </div>
+    <div class="company"><b>ABC Traders</b><div class="pin">${pin}</div></div>
+    ${row(cal,'TRANSACTION DATE','12/08/2026','')}
+    ${row(dn,'TODAY RECEIVED','23,000','green',S('sp5','#22a34a',key+'f5'))}
+    ${row(up,'TODAY PAYMENT','1,700','red',S('sp6','#ef4444',key+'f6'))}
+    ${row(wal,'BALANCE','6,71,366','blue',S('sp7','#8b5cf6',key+'f7'))}
+  </div></div>`;
+}
+document.body.insertAdjacentHTML('beforeend', phone('theme-dark ph-dark','dk'));
+document.body.insertAdjacentHTML('beforeend', phone('theme-light ph-light','lt'));
+</script>
