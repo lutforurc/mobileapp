@@ -127,6 +127,8 @@ import com.example.cashbookbd.ui.realestate.FlatLayoutScreen
 import com.example.cashbookbd.ui.realestate.InstallmentCreateScreen
 import com.example.cashbookbd.ui.realestate.ProjectCostReportScreen
 import com.example.cashbookbd.ui.realestate.ProjectExpenseScreen
+import com.example.cashbookbd.ui.realestate.ProjectIncomeReportScreen
+import com.example.cashbookbd.ui.realestate.ProjectIncomeScreen
 import com.example.cashbookbd.ui.realestate.ProjectLabourScreen
 import com.example.cashbookbd.ui.realestate.ProjectPurchaseScreen
 import com.example.cashbookbd.ui.realestate.RealEstateCrudFormScreen
@@ -281,8 +283,19 @@ object Routes {
     /** Project Labour — the purchase form's twin, for work rather than material. */
     const val PROJECT_LABOUR = "realestate/project-labour"
 
+    /** Project Income — the payment form pointed the other way. The untagged
+     *  income report deep-links here with a voucher number to load. */
+    const val PROJECT_INCOME = "realestate/project-income"
+    const val PROJECT_INCOME_PATTERN = "realestate/project-income?vrNo={vrNo}"
+
+    fun projectIncomeFor(vrNo: String): String =
+        "realestate/project-income?vrNo=${android.net.Uri.encode(vrNo)}"
+
     /** Project Cost — summary / building detail / untagged, one screen. */
     const val PROJECT_COST_REPORT = "realestate/project-cost-report"
+
+    /** Project Income — summary / detail / untagged, one screen. */
+    const val PROJECT_INCOME_REPORT = "realestate/project-income-report"
 
     const val UNIT_PAYMENT_ADD = "realestate/payment/add"
     const val UNIT_PAYMENT_EDIT = "realestate/payment/edit"
@@ -958,6 +971,34 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.PROJECT_LABOUR) {
             PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_LABOUR_KEY)) {
                 ProjectLabourScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.PROJECT_INCOME_PATTERN,
+            arguments = listOf(
+                navArgument(Routes.PROJECT_EXPENSE_VR_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_INCOME_KEY)) {
+                ProjectIncomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    initialVrNo = entry.arguments?.getString(Routes.PROJECT_EXPENSE_VR_ARG)
+                        ?.takeIf { it.isNotBlank() },
+                )
+            }
+        }
+
+        composable(Routes.PROJECT_INCOME_REPORT) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_INCOME_REPORT_KEY)) {
+                ProjectIncomeReportScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

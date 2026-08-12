@@ -32,7 +32,9 @@ object RealEstateMenu {
     const val PROJECT_EXPENSE_KEY = "projectExpense"
     const val PROJECT_PURCHASE_KEY = "projectPurchase"
     const val PROJECT_LABOUR_KEY = "projectLabour"
+    const val PROJECT_INCOME_KEY = "projectIncome"
     const val PROJECT_COST_REPORT_KEY = "projectCostReport"
+    const val PROJECT_INCOME_REPORT_KEY = "projectIncomeReport"
 
     val all: List<RealEstateItem> = listOf(
         // Check Register carries its own permission on the web route.
@@ -51,7 +53,12 @@ object RealEstateMenu {
         RealEstateItem(PROJECT_EXPENSE_KEY, "Project Expense", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_PURCHASE_KEY, "Project Purchase", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_LABOUR_KEY, "Project Labour", listOf(SECTION_PERMISSION)),
+        // Income has an entry of its own rather than taking over Cash Received
+        // the way Project Expense took over Cash Payment: most of what a
+        // real-estate branch takes in is a unit sale, which has its own screens.
+        RealEstateItem(PROJECT_INCOME_KEY, "Project Income", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_COST_REPORT_KEY, "Project Cost Report", listOf(SECTION_PERMISSION)),
+        RealEstateItem(PROJECT_INCOME_REPORT_KEY, "Project Income Report", listOf(SECTION_PERMISSION)),
     )
 
     private val byKey: Map<String, RealEstateItem> = all.associateBy { it.key }

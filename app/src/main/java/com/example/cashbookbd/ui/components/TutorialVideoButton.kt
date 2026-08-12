@@ -114,7 +114,9 @@ object TutorialScreens {
 
     const val PROJECT_PURCHASE = "/real-estate/project-purchase"
     const val PROJECT_LABOUR = "/real-estate/project-labour"
+    const val PROJECT_INCOME = "/real-estate/project-income"
     const val PROJECT_COST_REPORT = "/real-estate/project-cost-report"
+    const val PROJECT_INCOME_REPORT = "/real-estate/project-income-report"
     const val INSTALLMENT_CREATE = "/real-estate/installment-create"
     const val UNIT_SALES = "/real-estate/unit-sales"
     const val SOLD_UNITS = "/real-estate/sold-units"

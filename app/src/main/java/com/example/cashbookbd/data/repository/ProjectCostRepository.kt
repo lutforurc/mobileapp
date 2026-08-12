@@ -73,6 +73,79 @@ data class ExpenseAccountOption(
     val isExpense: Boolean,
 )
 
+/**
+ * One line of a cash receipt voucher — the payment line's mirror.
+ *
+ * The tag table says which project a line belongs to and nothing about which
+ * way the money went, so income and cost share it; the two are told apart by
+ * the level-1 test each report applies.
+ */
+data class ProjectIncomeLine(
+    val key: String,
+    val account: Int,
+    val accountName: String,
+    val remarks: String,
+    val amount: String,
+    /** Only an income head may carry a project, and even then it is optional. */
+    val projectId: Int?,
+    val projectName: String,
+    /** Null = "whole project" — earnings no single building brought in. */
+    val buildingId: Int?,
+    val buildingName: String,
+    /** True when the account is an income head; only those take a project. */
+    val isIncome: Boolean = false,
+)
+
+/** A cash receipt voucher loaded for correction (`edit` by vr_no). */
+data class ProjectIncomeVoucher(
+    val vrNo: String,
+    val mtmId: String,
+    val note: String,
+    /**
+     * The single debit line's account — where the money landed. 17 is cash,
+     * anything else a bank; a receipt that was banked stays banked on a rewrite.
+     */
+    val receivedIn: Int?,
+    val receivedInName: String,
+    val rows: List<ProjectIncomeLine>,
+)
+
+/** One account of the receipt form's picker; [isIncome] decides the tagging. */
+data class IncomeAccountOption(
+    val id: Int,
+    val name: String,
+    val group: String,
+    val isIncome: Boolean,
+)
+
+/** Income Summary — one row per project, earningless projects included. */
+data class ProjectIncomeSummaryRow(
+    val projectName: String,
+    /** What a named building earned. */
+    val directIncome: Double,
+    /** What the project earned with no building named — ground rent, hoardings. */
+    val commonIncome: Double,
+    val totalIncome: Double,
+)
+
+/** Income Detail — one row per (project, building, income head). */
+data class ProjectIncomeDetailRow(
+    val projectName: String,
+    /** Blank means the whole project earned it, which is not a missing name. */
+    val buildingName: String,
+    val head: String,
+    val amount: Double,
+)
+
+/** Income booked to an income head and never tagged with a project. */
+data class UntaggedIncomeRow(
+    val vrNo: String,
+    val vrDate: String,
+    val head: String,
+    val remarks: String,
+    val amount: Double,
+)
+
 /** One product line of a project purchase invoice. */
 data class ProjectPurchaseLine(
     val key: String,
@@ -202,8 +275,13 @@ data class UntaggedExpenseReport(
 )
 
 /**
- * The Project Expense / Project Purchase forms and the Project Cost reports —
- * the web's project-and-building cost batch.
+ * What a project spent and what it earned: the Project Expense, Purchase,
+ * Labour and Income forms, and the two reports reading them.
+ *
+ * Income shares this class rather than getting one of its own because it
+ * shares everything that matters — the same dimension table, the same route
+ * prefix, the same refusal shape. A tag says which project a line belongs to
+ * and nothing about which way the money went.
  *
  * Everything lives under the `real-estate` route prefix: the reports read the
  * real-estate dimension tables, which mean nothing on a branch without them. Ids travel as
@@ -373,6 +451,107 @@ class ProjectCostRepository(
             mtmId?.let { addProperty("mtm_id", it) }
         }
         val path = if (mtmId == null) "real-estate/project-expense/store" else "real-estate/project-expense/update"
+        request { api.postObjectRaw(path, body) }.map { json ->
+            json.message()?.takeIf { it.isNotBlank() } ?: "Voucher saved"
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Project Income
+    // -----------------------------------------------------------------------
+
+    /** Active accounts for the receipt form; `is_income` decides the tagging. */
+    suspend fun searchIncomeAccounts(query: String): Resource<List<IncomeAccountOption>> =
+        withContext(ioDispatcher) {
+            val q = query.trim()
+            if (q.length < MIN_ACCOUNT_SEARCH_CHARS) return@withContext Resource.Success(emptyList())
+            request { api.get("real-estate/project-income/accounts/ddl", mapOf("search" to q)) }.map { json ->
+                json.dataArray().mapNotNull { el ->
+                    val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                    val id = o.intOr("value") ?: return@mapNotNull null
+                    IncomeAccountOption(
+                        id = id,
+                        name = o.str("label").orEmpty().ifBlank { id.toString() },
+                        group = o.str("label_2").orEmpty(),
+                        // The server sends 1/0; anything non-zero means income.
+                        isIncome = (o.str("is_income")?.toDoubleOrNull() ?: 0.0) != 0.0,
+                    )
+                }
+            }
+        }
+
+    /** Loads a cash receipt voucher for correction, by voucher number. */
+    suspend fun incomeEdit(vrNo: String): Resource<ProjectIncomeVoucher> = withContext(ioDispatcher) {
+        request { api.postAny("real-estate/project-income/edit", mapOf("vr_no" to vrNo)) }.map { json ->
+            val data = json.dataObject() ?: throw IllegalStateException("Empty voucher payload")
+            ProjectIncomeVoucher(
+                vrNo = data.str("vr_no").orEmpty(),
+                mtmId = data.str("mtm_id").orEmpty(),
+                note = data.str("note").orEmpty(),
+                receivedIn = data.intOr("received_in"),
+                receivedInName = data.str("received_in_name").orEmpty(),
+                rows = data.get("rows")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapIndexedNotNull { index, el ->
+                        val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
+                        ProjectIncomeLine(
+                            key = "${o.intOr("id") ?: index}-$index",
+                            account = o.intOr("account") ?: return@mapIndexedNotNull null,
+                            accountName = o.str("account_name").orEmpty(),
+                            remarks = o.str("remarks").orEmpty(),
+                            amount = o.str("amount").orEmpty(),
+                            projectId = o.intOr("project_id"),
+                            projectName = "",
+                            buildingId = o.intOr("building_id"),
+                            buildingName = "",
+                            isIncome = o.get("is_income")?.takeUnless { it.isJsonNull }
+                                ?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                        )
+                    }.orEmpty(),
+            )
+        }
+    }
+
+    /**
+     * Saves a cash receipt voucher — a create, or a rewrite of [mtmId]'s.
+     * Income lines carry their project/building tag where one was chosen; the
+     * debit side is the server's business ([receivedIn] is only honoured on
+     * update, so a receipt that was banked stays banked).
+     */
+    suspend fun incomeSave(
+        note: String,
+        receivedIn: Int?,
+        rows: List<ProjectIncomeLine>,
+        mtmId: String?,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            addProperty("note", note)
+            if (receivedIn != null) {
+                addProperty("received_in", receivedIn)
+            } else {
+                add("received_in", JsonNull.INSTANCE)
+            }
+            add("rows", JsonArray().apply {
+                rows.forEach { line ->
+                    add(JsonObject().apply {
+                        addProperty("account", line.account)
+                        addProperty("remarks", line.remarks)
+                        addProperty("amount", line.amount)
+                        if (line.projectId != null) {
+                            addProperty("project_id", line.projectId)
+                        } else {
+                            add("project_id", JsonNull.INSTANCE)
+                        }
+                        if (line.buildingId != null) {
+                            addProperty("building_id", line.buildingId)
+                        } else {
+                            add("building_id", JsonNull.INSTANCE)
+                        }
+                    })
+                }
+            })
+            mtmId?.let { addProperty("mtm_id", it) }
+        }
+        val path = if (mtmId == null) "real-estate/project-income/store" else "real-estate/project-income/update"
         request { api.postObjectRaw(path, body) }.map { json ->
             json.message()?.takeIf { it.isNotBlank() } ?: "Voucher saved"
         }
@@ -624,6 +803,61 @@ class ProjectCostRepository(
                     )
                 }
         }
+
+    /** What each project has earned — its buildings' income beside its own. */
+    suspend fun incomeSummary(branchId: Long, startDate: String, endDate: String): Resource<List<ProjectIncomeSummaryRow>> =
+        withContext(ioDispatcher) {
+            request { api.get("real-estate/reports/income-summary", reportParams(branchId, startDate, endDate)) }
+                .map { json ->
+                    json.reportRows().mapNotNull { o ->
+                        ProjectIncomeSummaryRow(
+                            projectName = o.str("project_name").orEmpty(),
+                            directIncome = o.dbl("direct_income"),
+                            commonIncome = o.dbl("common_income"),
+                            totalIncome = o.dbl("total_income"),
+                        )
+                    }
+                }
+        }
+
+    /** Each project's earnings by income head, and by building where named. */
+    suspend fun incomeDetail(branchId: Long, startDate: String, endDate: String): Resource<List<ProjectIncomeDetailRow>> =
+        withContext(ioDispatcher) {
+            request { api.get("real-estate/reports/income-detail", reportParams(branchId, startDate, endDate)) }
+                .map { json ->
+                    json.reportRows().mapNotNull { o ->
+                        ProjectIncomeDetailRow(
+                            projectName = o.str("project_name").orEmpty(),
+                            buildingName = o.str("building_name").orEmpty(),
+                            head = o.str("head_name").orEmpty(),
+                            amount = o.dbl("amount"),
+                        )
+                    }
+                }
+        }
+
+    /** Income on an income head that never named a project. */
+    suspend fun untaggedIncome(branchId: Long, startDate: String, endDate: String): Resource<List<UntaggedIncomeRow>> =
+        withContext(ioDispatcher) {
+            request { api.get("real-estate/reports/untagged-income", reportParams(branchId, startDate, endDate)) }
+                .map { json ->
+                    json.reportRows().mapNotNull { o ->
+                        UntaggedIncomeRow(
+                            vrNo = o.str("vr_no").orEmpty(),
+                            vrDate = o.str("vr_date").orEmpty(),
+                            head = o.str("head_name").orEmpty(),
+                            remarks = o.str("remarks").orEmpty(),
+                            amount = o.dbl("amount"),
+                        )
+                    }
+                }
+        }
+
+    /** The `rows` array of a report reply, as objects. */
+    private fun JsonObject.reportRows(): List<JsonObject> =
+        dataObject()?.get("rows")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject }
+            .orEmpty()
 
     private fun reportParams(branchId: Long, startDate: String, endDate: String): Map<String, String> =
         mapOf("branch_id" to branchId.toString(), "start_date" to startDate, "end_date" to endDate)

@@ -87,7 +87,9 @@ fun RealEstateHomeScreen(
                             item.key == RealEstateMenu.PROJECT_EXPENSE_KEY -> Routes.PROJECT_EXPENSE
                             item.key == RealEstateMenu.PROJECT_PURCHASE_KEY -> Routes.PROJECT_PURCHASE
                             item.key == RealEstateMenu.PROJECT_LABOUR_KEY -> Routes.PROJECT_LABOUR
+                            item.key == RealEstateMenu.PROJECT_INCOME_KEY -> Routes.PROJECT_INCOME
                             item.key == RealEstateMenu.PROJECT_COST_REPORT_KEY -> Routes.PROJECT_COST_REPORT
+                            item.key == RealEstateMenu.PROJECT_INCOME_REPORT_KEY -> Routes.PROJECT_INCOME_REPORT
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> return@RealEstateRowItem
                         }
