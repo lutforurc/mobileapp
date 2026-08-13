@@ -1,0 +1,238 @@
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1024px; height:500px; overflow:hidden; }
+  body { font-family:"Segoe UI", Roboto, system-ui, sans-serif; position:relative;
+         background:linear-gradient(120deg,#1BAFB3 0%,#178A9E 42%,#1D5379 100%); }
+
+  .glow { position:absolute; border-radius:50%; filter:blur(2px); }
+  .g1 { width:420px; height:420px; right:-120px; top:-180px; background:rgba(255,255,255,.05); }
+  .g2 { width:300px; height:300px; right:240px; bottom:-160px; background:rgba(255,255,255,.04); }
+  .g3 { width:160px; height:160px; right:60px; bottom:40px; background:rgba(29,83,121,.25); }
+
+  .panel { position:absolute; left:0; top:0; width:432px; height:500px; background:#ffffff;
+           clip-path:polygon(0 0, 100% 0, 88% 100%, 0 100%); z-index:5;
+           display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 64px 0 34px; }
+  .panel img { width:262px; display:block; }
+  .tag-bn { margin-top:18px; font-size:19px; font-weight:600; color:#1D5379; text-align:center; }
+  .tag-en { margin-top:8px; font-size:12px; font-weight:600; letter-spacing:2px; color:#178A9E; text-align:center; text-transform:uppercase; }
+
+  /* ---------- phone ---------- */
+  .phone { position:absolute; width:232px; background:#0b0f14; border-radius:30px; padding:10px 8px;
+           box-shadow:0 30px 60px rgba(10,20,30,.45); z-index:3; }
+  .phone .notch { position:absolute; left:50%; top:14px; transform:translateX(-50%); width:70px; height:5px;
+                  border-radius:3px; background:#232a31; z-index:9; }
+  .screen { width:216px; height:470px; border-radius:22px; overflow:hidden; padding:16px 10px 0; }
+
+  /* ---------- floating chips ---------- */
+  .chip { position:absolute; z-index:6; background:rgba(255,255,255,.96); border-radius:10px;
+          padding:9px 13px; display:flex; align-items:center; gap:9px;
+          box-shadow:0 12px 28px rgba(10,20,30,.35); }
+  .chip .t { font-size:12px; font-weight:600; color:#1f2935; white-space:nowrap; }
+  .chip .v { font-size:12px; font-weight:700; white-space:nowrap; }
+
+  /* toggle pill */
+  .tg { width:30px; height:16px; border-radius:8px; position:relative; flex:none; }
+  .tg::after { content:""; position:absolute; top:2px; width:12px; height:12px; border-radius:50%; }
+  .tg.on { background:#178090; } .tg.on::after { right:2px; background:#fff; }
+  .tg.off { background:#c3ccd2; } .tg.off::after { left:2px; background:#ffffff; }
+
+  /* ---------- Edit Branch screen (dark teal) ---------- */
+  .br { background:#0a151a; height:100%; }
+  .br .hdr { display:flex; align-items:center; gap:7px; color:#e8eef2; margin:2px 2px 9px; }
+  .br .hdr .title { font-size:13px; font-weight:700; flex:1; }
+  .burger { width:14px; } .burger div { height:2px; border-radius:1px; background:#e8eef2; margin:2.5px 0; }
+  .avatar { width:15px; height:15px; border-radius:50%; background:#1BAFB3; flex:none;
+            display:flex; align-items:center; justify-content:center; }
+  .avatar div { width:6px; height:6px; border-radius:50%; background:#0a151a; }
+  .tabs { display:flex; gap:5px; margin:0 0 3px; }
+  .tab { background:#10232b; border-radius:5px; padding:5px 8px; font-size:7.5px; color:#9fb2bb;
+         display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .tab.active { color:#4fc3d8; font-weight:700; }
+  .tab .n { width:11px; height:11px; border-radius:50%; background:#155e6e; color:#cfeef5;
+            font-size:6.5px; display:flex; align-items:center; justify-content:center; }
+  .tab .ck { color:#4fc3d8; font-size:8px; }
+  .bar { height:3px; border-radius:2px; background:#123039; margin:0 0 8px; position:relative; }
+  .bar div { position:absolute; left:0; top:0; bottom:0; border-radius:2px; background:#1BAFB3; }
+  .br .cap { font-size:7.5px; color:#8fa0aa; margin:0 2px 9px; }
+  .brrow { display:flex; align-items:center; margin:0 2px; }
+  .brrow .t { flex:1; font-size:11px; font-weight:600; color:#e8eef2; }
+  .brdesc { font-size:7.5px; color:#8fa0aa; margin:3px 2px 10px; line-height:1.45; }
+  .tg2 { width:34px; height:18px; border-radius:9px; position:relative; flex:none; }
+  .tg2::after { content:""; position:absolute; top:2.5px; width:13px; height:13px; border-radius:50%; }
+  .tg2.on { background:#178090; } .tg2.on::after { right:2.5px; background:#fff; }
+  .tg2.off { background:#22333b; border:1px solid #33454e; } .tg2.off::after { left:2.5px; background:#7d8f99; }
+
+  /* ---------- Dashboard screen (dark, from the app) ---------- */
+  .dash { background:#0d1114; height:100%; --card:#161c22; --ink:#e8edf2; --muted:#94a1ac; --tile:#0d1114; }
+  .dash .hdr { display:flex; align-items:center; gap:7px; color:var(--ink); margin:2px 2px 10px; }
+  .dash .hdr .title { font-size:13px; font-weight:700; flex:1; }
+  .dash .burger div { background:var(--ink); }
+  .hico { width:11px; height:11px; }
+  .glance { display:flex; align-items:baseline; margin:0 2px; }
+  .glance b { font-size:10px; font-weight:700; color:var(--ink); flex:1; }
+  .glance span { font-size:6.5px; color:var(--muted); }
+  .caption { font-size:6.5px; color:var(--muted); margin:3px 2px 7px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .stat { background:var(--card); border-radius:6px; padding:7px 8px 5px; }
+  .stat .t { font-size:7px; color:var(--muted); }
+  .stat .v { font-size:13px; font-weight:700; color:var(--ink); margin:2px 0 1px; }
+  .stat .d { font-size:6.5px; color:var(--muted); height:9px; }
+  .stat svg { width:100%; height:22px; display:block; }
+  .company { margin-top:9px; background:var(--card); border-radius:6px 6px 0 0; padding:10px 9px; display:flex; align-items:center; }
+  .company b { flex:1; font-size:11.5px; font-weight:700; color:var(--ink); }
+  .pin { width:20px; height:20px; border-radius:4px; background:#cfdbe6; display:flex; align-items:center; justify-content:center; }
+  .row { margin-top:2px; background:var(--card); padding:8px 9px; display:flex; align-items:center; gap:8px; }
+  .tile { width:22px; height:22px; border-radius:4px; background:var(--tile); flex:none;
+          display:flex; align-items:center; justify-content:center; }
+  .rl { flex:1; min-width:0; }
+  .rl .lab { font-size:6px; letter-spacing:1px; color:var(--muted); }
+  .rl .val { font-size:11.5px; font-weight:700; margin-top:1px; color:var(--ink); }
+  .row svg.spark { width:78px; height:26px; flex:none; }
+  .green { color:#2fbf68 !important; } .red { color:#f0655c !important; } .blue { color:#6cb1f0 !important; }
+</style>
+
+<div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <path id="sp1" d="M2 22 C8 22 10 12 16 12 S26 20 32 19 S40 8 46 15 S56 22 62 21 S68 6 76 10 S90 20 98 17"/>
+    <path id="sp2" d="M2 21 C10 21 14 15 20 17 S30 21 36 20 S44 10 50 16 S58 21 64 21 S70 4 78 8 S90 21 98 20"/>
+    <path id="sp3" d="M2 20 C8 20 10 6 16 6 S22 20 30 21 S38 17 44 19 S54 21 60 20 S70 17 78 19 S90 20 98 19"/>
+    <path id="sp4" d="M2 18 C6 12 10 8 16 9 S24 18 30 17 S38 14 44 16 S52 20 58 18 S66 8 74 10 S88 18 98 15"/>
+    <path id="sp5" d="M2 20 C8 20 10 6 18 5 S28 16 34 12 S42 6 48 10 S56 22 62 20 S68 4 76 5 S88 18 98 21"/>
+    <path id="sp6" d="M2 21 C8 21 12 18 18 19 S26 21 32 20 S38 6 44 8 S52 21 58 20 S64 18 70 19 S76 7 84 9 S92 20 98 20"/>
+    <path id="sp7" d="M2 24 C10 23 14 12 20 13 S28 20 34 18 S40 14 46 15 S54 8 60 10 S68 18 74 16 S82 6 90 8 L98 7"/>
+  </defs>
+</svg>
+
+<script>
+const params = new URLSearchParams(location.search);
+const VARIANT = params.get('v') || 'controls';
+
+const ico=(p,c)=>`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const bell=c=>ico('<path d="M18 16H6c1.5-1.5 2-3 2-6a4 4 0 0 1 8 0c0 3 .5 4.5 2 6zM10 19a2 2 0 0 0 4 0"/>',c);
+const gear=c=>ico('<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',c);
+const rf=c=>ico('<path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/>',c);
+const pin=ico('<path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/>','#1D5379');
+const cal=ico('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>','#4fc3d8');
+const dn =ico('<path d="M12 4v10m0 0l-4-4m4 4l4-4M4 20h16"/>','#2fbf68');
+const up =ico('<path d="M12 20V10m0 0l-4 4m4-4l4 4M4 4h16"/>','#f0655c');
+const wal=ico('<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M15 15h2"/>','#8b5cf6');
+
+const S=(id,color,fid,cy)=>`<svg class="spark" viewBox="0 0 100 28">
+    <defs><linearGradient id="${fid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <use href="#${id}" fill="url(#${fid})" stroke="none"></use>
+    <use href="#${id}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+    <circle r="2.2" fill="${color}" cx="98" cy="${cy}"/>
+  </svg>`;
+
+/* ---------------- Edit Branch phone ---------------- */
+function branchPhone(kind, pos){
+  const controls = kind === 'controls';
+  const tabs = controls
+    ? `<div class="tab"><span class="ck">✓</span> Real Estate Setup</div>
+       <div class="tab active"><span class="n">7</span> Feature Controls</div>`
+    : `<div class="tab active"><span class="n">5</span> Product Setup</div>
+       <div class="tab"><span class="n">6</span> Real Estate Setup</div>`;
+  const cap = controls
+    ? 'Operational controls, sharing options, and SMS preferences.'
+    : 'How products are ordered and priced in this branch.';
+  const rows = controls ? [
+      ['Control manufacture', true, 'Opens the production side, so an item can be built from other items instead of only bought and sold.'],
+      ['Multiple warehouse', false, 'Vouchers say which warehouse stock moved in or out of.'],
+      ['Need demo tutorial', true, 'Offers the guided walkthrough to users of this branch.'],
+      ['SMS service', true, 'The master switch for this branch for all outgoing texts.'],
+      ['Received SMS', true, 'Texts the party when money received from them is posted.'],
+      ['Sales SMS', false, 'Texts the customer when a sale is invoiced to them.'],
+    ] : [
+      ['Multi Product Order?', false, 'On: one order can carry several products.'],
+      ['Stock with zero', false, 'Keeps items with no balance on the stock report.'],
+      ['Stock: Brand → Category → Item', true, 'Groups the stock report by brand, then category, then item.'],
+      ['Warranty control', true, 'Products carry a warranty period, tracked from the sale.'],
+      ['Product share', true, 'Products entered anywhere in the company can be picked here.'],
+      ['Product Tracking?', true, 'Cash Received and Payment ask which product the money was for.'],
+    ];
+  const rowsHtml = rows.map(([t,on,d]) =>
+    `<div class="brrow"><div class="t">${t}</div><div class="tg2 ${on?'on':'off'}"></div></div>
+     <div class="brdesc">${d}</div>`).join('');
+  return `<div class="phone" style="${pos}"><div class="notch"></div><div class="screen br">
+    <div class="hdr"><div class="burger"><div></div><div></div><div></div></div>
+      <div class="title">Edit Branch</div>${bell('#e8eef2')}<div class="avatar"><div></div></div></div>
+    <div class="tabs">${tabs}</div>
+    <div class="bar"><div style="width:${controls?'100%':'71%'}"></div></div>
+    <div class="cap">${cap}</div>
+    ${rowsHtml}
+  </div></div>`;
+}
+
+/* ---------------- Dashboard phone (dark, ABC Traders) ---------------- */
+function dashPhone(pos){
+  const stat=(t,v,d,sp,c,f,cy)=>`<div class="stat"><div class="t">${t}</div><div class="v">${v}</div>
+     <div class="d">${d}</div>${S(sp,c,f,cy)}</div>`;
+  const row=(icon,lab,val,cls,spark)=>`<div class="row"><div class="tile">${icon}</div>
+     <div class="rl"><div class="lab">${lab}</div><div class="val ${cls}">${val}</div></div>${spark||''}</div>`;
+  return `<div class="phone" style="${pos}"><div class="notch"></div><div class="screen dash">
+    <div class="hdr"><div class="burger"><div></div><div></div><div></div></div>
+      <div class="title">Dashboard</div>
+      ${gear('#e8edf2')}${rf('#e8edf2')}${bell('#e8edf2')}<div class="avatar"><div></div></div></div>
+    <div class="glance"><b>Today at a glance</b><span>Trx Date: 12/08/2026</span></div>
+    <div class="caption">change vs previous day · sparkline last 14 days</div>
+    <div class="grid">
+      ${stat('Today Sales','0','▼ 100%','sp1','#14b8a6','df1',17)}
+      ${stat('Today Purchase','0','—','sp2','#f0a11c','df2',20)}
+      ${stat('New Customers','1','—','sp3','#22c3ee','df3',19)}
+      ${stat('Today Vouchers','3','▼ 81%','sp4','#7d8b99','df4',15)}
+    </div>
+    <div class="company"><b>ABC Traders</b><div class="pin">${pin}</div></div>
+    ${row(cal,'TRANSACTION DATE','12/08/2026','')}
+    ${row(dn,'TODAY RECEIVED','23,000','green',S('sp5','#22a34a','df5',21))}
+    ${row(up,'TODAY PAYMENT','1,700','red',S('sp6','#ef4444','df6',20))}
+    ${row(wal,'BALANCE','6,71,366','blue',S('sp7','#8b5cf6','df7',7))}
+  </div></div>`;
+}
+
+const chip=(style,inner)=>`<div class="chip" style="${style}">${inner}</div>`;
+const tgc=(t,on)=>`<div class="t">${t}</div><div class="tg ${on?'on':'off'}"></div>`;
+
+const VARIANTS = {
+  controls: {
+    bn: 'প্রতিটি শাখার নিয়ন্ত্রণ<br>আপনার হাতে',
+    en: 'Feature Controls · SMS · Branch Setup',
+    scene: branchPhone('controls', 'right:210px; top:44px; transform:rotate(-3deg);') +
+      chip('right:96px; top:76px;', tgc('SMS Service', true)) +
+      chip('right:60px; top:180px;', tgc('Received SMS', true)) +
+      chip('right:78px; top:284px;', tgc('Multiple Warehouse', false)) +
+      chip('right:110px; top:388px;', tgc('Demo Tutorial', true)),
+  },
+  products: {
+    bn: 'পণ্য, স্টক ও ওয়ারেন্টি —<br>নিজের নিয়মে',
+    en: 'Products · Stock · Warranty · Orders',
+    scene: branchPhone('products', 'right:210px; top:44px; transform:rotate(3deg);') +
+      chip('right:96px; top:76px;', tgc('Warranty Control', true)) +
+      chip('right:56px; top:180px;', tgc('Product Tracking', true)) +
+      chip('right:76px; top:284px;', tgc('Product Share', true)) +
+      chip('right:104px; top:388px;', tgc('Multi Product Order', false)),
+  },
+  dashboard: {
+    bn: 'দিনের হিসাব এক নজরে —<br>ডার্ক মোডেও',
+    en: 'Live Dashboard · Light &amp; Dark Mode',
+    scene: dashPhone('right:230px; top:40px; transform:rotate(-2deg);') +
+      chip('right:88px; top:90px;', `${dn}<div class="t">Received</div><div class="v" style="color:#16A34A">23,000</div>`) +
+      chip('right:60px; top:210px;', `${up}<div class="t">Payment</div><div class="v" style="color:#EA4335">1,700</div>`) +
+      chip('right:80px; top:330px;', `${wal}<div class="t">Balance</div><div class="v" style="color:#1D5379">6,71,366</div>`),
+  },
+};
+
+const v = VARIANTS[VARIANT];
+document.body.insertAdjacentHTML('beforeend', `
+  <div class="panel">
+    <img src="logo.png" alt="">
+    <div class="tag-bn">${v.bn}</div>
+    <div class="tag-en">${v.en}</div>
+  </div>
+  ${v.scene}
+`);
+</script>
