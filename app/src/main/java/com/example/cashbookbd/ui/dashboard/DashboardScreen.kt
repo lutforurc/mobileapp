@@ -78,6 +78,7 @@ import com.example.cashbookbd.ui.dashboard.model.TopProduct
 import com.example.cashbookbd.ui.dashboard.model.previewDashboard
 import com.example.cashbookbd.ui.theme.CashBookbdTheme
 import com.example.cashbookbd.ui.theme.accents
+import com.example.cashbookbd.ui.theme.brand
 import java.text.DecimalFormat
 
 @Composable
@@ -495,19 +496,20 @@ private fun SummaryCard(dashboard: Dashboard, summary: DashboardSummary? = null)
  */
 @Composable
 private fun KpiRow(summary: DashboardSummary, isConstruction: Boolean = false) {
+    val hues = MaterialTheme.brand.glance
     // A construction site buys and pays; it does not sell, and it registers no
     // customers of its own — those two tiles would print a permanent zero.
     val tiles = if (isConstruction) {
         listOf(
-            KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
-            KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
+            KpiTileSpec("Today Purchase", "purchase", hues.purchase, money = true),
+            KpiTileSpec("Today Vouchers", "vouchers", hues.vouchers, money = false),
         )
     } else {
         listOf(
-            KpiTileSpec("Today Sales", "sales", Color(0xFF14B8A6), money = true),
-            KpiTileSpec("Today Purchase", "purchase", Color(0xFFF59E0B), money = true),
-            KpiTileSpec("New Customers", "newCustomers", Color(0xFF06B6D4), money = false),
-            KpiTileSpec("Today Vouchers", "vouchers", Color(0xFF64748B), money = false),
+            KpiTileSpec("Today Sales", "sales", hues.sales, money = true),
+            KpiTileSpec("Today Purchase", "purchase", hues.purchase, money = true),
+            KpiTileSpec("New Customers", "newCustomers", hues.customers, money = false),
+            KpiTileSpec("Today Vouchers", "vouchers", hues.vouchers, money = false),
         )
     }
     Column {
@@ -620,8 +622,9 @@ private fun isoToDisplay(iso: String): String {
 /** The web's Receivable Ageing card: outstanding, four buckets, advance strip. */
 @Composable
 private fun DueAgingCard(aging: DueAging) {
-    // The web's single-hue amber ramp — older money, darker bar.
-    val ramp = listOf(Color(0xFFFCD34D), Color(0xFFFBBF24), Color(0xFFF59E0B), Color(0xFFB45309))
+    // The web's ageing ramp: three muted steps and one real colour on
+    // "overdue" — the only bucket worth interrupting somebody for.
+    val ramp = MaterialTheme.brand.ageing
     val maxBucket = aging.buckets.maxOfOrNull { it.amount } ?: 0.0
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {

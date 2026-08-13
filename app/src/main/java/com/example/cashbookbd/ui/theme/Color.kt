@@ -128,6 +128,57 @@ data class BrandPalette(
      * carry [onGradient] ink.
      */
     val unitStatus: Map<Int, List<Color>>,
+    /**
+     * The receivable-ageing bucket ramp (current → watch → chase → overdue),
+     * the web's `--c-age-*` tokens. Not green/amber/orange/red on purpose:
+     * saturated amber beside a dark card glares under the eye all day, so the
+     * first three buckets are muted — ordered enough to read as a scale — and
+     * only "overdue" carries a real colour, the one thing on the card worth
+     * interrupting somebody for. Each theme dims the ramp to its own surfaces.
+     */
+    val ageing: List<Color>,
+    /**
+     * The categorical chart set (`--c-chart-1…8`), ordered so the first few
+     * are the furthest apart — what a two-series chart needs. One deliberate
+     * set rather than whatever each chart reached for; identical in both
+     * themes, only the chrome around a chart changes.
+     */
+    val chartSeries: List<Color>,
+    /** The dashboard's "Today at a glance" tile hues — the web KpiRow's own. */
+    val glance: GlanceHues,
+)
+
+/**
+ * The four KPI tiles' sparkline hues (the web's teal-500 / amber-500 /
+ * cyan-500, and the body grey for vouchers). One value in both modes, exactly
+ * as the web's tokens hold them.
+ */
+@Immutable
+data class GlanceHues(
+    val sales: Color,
+    val purchase: Color,
+    val customers: Color,
+    val vouchers: Color,
+)
+
+/** Shared by both palettes — the web keeps these constant across modes. */
+private val GlanceHueSet = GlanceHues(
+    sales = Color(0xFF14B8A6),
+    purchase = Color(0xFFF59E0B),
+    customers = Color(0xFF06B6D4),
+    vouchers = Color(0xFF59636F),
+)
+
+/** The web's categorical chart colours, constant across modes. */
+private val ChartSeriesColors = listOf(
+    Color(0xFF2B5FD9),
+    Color(0xFF12A66E),
+    Color(0xFFE08A0C),
+    Color(0xFFCB3A4C),
+    Color(0xFF7C5CE0),
+    Color(0xFF12A2C4),
+    Color(0xFFD9527E),
+    Color(0xFF6E7885),
 )
 
 /** The web FlatLayout's tile gradients, shared by both palettes. */
@@ -204,6 +255,14 @@ val LightPalette = BrandPalette(
         Color(0xFFE11D48),
     ),
     unitStatus = UnitStatusGradients,
+    ageing = listOf(
+        Color(0xFF9AA6B4),
+        Color(0xFFB8A06A),
+        Color(0xFFC08457),
+        Color(0xFFCB3A4C),
+    ),
+    chartSeries = ChartSeriesColors,
+    glance = GlanceHueSet,
 )
 
 /**
@@ -270,6 +329,16 @@ val DarkPalette = BrandPalette(
         Color(0xFFFB7185),
     ),
     unitStatus = UnitStatusGradients,
+    // The web's dark-mode `--c-age-*` overrides: a colour that reads as muted
+    // on white is still bright against a dark card, so the ramp dims with it.
+    ageing = listOf(
+        Color(0xFF6B7684),
+        Color(0xFF968259),
+        Color(0xFFA3714D),
+        Color(0xFFD6606E),
+    ),
+    chartSeries = ChartSeriesColors,
+    glance = GlanceHueSet,
 )
 
 /**

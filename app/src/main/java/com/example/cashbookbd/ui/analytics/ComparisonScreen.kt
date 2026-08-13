@@ -58,6 +58,7 @@ import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.ui.theme.muted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,9 +68,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// The web chart's two series colours.
-private val PERIOD1_COLOR = Color(0xFF008FFB)
-private val PERIOD2_COLOR = Color(0xFFFF4560)
+// Series colours come from the palette's categorical chart set — the web's
+// chartSeries(2). The ApexCharts defaults that used to sit here were exactly
+// the drift the one-palette rule exists to stop.
 
 /** One plotted series: name + per-day values (null = the shorter period's pad). */
 data class CompareSeries(
@@ -330,6 +331,7 @@ fun ComparisonScreen(
                     )
 
                     else -> {
+                        val chartSeries = MaterialTheme.brand.chartSeries
                         CompareChart(series = state.series)
                         // Legend
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -339,7 +341,7 @@ fun ComparisonScreen(
                                         Modifier
                                             .size(10.dp)
                                             .background(
-                                                if (index == 0) PERIOD1_COLOR else PERIOD2_COLOR,
+                                                chartSeries[index % chartSeries.size],
                                                 androidx.compose.foundation.shape.CircleShape,
                                             ),
                                     )
@@ -368,6 +370,7 @@ fun ComparisonScreen(
 @Composable
 private fun CompareChart(series: List<CompareSeries>) {
     val gridLine = MaterialTheme.appColors.gridLine
+    val chartSeries = MaterialTheme.brand.chartSeries
     val maxValue = series.flatMap { it.values }.filterNotNull().maxOrNull()?.takeIf { it > 0 } ?: 1.0
     val pointCount = series.maxOfOrNull { it.values.size } ?: 0
 
@@ -389,7 +392,7 @@ private fun CompareChart(series: List<CompareSeries>) {
         val stepX = if (pointCount > 1) w / (pointCount - 1) else w
 
         series.forEachIndexed { index, s ->
-            val color = if (index == 0) PERIOD1_COLOR else PERIOD2_COLOR
+            val color = chartSeries[index % chartSeries.size]
             val path = Path()
             var penDown = false
             s.values.forEachIndexed { i, value ->
