@@ -263,7 +263,14 @@ object Routes {
     // Real Estate section (business type 9 branches)
     const val REAL_ESTATE = "realestate/home"
     const val UNIT_SALE = "realestate/unit-sales"
+    /** The same screen correcting a sale — reached from the sold-units report. */
+    const val UNIT_SALE_PATTERN = "realestate/unit-sales?saleId={saleId}"
+    const val UNIT_SALE_ID_ARG = "saleId"
+    /** SavedStateHandle key the edit screen answers the sold-units report through. */
+    const val UNIT_SALE_UPDATED_RESULT = "unit_sale_updated"
     const val SOLD_UNITS = "realestate/sold-units"
+
+    fun unitSaleEditFor(saleId: String): String = "realestate/unit-sales?saleId=$saleId"
     const val RE_INSTALLMENT_CREATE = "realestate/installment-create"
     const val FLAT_LAYOUT = "realestate/layout"
 
@@ -904,11 +911,21 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
-        composable(Routes.UNIT_SALE) {
+        composable(
+            route = Routes.UNIT_SALE_PATTERN,
+            arguments = listOf(
+                navArgument(Routes.UNIT_SALE_ID_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
             PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.UNIT_SALES_KEY)) {
                 UnitSaleScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                    editSaleId = entry.arguments?.getString(Routes.UNIT_SALE_ID_ARG)
+                        ?.toLongOrNull(),
                 )
             }
         }

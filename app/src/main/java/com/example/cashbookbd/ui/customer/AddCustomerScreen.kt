@@ -206,13 +206,17 @@ fun AddCustomerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                AppTextField(
-                    value = state.nationalId,
-                    onValueChange = viewModel::onNationalId,
-                    label = "Enter national ID",
-                    caption = "National ID (optional)",
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // Only when the branch asks for it (Branch > Customer Setup),
+                // like the web's Add Customer form.
+                if (state.showNationalId) {
+                    AppTextField(
+                        value = state.nationalId,
+                        onValueChange = viewModel::onNationalId,
+                        label = "Enter national ID",
+                        caption = "National ID (optional)",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppTextField(
                     value = state.mobile,
                     onValueChange = viewModel::onMobile,

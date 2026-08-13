@@ -68,6 +68,8 @@ data class AddCustomerUiState(
     /** The on-type duplicate-mobile warning — informational, never a gate. */
     val mobileWarning: String? = null,
     val showPhoto: Boolean = false,
+    /** Branch meta `need_customer_national_id` — the field prints only when asked for. */
+    val showNationalId: Boolean = false,
     /** The encoded `data:image/…` URI, or blank when none picked. */
     val photo: String = "",
     // The branch-gated Guarantor / Nominee panels.

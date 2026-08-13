@@ -1,23 +1,29 @@
 package com.example.cashbookbd.ui.realestate
 
 import com.example.cashbookbd.ui.theme.AppFontWeight
+import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +51,7 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.ChargeTypeOption
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.RealEstateOption
+import com.example.cashbookbd.data.repository.SaleEditGuards
 import com.example.cashbookbd.data.repository.UnitSaleLine
 import com.example.cashbookbd.data.repository.UnitSaleRepository
 import com.example.cashbookbd.di.ServiceLocator
@@ -59,7 +66,9 @@ import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.SummaryTile
+import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.example.cashbookbd.ui.reports.model.SimpleDate
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +109,21 @@ data class UnitSaleUiState(
     val customer: LedgerDropdownItem? = null,
     val unit: RealEstateOption? = null,
     val parking: RealEstateOption? = null,
+
+    // ---- Edit mode: correcting a sale already on the books ----
+    // The buyer and the flat are printed on papers the buyer already holds, so
+    // they arrive as labels and are shown, never sent back. What may move is
+    // what the sale is worth: the charge lines, the parking, the date, a note.
+    val isEdit: Boolean = false,
+    val isLoadingSale: Boolean = false,
+    val loadError: String? = null,
+    val customerLabel: String = "",
+    val unitLabel: String = "",
+    val guards: SaleEditGuards? = null,
+    val saleDate: SimpleDate? = null,
+    val note: String = "",
+    /** Non-null after a successful update: handed back to Sold Units, then pop. */
+    val updatedMessage: String? = null,
 
     val chargeTypes: List<ChargeTypeOption> = emptyList(),
     val selectedChargeType: ChargeTypeOption? = null,
@@ -142,29 +166,97 @@ data class UnitSaleUiState(
 
     val bookingExceedsTotal: Boolean get() = lines.isNotEmpty() && bookingAmt > total
 
+    /** Confirmed money against the sale being edited. */
+    val received: Double get() = guards?.received ?: 0.0
+
+    /** What is still owed on the corrected figure. */
+    val editDue: Double get() = (total - received).coerceAtLeast(0.0)
+
+    /**
+     * Money already taken cannot exceed what the flat is being sold for — said
+     * here as well as on the server, while the figure is still in front of the
+     * clerk rather than after the save is attempted.
+     */
+    val totalBelowReceived: Boolean
+        get() = isEdit && received > 0 && lines.isNotEmpty() && total < received
+
     val canSubmit: Boolean
-        get() = customer != null &&
-            unit != null &&
-            lines.isNotEmpty() &&
-            bookingAmt > 0 &&
-            !bookingExceedsTotal &&
-            !isSubmitting
+        get() = if (isEdit) {
+            lines.isNotEmpty() && !totalBelowReceived && !isSubmitting && !isLoadingSale
+        } else {
+            customer != null &&
+                unit != null &&
+                lines.isNotEmpty() &&
+                bookingAmt > 0 &&
+                !bookingExceedsTotal &&
+                !isSubmitting
+        }
 }
 
 class UnitSaleViewModel(
     private val unitSaleRepository: UnitSaleRepository,
     private val ledgerRepository: LedgerRepository,
+    /** A sale id puts the screen into edit mode — reached from Sold Units. */
+    private val editSaleId: Long? = null,
 ) : ViewModel() {
 
     private var unitCache: Map<String, RealEstateOption> = emptyMap()
     private var parkingCache: Map<String, RealEstateOption> = emptyMap()
 
-    private val _uiState = MutableStateFlow(UnitSaleUiState())
+    private val _uiState = MutableStateFlow(UnitSaleUiState(isEdit = editSaleId != null))
     val uiState: StateFlow<UnitSaleUiState> = _uiState.asStateFlow()
 
     init {
         loadChargeTypes()
+        if (editSaleId != null) loadSale(editSaleId)
     }
+
+    // ---- Edit mode: load the sale being corrected --------------------------
+
+    fun retryLoadSale() {
+        editSaleId?.let(::loadSale)
+    }
+
+    /**
+     * Fills the screen from the sale being corrected: the buyer and unit as
+     * read-only labels, the parking as the option it was picked from (so the
+     * picker opens showing what is on the sale today), and the charge lines
+     * exactly as the report shows them.
+     */
+    private fun loadSale(saleId: Long) {
+        _uiState.update { it.copy(isLoadingSale = true, loadError = null) }
+        viewModelScope.launch {
+            when (val result = unitSaleRepository.editSale(saleId)) {
+                is Resource.Success -> {
+                    val data = result.data
+                    _uiState.update {
+                        it.copy(
+                            isLoadingSale = false,
+                            customerLabel = data.customerLabel,
+                            unitLabel = data.unitLabel,
+                            parking = data.parking,
+                            lines = data.items,
+                            note = data.note.orEmpty(),
+                            saleDate = data.saleDate?.let { d -> SimpleDate.fromApi(d) },
+                            guards = data.guards,
+                        )
+                    }
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isLoadingSale = false,
+                        loadError = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun onNoteChange(value: String) = _uiState.update { it.copy(note = value) }
+
+    fun onSaleDateSelected(date: SimpleDate) = _uiState.update { it.copy(saleDate = date) }
 
     private fun loadChargeTypes() {
         viewModelScope.launch {
@@ -387,6 +479,10 @@ class UnitSaleViewModel(
     fun submit() {
         val state = _uiState.value
         if (!state.canSubmit) return
+        if (state.isEdit) {
+            submitEdit(state)
+            return
+        }
         _uiState.update { it.copy(isSubmitting = true, message = null, isError = false) }
         viewModelScope.launch {
             val result = unitSaleRepository.submitSale(
@@ -426,6 +522,41 @@ class UnitSaleViewModel(
         }
     }
 
+    /**
+     * Sends back only what an edit is allowed to move. The buyer and the flat
+     * are deliberately absent — the server reads both off the sale — and the
+     * booking money is absent from the other side: money that changed hands is
+     * corrected where it was taken.
+     */
+    private fun submitEdit(state: UnitSaleUiState) {
+        val saleId = editSaleId ?: return
+        _uiState.update { it.copy(isSubmitting = true, message = null, isError = false) }
+        viewModelScope.launch {
+            val result = unitSaleRepository.updateSale(
+                saleId = saleId,
+                parking = state.parking,
+                items = state.lines,
+                total = state.total,
+                saleDate = state.saleDate?.toApi(),
+                note = state.note.trim().ifBlank { null },
+            )
+            when (result) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(isSubmitting = false, updatedMessage = result.data)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        message = result.message,
+                        isError = true,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     private fun RealEstateOption.toSelectorOption() = SelectorOption(
@@ -445,12 +576,13 @@ class UnitSaleViewModel(
         filterIndexed { i, c -> c.isDigit() || (c == '.' && !take(i).contains('.')) }
 
     companion object {
-        fun provideFactory(context: Context) = viewModelFactory {
+        fun provideFactory(context: Context, editSaleId: Long? = null) = viewModelFactory {
             initializer {
                 val appContext = context.applicationContext
                 UnitSaleViewModel(
                     unitSaleRepository = ServiceLocator.provideUnitSaleRepository(appContext),
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
+                    editSaleId = editSaleId,
                 )
             }
         }
@@ -462,11 +594,13 @@ fun UnitSaleScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    editSaleId: Long? = null,
     viewModel: UnitSaleViewModel = viewModel(
-        factory = UnitSaleViewModel.provideFactory(LocalContext.current)
+        factory = UnitSaleViewModel.provideFactory(LocalContext.current, editSaleId)
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -475,37 +609,100 @@ fun UnitSaleScreen(
         }
     }
 
+    // A finished correction goes back to where the wrong figure was spotted —
+    // the sold-units report — carrying the server's message so the report can
+    // say it and refresh itself.
+    LaunchedEffect(state.updatedMessage) {
+        val message = state.updatedMessage ?: return@LaunchedEffect
+        navController.previousBackStackEntry
+            ?.savedStateHandle
+            ?.set(Routes.UNIT_SALE_UPDATED_RESULT, message)
+        navController.popBackStack()
+    }
+
     AuthenticatedShell(
-        title = "Unit Sales",
+        title = if (state.isEdit) "Edit Unit Sale" else "Unit Sales",
         currentRoute = Routes.REAL_ESTATE,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        when {
+            state.isLoadingSale -> Box(
+                modifier = Modifier.fillMaxSize().padding(vertical = 48.dp),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                CircularProgressIndicator()
+            }
+
+            state.loadError != null -> Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = state.loadError!!,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(16.dp))
+                PrimaryButton(text = "Retry", onClick = viewModel::retryLoadSale)
+            }
+
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             TotalsHeader(state)
 
-            SearchableLedgerDropdown(
-                selectedLedger = state.customer,
-                onLedgerSelected = viewModel::onCustomerSelected,
-                searchLedgers = viewModel::searchCustomers,
-                label = "Select Customer",
-            )
-            SearchableSelectDropdown(
-                selected = state.unit?.let { SelectorOption(it.id.toString(), it.label) },
-                onSelected = viewModel::onUnitSelected,
-                search = viewModel::searchUnits,
-                label = "Select Unit",
-                placeholder = "Type 2+ chars to search…",
-                emptyText = "No unit found",
-                minSearchChars = UnitSaleRepository.DDL_MIN_CHARS,
-            )
+            if (state.isEdit) {
+                // Both are on papers the buyer already holds, so an edit shows
+                // them and leaves them alone. Getting either wrong is a
+                // cancellation, not a correction.
+                state.guards?.vrNo?.let {
+                    Text(
+                        text = "Vr. No. $it",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                AppTextField(
+                    value = state.customerLabel,
+                    onValueChange = {},
+                    label = "Customer",
+                    caption = "Customer",
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = state.unitLabel,
+                    onValueChange = {},
+                    label = "Unit",
+                    caption = "Unit",
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                SearchableLedgerDropdown(
+                    selectedLedger = state.customer,
+                    onLedgerSelected = viewModel::onCustomerSelected,
+                    searchLedgers = viewModel::searchCustomers,
+                    label = "Select Customer",
+                )
+                SearchableSelectDropdown(
+                    selected = state.unit?.let { SelectorOption(it.id.toString(), it.label) },
+                    onSelected = viewModel::onUnitSelected,
+                    search = viewModel::searchUnits,
+                    label = "Select Unit",
+                    placeholder = "Type 2+ chars to search…",
+                    emptyText = "No unit found",
+                    minSearchChars = UnitSaleRepository.DDL_MIN_CHARS,
+                )
+            }
+            // Editable in both modes: a parking added, dropped or swapped is
+            // the correction this screen is most often opened for.
             SearchableSelectDropdown(
                 selected = state.parking?.let { SelectorOption(it.id.toString(), it.label) },
                 onSelected = viewModel::onParkingSelected,
@@ -541,61 +738,99 @@ fun UnitSaleScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AppSelectDropdown(
-                    label = "Payment Mode",
-                    options = PAYMENT_MODES,
-                    selected = state.paymentMode,
-                    onSelected = viewModel::onPaymentModeSelected,
-                    modifier = Modifier.weight(1f),
+            if (state.isEdit) {
+                // Correcting a sale asks for none of the payment boxes: the
+                // booking money is a receipt with its own number, already in
+                // the buyer's hands and on the cash book. What an edit needs
+                // instead is the date the sale is dated, a note, and the plain
+                // facts that decide whether the figure below may move at all.
+                PickerField(
+                    label = "Sale Date",
+                    value = state.saleDate?.toDisplay() ?: "",
+                    placeholder = "Unchanged",
+                    trailingIcon = Icons.Filled.DateRange,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        showSaleDatePicker(
+                            context,
+                            state.saleDate ?: SimpleDate.today(),
+                            viewModel::onSaleDateSelected,
+                        )
+                    },
                 )
                 AppTextField(
-                    value = state.receiptNo,
-                    onValueChange = viewModel::onReceiptNoChange,
-                    label = "Money Receipt No.",
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            AppTextField(
-                value = state.bookingAmount,
-                onValueChange = viewModel::onBookingAmountChange,
-                label = "Booking Tk.",
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (state.bookingExceedsTotal) {
-                Text(
-                    text = "Booking money cannot be greater than the grand total.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            if (state.showBankFields) {
-                AppTextField(
-                    value = state.referenceNo,
-                    onValueChange = viewModel::onReferenceNoChange,
-                    label = "Check/Ref. Number",
+                    value = state.note,
+                    onValueChange = viewModel::onNoteChange,
+                    label = "Why this was corrected",
+                    caption = "Note",
                     modifier = Modifier.fillMaxWidth(),
                 )
+                EditGuardsNotes(state.guards)
+                if (state.totalBelowReceived) {
+                    Text(
+                        text = "Tk. ${AmountFormat.format(state.received, 0)} has already been " +
+                            "received against this sale, so the total cannot be less than that.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AppTextField(
-                        value = state.bankName,
-                        onValueChange = viewModel::onBankNameChange,
-                        label = "Bank Name",
+                    AppSelectDropdown(
+                        label = "Payment Mode",
+                        options = PAYMENT_MODES,
+                        selected = state.paymentMode,
+                        onSelected = viewModel::onPaymentModeSelected,
                         modifier = Modifier.weight(1f),
                     )
                     AppTextField(
-                        value = state.branchName,
-                        onValueChange = viewModel::onBranchNameChange,
-                        label = "Branch Name",
+                        value = state.receiptNo,
+                        onValueChange = viewModel::onReceiptNoChange,
+                        label = "Money Receipt No.",
                         modifier = Modifier.weight(1f),
                     )
+                }
+                AppTextField(
+                    value = state.bookingAmount,
+                    onValueChange = viewModel::onBookingAmountChange,
+                    label = "Booking Tk.",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (state.bookingExceedsTotal) {
+                    Text(
+                        text = "Booking money cannot be greater than the grand total.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
+                if (state.showBankFields) {
+                    AppTextField(
+                        value = state.referenceNo,
+                        onValueChange = viewModel::onReferenceNoChange,
+                        label = "Check/Ref. Number",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AppTextField(
+                            value = state.bankName,
+                            onValueChange = viewModel::onBankNameChange,
+                            label = "Bank Name",
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppTextField(
+                            value = state.branchName,
+                            onValueChange = viewModel::onBranchNameChange,
+                            label = "Branch Name",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 
             PrimaryButton(
-                text = "Save Unit Sale",
+                text = if (state.isEdit) "Update Sale" else "Save Unit Sale",
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
                 isLoading = state.isSubmitting,
@@ -612,6 +847,7 @@ fun UnitSaleScreen(
             }
 
             LinesTable(state = state, viewModel = viewModel)
+            }
         }
     }
 
@@ -626,7 +862,11 @@ fun UnitSaleScreen(
     }
 }
 
-/** Grand Total / Booking / Due readouts, like the web's page header. */
+/**
+ * Grand Total / Booking / Due readouts, like the web's page header. On an edit
+ * the money is history, not something being typed: what matters is what has
+ * come in and what is still owed on the corrected figure.
+ */
 @Composable
 private fun TotalsHeader(state: UnitSaleUiState) {
     Row(
@@ -634,9 +874,81 @@ private fun TotalsHeader(state: UnitSaleUiState) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HeaderTile("Grand Total", formatSigned(state.total), Modifier.weight(1f))
-        HeaderTile("Booking", AmountFormat.format(state.bookingAmt.toDouble(), 0), Modifier.weight(1f))
-        HeaderTile("Due", formatSigned(state.due), Modifier.weight(1f))
+        if (state.isEdit) {
+            HeaderTile("Received", AmountFormat.format(state.received, 0), Modifier.weight(1f))
+            HeaderTile("Due", formatSigned(state.editDue), Modifier.weight(1f))
+        } else {
+            HeaderTile("Booking", AmountFormat.format(state.bookingAmt.toDouble(), 0), Modifier.weight(1f))
+            HeaderTile("Due", formatSigned(state.due), Modifier.weight(1f))
+        }
     }
+}
+
+/**
+ * The plain facts that decide whether the figure may move: what has been
+ * received, whether the voucher is approved (the one refusal the server
+ * enforces), and the papers already issued — said rather than enforced, so the
+ * clerk learns them while the figure is still in front of them.
+ */
+@Composable
+private fun EditGuardsNotes(guards: SaleEditGuards?) {
+    guards ?: return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = "Received so far: ${AmountFormat.format(guards.received, 0)} — the total " +
+                "cannot go below it. Money itself is corrected from the payment screens.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (guards.isApproved) {
+            Text(
+                text = "This sale sits on an approved voucher. Remove the approval before " +
+                    "saving, or the save will be refused.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        val papers = buildList {
+            if (guards.letterCount > 0) {
+                add("${guards.letterCount} allotment letter" + if (guards.letterCount > 1) "s" else "")
+            }
+            if (guards.bookingFormCount > 0) {
+                add("${guards.bookingFormCount} booking form" + if (guards.bookingFormCount > 1) "s" else "")
+            }
+        }
+        if (papers.isNotEmpty()) {
+            Text(
+                text = papers.joinToString(" and ") + " already issued. Changing the amount " +
+                    "leaves them out of date — withdraw and reissue afterwards.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+        }
+        if (guards.installmentCount > 0) {
+            Text(
+                text = "${guards.installmentCount} installments are scheduled against this " +
+                    "sale. Check the schedule after changing the total.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+        }
+    }
+}
+
+private fun showSaleDatePicker(
+    context: Context,
+    initial: SimpleDate,
+    onPicked: (SimpleDate) -> Unit,
+) {
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onPicked(SimpleDate(year = year, month = month + 1, day = dayOfMonth))
+        },
+        initial.year,
+        initial.month - 1,
+        initial.day,
+    ).show()
 }
 
 @Composable

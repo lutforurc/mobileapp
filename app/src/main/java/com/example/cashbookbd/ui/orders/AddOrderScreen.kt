@@ -284,10 +284,21 @@ private fun SingleProductFields(
             modifier = Modifier.weight(1f),
         )
     }
+    // The web prints the product beside the rate field; here it rides under
+    // the row, in the report money format.
+    val contractAuto =
+        (state.totalOrder.toDoubleOrNull() ?: 0.0) * (state.orderRate.toDoubleOrNull() ?: 0.0)
+    if (contractAuto > 0) {
+        Text(
+            text = "= ${AmountFormat.format(contractAuto, 2)} (Total Order Qty × Order Rate)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.appColors.textOnScreenMuted,
+        )
+    }
     AppTextField(
         value = state.contractQty,
         onValueChange = viewModel::onContractQtyChange,
-        label = "Contract Order Qty (optional)",
+        label = "Contract Order Qty (auto: qty × rate)",
         keyboardType = KeyboardType.Decimal,
         modifier = Modifier.fillMaxWidth(),
     )

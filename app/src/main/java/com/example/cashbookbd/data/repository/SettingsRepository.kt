@@ -88,6 +88,7 @@ class SettingsRepository(
                     needCustomerOccupation = payload?.branch?.needCustomerOccupation?.trim() == "1",
                     needCustomerPermanentAddress = payload?.branch?.needCustomerPermanentAddress?.trim() == "1",
                     needCustomerPhoto = payload?.branch?.needCustomerPhoto?.trim() == "1",
+                    needCustomerNationalId = payload?.branch?.needCustomerNationalId?.trim() == "1",
                     needNomineePhoto = payload?.branch?.needNomineePhoto?.trim() == "1",
                     needCustomerMotherName = payload?.branch?.needCustomerMotherName?.trim() == "1",
                     needCustomerContactPerson = payload?.branch?.needCustomerContactPerson?.trim() == "1",

@@ -136,6 +136,23 @@ data class SoldUnitsUiState(
     /** The issued copy awaiting the withdraw confirmation. */
     val pendingWithdraw: WithdrawTarget? = null,
 
+    /**
+     * Rewriting what a flat was sold for is not the same trust as selling one,
+     * so it has a permission of its own (`unit.sale.edit`) and the row offers
+     * nothing without it. Withdrawing a sale is heavier again — it puts a flat
+     * somebody may already hold the keys to back on the market — so
+     * `unit.sale.cancel` is granted separately.
+     */
+    val canEditSale: Boolean = false,
+    val canCancelSale: Boolean = false,
+    /**
+     * The sale about to be withdrawn, and why. The reason is asked for rather
+     * than offered: this frees a flat and takes a voucher off the books, and
+     * "why is 5/B for sale again?" is a question somebody will ask later.
+     */
+    val pendingCancel: SoldUnitSale? = null,
+    val cancelReason: String = "",
+
     // The sale whose nominees are being named, and the dialog's working state.
     // Done here as well as at booking: most buyers settle on a nominee after
     // the money has been taken.
@@ -173,6 +190,14 @@ class SoldUnitsViewModel(
             canWithdrawBooking = com.example.cashbookbd.session.Permissions.has(
                 settings?.permissions,
                 "booking.form.delete",
+            ),
+            canEditSale = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions,
+                "unit.sale.edit",
+            ),
+            canCancelSale = com.example.cashbookbd.session.Permissions.has(
+                settings?.permissions,
+                "unit.sale.cancel",
             ),
         )
     )
@@ -386,6 +411,59 @@ class SoldUnitsViewModel(
         }
     }
 
+    // ---- Cancelling a sale -------------------------------------------------
+
+    fun requestCancel(sale: SoldUnitSale) =
+        _uiState.update { it.copy(pendingCancel = sale, cancelReason = "") }
+
+    fun onCancelReasonChange(value: String) = _uiState.update { it.copy(cancelReason = value) }
+
+    fun dismissCancel() = _uiState.update { it.copy(pendingCancel = null) }
+
+    /**
+     * Withdraws the sale itself. The server does the refusing — an approved
+     * voucher, papers already issued, a live installment schedule, receipts
+     * taken after the booking — and each refusal names what has to be dealt
+     * with first, so its sentence is shown rather than a general "could not
+     * cancel".
+     */
+    fun confirmCancel() {
+        val state = _uiState.value
+        val sale = state.pendingCancel ?: return
+        val reason = state.cancelReason.trim()
+        if (reason.length < 3) return
+        if (state.generatingSaleId != null) return
+        _uiState.update { it.copy(pendingCancel = null, generatingSaleId = sale.saleId) }
+        viewModelScope.launch {
+            when (val result = repository.cancelSale(sale.saleId, reason)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(actionMessage = result.data) }
+                    refreshSilently()
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        generatingSaleId = null,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    /**
+     * A sale corrected on the edit screen came back — say what the server said
+     * and re-run the filters, so the corrected figure is on the report the
+     * moment it reappears.
+     */
+    fun onSaleCorrected(message: String) {
+        _uiState.update { it.copy(actionMessage = message) }
+        if (_uiState.value.hasApplied) {
+            viewModelScope.launch { refreshSilently() }
+        }
+    }
+
     // ---- Sale nominees ----------------------------------------------------
 
     /** Opens the nominee dialog and loads who is available and already named. */
@@ -562,6 +640,19 @@ fun SoldUnitsScreen(
         viewModel.onActionMessageShown()
     }
 
+    // The edit screen answers through this entry's SavedStateHandle when a
+    // correction lands, so the report can say so and refresh itself.
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    LaunchedEffect(savedStateHandle) {
+        val handle = savedStateHandle ?: return@LaunchedEffect
+        handle.getStateFlow(Routes.UNIT_SALE_UPDATED_RESULT, "").collect { message ->
+            if (message.isNotBlank()) {
+                handle[Routes.UNIT_SALE_UPDATED_RESULT] = ""
+                viewModel.onSaleCorrected(message)
+            }
+        }
+    }
+
     AuthenticatedShell(
         title = "Sold Units",
         currentRoute = Routes.REAL_ESTATE,
@@ -696,6 +787,12 @@ fun SoldUnitsScreen(
                         canWithdrawBooking = state.canWithdrawBooking,
                         onWithdraw = viewModel::requestWithdraw,
                         onNominees = viewModel::openNominees,
+                        canEditSale = state.canEditSale,
+                        canCancelSale = state.canCancelSale,
+                        onEditSale = { sale ->
+                            navController.navigate(Routes.unitSaleEditFor(sale.saleId))
+                        },
+                        onCancelSale = viewModel::requestCancel,
                     )
                 }
             }
@@ -777,6 +874,57 @@ fun SoldUnitsScreen(
                 }
             },
             dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelWithdraw) },
+        )
+    }
+
+    // Withdrawing the sale itself. Unlike the paper withdrawals above this one
+    // is not final — the voucher goes to the recycle bin and restoring it
+    // brings the sale, the flat and the receipts back — and the dialog says so,
+    // because a clerk who believes it is final will avoid it and leave a wrong
+    // sale standing instead.
+    state.pendingCancel?.let { sale ->
+        val reasonOk = state.cancelReason.trim().length >= 3
+        AlertDialog(
+            onDismissRequest = viewModel::dismissCancel,
+            title = { Text("Cancel Sale?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Withdraw the sale for receipt " +
+                            "${sale.receiptNo.ifBlank { "(no receipt)" }}? The flat goes back " +
+                            "on the market and the voucher moves to the Recycle Bin, where " +
+                            "restoring it puts the sale back as it was. Money already received " +
+                            "stops counting until then.",
+                    )
+                    AppTextField(
+                        value = state.cancelReason,
+                        onValueChange = viewModel::onCancelReasonChange,
+                        label = "Why is it being cancelled?",
+                        caption = "Reason",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (!reasonOk) {
+                        Text(
+                            text = "A reason (at least 3 characters) goes on the record.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmCancel, enabled = reasonOk) {
+                    Text(
+                        text = "Cancel Sale",
+                        color = if (reasonOk) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            },
+            dismissButton = { LinkButton(text = "Keep Sale", onClick = viewModel::dismissCancel) },
         )
     }
 
@@ -1035,6 +1183,10 @@ private fun SoldUnitsTable(
     canWithdrawBooking: Boolean,
     onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
     onNominees: (SoldUnitSale) -> Unit,
+    canEditSale: Boolean,
+    canCancelSale: Boolean,
+    onEditSale: (SoldUnitSale) -> Unit,
+    onCancelSale: (SoldUnitSale) -> Unit,
 ) {
     val hScroll = rememberScrollState()
     val gridLine = MaterialTheme.appColors.gridLine
@@ -1058,6 +1210,10 @@ private fun SoldUnitsTable(
                 canWithdrawBooking = canWithdrawBooking,
                 onWithdraw = onWithdraw,
                 onNominees = onNominees,
+                canEditSale = canEditSale,
+                canCancelSale = canCancelSale,
+                onEditSale = onEditSale,
+                onCancelSale = onCancelSale,
             )
         }
         SoldUnitsGrandTotalRow(report)
@@ -1119,6 +1275,10 @@ private fun SoldUnitCustomerBlock(
     canWithdrawBooking: Boolean,
     onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
     onNominees: (SoldUnitSale) -> Unit,
+    canEditSale: Boolean,
+    canCancelSale: Boolean,
+    onEditSale: (SoldUnitSale) -> Unit,
+    onCancelSale: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val tint = accent.asTint()
@@ -1194,6 +1354,10 @@ private fun SoldUnitCustomerBlock(
                     canWithdrawBooking = canWithdrawBooking,
                     onWithdraw = onWithdraw,
                     onNominees = onNominees,
+                    canEditSale = canEditSale,
+                    canCancelSale = canCancelSale,
+                    onEditSale = onEditSale,
+                    onCancelSale = onCancelSale,
                 )
             }
         }
@@ -1210,6 +1374,10 @@ private fun SoldUnitSaleBand(
     canWithdrawBooking: Boolean,
     onWithdraw: (SoldUnitSale, PaperKind, Int) -> Unit,
     onNominees: (SoldUnitSale) -> Unit,
+    canEditSale: Boolean,
+    canCancelSale: Boolean,
+    onEditSale: (SoldUnitSale) -> Unit,
+    onCancelSale: (SoldUnitSale) -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
 
@@ -1307,6 +1475,25 @@ private fun SoldUnitSaleBand(
                 )
             }
             if (sale.saleId.isNotBlank()) {
+                // The sale itself, before the papers that print it. Correcting
+                // the figure and withdrawing the sale sit together because
+                // they answer the same question — something about this sale is
+                // wrong — and which one applies depends on what is wrong.
+                if (canEditSale) {
+                    LinkButton(
+                        text = "Edit Sale",
+                        onClick = { onEditSale(sale) },
+                        enabled = !isGenerating,
+                    )
+                }
+                if (canCancelSale) {
+                    LinkButton(
+                        text = "Cancel Sale",
+                        onClick = { onCancelSale(sale) },
+                        enabled = !isGenerating,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 LinkButton(
                     text = if (isGenerating) "Generating…" else "Generate",
                     onClick = { onGenerate(sale, PaperKind.LETTER) },

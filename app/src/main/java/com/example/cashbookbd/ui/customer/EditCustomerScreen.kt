@@ -614,12 +614,17 @@ private fun EditCustomerForm(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        AppTextField(
-            value = state.nationalId,
-            onValueChange = viewModel::onNationalId,
-            label = "National ID",
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // Only when the branch asks for it. The loaded value still rides the
+        // save untouched when hidden, so switching the toggle off never wipes
+        // an ID already on file.
+        if (settings?.needCustomerNationalId == true) {
+            AppTextField(
+                value = state.nationalId,
+                onValueChange = viewModel::onNationalId,
+                label = "National ID",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = state.mobile,
             onValueChange = viewModel::onMobile,

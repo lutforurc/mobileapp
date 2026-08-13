@@ -713,6 +713,30 @@ class RealEstateSalesRepository(
         }
     }
 
+    // ---- Cancelling a sale -------------------------------------------------
+
+    /**
+     * `POST real-estate/unit-sale/cancel/{saleId}` — withdraws the sale: the
+     * voucher goes to the recycle bin, the flat goes back on the market, and
+     * the receipts are marked REVERSED. Not final — restoring the voucher puts
+     * all of it back. The reason is required (min 3 chars): a flat suddenly
+     * for sale again gets asked about, and the answer belongs on the record.
+     *
+     * The refusals matter more here than anywhere else — an approved voucher,
+     * papers already issued, a live installment schedule, receipts taken after
+     * the booking — so the server's own sentence is what gets surfaced.
+     */
+    suspend fun cancelSale(saleId: String, reason: String): Resource<String> =
+        withContext(ioDispatcher) {
+            val body = JsonObject().apply { addProperty("reason", reason) }
+            guarded {
+                val response = transactionApi.postObject("real-estate/unit-sale/cancel/$saleId", body)
+                envelope(response) { json ->
+                    Resource.Success(json.message() ?: "Sale cancelled.")
+                }
+            }
+        }
+
     /** 50.0 → "50", 33.33 → "33.33" — what belongs in a text field. */
     private fun Double.toPlainShare(): String =
         if (this == toLong().toDouble()) toLong().toString() else toString()

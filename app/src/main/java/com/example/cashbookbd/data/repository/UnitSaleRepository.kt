@@ -78,6 +78,41 @@ data class UnitSaleLine(
     val signedAmount: Double get() = if (effect == "-") -kotlin.math.abs(amount) else kotlin.math.abs(amount)
 }
 
+/**
+ * Why a box on the edit screen might be shut, or a warning worth printing.
+ * Only the approval actually stops an edit — the server refuses that one. An
+ * issued letter is a reason to reissue it afterwards, not a reason to leave a
+ * wrong figure standing, so it is said rather than enforced.
+ */
+data class SaleEditGuards(
+    val vrNo: String?,
+    val isApproved: Boolean,
+    /** Confirmed money against the sale; the total cannot be set below it. */
+    val received: Double,
+    val letterCount: Int,
+    val bookingFormCount: Int,
+    val installmentCount: Int,
+)
+
+/**
+ * A sale handed back for correction (`unit-sale/edit/{id}`). The customer and
+ * unit come back as labels only — both are printed on papers the buyer already
+ * holds, so the edit screen shows them and never sends them back. The parking
+ * keeps its raw option because a kept parking is posted back verbatim.
+ */
+data class SaleEditData(
+    val saleId: Long,
+    val customerLabel: String,
+    val unitLabel: String,
+    val parking: RealEstateOption?,
+    val note: String?,
+    /** yyyy-MM-dd. */
+    val saleDate: String?,
+    val total: Double,
+    val items: List<UnitSaleLine>,
+    val guards: SaleEditGuards,
+)
+
 /** A unit chip in the layout viewer (`buildings/{id}/layout` → floors→flats→units). */
 data class BuildingUnit(
     val id: Int,
@@ -270,6 +305,126 @@ class UnitSaleRepository(
         }
     }
 
+    // ---- Correcting a sale already on the books ---------------------------
+
+    /**
+     * `GET real-estate/unit-sale/edit/{id}` — the sale the way the pricing
+     * screen sent it, plus the guards that say why a box is shut before anybody
+     * types in it (an approved voucher, money already taken, papers issued).
+     * Behind `unit.sale.edit`, refused by the server without it.
+     */
+    suspend fun editSale(saleId: Long): Resource<SaleEditData> = withContext(ioDispatcher) {
+        safeCall {
+            val response = reportApi.get("real-estate/unit-sale/edit/$saleId", emptyMap())
+            response.unauthorizedOrNull()?.let { return@safeCall it }
+            val body = response.body() ?: response.errorBodyJson()
+            val root = body?.takeIf { it.isJsonObject }?.asJsonObject
+            val success = root?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            val message = root?.let { messageOf(it) }
+            if (success == false || !response.isSuccessful) {
+                return@safeCall Resource.Error(message ?: "Could not load this sale.")
+            }
+            val payload = locateObject(body)
+                ?: return@safeCall Resource.Error("Invalid response from server.")
+            val sale = payload.get("sale")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@safeCall Resource.Error("Could not load this sale.")
+            val guards = payload.get("guards")?.takeIf { it.isJsonObject }?.asJsonObject
+
+            val items = sale.get("items")?.takeIf { it.isJsonArray }?.asJsonArray.orEmpty()
+                .mapIndexedNotNull { index, el ->
+                    val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
+                    val linked = o.get("linkedTo")?.takeIf { it.isJsonObject }?.asJsonObject
+                    UnitSaleLine(
+                        // The stored row id; rows the server numbered are distinct
+                        // already, and a fallback keeps a malformed one distinct too.
+                        id = o.str("id")?.toLongOrNull() ?: (index + 1).toLong(),
+                        type = o.str("type") ?: "CUSTOM",
+                        title = o.str("title") ?: "-",
+                        effect = if (o.str("effect") == "-") "-" else "+",
+                        linkedKind = linked?.str("kind"),
+                        linkedLabel = linked?.str("label"),
+                        linkedId = linked?.int("unitId") ?: linked?.int("parkingId"),
+                        amount = o.num("amount"),
+                        note = o.str("note"),
+                        editMode = if (o.str("editMode") == "EDITABLE") "EDITABLE" else "LOCKED",
+                    )
+                }
+
+            Resource.Success(
+                SaleEditData(
+                    saleId = sale.str("id")?.toLongOrNull() ?: saleId,
+                    customerLabel = sale.get("customer")?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.str("label") ?: "—",
+                    unitLabel = sale.get("unit")?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.str("label") ?: "—",
+                    parking = sale.get("parking")?.takeIf { it.isJsonObject }?.asJsonObject
+                        ?.let { parseOption(it) },
+                    note = sale.str("note"),
+                    saleDate = sale.str("sale_date"),
+                    total = sale.num("total"),
+                    items = items,
+                    guards = SaleEditGuards(
+                        vrNo = guards?.str("vr_no"),
+                        isApproved = guards?.bool("is_approved") == true,
+                        received = guards?.num("received") ?: 0.0,
+                        letterCount = guards?.int("letter_count") ?: 0,
+                        bookingFormCount = guards?.int("booking_form_count") ?: 0,
+                        installmentCount = guards?.int("installment_count") ?: 0,
+                    ),
+                )
+            )
+        }
+    }
+
+    /**
+     * `POST real-estate/unit-sale/update/{id}` — writes the corrected figure
+     * back onto the sale's own invoice, under the same vr_no the buyer's
+     * receipt already quotes. The buyer and the flat are deliberately absent:
+     * the server reads both off the sale, so a screen holding the wrong ones
+     * cannot put them on the books.
+     */
+    suspend fun updateSale(
+        saleId: Long,
+        parking: RealEstateOption?,
+        items: List<UnitSaleLine>,
+        total: Double,
+        saleDate: String?,
+        note: String?,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = JsonObject().apply {
+            if (parking != null) add("parking", parking.raw.deepCopy()) else add("parking", JsonNull.INSTANCE)
+            add("items", JsonArray().apply { items.forEach { add(lineJson(it)) } })
+            addProperty("total", total)
+            addNullable("sale_date", saleDate)
+            addNullable("note", note)
+        }
+        safeCall {
+            val response = transactionApi.postObject("real-estate/unit-sale/update/$saleId", body)
+            response.unauthorizedOrNull()?.let { return@safeCall it }
+            if (response.code() == HTTP_FORBIDDEN) {
+                return@safeCall Resource.Error("You do not have permission for this action.")
+            }
+            val root = (response.body() ?: response.errorBodyJson())
+                ?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@safeCall Resource.Error("Server error (${response.code()}). Please try again later.")
+            val success = root.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            if (success == false || !response.isSuccessful) {
+                // The refusals here say something the clerk has to act on — the
+                // voucher is approved, or the money taken exceeds the new total
+                // — so the server's own sentence is what gets shown.
+                return@safeCall Resource.Error(messageOf(root) ?: "Could not update the sale.")
+            }
+            Resource.Success(messageOf(root) ?: "Sale updated successfully.")
+        }
+    }
+
+    /** `message`, else `error.message` — the server's own sentence when it has one. */
+    private fun messageOf(root: JsonObject): String? =
+        root.get("message")?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.ifBlank { null }
+            ?: root.get("error")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
+
     private fun lineJson(line: UnitSaleLine): JsonObject = JsonObject().apply {
         addProperty("id", line.id)
         addProperty("type", line.type)
@@ -330,19 +485,26 @@ class UnitSaleRepository(
     private fun parseOptions(root: JsonElement?): List<RealEstateOption> {
         val array = locateArray(root) ?: return emptyList()
         return array.mapNotNull { el ->
-            val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
-            RealEstateOption(
-                id = o.int("value") ?: return@mapNotNull null,
-                label = o.str("label") ?: return@mapNotNull null,
-                sizeSqft = o.num("label_0"),
-                ratePerSqft = o.num("label_1"),
-                flatName = o.str("label_2"),
-                buildingName = o.str("label_3"),
-                areaName = o.str("label_4"),
-                branchName = o.str("label_5"),
-                raw = o,
-            )
+            el.takeIf { it.isJsonObject }?.asJsonObject?.let(::parseOption)
         }
+    }
+
+    /**
+     * One `{value, label, label_0…label_5}` option object — a DDL row, or the
+     * stored option a sale's payload kept (which may carry fewer labels).
+     */
+    private fun parseOption(o: JsonObject): RealEstateOption? {
+        return RealEstateOption(
+            id = o.int("value") ?: return null,
+            label = o.str("label") ?: return null,
+            sizeSqft = o.num("label_0"),
+            ratePerSqft = o.num("label_1"),
+            flatName = o.str("label_2"),
+            buildingName = o.str("label_3"),
+            areaName = o.str("label_4"),
+            branchName = o.str("label_5"),
+            raw = o,
+        )
     }
 
     private fun parseLayout(data: JsonObject): BuildingLayout = BuildingLayout(
@@ -426,6 +588,14 @@ class UnitSaleRepository(
         str(key)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 
     private fun JsonObject.int(key: String): Int? = str(key)?.toDoubleOrNull()?.toInt()
+
+    /** true / "true" / 1 / "1" all read as true — PHP booleans travel loosely. */
+    private fun JsonObject.bool(key: String): Boolean {
+        val el = get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive } ?: return false
+        val prim = el.asJsonPrimitive
+        if (prim.isBoolean) return prim.asBoolean
+        return prim.asString.trim().let { it == "1" || it.equals("true", ignoreCase = true) }
+    }
 
     private fun Response<*>.unauthorizedOrNull(): Resource.Error? =
         if (code() == HTTP_UNAUTHORIZED) {

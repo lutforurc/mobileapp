@@ -137,6 +137,8 @@ data class SettingsBranchDto(
     @SerializedName("need_customer_permanent_address") val needCustomerPermanentAddress: String? = null,
     /** Customer form shows the Photo field. */
     @SerializedName("need_customer_photo") val needCustomerPhoto: String? = null,
+    /** Customer form shows the National ID field. */
+    @SerializedName("need_customer_national_id") val needCustomerNationalId: String? = null,
     /** A nominee row also carries a photo. */
     @SerializedName("need_nominee_photo") val needNomineePhoto: String? = null,
     /** Customer form shows Mother's Name. */

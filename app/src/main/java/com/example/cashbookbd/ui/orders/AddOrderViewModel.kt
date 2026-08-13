@@ -138,11 +138,30 @@ class AddOrderViewModel(
 
     fun onProductSelected(option: SelectorOption) = _uiState.update { it.copy(product = option) }
 
-    fun onOrderRateChange(value: String) = _uiState.update { it.copy(orderRate = value.decimalOnly()) }
+    fun onOrderRateChange(value: String) =
+        _uiState.update { it.copy(orderRate = value.decimalOnly()).withContractAuto() }
 
-    fun onTotalOrderChange(value: String) = _uiState.update { it.copy(totalOrder = value.decimalOnly()) }
+    fun onTotalOrderChange(value: String) =
+        _uiState.update { it.copy(totalOrder = value.decimalOnly()).withContractAuto() }
 
     fun onContractQtyChange(value: String) = _uiState.update { it.copy(contractQty = value.decimalOnly()) }
+
+    /**
+     * The web's auto-calculation: contract order qty = total qty × rate,
+     * refreshed whenever either side changes (a typed override lasts only until
+     * then, exactly like the web form). Blank while either side is blank, so an
+     * order raised before the figure is agreed stays uncommitted.
+     */
+    private fun AddOrderUiState.withContractAuto(): AddOrderUiState {
+        val product = (totalOrder.toDoubleOrNull() ?: 0.0) * (orderRate.toDoubleOrNull() ?: 0.0)
+        return copy(
+            contractQty = when {
+                product <= 0.0 -> ""
+                product % 1.0 == 0.0 -> product.toLong().toString()
+                else -> product.toString()
+            }
+        )
+    }
 
     // ---- Multi-product line entry ----
 

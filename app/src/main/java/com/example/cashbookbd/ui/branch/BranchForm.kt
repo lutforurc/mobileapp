@@ -286,6 +286,10 @@ object BranchForm {
                     description = "Adds the photo upload to the customer form.",
                 ),
                 BranchField.Toggle(
+                    "need_customer_national_id", "Need Customer National ID?",
+                    description = "Adds the national ID field to the customer form.",
+                ),
+                BranchField.Toggle(
                     "use_bangla", "Use Bangla?",
                     description = "Adds Bangla name fields beside the English ones, for papers that have to carry both.",
                 ),

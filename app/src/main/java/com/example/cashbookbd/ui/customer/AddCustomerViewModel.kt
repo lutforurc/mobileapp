@@ -36,6 +36,7 @@ class AddCustomerViewModel(
             showPermanentAddress = settings?.needCustomerPermanentAddress == true,
             showIdfrCode = settings?.haveCustomerSl == true,
             showPhoto = settings?.needCustomerPhoto == true,
+            showNationalId = settings?.needCustomerNationalId == true,
             showGuarantors = settings?.haveIsGuaranter == true,
             showNominees = settings?.haveCustomerNominee == true,
             showNomineePhoto = settings?.needNomineePhoto == true,

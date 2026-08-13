@@ -80,6 +80,8 @@ data class Settings(
     val needCustomerPermanentAddress: Boolean = false,
     /** Branch meta: the customer form shows the Photo field. */
     val needCustomerPhoto: Boolean = false,
+    /** Branch meta: the customer form shows the National ID field. */
+    val needCustomerNationalId: Boolean = false,
     /** Branch meta: a nominee row also carries a photo. */
     val needNomineePhoto: Boolean = false,
     /** Branch meta: the customer form shows Mother's Name. */
