@@ -36,6 +36,7 @@ object WebMenuIds {
         "productStock" to "reports/product/stock",
         "stockDetails" to "somity_stock_details",
         "imeiStock" to "report_imei_stock",
+        "godownStock" to "report_godown_stock",
         "categoryWiseInOut" to "reports/cat-wise/in-out",
         "purchaseLedger" to "reports/purchase-ledger",
         "salesLedger" to "reports/sales-ledger",

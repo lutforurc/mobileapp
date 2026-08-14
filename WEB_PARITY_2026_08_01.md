@@ -1,6 +1,55 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-09 evening):**
+> **Matched to (2026-08-14):**
+> ```
+> cashbookbd_react : b279150  (2026-08-14 12:45)
+> cashbook_api     : de217d38 (2026-08-14 12:55)
+> ```
+> The 08-10..08-14 gap is closed. Ported this pass (the rest of the gap —
+> Project Income + report, Project Labour, unified RE cash payments, sale
+> edit/cancel, National ID toggle, order contract-qty auto-calc, per-platform
+> tutorial links, the palette retune — was already on the phone from the
+> earlier sessions):
+>
+> - **Godown Stock** (Reports home, generic engine): `GET
+>   reports/godown-stock/data` with `enddate` (dd/MM/yyyy) + optional
+>   `godown_id` (the `active/warehouse` list; nothing chosen = every
+>   warehouse, godown_id 0 server-side). Gated on **`godown.stock`** — its
+>   own permission, deliberately NOT product.stock.view (web 55ffca9).
+>   Deviation kept: the unit rides each stock figure ("5 bags") the way
+>   Product Stock already prints it, instead of the web's separate Unit
+>   column; no Total row on either client — bags and pieces must never be
+>   added together. The web's negative-stock red tint is not ported (the
+>   generic table has no cell colour rules yet — known gap).
+> - **Sales Summary** (Real Estate section, native `SalesSummaryScreen`):
+>   `GET real-estate/reports/sales-summary` with area/project/building — one
+>   row per buyer (name, phone, per-sale "area › project › building" and
+>   "floor · unit · parking" lines), Sales/Rcv/Due columns, client-summed
+>   Grand Total. Gated on **`real.estate.sales.summary`** — its own endpoint
+>   and permission so the whole sales book is not handed out with the right
+>   to enter a sale. The web's clipboard action (payments register filtered
+>   by buyer) opens here as an in-place Payment Ledger dialog reading
+>   `unit-sale/payments-list?customer_id=` — the buyer's account id, never a
+>   name search, so a namesake cannot leak in; the dialog's Confirmed
+>   received line keeps the module's one money rule (CONFIRMED only, REFUND
+>   negative).
+> - **Product tracking setting Delete** (`DELETE product-tracking/
+>   settings/{id}`): only for a row nothing has been mapped under — the
+>   server refuses the rest with "switch Active off instead" (2xx
+>   success:false), shown as-is behind a confirm dialog.
+>
+> Server prerequisites per tenant: `2026_08_14_real_estate_sales_summary
+> _permission.sql` (seeds `real.estate.sales.summary`; also carried by the
+> patch command) and the sales-summary tutorial-video seed; `godown.stock`
+> is a pre-existing permission (the legacy Blade report's). Server-side
+> only, nothing to port: warehouse ddl company-scoping (50ed3b17), sold-units
+> area filter + area columns (mobile's Sold Units filters keep project/
+> building; add the Location dropdown there if asked), payments-list buyer
+> name search (mobile searches nothing there), loan-edit voucher round-trip
+> (voucher edit flows stay web-only), product-statement date formatting.
+> Skipped as web-only: both reports' Print buttons and Sl. No columns.
+>
+> **Previously matched (2026-08-09 evening):**
 > ```
 > cashbookbd_react : 9a0ea46 (2026-08-09 15:31)
 > cashbook_api     : e1d2117d (2026-08-09 15:25)

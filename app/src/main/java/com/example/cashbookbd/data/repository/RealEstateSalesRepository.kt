@@ -122,6 +122,58 @@ data class SaleNominees(
 )
 
 // ---------------------------------------------------------------------------
+// Models — Sales Summary report
+// ---------------------------------------------------------------------------
+
+/** One sale under a Sales Summary buyer: where the flat is, and which one. */
+data class SalesSummaryUnit(
+    val saleId: String,
+    val areaName: String,
+    val projectName: String,
+    val buildingName: String,
+    val floorName: String,
+    /** Printed as stored — it already reads "Unit# 4/A". */
+    val unitNo: String,
+    val parkingNo: String,
+)
+
+/** One line of the report: a buyer, what they bought, and what they owe. */
+data class SalesSummaryCustomer(
+    val customerId: String,
+    val customerName: String,
+    val customerMobile: String,
+    val units: List<SalesSummaryUnit>,
+    val totalAmount: Double,
+    val receivedAmount: Double,
+    val dueAmount: Double,
+)
+
+/** The report's `totals` block. */
+data class SalesSummaryTotals(
+    val customerCount: Int,
+    val totalAmount: Double,
+    val receivedAmount: Double,
+    val dueAmount: Double,
+)
+
+/** The full Sales Summary payload: one row per buyer plus the grand totals. */
+data class SalesSummaryReport(
+    val customers: List<SalesSummaryCustomer>,
+    val totals: SalesSummaryTotals,
+)
+
+/** One receipt of the buyer-wise payment ledger. */
+data class CustomerPaymentRow(
+    val paymentDate: String,
+    val receiptNo: String,
+    val paymentMode: String,
+    val referenceNo: String,
+    val paymentType: String,
+    val status: String,
+    val amount: Double,
+)
+
+// ---------------------------------------------------------------------------
 // Models — Installment Create
 // ---------------------------------------------------------------------------
 
@@ -236,6 +288,10 @@ class RealEstateSalesRepository(
     suspend fun fetchBuildings(): Resource<List<SelectorOption>> =
         fetchDdl("real-estate/buildings/ddl")
 
+    /** Location options — the project areas (`real-estate/project-areas/ddl`). */
+    suspend fun fetchAreas(): Resource<List<SelectorOption>> =
+        fetchDdl("real-estate/project-areas/ddl")
+
     /** `{value,label}` options at `data.data`. */
     private suspend fun fetchDdl(path: String): Resource<List<SelectorOption>> = withContext(ioDispatcher) {
         guarded {
@@ -290,6 +346,115 @@ class RealEstateSalesRepository(
 
     private fun emptySoldUnitsReport() =
         SoldUnitsReport(customers = emptyList(), totals = JsonObject().toSoldUnitsTotals())
+
+    // ---- Sales Summary ----------------------------------------------------
+
+    /**
+     * `GET real-estate/reports/sales-summary` — the report's own endpoint, not
+     * the sold-units list's, because the permission is separate: it answers
+     * only to `real.estate.sales.summary`, so a role that may enter a sale but
+     * not read the whole sales book gets a 403 here while its own screens keep
+     * working. Amounts follow the module's one rule (CONFIRMED payments only,
+     * a CONFIRMED REFUND taken off), so a total here and a total on the
+     * sold-units list still agree.
+     */
+    suspend fun fetchSalesSummary(
+        areaId: String,
+        projectId: String,
+        buildingId: String,
+    ): Resource<SalesSummaryReport> = withContext(ioDispatcher) {
+        val params = buildMap {
+            if (areaId.isNotBlank()) put("area_id", areaId)
+            if (projectId.isNotBlank()) put("project_id", projectId)
+            if (buildingId.isNotBlank()) put("building_id", buildingId)
+        }
+        guarded {
+            val response = reportApi.get("real-estate/reports/sales-summary", params)
+            envelope(response, onNotFound = { Resource.Success(emptySalesSummaryReport()) }) { json ->
+                val payload = json.obj("data")?.obj("data")
+                val customers = payload?.arr("data")
+                    ?.mapNotNull { it.objOrNull()?.toSalesSummaryCustomer() }
+                    .orEmpty()
+                val totals = payload?.obj("totals")
+                Resource.Success(
+                    SalesSummaryReport(
+                        customers = customers,
+                        totals = SalesSummaryTotals(
+                            customerCount = totals?.int("customer_count") ?: 0,
+                            totalAmount = totals?.dbl("total_amount") ?: 0.0,
+                            receivedAmount = totals?.dbl("received_amount") ?: 0.0,
+                            dueAmount = totals?.dbl("due_amount") ?: 0.0,
+                        ),
+                    )
+                )
+            }
+        }
+    }
+
+    private fun emptySalesSummaryReport() = SalesSummaryReport(
+        customers = emptyList(),
+        totals = SalesSummaryTotals(0, 0.0, 0.0, 0.0),
+    )
+
+    private fun JsonObject.toSalesSummaryCustomer(): SalesSummaryCustomer? {
+        val name = str("customer_name") ?: return null
+        return SalesSummaryCustomer(
+            customerId = str("customer_id").orEmpty(),
+            customerName = name,
+            customerMobile = str("customer_mobile").orEmpty(),
+            units = arr("units")?.mapNotNull { el ->
+                el.objOrNull()?.let { o ->
+                    SalesSummaryUnit(
+                        saleId = o.str("sale_id").orEmpty(),
+                        areaName = o.str("area_name").orEmpty(),
+                        projectName = o.str("project_name").orEmpty(),
+                        buildingName = o.str("building_name").orEmpty(),
+                        floorName = o.str("floor_name").orEmpty(),
+                        unitNo = o.str("unit_no").orEmpty(),
+                        parkingNo = o.str("parking_no").orEmpty(),
+                    )
+                }
+            }.orEmpty(),
+            totalAmount = dbl("total_amount"),
+            receivedAmount = dbl("received_amount"),
+            dueAmount = dbl("due_amount"),
+        )
+    }
+
+    /**
+     * The buyer's money, receipt by receipt — the web's clipboard action, which
+     * hands the payments register the buyer's account id rather than a name to
+     * search: it gathers every payment against them even where two flats put
+     * them on two bookings, and it cannot drag in a second customer whose name
+     * reads the same. `GET real-estate/unit-sale/payments-list?customer_id=` —
+     * SINGLE-wrapped (`data` is the paginator itself), unlike the rest of the
+     * module; the camelCase `perPage` is what this endpoint reads.
+     */
+    suspend fun fetchCustomerPayments(customerId: String): Resource<List<CustomerPaymentRow>> =
+        withContext(ioDispatcher) {
+            val params = mapOf("customer_id" to customerId, "perPage" to "200")
+            guarded {
+                val response = reportApi.get("real-estate/unit-sale/payments-list", params)
+                envelope(response, onNotFound = { Resource.Success(emptyList()) }) { json ->
+                    val rows = json.obj("data")?.arr("data")
+                        ?.mapNotNull { el ->
+                            el.objOrNull()?.let { o ->
+                                CustomerPaymentRow(
+                                    paymentDate = o.str("payment_date").orEmpty(),
+                                    receiptNo = o.str("receipt_no").orEmpty(),
+                                    paymentMode = o.str("payment_mode").orEmpty(),
+                                    referenceNo = o.str("reference_no").orEmpty(),
+                                    paymentType = o.str("payment_type").orEmpty(),
+                                    status = o.str("status").orEmpty(),
+                                    amount = o.dbl("amount"),
+                                )
+                            }
+                        }
+                        .orEmpty()
+                    Resource.Success(rows)
+                }
+            }
+        }
 
     private fun JsonObject.toSoldUnitCustomer(): SoldUnitCustomer? {
         val name = str("customer_name") ?: return null

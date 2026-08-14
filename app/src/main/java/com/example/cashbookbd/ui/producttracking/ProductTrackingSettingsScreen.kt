@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +21,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +95,9 @@ data class TrackingSettingsUiState(
     val rows: List<TrackingSetting> = emptyList(),
     val listError: String? = null,
     val togglingId: Long? = null,
+    val deletingId: Long? = null,
+    /** The row the confirm dialog is asking about, when one is open. */
+    val pendingDelete: TrackingSetting? = null,
 
     val message: String? = null,
     val sessionExpired: Boolean = false,
@@ -277,7 +282,7 @@ class ProductTrackingSettingsViewModel(
         }
     }
 
-    /** Never a delete — deactivation stops new mappings, history stays intact. */
+    /** Deactivation stops new mappings, history stays intact — the only path for a setting in use. */
     fun toggle(row: TrackingSetting) {
         if (_uiState.value.togglingId != null) return
         _uiState.update { it.copy(togglingId = row.id) }
@@ -290,6 +295,43 @@ class ProductTrackingSettingsViewModel(
                     sessionExpired = it.sessionExpired ||
                         (result as? Resource.Error)?.isUnauthorized == true,
                 )
+            }
+            loadList()
+        }
+    }
+
+    /** Opens the confirm dialog naming what would be deleted. */
+    fun requestDelete(row: TrackingSetting) = _uiState.update { it.copy(pendingDelete = row) }
+
+    fun cancelDelete() = _uiState.update { it.copy(pendingDelete = null) }
+
+    /**
+     * Deletes a setting added by mistake. The server is the judge of "by
+     * mistake": once anything has been mapped under it the delete is refused
+     * with the advice to switch Active off instead, and that refusal is shown
+     * as-is.
+     */
+    fun confirmDelete() {
+        val row = _uiState.value.pendingDelete ?: return
+        if (_uiState.value.deletingId != null) return
+        _uiState.update { it.copy(pendingDelete = null, deletingId = row.id) }
+        viewModelScope.launch {
+            val result = repository.deleteSetting(row.id)
+            _uiState.update {
+                it.copy(
+                    deletingId = null,
+                    message = when (result) {
+                        is Resource.Success -> result.data
+                        is Resource.Error -> result.message
+                        Resource.Loading -> null
+                    },
+                    sessionExpired = it.sessionExpired ||
+                        (result as? Resource.Error)?.isUnauthorized == true,
+                )
+            }
+            if (result is Resource.Success) {
+                // A freed product becomes addable again.
+                loadProducts()
             }
             loadList()
         }
@@ -318,8 +360,9 @@ class ProductTrackingSettingsViewModel(
 
 /**
  * Which products carry their own bill/collection/payment ledger — the web's
- * Settings → Product Tracking. There is no delete anywhere in this module:
- * deactivation is the only removal path, and it never touches history.
+ * Settings → Product Tracking. Deactivation is the removal path for a setting
+ * in use (it never touches history); Delete exists only for a row nothing has
+ * been recorded under yet, and the server enforces that line, not the client.
  */
 @Composable
 fun ProductTrackingSettingsScreen(
@@ -400,14 +443,39 @@ fun ProductTrackingSettingsScreen(
                             row = row,
                             canManage = state.canManage,
                             isToggling = state.togglingId == row.id,
+                            isDeleting = state.deletingId == row.id,
                             onEdit = { viewModel.edit(row) },
                             onToggle = { viewModel.toggle(row) },
+                            onDelete = { viewModel.requestDelete(row) },
                         )
                     }
                 }
             }
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
         }
+    }
+
+    state.pendingDelete?.let { row ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDelete,
+            title = { Text("Delete tracking setting?") },
+            text = {
+                Text(
+                    "Remove the tracking setting for \"" +
+                        row.productName.ifBlank { "Product ${row.productId}" } +
+                        "\"? This only works while nothing has been recorded under it — " +
+                        "once transactions exist, switch Active off instead.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDelete) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelDelete) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -497,8 +565,10 @@ private fun SettingRow(
     row: TrackingSetting,
     canManage: Boolean,
     isToggling: Boolean,
+    isDeleting: Boolean,
     onEdit: () -> Unit,
     onToggle: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -540,7 +610,7 @@ private fun SettingRow(
             )
             if (canManage) {
                 Row {
-                    LinkButton(text = "Edit", onClick = onEdit, enabled = !isToggling)
+                    LinkButton(text = "Edit", onClick = onEdit, enabled = !isToggling && !isDeleting)
                     Spacer(Modifier.height(0.dp))
                     LinkButton(
                         text = when {
@@ -549,7 +619,15 @@ private fun SettingRow(
                             else -> "Activate"
                         },
                         onClick = onToggle,
-                        enabled = !isToggling,
+                        enabled = !isToggling && !isDeleting,
+                    )
+                    Spacer(Modifier.height(0.dp))
+                    // Only for a setting nothing has been recorded under —
+                    // the server refuses the rest, and that answer is shown.
+                    LinkButton(
+                        text = if (isDeleting) "…" else "Delete",
+                        onClick = onDelete,
+                        enabled = !isToggling && !isDeleting,
                     )
                 }
             }

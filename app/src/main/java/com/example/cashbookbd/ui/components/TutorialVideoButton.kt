@@ -120,5 +120,6 @@ object TutorialScreens {
     const val INSTALLMENT_CREATE = "/real-estate/installment-create"
     const val UNIT_SALES = "/real-estate/unit-sales"
     const val SOLD_UNITS = "/real-estate/sold-units"
+    const val SALES_SUMMARY = "/reports/sales-summary"
     const val FLAT_LAYOUT = "/real-estate/flat-layout"
 }

@@ -251,6 +251,25 @@ class ProductTrackingRepository(
             }
         }
 
+    /**
+     * Deletes a setting added by mistake a moment ago. Enforced server-side
+     * rather than assumed: once anything has been mapped under the setting the
+     * delete is refused (2xx `success:false` — the answer says to switch
+     * Active off instead), because the Receivable/Payable report is built from
+     * the settings table and a used row's product would vanish while its money
+     * stayed in the ledger. Branch/party 0 means "all", so the check widens
+     * with the setting.
+     */
+    suspend fun deleteSetting(id: Long): Resource<String> =
+        withContext(ioDispatcher) {
+            guarded {
+                val response = api.delete("product-tracking/settings/$id")
+                envelope(response) { json ->
+                    Resource.Success(json.message() ?: "Product tracking setting deleted.")
+                }
+            }
+        }
+
     // ---- Reports -----------------------------------------------------------
 
     /** `GET reports/product-financial-statement` — one product's memo ledger. */

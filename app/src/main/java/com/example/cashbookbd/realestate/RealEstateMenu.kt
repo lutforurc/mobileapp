@@ -35,6 +35,7 @@ object RealEstateMenu {
     const val PROJECT_INCOME_KEY = "projectIncome"
     const val PROJECT_COST_REPORT_KEY = "projectCostReport"
     const val PROJECT_INCOME_REPORT_KEY = "projectIncomeReport"
+    const val SALES_SUMMARY_KEY = "reSalesSummary"
 
     val all: List<RealEstateItem> = listOf(
         // Check Register carries its own permission on the web route.
@@ -48,6 +49,10 @@ object RealEstateMenu {
         RealEstateItem(FLAT_LAYOUT_KEY, "Layout", listOf(SECTION_PERMISSION)),
         RealEstateItem(UNIT_SALES_KEY, "Unit Sales", listOf(SECTION_PERMISSION)),
         RealEstateItem(SOLD_UNITS_KEY, "Sold Units", listOf(SECTION_PERMISSION)),
+        // The sales book of a project read end to end — its own permission, so
+        // reading what every buyer paid is not handed out with the right to
+        // enter a sale. Web sidebar order: right before Installment Create.
+        RealEstateItem(SALES_SUMMARY_KEY, "Sales Summary", listOf("real.estate.sales.summary")),
         RealEstateItem(INSTALLMENT_CREATE_KEY, "Installment Create", listOf(SECTION_PERMISSION)),
         // The project-and-building cost batch (web sidebar order: last).
         RealEstateItem(PROJECT_EXPENSE_KEY, "Project Expense", listOf(SECTION_PERMISSION)),

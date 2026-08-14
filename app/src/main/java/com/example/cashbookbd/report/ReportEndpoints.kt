@@ -39,6 +39,7 @@ object ReportEndpoints {
         "closingStock" to "reports/closing-stock",
         "productStock" to "reports/product-stock",
         "imeiStock" to "reports/stock-imei-data",
+        "godownStock" to "reports/godown-stock/data",
         "categoryWiseInOut" to "reports/category-wise-in-out",
         "dateWiseInOut" to "reports/in-out/date-wise/data",
         "dateWiseInOutDetails" to "reports/in-out/date-wise/details",

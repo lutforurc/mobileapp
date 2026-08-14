@@ -480,6 +480,9 @@ object ReportMenu {
         "imei.stock",
         "purchase.ledger",
         "sales.ledger",
+        // Godown Stock answers to its own permission — deliberately NOT
+        // product.stock.view, which almost everybody holds (web 55ffca9).
+        "godown.stock",
         "group.report",
         "mitch.match",
         // The three branch stock-movement reports (web sidebar item gates).
@@ -1175,6 +1178,45 @@ object ReportMenu {
             ),
             responseShape = ReportResponseShape.KEYED_SCALARS,
             scalarLabel = "IMEI / Serial",
+        ),
+        ReportConfig(
+            key = "godownStock",
+            title = "Godown Stock",
+            routeName = "ReportGodownStock",
+            webPath = "/reports/godown-stock",
+            // Its own permission, not product.stock.view — that one is held by
+            // almost everybody, so the report would open for people the menu
+            // had already decided not to offer it to (web 55ffca9).
+            anyOf = listOf("godown.stock"),
+            endpointKey = "godownStock",
+            method = ReportMethod.GET,
+            // Stock held per warehouse as of a date — an end date only, sent
+            // dd/MM/yyyy under `enddate` like the web.
+            filterType = ReportFilterType.BRANCH_END_DATE,
+            startParam = null,
+            endParam = "enddate",
+            dateStyle = ReportDateStyle.DISPLAY,
+            selectors = listOf(
+                ReportSelector(
+                    // No warehouse chosen is a choice of its own — every
+                    // warehouse — which the server reads as godown_id 0.
+                    paramKey = "godown_id",
+                    label = "Select Warehouse (optional)",
+                    source = ReportSelectorSource.WAREHOUSE,
+                    required = false,
+                ),
+            ),
+            // One branch is already the filter; the unit rides each stock
+            // figure ("5 nos") because a warehouse holds bags beside pieces
+            // and the two must never be added together — hence no Total row.
+            hiddenColumns = listOf("branch_name", "unit"),
+            unitColumn = "unit",
+            zeroDashColumns = listOf("stock_qty"),
+            columnOrder = listOf("warehouse", "product_name", "stock_qty"),
+            columnLabels = mapOf(
+                "product_name" to "Product",
+                "stock_qty" to "Stock (Qty)",
+            ),
         ),
         ReportConfig(
             key = "categoryWiseInOut",

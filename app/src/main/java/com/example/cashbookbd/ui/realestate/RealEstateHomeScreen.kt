@@ -90,6 +90,7 @@ fun RealEstateHomeScreen(
                             item.key == RealEstateMenu.PROJECT_INCOME_KEY -> Routes.PROJECT_INCOME
                             item.key == RealEstateMenu.PROJECT_COST_REPORT_KEY -> Routes.PROJECT_COST_REPORT
                             item.key == RealEstateMenu.PROJECT_INCOME_REPORT_KEY -> Routes.PROJECT_INCOME_REPORT
+                            item.key == RealEstateMenu.SALES_SUMMARY_KEY -> Routes.SALES_SUMMARY
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> return@RealEstateRowItem
                         }

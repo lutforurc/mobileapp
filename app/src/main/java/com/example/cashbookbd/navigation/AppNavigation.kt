@@ -133,6 +133,7 @@ import com.example.cashbookbd.ui.realestate.ProjectLabourScreen
 import com.example.cashbookbd.ui.realestate.ProjectPurchaseScreen
 import com.example.cashbookbd.ui.realestate.RealEstateCrudFormScreen
 import com.example.cashbookbd.ui.realestate.RealEstateHomeScreen
+import com.example.cashbookbd.ui.realestate.SalesSummaryScreen
 import com.example.cashbookbd.ui.realestate.SoldUnitsScreen
 import com.example.cashbookbd.ui.realestate.UnitPaymentScreen
 import com.example.cashbookbd.ui.realestate.UnitSaleScreen
@@ -269,6 +270,9 @@ object Routes {
     /** SavedStateHandle key the edit screen answers the sold-units report through. */
     const val UNIT_SALE_UPDATED_RESULT = "unit_sale_updated"
     const val SOLD_UNITS = "realestate/sold-units"
+
+    /** Sales Summary — one line per buyer, and what they still owe. */
+    const val SALES_SUMMARY = "realestate/sales-summary"
 
     fun unitSaleEditFor(saleId: String): String = "realestate/unit-sales?saleId=$saleId"
     const val RE_INSTALLMENT_CREATE = "realestate/installment-create"
@@ -933,6 +937,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.SOLD_UNITS) {
             PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.SOLD_UNITS_KEY)) {
                 SoldUnitsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.SALES_SUMMARY) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.SALES_SUMMARY_KEY)) {
+                SalesSummaryScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )
