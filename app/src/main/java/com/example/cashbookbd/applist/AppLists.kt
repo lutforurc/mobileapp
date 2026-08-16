@@ -6,6 +6,27 @@ import com.example.cashbookbd.session.MenuPermissions
 /** HTTP method used to fetch a list. */
 enum class ListMethod { GET, POST }
 
+/**
+ * Special cell renderings a column can ask for, beyond numeric/valueMap.
+ * The web's Slow Moving list added both (2026-08-15, react 0ff285a).
+ */
+enum class CellFormat {
+    /**
+     * dd/MM/yyyy whichever way round the date arrives — the API sends
+     * "2023-02-18" into a report where every other date is day-first. Four
+     * digit year on purpose: on a row saying a product has not moved in three
+     * years, 18/02/23 invites the reader to wonder which century.
+     */
+    DATE_DMY,
+
+    /**
+     * A day count said the way people say it: 1274 → "3 Year 5 Month 29 Day".
+     * Converted from the count (365/30), never from the two dates, so it
+     * always agrees with the figure the report worked out. Empty parts drop.
+     */
+    DAY_SPAN,
+}
+
 /** One column of a list table. [key] supports dot paths for nested fields. */
 data class AppListColumn(
     val key: String,
@@ -21,6 +42,8 @@ data class AppListColumn(
      * phone-under-email). Blank sublines simply don't render.
      */
     val sublineKey: String? = null,
+    /** A special rendering (date normalisation, day span) — see [CellFormat]. */
+    val format: CellFormat? = null,
 )
 
 /**
@@ -30,6 +53,12 @@ data class AppListColumn(
 data class ListAddAction(
     val label: String,
     val route: String,
+    /**
+     * Permissions gating the button (any one suffices) — the web hides New
+     * behind e.g. labour.category.edit while the list itself needs only .view.
+     * Empty = shown to whoever can see the list.
+     */
+    val anyOf: List<String> = emptyList(),
 )
 
 /**
@@ -43,6 +72,14 @@ data class ListStatusToggle(
     val idKey: String = "id",
     /** Row field holding the current status (1 = on). */
     val statusKey: String = "status",
+    /**
+     * When true the id rides the path — POST `{endpoint}/{id}` with
+     * `{status: 0|1}` alone in the body (the labour-setup status endpoints,
+     * whose update route validates fields a row switch has nothing to send).
+     */
+    val idInPath: Boolean = false,
+    /** Permissions gating the switch (any one) — empty = ungated. */
+    val anyOf: List<String> = emptyList(),
 )
 
 /**
@@ -56,6 +93,8 @@ data class ListStatusToggle(
 data class ListEditAction(
     val route: String,
     val idKey: String,
+    /** Permissions gating the pencil (any one) — empty = ungated. */
+    val anyOf: List<String> = emptyList(),
 )
 
 /**
@@ -73,6 +112,8 @@ data class ListDeleteAction(
      * base64 and can carry "/" or "+" that a route path would mangle.
      */
     val bodyKey: String? = null,
+    /** Permissions gating the bin (any one) — empty = ungated. */
+    val anyOf: List<String> = emptyList(),
 )
 
 /**
@@ -535,8 +576,10 @@ object AppLists {
                 AppListColumn("brand", "Brand"),
                 AppListColumn("unit", "Unit"),
                 AppListColumn("current_stock", "Current", numeric = true),
-                AppListColumn("last_movement_date", "Last Movement"),
-                AppListColumn("days_without_movement", "Days Idle", numeric = true),
+                // dd/MM/yyyy and "3 Year 5 Month 29 Day", like the web
+                // (react 0ff285a): 1,274 days idle converts in nobody's head.
+                AppListColumn("last_movement_date", "Last Movement", format = CellFormat.DATE_DMY),
+                AppListColumn("days_without_movement", "Days Idle", format = CellFormat.DAY_SPAN),
             ),
             anyOf = listOf("slow.moving"),
             paginated = true,
@@ -792,6 +835,84 @@ object AppLists {
             // branches, whose edit route takes the hashed key).
             editAction = ListEditAction(route = Routes.EMPLOYEE_EDIT, idKey = "id"),
         ),
+        // ---- Labour Items (react b1cfc84 / api fa976d28, 2026-08-16) ----
+        // The category and item lists a labour bill is built from — their own
+        // drawer section, like the web's own menu: master data, not a corner
+        // of Invoice. Lists ride this engine; the forms ride the HRM CRUD
+        // engine (HrmCrudForms keys labourCategories/labourItems).
+        // Server contract: foundData paginator (page/per_page), status via
+        // POST status/{id} {status}, delete via POST delete/{id} (refusals =
+        // success:false at HTTP 422 with the reason — items under a category,
+        // bills under an item). Permissions per action, exactly the web's:
+        // .view sees the list, .edit adds/edits/switches, .delete deletes.
+        AppListSpec(
+            key = "labourCategories",
+            title = "Labour Categories",
+            endpoint = "labour-setup/categories",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Category Name"),
+                AppListColumn("description", "Description"),
+            ),
+            anyOf = listOf("labour.category.view"),
+            paginated = true,
+            perPage = 10,
+            statusToggle = ListStatusToggle(
+                endpoint = "labour-setup/categories/status",
+                idInPath = true,
+                anyOf = listOf("labour.category.edit"),
+            ),
+            addAction = ListAddAction(
+                label = "New Category",
+                route = Routes.hrmCrudAdd("labourCategories"),
+                anyOf = listOf("labour.category.edit"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("labourCategories"),
+                idKey = "id",
+                anyOf = listOf("labour.category.edit"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "labour-setup/categories/delete",
+                anyOf = listOf("labour.category.delete"),
+            ),
+        ),
+        AppListSpec(
+            key = "labourItems",
+            title = "Labour Items",
+            endpoint = "labour-setup/items",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("category_name", "Category"),
+                AppListColumn("name", "Item Name"),
+                AppListColumn("description", "Description"),
+                AppListColumn("unit_name", "Unit"),
+                AppListColumn("purchase_price", "Rate", numeric = true),
+            ),
+            anyOf = listOf("labour.item.view"),
+            paginated = true,
+            perPage = 10,
+            statusToggle = ListStatusToggle(
+                endpoint = "labour-setup/items/status",
+                idInPath = true,
+                anyOf = listOf("labour.item.edit"),
+            ),
+            addAction = ListAddAction(
+                label = "New Item",
+                route = Routes.hrmCrudAdd("labourItems"),
+                anyOf = listOf("labour.item.edit"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("labourItems"),
+                idKey = "id",
+                anyOf = listOf("labour.item.edit"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "labour-setup/items/delete",
+                anyOf = listOf("labour.item.delete"),
+            ),
+        ),
+
         AppListSpec(
             key = "hrmDesignationLevels",
             title = "Designation Levels",

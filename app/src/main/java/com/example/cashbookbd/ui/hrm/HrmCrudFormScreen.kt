@@ -84,6 +84,8 @@ data class HrmCrudUiState(
     val branches: List<SelectorOption> = emptyList(),
     val shifts: List<SelectorOption> = emptyList(),
     val levels: List<SelectorOption> = emptyList(),
+    /** DDL-kind fields' options, keyed by field key (each loads its sourcePath). */
+    val ddlOptions: Map<String, List<SelectorOption>> = emptyMap(),
 
     val isSaving: Boolean = false,
     val saveError: String? = null,
@@ -154,6 +156,20 @@ class HrmCrudFormViewModel(
                     }
                 }
             }
+            // Generic DDL fields each load their own source path (labour
+            // categories, product units) — best-effort, like the kinds above.
+            currentSpec.fields
+                .filter { it.kind == CrudFieldKind.DDL && it.sourcePath != null }
+                .forEach { field ->
+                    (hrmRepository.getDdlOptions(field.sourcePath!!) as? Resource.Success)?.let { result ->
+                        _uiState.update { state ->
+                            state.copy(
+                                ddlOptions = state.ddlOptions +
+                                    (field.key to result.data.map { SelectorOption(it.id, it.name) }),
+                            )
+                        }
+                    }
+                }
 
             if (crudId == null) {
                 _uiState.update { it.copy(isLoading = false) }
@@ -347,7 +363,13 @@ fun HrmCrudFormScreen(
     val title = state.spec?.title ?: "Form"
     AuthenticatedShell(
         title = if (state.isEdit) "Edit $title" else "Add $title",
-        currentRoute = Routes.HRM,
+        // The labour forms live in the Labour Items drawer section, the rest
+        // in HRM — highlight whichever this key belongs to.
+        currentRoute = if (com.example.cashbookbd.labour.LabourMenu.byKey(crudKey) != null) {
+            Routes.LABOUR_ITEMS
+        } else {
+            Routes.HRM
+        },
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
@@ -477,6 +499,13 @@ private fun CrudFieldRow(
 
         CrudFieldKind.LEVEL -> CrudOptionDropdown(
             label = label, options = state.levels, fieldState = fieldState,
+            onValueChanged = onValueChanged,
+        )
+
+        CrudFieldKind.DDL -> CrudOptionDropdown(
+            label = label,
+            options = state.ddlOptions[field.key].orEmpty(),
+            fieldState = fieldState,
             onValueChanged = onValueChanged,
         )
 

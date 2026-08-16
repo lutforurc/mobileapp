@@ -2,6 +2,7 @@ package com.example.cashbookbd.ui.hrm
 
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
+import com.example.cashbookbd.ui.theme.brand
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.background
@@ -548,7 +549,15 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                                     style = MaterialTheme.typography.bodySmall,
                                     textAlign = TextAlign.Center,
                                     color = when (glyph) {
-                                        "✕", "!" -> MaterialTheme.colorScheme.error
+                                        "✕" -> MaterialTheme.colorScheme.error
+                                        // Pink, not red or amber (web 8608682):
+                                        // late shared its colour with absent
+                                        // here, and the two were being told
+                                        // apart by their glyph alone. The
+                                        // palette's highlight pink is the one
+                                        // hue this legend has not spent.
+                                        "!" -> MaterialTheme.brand.highlight["pink"]
+                                            ?: MaterialTheme.colorScheme.error
                                         "✓" -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onBackground
                                     },

@@ -63,6 +63,13 @@ class HrmRepository(
     suspend fun getLevelOptions(): Resource<List<HrmOption>> =
         fetchOptions("hrms/designation-levels/ddl", emptyMap())
 
+    /**
+     * A CRUD form's generic DDL — whatever GET path the field names (labour
+     * categories, product units); rows carry id/name like every other ddl.
+     */
+    suspend fun getDdlOptions(path: String): Resource<List<HrmOption>> =
+        fetchOptions(path, emptyMap())
+
     // ---- Generic CRUD (the config-driven HRM add/edit forms) ----
 
     /**

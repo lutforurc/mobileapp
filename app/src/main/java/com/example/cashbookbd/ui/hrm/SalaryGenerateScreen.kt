@@ -95,7 +95,6 @@ data class SalarySheetRow(
     val lateDeductionDays: Double,
     val earlyOutCount: Double,
     val earlyOutDeductionDays: Double,
-    val attendanceDeductionAmount: Double,
     val overtimeMinutes: Double,
     val overtimeAmount: Double,
 ) {
@@ -113,15 +112,37 @@ data class SalarySheetRow(
 
     fun proratedOthers(): Double = prorated(monthlyOthersAllowance)
 
+    /** Basic plus allowance, before overtime — what a day of pay is measured against. */
+    private fun baseGross(isOvertime: Boolean): Double =
+        proratedBasic() + (if (isOvertime) 0.0 else proratedOthers())
+
     fun total(isOvertime: Boolean): Double =
-        proratedBasic() +
-            (if (isOvertime) 0.0 else proratedOthers()) +
-            (if (isOvertime) overtimeAmount else 0.0)
+        baseGross(isOvertime) + (if (isOvertime) overtimeAmount else 0.0)
+
+    /**
+     * The attendance penalty, worked out here rather than read from the API —
+     * the monthly-summary endpoint returns the deduction *days* but no amount
+     * (it has no salary to price them against), so the figure used to sit at
+     * zero however many lates an employee collected. This mirrors the server's
+     * apiMakeSalary exactly (web 8608682/0c72695, api 0fb76c0d): days × the
+     * prorated gross / 30, to the NEAREST ten — 947 becomes 950, 944 becomes
+     * 940, so the rounding falls the employee's way as often as the company's.
+     *
+     * Absent and half days are deliberately not charged here: they already
+     * lower the working days, and so the prorated basic — charging them again
+     * would deduct them twice.
+     */
+    fun attendanceDeduction(isOvertime: Boolean): Double {
+        if (isDailyLabour) return 0.0
+        val days = lateDeductionDays + earlyOutDeductionDays
+        if (days <= 0.0) return 0.0
+        val perDay = Math.round(baseGross(isOvertime) / 30.0 * 100.0) / 100.0
+        return Math.round(days * perDay / 10.0) * 10.0
+    }
 
     fun net(isOvertime: Boolean): Double {
         if (workingDays <= 0.0 || monthDays <= 0) return 0.0
-        val attendanceDed = if (isDailyLabour) 0.0 else attendanceDeductionAmount
-        return max(0.0, total(isOvertime) - loanBalance - attendanceDed)
+        return max(0.0, total(isOvertime) - loanBalance - attendanceDeduction(isOvertime))
     }
 
     /** The generate payload row, key-for-key what the web sends. */
@@ -140,10 +161,7 @@ data class SalarySheetRow(
         addProperty("loan_balance", loanBalance)
         // The web saves the row's loan balance as its loan deduction.
         addProperty("loan_deduction", loanBalance)
-        addProperty(
-            "attendance_deduction_amount",
-            if (isDailyLabour) 0.0 else attendanceDeductionAmount,
-        )
+        addProperty("attendance_deduction_amount", attendanceDeduction(isOvertime))
         addProperty("attendance_absent_days", absentDays)
         addProperty("attendance_unpaid_leave_days", unpaidLeaveDays)
         addProperty("attendance_half_days", halfDays)
@@ -174,6 +192,13 @@ data class SalaryGenerateUiState(
     val searched: Boolean = false,
 
     val showConfirm: Boolean = false,
+    /**
+     * The row the Remove button is asking about — the row itself, not just its
+     * id, so the dialog can name the employee (web 0c72695: the trash button
+     * used to drop the row on the first click, with a sheet's worth of edits
+     * behind it and nothing to undo it).
+     */
+    val rowToRemove: SalarySheetRow? = null,
     val isGenerating: Boolean = false,
     val message: String? = null,
     val generateError: String? = null,
@@ -239,8 +264,16 @@ class SalaryGenerateViewModel(
         }
     }
 
-    fun removeRow(rowId: Long) =
-        _uiState.update { state -> state.copy(rows = state.rows.filterNot { it.id == rowId }) }
+    /** Opens the remove confirm — nothing leaves the sheet until Confirmed. */
+    fun requestRemoveRow(row: SalarySheetRow) =
+        _uiState.update { it.copy(rowToRemove = row) }
+
+    fun cancelRemoveRow() = _uiState.update { it.copy(rowToRemove = null) }
+
+    fun confirmRemoveRow() = _uiState.update { state ->
+        val row = state.rowToRemove ?: return@update state
+        state.copy(rows = state.rows.filterNot { it.id == row.id }, rowToRemove = null)
+    }
 
     private fun monthId(monthYear: MonthYear): String =
         String.format(Locale.US, "%02d-%04d", monthYear.month, monthYear.year)
@@ -314,7 +347,6 @@ class SalaryGenerateViewModel(
                     lateDeductionDays = summary?.lateDeductionDays ?: 0.0,
                     earlyOutCount = summary?.earlyOutCount ?: 0.0,
                     earlyOutDeductionDays = summary?.earlyOutDeductionDays ?: 0.0,
-                    attendanceDeductionAmount = 0.0,
                     overtimeMinutes = summary?.overtimeMinutes ?: 0.0,
                     overtimeAmount = summary?.let { s ->
                         if (s.overtimeAmount > 0.0) s.overtimeAmount
@@ -407,6 +439,21 @@ fun SalaryGenerateScreen(
             viewModel.onSessionExpiredHandled()
             onLogout()
         }
+    }
+
+    state.rowToRemove?.let { row ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelRemoveRow,
+            title = { Text("Remove ${row.name}?") },
+            text = {
+                Text(
+                    "This only takes the employee off this sheet. Nothing is " +
+                        "deleted until the sheet is generated.",
+                )
+            },
+            confirmButton = { LinkButton(text = "Remove", onClick = viewModel::confirmRemoveRow) },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelRemoveRow) },
+        )
     }
 
     if (state.showConfirm) {
@@ -504,7 +551,7 @@ fun SalaryGenerateScreen(
                     row = row,
                     isOvertime = state.isOvertime,
                     onLoanChanged = { viewModel.onLoanChanged(row.id, it) },
-                    onRemove = { viewModel.removeRow(row.id) },
+                    onRemove = { viewModel.requestRemoveRow(row) },
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -581,6 +628,13 @@ private fun SalaryRowCard(
                     }
                 }
                 Spacer(Modifier.width(12.dp))
+                // The late/early-out penalty, priced like the saved sheet will
+                // price it — see SalarySheetRow.attendanceDeduction.
+                LabelValue(
+                    "Att. Ded.",
+                    AmountFormat.formatOrDash(row.attendanceDeduction(isOvertime)),
+                    Modifier.weight(1f),
+                )
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Net Salary",

@@ -167,6 +167,9 @@ fun AuthenticatedShell(
     // "Branch Transfer" — the web's own group for stock crossing a branch line.
     val canBranchTransfer = com.example.cashbookbd.inventory.BranchTransferMenu
         .hasParentAccess(sessionState.permissions)
+    // "Labour Items" — the web's master-data group for labour categories/items.
+    val canLabourItems = com.example.cashbookbd.labour.LabourMenu
+        .hasParentAccess(sessionState.permissions)
     // "Product Tracking" — the web's group for the settings + two reports.
     val canProductTracking = com.example.cashbookbd.producttracking.ProductTrackingMenu
         .hasParentAccess(sessionState.permissions)
@@ -215,6 +218,7 @@ fun AuthenticatedShell(
                 canReseller = canReseller,
                 canAnalytics = canAnalytics,
                 canBranchTransfer = canBranchTransfer,
+                canLabourItems = canLabourItems,
                 canProductTracking = canProductTracking,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
@@ -345,6 +349,7 @@ private fun AppDrawerContent(
     canReseller: Boolean,
     canAnalytics: Boolean,
     canBranchTransfer: Boolean,
+    canLabourItems: Boolean,
     canProductTracking: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
@@ -370,6 +375,9 @@ private fun AppDrawerContent(
                 if (canReseller) add(DrawerEntry("reseller", "Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD, Routes.RESELLER_DASHBOARD))
                 if (canTransactions) add(DrawerEntry("transaction", "Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS, Routes.TRANSACTIONS))
                 if (canInvoices) add(DrawerEntry("invoice", "Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES, Routes.INVOICES))
+                // Between Invoice and Branch Transfer, where the web sidebar
+                // put its Labour Items group (b1cfc84).
+                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 if (canBranchTransfer) add(DrawerEntry("branch-transfer", "Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER, Routes.BRANCH_TRANSFER))
                 if (canReports) add(
                     DrawerEntry(

@@ -27,7 +27,13 @@ class AppListViewModel(
     private val settings: Settings?,
     /** voucher.delete — what the opening-stock Delete answers to, like the API. */
     private val canDeleteVoucher: Boolean = false,
+    /** The session's permissions, for the per-action gates a spec may declare. */
+    private val permissions: List<com.example.cashbookbd.session.Permission>? = null,
 ) : ViewModel() {
+
+    /** An action with an empty anyOf is ungated; otherwise any one suffices. */
+    private fun allowed(anyOf: List<String>): Boolean =
+        anyOf.isEmpty() || com.example.cashbookbd.session.Permissions.hasAny(permissions, anyOf)
 
     /**
      * True when this list shows the per-row opening stock entry: the spec
@@ -62,10 +68,13 @@ class AppListViewModel(
             columns = spec?.columns.orEmpty(),
             isPaginated = spec?.paginated == true,
             perPage = spec?.perPage ?: 25,
-            hasStatusToggle = spec?.statusToggle != null,
-            addAction = spec?.addAction,
-            editAction = spec?.editAction,
-            deleteAction = spec?.deleteAction,
+            // Per-action gates, exactly the web's: a list a user can only view
+            // shows neither New nor the pencil, bin or switch (labour lists
+            // gate them on .edit/.delete while the list itself needs .view).
+            hasStatusToggle = spec?.statusToggle?.takeIf { allowed(it.anyOf) } != null,
+            addAction = spec?.addAction?.takeIf { allowed(it.anyOf) },
+            editAction = spec?.editAction?.takeIf { allowed(it.anyOf) },
+            deleteAction = spec?.deleteAction?.takeIf { allowed(it.anyOf) },
             openingEnabled = openingEnabled,
             canDeleteVoucher = canDeleteVoucher,
         )
@@ -357,6 +366,7 @@ class AppListViewModel(
                     settings = sessionState.settings,
                     canDeleteVoucher = com.example.cashbookbd.session.Permissions
                         .hasAny(sessionState.permissions, listOf("voucher.delete")),
+                    permissions = sessionState.permissions,
                 )
             }
         }

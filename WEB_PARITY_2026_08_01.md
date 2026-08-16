@@ -1,6 +1,74 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-14):**
+> **Matched to (2026-08-16):**
+> ```
+> cashbookbd_react : b1cfc84  (2026-08-16 06:21)
+> cashbook_api     : fa976d28 (2026-08-16 06:20)
+> ```
+> The 08-14..08-16 gap is closed. Ported this pass:
+>
+> - **Labour Items** (its own drawer section between Invoice and Branch
+>   Transfer, like the web's own menu — master data, not a corner of
+>   Invoice): Category and Item lists on the AppList engine (`labour-setup/
+>   categories|items`, foundData paginator, per-page 10), each with the row
+>   status switch (POST `status/{id}` `{status}` — its own endpoint because
+>   update validates fields a switch has nothing to send), edit pencil and
+>   delete bin; forms on the shared CRUD engine (`HrmCrudForms` keys
+>   `labourCategories`/`labourItems`, PATH_ID update, FROM_LIST prefill —
+>   the API has no edit endpoint). The item form's Category ddl =
+>   `labour-setup/categories/ddl` (active only), Unit ddl = `product/unit/
+>   ddl` (the product unit list — a labour item's square feet are the same
+>   square feet a product's are). Refusals (duplicate name, category with
+>   items under it, item on a labour bill) = success:false at **HTTP 422**
+>   with the reason — the engine now reads the message out of error bodies.
+>   Permissions per action, the web's exactly: `labour.category|item.view`
+>   sees the list, `.edit` gets New/pencil/switch, `.delete` the bin — the
+>   AppList engine's actions now take per-action `anyOf` gates (server-side
+>   these routes carry no permission middleware; the client is the gate,
+>   like the web). Web-only: the lists' search box, status/category filters
+>   (mobile lists don't search), Sl. No column (the engine's # stands in).
+> - **Salary sheet: the attendance penalty is priced** (web 8608682 +
+>   0c72695, api 0fb76c0d): Att. Ded. no longer sits at zero — the summary
+>   endpoint sends deduction *days* with no amount, so the row now prices
+>   them itself, mirroring apiMakeSalary exactly: (late + early-out days) ×
+>   round(prorated gross / 30, 2), rounded to the **nearest** ten (947→950,
+>   944→940 — the rounding falls the employee's way as often as the
+>   company's). Absent/half days are deliberately not charged — they already
+>   lowered the working days and the prorated basic. Daily labour stays
+>   exempt. The card shows Att. Ded. beside Loan Ded., and Remove now asks
+>   first, naming the employee ("nothing is deleted until the sheet is
+>   generated") instead of dropping the row on the first tap.
+> - **Attendance matrix: late is pink** (web 8608682): the "!" glyph shared
+>   the error red with absent "✕", so the two were told apart by glyph
+>   alone; it now reads in the palette's highlight pink — the one hue the
+>   legend had not spent.
+> - **Manual Attendance field order** (web f4dbdd0): Status moved up to sit
+>   right after In/Out ("what came of it"), Remarks and OT Hr. share the
+>   last row — OT is worked out, not decided.
+> - **Slow Moving Products** (web 0ff285a): Last Movement now prints
+>   dd/MM/yyyy whichever way the API sends it (it sends dashes), and Days
+>   Idle reads "3 Year 5 Month 29 Day" instead of 1,274 — converted from
+>   the day count (365/30), never the two dates, so it always agrees with
+>   the figure the report worked out. New `CellFormat` hooks on the AppList
+>   engine (DATE_DMY / DAY_SPAN).
+>
+> Server prerequisite per tenant: `2026_08_16_labour_tables_utf8mb4.sql` —
+> both labour tables are still latin1, and MySQL refuses (not mangles)
+> Bengali text into them until it runs. The labour.category.*/labour.item.*
+> permissions were already seeded. Server-side only, nothing to port:
+> voucher-delete reaching the standing voucher (7488c973), loan-ledger
+> remarks brackets (fdb5569c), the shift/late derivation + leave
+> reconciliation batch (623eb2fa, c0914f2e, 721caf79 — mobile reads the
+> same summaries and simply shows truer numbers). Skipped as web-only:
+> the sign-in/time-picker/header-search/print-CSS restyles (43165d0,
+> af3ec8e, a43777b, 2503a4f), Electronics sales' switch + Enter-picks-
+> product (65cfcc9, 2b4c034 — keyboard and web-form concerns), browser-tab
+> title trims (1e7c498, 3e21429), the salary sheet's read-only-figure
+> styling and grouped inline inputs (cd65aa4, be04bcd — the mobile card
+> already prints figures through AmountFormat), and the Government
+> Contracting design documents (cce8644, 37c1bcb — docs, no code).
+>
+> **Previously matched (2026-08-14):**
 > ```
 > cashbookbd_react : b279150  (2026-08-14 12:45)
 > cashbook_api     : de217d38 (2026-08-14 12:55)

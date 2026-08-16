@@ -23,6 +23,8 @@ object MenuPermissions {
             "product.received.create",
         ),
         "invoice" to listOf("purchase.create", "sales.create", "labour.invoice.create"),
+        // The Labour Items master-data group (web menuPermissions.ts, b1cfc84).
+        "labour_items" to listOf("labour.category.view", "labour.item.view"),
         "reports" to listOf(
             "cashbook.view",
             "installment.create",

@@ -1,6 +1,7 @@
 package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.applist.AppListSpec
+import com.example.cashbookbd.applist.CellFormat
 import com.example.cashbookbd.applist.ListMethod
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
@@ -128,10 +129,16 @@ class AppListRepository(
             val toggle = spec.statusToggle
                 ?: return@withContext Resource.Error("This list has no status action.")
             try {
-                val response = api.post(
-                    toggle.endpoint,
-                    mapOf("id" to id, "status" to if (on) "1" else "0"),
-                )
+                // Path-id endpoints (labour-setup) take the id in the route and
+                // only the status in the body; the rest post both as fields.
+                val response = if (toggle.idInPath) {
+                    api.post("${toggle.endpoint}/$id", mapOf("status" to if (on) "1" else "0"))
+                } else {
+                    api.post(
+                        toggle.endpoint,
+                        mapOf("id" to id, "status" to if (on) "1" else "0"),
+                    )
+                }
                 when (response.code()) {
                     HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                         "Your session has expired. Please log in again.", isUnauthorized = true,
@@ -141,6 +148,10 @@ class AppListRepository(
                     )
                 }
                 if (!response.isSuccessful) {
+                    // A refusal may ride a real error status (labour-setup
+                    // answers 404/422 with {success:false, message}) — prefer
+                    // the server's own reason to a bare status code.
+                    errorMessage(response)?.let { return@withContext Resource.Error(it) }
                     return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
                 }
                 val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
@@ -189,6 +200,9 @@ class AppListRepository(
                     )
                 }
                 if (!response.isSuccessful && response.code() != 201) {
+                    // Refusals can arrive at a real 422 ("This category has N
+                    // labour item(s) under it…") — surface that reason verbatim.
+                    errorMessage(response)?.let { return@withContext Resource.Error(it) }
                     return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
                 }
                 val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
@@ -210,6 +224,18 @@ class AppListRepository(
                 Resource.Error("Something went wrong. Please try again.")
             }
         }
+
+    /** The `message` inside a non-2xx error body, when the server sent one. */
+    private fun errorMessage(response: Response<JsonElement>): String? = try {
+        response.errorBody()?.string()?.takeIf { it.isNotBlank() }?.let { raw ->
+            com.google.gson.JsonParser.parseString(raw)
+                .takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() }
+        }
+    } catch (_: Exception) {
+        null
+    }
 
     /** True when a non-2xx body is the backend's `notFound` envelope (empty result). */
     private fun isEmptyEnvelope(response: Response<JsonElement>): Boolean = try {
@@ -249,7 +275,7 @@ class AppListRepository(
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             AppListRow(
                 cells = spec.columns.map { col ->
-                    val primary = format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap)
+                    val primary = format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap, cellFormat = col.format)
                     val subline = col.sublineKey
                         ?.let { format(dotGet(obj, it), numeric = false) }
                         ?.takeIf { it.isNotBlank() && it != "-" }
@@ -338,8 +364,11 @@ class AppListRepository(
         element: JsonElement?,
         numeric: Boolean,
         valueMap: Map<String, String> = emptyMap(),
+        cellFormat: CellFormat? = null,
     ): String = when {
         element == null || element.isJsonNull -> "-"
+        cellFormat == CellFormat.DATE_DMY -> formatDayMonthYear(element)
+        cellFormat == CellFormat.DAY_SPAN -> formatDaySpan(element)
         element.isJsonPrimitive -> {
             val text = element.asString
             // Status-style codes ("1" -> "Active", "true" -> "Active") first —
@@ -356,5 +385,51 @@ class AppListRepository(
         }
         element.isJsonArray -> "${element.asJsonArray.size()} item(s)"
         else -> "…"
+    }
+
+    /**
+     * dd/MM/yyyy whichever way round the date arrives (the web's
+     * formatDayMonthYear). The API sends "2023-02-18" into a table where every
+     * other date is day-first; a timestamp is trimmed to its date. Four-digit
+     * year on purpose — on a row saying a product has not moved in three
+     * years, 18/02/23 invites the reader to wonder which century.
+     */
+    private fun formatDayMonthYear(element: JsonElement): String {
+        val text = element.takeIf { it.isJsonPrimitive }?.asString?.trim()?.take(10) ?: return "-"
+        if (text.isEmpty()) return "-"
+        Regex("""^(\d{4})-(\d{1,2})-(\d{1,2})$""").find(text)?.let { m ->
+            val (y, mo, d) = m.destructured
+            return "${d.padStart(2, '0')}/${mo.padStart(2, '0')}/$y"
+        }
+        Regex("""^(\d{1,2})/(\d{1,2})/(\d{2,4})$""").find(text)?.let { m ->
+            val (d, mo, y) = m.destructured
+            val year = if (y.length == 2) "20$y" else y
+            return "${d.padStart(2, '0')}/${mo.padStart(2, '0')}/$year"
+        }
+        return text
+    }
+
+    /**
+     * A day count said the way people say it (the web's formatDaySpan):
+     * 1274 → "3 Year 5 Month 29 Day", 45 → "1 Month 15 Day". Converted from
+     * the count with a 365/30 year and month — never from the two dates — so
+     * it always agrees with the figure the report worked out. Nothing recorded
+     * is a dash, not "0 Day".
+     */
+    private fun formatDaySpan(element: JsonElement): String {
+        val raw = element.takeIf { it.isJsonPrimitive }?.asString?.trim() ?: return "-"
+        if (raw.isEmpty()) return "-"
+        val days = raw.replace(",", "").toDoubleOrNull()?.let { kotlin.math.floor(it).toLong() } ?: return "-"
+        if (days < 0) return "-"
+        if (days == 0L) return "0 Day"
+        val years = days / 365
+        val afterYears = days % 365
+        val months = afterYears / 30
+        val remaining = afterYears % 30
+        return buildList {
+            if (years > 0) add("$years Year")
+            if (months > 0) add("$months Month")
+            if (remaining > 0) add("$remaining Day")
+        }.joinToString(" ")
     }
 }

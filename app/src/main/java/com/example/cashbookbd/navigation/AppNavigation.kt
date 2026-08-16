@@ -206,6 +206,9 @@ object Routes {
     /** The Branch Transfer parent section (forms + register + reports). */
     const val BRANCH_TRANSFER = "branchtransfer/home"
 
+    /** The Labour Items parent section (category + item master lists). */
+    const val LABOUR_ITEMS = "labouritems/home"
+
     /** The branch transfer register: issued/received challans + comparison. */
     const val TRANSFER_LIST = "inventory/transfers"
 
@@ -863,6 +866,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onLogout = backToLogin,
                     initialProductId = backStackEntry.arguments
                         ?.getString(Routes.PRODUCT_STATEMENT_ID_ARG)?.toLongOrNull(),
+                )
+            }
+        }
+
+        composable(Routes.LABOUR_ITEMS) {
+            PermissionGate(anyOf = com.example.cashbookbd.labour.LabourMenu.all.flatMap { it.anyOf }) {
+                com.example.cashbookbd.ui.labour.LabourHomeScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
                 )
             }
         }

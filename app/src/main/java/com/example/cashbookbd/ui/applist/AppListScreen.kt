@@ -102,6 +102,7 @@ fun AppListScreen(
 
     // Keep the right drawer section highlighted.
     val parentRoute = when {
+        com.example.cashbookbd.labour.LabourMenu.byKey(listKey) != null -> Routes.LABOUR_ITEMS
         CustomerMenu.byKey(listKey) != null -> Routes.CUSTOMERS
         ProductsMenu.byKey(listKey) != null -> Routes.PRODUCTS
         SubscriptionMenu.byKey(listKey) != null -> Routes.SUBSCRIPTION

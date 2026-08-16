@@ -20,6 +20,12 @@ enum class CrudFieldKind {
     LEVEL,
     /** Employee typeahead (`hrms/employee/ddl/list`). */
     EMPLOYEE,
+    /**
+     * Generic dropdown loaded once from [CrudField.sourcePath] — a GET whose
+     * foundData rows carry id/name (or value/label). For the option lists no
+     * dedicated kind exists for (labour categories, product units).
+     */
+    DDL,
 }
 
 /** One field of a CRUD form, in web-form order. */
@@ -31,6 +37,8 @@ data class CrudField(
     /** Initial value (choice id, number text, "HH:mm" …), as on the web form. */
     val default: String = "",
     val choices: List<SelectorOption> = emptyList(),
+    /** [CrudFieldKind.DDL] only: the GET path its options come from. */
+    val sourcePath: String? = null,
 )
 
 /** Where the update call carries the row id. */
@@ -79,6 +87,12 @@ data class HrmCrudSpec(
 private val YES_NO = listOf(
     SelectorOption("0", "No"),
     SelectorOption("1", "Yes"),
+)
+
+/** The web forms' Active switch, as the dropdown this engine renders. */
+private val ACTIVE_INACTIVE = listOf(
+    SelectorOption("1", "Active"),
+    SelectorOption("0", "Inactive"),
 )
 
 private val SETUP_ANY = listOf("attendance.view", "employee.view")
@@ -285,6 +299,53 @@ object HrmCrudForms {
                 CrudField("requires_attachment", "Attachment", CrudFieldKind.CHOICE, default = "0", choices = YES_NO),
             ),
             hiddenDefaults = mapOf("status" to "1"),
+        ),
+        // ---- Labour Items (not HRM, but the same engine) ----
+        // The web's LabourCategoryAdd/LabourItemAdd (react b1cfc84): one page
+        // for New and Edit, prefilled from the list row — the API has no edit
+        // endpoint, exactly the FROM_LIST setup tabs' shape. Duplicate names
+        // and refused deletes come back as success:false at HTTP 422 with the
+        // reason. Units come from the product unit list rather than a second
+        // list of the same units.
+        HrmCrudSpec(
+            key = "labourCategories",
+            title = "Labour Category",
+            anyOf = listOf("labour.category.edit"),
+            listPath = "labour-setup/categories",
+            storePath = "labour-setup/categories/store",
+            updatePath = "labour-setup/categories/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.FROM_LIST,
+            fields = listOf(
+                CrudField("name", "Category Name", CrudFieldKind.TEXT, required = true),
+                CrudField("description", "Category Description", CrudFieldKind.TEXT),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
+            key = "labourItems",
+            title = "Labour Item",
+            anyOf = listOf("labour.item.edit"),
+            listPath = "labour-setup/items",
+            storePath = "labour-setup/items/store",
+            updatePath = "labour-setup/items/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.FROM_LIST,
+            fields = listOf(
+                // Category first, like the web form — the item belongs to it.
+                CrudField(
+                    "lab_cat_id", "Category", CrudFieldKind.DDL, required = true,
+                    sourcePath = "labour-setup/categories/ddl",
+                ),
+                CrudField("name", "Item Name", CrudFieldKind.TEXT, required = true),
+                CrudField("description", "Item Description", CrudFieldKind.TEXT),
+                CrudField(
+                    "unit_id", "Unit", CrudFieldKind.DDL, required = true,
+                    sourcePath = "product/unit/ddl",
+                ),
+                CrudField("purchase_price", "Rate", CrudFieldKind.NUMBER),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
         ),
     )
 

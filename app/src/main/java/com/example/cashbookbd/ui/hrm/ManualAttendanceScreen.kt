@@ -717,14 +717,26 @@ fun ManualAttendanceScreen(
                     )
                 }
                 Spacer(Modifier.height(12.dp))
+                // Status right after the clock fields — what came of the day —
+                // and OT last among the extras, since it is worked out rather
+                // than decided (the web's reordering, f4dbdd0: each row is one
+                // question — who and where, then when, then what came of it).
+                AppSelectDropdown(
+                    label = "Status",
+                    options = ATTENDANCE_STATUSES,
+                    selected = state.status,
+                    onSelected = viewModel::onStatusSelected,
+                )
+                Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(2f)) {
-                        AppSelectDropdown(
-                            label = "Status",
-                            options = ATTENDANCE_STATUSES,
-                            selected = state.status,
-                            onSelected = viewModel::onStatusSelected,
-                        )
+                        FieldFrame(label = "Remarks") {
+                            FieldTextInput(
+                                value = state.remarks,
+                                onValueChange = viewModel::onRemarks,
+                                placeholder = "Remarks (optional)",
+                            )
+                        }
                     }
                     Column(Modifier.weight(1f)) {
                         FieldFrame(label = "OT Hr.") {
@@ -735,14 +747,6 @@ fun ManualAttendanceScreen(
                             )
                         }
                     }
-                }
-                Spacer(Modifier.height(12.dp))
-                FieldFrame(label = "Remarks") {
-                    FieldTextInput(
-                        value = state.remarks,
-                        onValueChange = viewModel::onRemarks,
-                        placeholder = "Remarks (optional)",
-                    )
                 }
                 Spacer(Modifier.height(16.dp))
                 // The web's four-button command row: Save Single, Bulk Entry,
