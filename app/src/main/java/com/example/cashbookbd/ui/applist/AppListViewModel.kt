@@ -94,12 +94,23 @@ class AppListViewModel(
      */
     fun load(page: Int = _uiState.value.currentPage, silent: Boolean = false) {
         val currentSpec = spec ?: return
-        if (!silent) _uiState.update { it.copy(isLoading = true, error = null) }
+        // With rows already on screen this is a page turn: the table stays put
+        // under a thin progress line instead of vanishing behind the spinner.
+        // (A retry after an error goes back through the full spinner — there
+        // is no table to keep.)
+        val pageTurn = !silent && _uiState.value.rows.isNotEmpty() && _uiState.value.error == null
+        if (!silent) {
+            _uiState.update {
+                if (pageTurn) it.copy(isPageLoading = true)
+                else it.copy(isLoading = true, error = null)
+            }
+        }
         viewModelScope.launch {
             when (val result = repository.fetch(currentSpec, page, _uiState.value.perPage)) {
                 is Resource.Success -> _uiState.update {
                     it.copy(
                         isLoading = false,
+                        isPageLoading = false,
                         rows = result.data.rows,
                         currentPage = result.data.currentPage,
                         lastPage = result.data.lastPage,
@@ -108,11 +119,22 @@ class AppListViewModel(
                     )
                 }
                 is Resource.Error -> _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = result.message,
-                        sessionExpired = it.sessionExpired || result.isUnauthorized,
-                    )
+                    if (pageTurn) {
+                        // The page the user was reading is still valid — keep
+                        // it and say why the next one didn't come, rather than
+                        // swapping the table for a full-screen error.
+                        it.copy(
+                            isPageLoading = false,
+                            actionMessage = result.message,
+                            sessionExpired = it.sessionExpired || result.isUnauthorized,
+                        )
+                    } else {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message,
+                            sessionExpired = it.sessionExpired || result.isUnauthorized,
+                        )
+                    }
                 }
                 Resource.Loading -> Unit
             }

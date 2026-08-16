@@ -28,6 +28,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -153,6 +154,18 @@ fun AppListScreen(
                     onPerPageChange = viewModel::onPerPageChange,
                     onAdd = { navController.navigate(it) },
                 )
+            }
+            // A page turn keeps the table on screen; this thin line above it is
+            // the only sign the next page is on its way. The height is reserved
+            // either way so the table does not hop when the line appears.
+            Box(Modifier.fillMaxWidth().height(PageLoadStripHeight)) {
+                if (state.isPageLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = androidx.compose.ui.graphics.Color.Transparent,
+                    )
+                }
             }
             Box(modifier = Modifier.weight(1f)) {
                 ListBody(
@@ -376,7 +389,7 @@ private fun ListToolbar(
                 SecondaryButton(
                     text = state.perPage.toString(),
                     onClick = { expanded = true },
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading && !state.isPageLoading,
                     trailingIcon = Icons.Filled.ArrowDropDown,
                     trailingIconDescription = "Rows per page",
                     compact = true,
@@ -471,7 +484,11 @@ private fun ListBody(
             ) {
                 buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit)
             }
-            ReportTable(columns = columns, data = state.rows)
+            // Keyed on the page so a fresh page starts reading from the top —
+            // the old page (and its scroll) stays up until the new rows land.
+            androidx.compose.runtime.key(state.currentPage, state.perPage) {
+                ReportTable(columns = columns, data = state.rows)
+            }
         }
     }
 }
@@ -479,6 +496,9 @@ private fun ListBody(
 private val COL_SL = 48.dp
 private val COL_ACTION = 88.dp
 private val COL_ACTION_WITH_EDIT = 132.dp
+
+/** The page-turn progress line's reserved height (shown or not, it holds this). */
+private val PageLoadStripHeight = 3.dp
 
 private fun buildColumns(
     state: AppListUiState,

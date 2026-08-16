@@ -18,6 +18,13 @@ data class AppListUiState(
     val isSupported: Boolean = true,
     val columns: List<AppListColumn> = emptyList(),
     val isLoading: Boolean = false,
+    /**
+     * A page turn (or page-size change) in flight while rows are already on
+     * screen. Kept apart from [isLoading] so the table stays put — the body
+     * shows a thin LinearProgressIndicator above it instead of swapping the
+     * whole table for a spinner, which made the layout jump on every Next.
+     */
+    val isPageLoading: Boolean = false,
     val error: String? = null,
     val rows: List<AppListRow> = emptyList(),
     val isPaginated: Boolean = false,
@@ -66,7 +73,7 @@ data class AppListUiState(
     /** True while a confirmed opening delete is in flight. */
     val openingDeleting: Boolean = false,
 ) {
-    val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading
-    val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading
+    val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading && !isPageLoading
+    val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading && !isPageLoading
     val showPagination: Boolean get() = isPaginated && lastPage > 1
 }
