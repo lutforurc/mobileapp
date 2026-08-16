@@ -25,10 +25,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -155,18 +156,6 @@ fun AppListScreen(
                     onAdd = { navController.navigate(it) },
                 )
             }
-            // A page turn keeps the table on screen; this thin line above it is
-            // the only sign the next page is on its way. The height is reserved
-            // either way so the table does not hop when the line appears.
-            Box(Modifier.fillMaxWidth().height(PageLoadStripHeight)) {
-                if (state.isPageLoading) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = androidx.compose.ui.graphics.Color.Transparent,
-                    )
-                }
-            }
             Box(modifier = Modifier.weight(1f)) {
                 ListBody(
                     state = state,
@@ -182,6 +171,23 @@ fun AppListScreen(
                     onDelete = viewModel::requestDelete,
                     onOpeningEdit = viewModel::startOpeningEdit,
                 )
+                // A page turn keeps the table on screen; the only sign the next
+                // page is on its way is this spinner floating over it on a
+                // small raised disc (so it stays legible on top of table rows).
+                if (state.isPageLoading) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.Center),
+                        shape = CircleShape,
+                        color = MaterialTheme.appColors.card,
+                        shadowElevation = 4.dp,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(10.dp).size(28.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier.align(Alignment.BottomCenter),
@@ -496,9 +502,6 @@ private fun ListBody(
 private val COL_SL = 48.dp
 private val COL_ACTION = 88.dp
 private val COL_ACTION_WITH_EDIT = 132.dp
-
-/** The page-turn progress line's reserved height (shown or not, it holds this). */
-private val PageLoadStripHeight = 3.dp
 
 private fun buildColumns(
     state: AppListUiState,
