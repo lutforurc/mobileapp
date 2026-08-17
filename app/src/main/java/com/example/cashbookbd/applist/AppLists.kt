@@ -372,6 +372,13 @@ object AppLists {
                 idKey = "id",
                 anyOf = listOf("sms.template.edit"),
             ),
+            // Deleting is one step past rewriting — a deleted code stops that
+            // SMS going out at all, silently. Its own permission; the server
+            // checks it again and answers 403 with the reason.
+            deleteAction = ListDeleteAction(
+                endpointBase = "admin/sms/templates/delete",
+                anyOf = listOf("sms.template.delete"),
+            ),
         ),
         AppListSpec(
             key = "roles",

@@ -46,6 +46,14 @@ data class TodoItem(
     val assigner: TodoPerson?,
 )
 
+/** What the account-menu badge counts (`user-todos/summary`). */
+data class TodoSummary(
+    /** Tasks handed to this user that they have not opened the board for yet. */
+    val assignedNew: Int,
+    /** Every open task somebody else put on their board. */
+    val assignedOpen: Int,
+)
+
 /** The board as the server buckets it; results is a date-range search's list. */
 data class TodoBoard(
     val today: List<TodoItem>,
@@ -87,6 +95,25 @@ class UserTodoRepository(
                     today = data.itemsAt("today"),
                     upcoming = data.itemsAt("upcoming"),
                     results = data.itemsAt("results"),
+                ),
+            )
+        }
+    }
+
+    /**
+     * The badge counts — work handed over is worthless if nobody notices it
+     * arrive, and nobody keeps a todo screen open all day. Opening the board
+     * is what marks them seen (the server stamps seen_at on the index read).
+     */
+    suspend fun summary(): Resource<TodoSummary> = withContext(ioDispatcher) {
+        guard {
+            val response = api.get("user-todos/summary", emptyMap())
+            checkHttp(response)?.let { return@guard it }
+            val data = response.body().payloadObject()
+            Resource.Success(
+                TodoSummary(
+                    assignedNew = data?.longOr("assigned_new")?.toInt() ?: 0,
+                    assignedOpen = data?.longOr("assigned_open")?.toInt() ?: 0,
                 ),
             )
         }

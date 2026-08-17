@@ -255,6 +255,13 @@ data class ReportConfig(
      */
     val textColumns: List<String> = emptyList(),
     /**
+     * Raw API row keys (case-insensitive) holding a party's mobile number —
+     * grouped by the branch's `mobile_number_format` pattern for display
+     * (dc17c5a). Put them in [textColumns] too, or the number formats as an
+     * amount first.
+     */
+    val phoneColumns: List<String> = emptyList(),
+    /**
      * Raw API row keys (case-insensitive) holding a month code ("MMYYYY" or
      * "MM-YYYY"), rendered as "Sep 2025". Falls back to the raw text when the
      * value doesn't match either pattern.
@@ -807,6 +814,10 @@ object ReportMenu {
                 "employee", "installment_no", "due_date", "amount", "due_amount",
                 "paid_amount", "status",
             ),
+            // A number is a label, not an amount ("01712…" must not grow
+            // commas), and it groups by the branch's pattern (dc17c5a).
+            textColumns = listOf("customer_mobile"),
+            phoneColumns = listOf("customer_mobile"),
             columnLabels = mapOf(
                 "installment_no" to "Inst No",
                 "amount" to "Inst. Amount",

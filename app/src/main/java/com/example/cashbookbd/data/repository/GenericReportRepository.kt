@@ -32,6 +32,11 @@ import java.util.Locale
  */
 class GenericReportRepository(
     private val api: ReportApiService,
+    /**
+     * The branch's mobile-number display pattern, read lazily so the freshest
+     * settings win — see [ReportConfig.phoneColumns]. Blank = as stored.
+     */
+    private val phonePattern: () -> String = { "" },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -192,7 +197,7 @@ class GenericReportRepository(
         val dates = config.dateColumns.map { it.lowercase(Locale.US) }.toSet()
         val voucherSpec = config.voucherImages
         val order = config.columnOrder.map { it.lowercase(Locale.US) }
-        return when (config.responseShape) {
+        val built = when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
             ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
@@ -201,6 +206,30 @@ class GenericReportRepository(
                 val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
                 rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
             }
+        }
+        return built.withPhoneFormat(config)
+    }
+
+    /**
+     * Groups the phone columns' finished cells by the branch's pattern —
+     * display only, applied after the rows are built so it composes with any
+     * response shape.
+     */
+    private fun List<ReportRow>.withPhoneFormat(config: ReportConfig): List<ReportRow> {
+        if (config.phoneColumns.isEmpty()) return this
+        val pattern = phonePattern()
+        if (pattern.isBlank()) return this
+        val keys = config.phoneColumns.map { it.lowercase(Locale.US) }.toSet()
+        return map { row ->
+            row.copy(
+                cells = row.cells.map { cell ->
+                    if (cell.key.lowercase(Locale.US) in keys) {
+                        cell.copy(value = com.example.cashbookbd.core.MobileFormat.format(cell.value, pattern))
+                    } else {
+                        cell
+                    }
+                },
+            )
         }
     }
 

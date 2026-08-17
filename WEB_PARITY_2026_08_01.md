@@ -1,6 +1,41 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-17):**
+> **Matched to (2026-08-17, evening):**
+> ```
+> cashbookbd_react : a488a59  (2026-08-17)
+> cashbook_api     : 612de6e1 (2026-08-17)
+> ```
+> **The evening fix pass** closed every gap the afternoon pass left open:
+>
+> - **Project Summary's server bug is fixed** (api 612de6e1): the SELECT
+>   now reads the received/outstanding join it always computed (payments
+>   pre-summed per sale — joined flat, a sale's total_amount was counted
+>   once per payment row), and the ledger flows honour the screen's date
+>   range; unit counts and the payment standing stay cumulative on
+>   purpose. Mobile needed no change — its columns fill on their own.
+> - **SMS template delete is real now**, on all three clients: API POST
+>   `admin/sms/templates/delete/{id}` behind its own
+>   `sms.template.delete` (one step past rewriting — a deleted code
+>   stops that SMS going out silently; the seed SQL now carries both
+>   permissions), the React bin posts it instead of toasting a lie
+>   (react a488a59), and the mobile list gains the same bin behind the
+>   same permission.
+> - **My Tasks badge**: the account menu's My Tasks row now carries the
+>   `user-todos/summary` assigned-new count (fetched best-effort once
+>   per screen; zero shows nothing).
+> - **Phone grouping everywhere it was missing**: the native Due List
+>   screen, and the generic engine gained `ReportConfig.phoneColumns`
+>   (post-processing, composes with every response shape) — applied to
+>   Employee Installments' `customer_mobile`, which is also in
+>   textColumns now (it used to be formatted as an amount: "01712…"
+>   grew commas).
+> - **Branch form SMS group** (react f7cc020): toggles reordered money
+>   pair first (Received/Payment) then invoice pair (Sales/Purchase),
+>   and the master switch says where the wording lives ("set on the SMS
+>   Template screen, not here"). The web's one-grid layout fix
+>   (90b509c) is CSS-only, nothing to port.
+>
+> **Previously matched (2026-08-17, afternoon):**
 > ```
 > cashbookbd_react : 8bd0676  (2026-08-17 11:09)
 > cashbook_api     : 454d8d90 (2026-08-17 11:18)

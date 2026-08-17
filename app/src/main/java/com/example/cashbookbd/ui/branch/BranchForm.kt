@@ -394,11 +394,19 @@ object BranchForm {
                 ),
                 BranchField.Toggle(
                     "sms_service", "SMS service",
-                    description = "The master switch for this branch. Off, none of the messages below go out however they are set.",
+                    description = "The master switch for this branch. Off, none of the messages below go out however they are set. What each message says is set on the SMS Template screen, not here.",
                 ),
+                // Money first, both directions, then the two invoice ones
+                // (web f7cc020): Received and Payment are the same question
+                // asked of cash in and cash out, so they read as a pair;
+                // Sales and Purchase likewise.
                 BranchField.Toggle(
                     "received_sms", "Received SMS",
                     description = "Texts the party when money received from them is posted.",
+                ),
+                BranchField.Toggle(
+                    "payment_sms", "Payment SMS",
+                    description = "Texts the party when money paid to them is posted.",
                 ),
                 BranchField.Toggle(
                     "sales_sms", "Sales SMS",
@@ -407,10 +415,6 @@ object BranchForm {
                 BranchField.Toggle(
                     "purchase_sms", "Purchase SMS",
                     description = "Texts the supplier when a purchase is posted against them.",
-                ),
-                BranchField.Toggle(
-                    "payment_sms", "Payment SMS",
-                    description = "Texts the party when money paid to them is posted.",
                 ),
                 BranchField.Toggle(
                     "show_voucher_image", "Show Voucher Image?",

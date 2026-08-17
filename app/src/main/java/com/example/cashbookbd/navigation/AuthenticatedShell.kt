@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -170,6 +171,16 @@ fun AuthenticatedShell(
     // "Labour Items" — the web's master-data group for labour categories/items.
     val canLabourItems = com.example.cashbookbd.labour.LabourMenu
         .hasParentAccess(sessionState.permissions)
+
+    // Tasks newly handed to this user, for the account menu's badge — the
+    // web sidebar's own count (user-todos/summary). Fetched once per screen,
+    // best-effort: a failed count shows no badge, never an error.
+    var myTasksNewCount by remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        (ServiceLocator.provideUserTodoRepository(context)
+            .summary() as? com.example.cashbookbd.core.Resource.Success)
+            ?.let { myTasksNewCount = it.data.assignedNew }
+    }
     // "Product Tracking" — the web's group for the settings + two reports.
     val canProductTracking = com.example.cashbookbd.producttracking.ProductTrackingMenu
         .hasParentAccess(sessionState.permissions)
@@ -277,6 +288,7 @@ fun AuthenticatedShell(
                             onDashboard = { navigateTo(Routes.HOME) },
                             onProfile = { navigateTo(Routes.PROFILE) },
                             onMyTasks = { navigateTo(Routes.MY_TASKS) },
+                            myTasksNewCount = myTasksNewCount,
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {
                                 { navigateTo(Routes.SUBSCRIPTION) }

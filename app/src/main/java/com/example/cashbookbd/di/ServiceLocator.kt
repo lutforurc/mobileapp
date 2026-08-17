@@ -353,8 +353,15 @@ object ServiceLocator {
 
     fun provideGenericReportRepository(context: Context): GenericReportRepository =
         genericReportRepository ?: synchronized(this) {
+            val appContext = context.applicationContext
             genericReportRepository ?: GenericReportRepository(
-                api = provideReportApiService(context),
+                api = provideReportApiService(appContext),
+                // Read lazily on every fetch, so a settings refresh (or branch
+                // switch) is honoured without rebuilding the repository.
+                phonePattern = {
+                    provideSessionManager(appContext).state.value.settings
+                        ?.mobileNumberFormat.orEmpty()
+                },
             ).also { genericReportRepository = it }
         }
 

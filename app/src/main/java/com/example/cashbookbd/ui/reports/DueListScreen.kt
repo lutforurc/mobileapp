@@ -304,8 +304,12 @@ private fun PartyCell(row: DueRow) {
             overflow = TextOverflow.Ellipsis,
         )
         row.mobile?.let {
+            // Grouped by the branch's pattern (dc17c5a); digits stay stored.
+            val mobileFormat = com.example.cashbookbd.di.ServiceLocator
+                .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
+                .state.collectAsStateWithLifecycle().value.settings?.mobileNumberFormat.orEmpty()
             Text(
-                text = it,
+                text = com.example.cashbookbd.core.MobileFormat.format(it, mobileFormat),
                 style = MaterialTheme.typography.labelSmall,
                 color = onScreen.muted(),
                 maxLines = 1,

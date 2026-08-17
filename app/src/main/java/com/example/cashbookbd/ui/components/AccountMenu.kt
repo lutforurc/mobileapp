@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +54,11 @@ data class AccountMenuItem(
     val label: String,
     val icon: ImageVector? = null,
     val onClick: () -> Unit,
+    /**
+     * A count worth interrupting for (new tasks handed to this user). Zero or
+     * null shows nothing — a "0" badge is noise dressed as news.
+     */
+    val badgeCount: Int? = null,
 )
 
 /**
@@ -101,7 +108,28 @@ fun AccountMenu(
 
             items.forEach { item ->
                 DropdownMenuItem(
-                    text = { Text(item.label) },
+                    text = {
+                        val count = item.badgeCount ?: 0
+                        if (count <= 0) {
+                            Text(item.label)
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(item.label)
+                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                ) {
+                                    Text(
+                                        text = count.toString(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                    )
+                                }
+                            }
+                        }
+                    },
                     leadingIcon = item.icon?.let { icon ->
                         { Icon(icon, contentDescription = null) }
                     },
@@ -283,11 +311,15 @@ fun accountMenuItems(
     onSubscription: (() -> Unit)?,
     onProfile: (() -> Unit)? = null,
     onMyTasks: (() -> Unit)? = null,
+    /** Tasks newly handed to this user — the web sidebar's badge count. */
+    myTasksNewCount: Int = 0,
 ): List<AccountMenuItem> = buildList {
     add(AccountMenuItem("Dashboard", Icons.Filled.Home, onDashboard))
     onProfile?.let { add(AccountMenuItem("Profile", Icons.Filled.AccountCircle, it)) }
     // The personal todo board (web 1108dfe puts it in this same user menu).
-    onMyTasks?.let { add(AccountMenuItem("My Tasks", Icons.Filled.Check, it)) }
+    onMyTasks?.let {
+        add(AccountMenuItem("My Tasks", Icons.Filled.Check, it, badgeCount = myTasksNewCount))
+    }
     add(AccountMenuItem("My Devices", Icons.Filled.Phone, onMyDevices))
     onSubscription?.let { add(AccountMenuItem("Subscription", Icons.Filled.Star, it)) }
 }
