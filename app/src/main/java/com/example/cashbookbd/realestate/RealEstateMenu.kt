@@ -33,6 +33,7 @@ object RealEstateMenu {
     const val PROJECT_PURCHASE_KEY = "projectPurchase"
     const val PROJECT_LABOUR_KEY = "projectLabour"
     const val PROJECT_INCOME_KEY = "projectIncome"
+    const val PROJECT_SUMMARY_KEY = "reProjectSummary"
     const val PROJECT_COST_REPORT_KEY = "projectCostReport"
     const val PROJECT_INCOME_REPORT_KEY = "projectIncomeReport"
     const val SALES_SUMMARY_KEY = "reSalesSummary"
@@ -62,6 +63,9 @@ object RealEstateMenu {
         // the way Project Expense took over Cash Payment: most of what a
         // real-estate branch takes in is a unit sale, which has its own screens.
         RealEstateItem(PROJECT_INCOME_KEY, "Project Income", listOf(SECTION_PERMISSION)),
+        // The all-projects overview (web 92b3798): sits right before the cost
+        // report, as in the web sidebar.
+        RealEstateItem(PROJECT_SUMMARY_KEY, "Project Summary", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_COST_REPORT_KEY, "Project Cost Report", listOf(SECTION_PERMISSION)),
         RealEstateItem(PROJECT_INCOME_REPORT_KEY, "Project Income Report", listOf(SECTION_PERMISSION)),
     )

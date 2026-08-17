@@ -103,6 +103,8 @@ class SettingsRepository(
                     isLocalEnv = payload?.env?.trim().equals("local", ignoreCase = true),
                     // Text metas arrive as the string, or boolean false when the
                     // branch never wrote them (Gson reads that into "false").
+                    mobileNumberFormat = payload?.branch?.mobileNumberFormat?.trim()
+                        ?.takeUnless { it.isEmpty() || it == "false" }.orEmpty(),
                     letterRefPrefix = payload?.branch?.letterRefPrefix?.trim()
                         ?.takeUnless { it.isEmpty() || it == "false" },
                     letterRefDate = payload?.branch?.letterRefDate?.trim()

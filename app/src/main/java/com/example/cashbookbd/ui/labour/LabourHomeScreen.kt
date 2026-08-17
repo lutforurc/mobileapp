@@ -48,7 +48,15 @@ fun LabourHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = LabourMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub) —
+    // arrangeable like every other menu since web d933c6a.
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "labour_items", LabourMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Labour Items",

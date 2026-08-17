@@ -357,8 +357,21 @@ object AppLists {
             ),
             anyOf = listOf("sms.templates"),
             paginated = true,
-            addAction = ListAddAction(label = "New Template", route = Routes.SMS_TEMPLATE_ADD),
-            editAction = ListEditAction(route = Routes.SMS_TEMPLATE_EDIT, idKey = "id"),
+            // Reading what the messages say and rewriting them are separate
+            // trusts (web 70a2dca / api 04be826b): what is saved here is texted
+            // to customers over the branch's name, unattended. The store/update
+            // endpoints 403 without sms.template.edit; these gates keep the
+            // buttons honest about it.
+            addAction = ListAddAction(
+                label = "New Template",
+                route = Routes.SMS_TEMPLATE_ADD,
+                anyOf = listOf("sms.template.edit"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.SMS_TEMPLATE_EDIT,
+                idKey = "id",
+                anyOf = listOf("sms.template.edit"),
+            ),
         ),
         AppListSpec(
             key = "roles",

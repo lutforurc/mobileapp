@@ -192,6 +192,7 @@ fun CustomerListScreen(
                     else -> ReportTable(
                         columns = customerColumns(
                             currentPage = state.currentPage,
+                            mobileFormat = sessionState.settings?.mobileNumberFormat.orEmpty(),
                             openingEnabled = openingEnabled,
                             canDeleteVoucher = canDeleteVoucher,
                             canEditCustomer = canEditCustomer,
@@ -231,6 +232,8 @@ fun CustomerListScreen(
 @Composable
 private fun customerColumns(
     currentPage: Int,
+    /** The branch's display grouping for numbers ("" = as stored) — dc17c5a. */
+    mobileFormat: String,
     openingEnabled: Boolean,
     canDeleteVoucher: Boolean,
     canEditCustomer: Boolean,
@@ -293,7 +296,10 @@ private fun customerColumns(
             cellText(row.ledgerPage.ifBlank { "-" }, color = onScreen, maxLines = 2)
         },
         ReportColumn("Mobile", ReportColWidth.Fixed(120.dp)) { row, _ ->
-            cellText(row.mobile.ifBlank { "-" }, color = onScreen)
+            cellText(
+                com.example.cashbookbd.core.MobileFormat.format(row.mobile, mobileFormat).ifBlank { "-" },
+                color = onScreen,
+            )
         },
         ReportColumn("Action", ReportColWidth.Fixed(120.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {

@@ -297,6 +297,12 @@ object BranchForm {
                     "due_list_with_address", "Report Due List with Address?",
                     description = "Prints each party's address and mobile beside the name on the Due List, so the sheet can be worked from in the field.",
                 ),
+                // A pattern, not a flag (web dc17c5a): display only — what is
+                // stored, dialled and texted stays the digits as typed.
+                BranchField.Text(
+                    "mobile_number_format", "Mobile Number Format",
+                    description = "Groups every customer mobile number on screen. Write # for a digit; anything else is printed as it stands — #####-###### shows 01973-190490. Leave empty to show numbers exactly as entered.",
+                ),
                 BranchField.Toggle(
                     "have_customer_nominee", "Use Customer Nominee?",
                     description = "Opens the nominee section on the customer form — who inherits the customer's claim.",

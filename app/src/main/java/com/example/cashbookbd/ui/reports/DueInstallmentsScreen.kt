@@ -539,6 +539,10 @@ private fun CustomerCell(
     onScreen: androidx.compose.ui.graphics.Color,
     officerColor: androidx.compose.ui.graphics.Color,
 ) {
+    // The branch's mobile grouping (dc17c5a): display only, digits stay stored.
+    val mobileFormat = com.example.cashbookbd.di.ServiceLocator
+        .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
+        .state.collectAsStateWithLifecycle().value.settings?.mobileNumberFormat.orEmpty()
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
         Text(
             text = row.customerName.ifBlank { "-" },
@@ -548,7 +552,11 @@ private fun CustomerCell(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        listOf(row.father, row.customerAddress, row.customerMobile).forEach { line ->
+        listOf(
+            row.father,
+            row.customerAddress,
+            com.example.cashbookbd.core.MobileFormat.format(row.customerMobile, mobileFormat),
+        ).forEach { line ->
             if (line.isNotBlank()) {
                 Text(
                     text = line,

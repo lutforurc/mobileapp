@@ -93,6 +93,16 @@ interface ReportApiService {
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): Response<JsonElement>
 
+    /**
+     * A PATCH with a raw JSON object body (nulls preserved) — the todo update,
+     * where an explicit null clears a reminder or takes an assignment back.
+     */
+    @PATCH
+    suspend fun patchObjectRaw(
+        @Url url: String,
+        @Body body: com.google.gson.JsonObject,
+    ): Response<JsonElement>
+
     /** A PUT whose body may hold non-string values (inventory-system update). */
     @PUT
     suspend fun putAny(

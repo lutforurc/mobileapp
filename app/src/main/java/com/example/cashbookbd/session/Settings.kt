@@ -112,6 +112,13 @@ data class Settings(
      */
     val letterRefPrefix: String? = null,
     /**
+     * Branch meta: how mobile numbers are grouped wherever one is READ rather
+     * than entered ("#" = a digit, all else literal — "#####-######" shows
+     * 01973-190490). Empty = shown exactly as stored. Display only; what is
+     * stored, dialled and texted stays the bare digits.
+     */
+    val mobileNumberFormat: String = "",
+    /**
      * Branch meta: the date the branch's letters carry (yyyy-MM-dd). Null
      * offers the day the letter is issued instead.
      */

@@ -228,6 +228,27 @@ data class ProjectSummaryRow(
     val costPerSqft: Double?,
 )
 
+/**
+ * The all-projects overview ("Project Summary" in the RE menu, react 92b3798):
+ * every project on one line — units, costs, income and payment standing.
+ * Distinct from [ProjectSummaryRow] above, which is the cost report's
+ * per-project cost breakdown.
+ */
+data class ProjectOverviewRow(
+    val projectName: String,
+    val totalUnits: Int,
+    val soldUnits: Int,
+    val totalExpense: Double,
+    val totalIncome: Double,
+    val totalPurchase: Double,
+    val totalLabour: Double,
+    val receivedAmount: Double,
+    val outstandingAmount: Double,
+) {
+    /** The web's P&L column: income less expense, shown signed. */
+    val profitLoss: Double get() = totalIncome - totalExpense
+}
+
 /** Building Detail — flat rows, one per (project, building, expense head). */
 data class BuildingDetailRow(
     val projectName: String,
@@ -754,6 +775,36 @@ class ProjectCostRepository(
                         }.orEmpty(),
                         integrity = data.integrityRows(),
                     )
+                }
+        }
+
+    /**
+     * The all-projects overview (`project-summary-all`, api bf996a19): every
+     * project on one line — units, costs, income and payment standing. The
+     * server takes start/end dates like its siblings but does not yet filter
+     * by them; they are sent anyway so a server that starts honouring them
+     * needs no client change. `received_amount`/`outstanding_amount` are
+     * currently hard zeros in the server's SELECT (the join that computes them
+     * is never read) — the columns render, and will fill when that is fixed.
+     */
+    suspend fun projectOverview(branchId: Long, startDate: String, endDate: String): Resource<List<ProjectOverviewRow>> =
+        withContext(ioDispatcher) {
+            request { api.get("real-estate/reports/project-summary-all", reportParams(branchId, startDate, endDate)) }
+                .map { json ->
+                    json.dataArray().mapNotNull { el ->
+                        val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                        ProjectOverviewRow(
+                            projectName = o.str("project_name").orEmpty(),
+                            totalUnits = o.dbl("total_units").toInt(),
+                            soldUnits = o.dbl("sold_units").toInt(),
+                            totalExpense = o.dbl("total_expense"),
+                            totalIncome = o.dbl("total_income"),
+                            totalPurchase = o.dbl("total_purchase"),
+                            totalLabour = o.dbl("total_labour"),
+                            receivedAmount = o.dbl("received_amount"),
+                            outstandingAmount = o.dbl("outstanding_amount"),
+                        )
+                    }
                 }
         }
 

@@ -766,7 +766,16 @@ private fun UnitDetailsDialog(unit: BuildingUnit, onDismiss: () -> Unit) {
                 if (!unit.customerName.isNullOrBlank() || !unit.customerMobile.isNullOrBlank()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     DetailRow("Customer", unit.customerName ?: "-")
-                    DetailRow("Mobile", unit.customerMobile ?: "-")
+                    // Grouped by the branch's pattern (dc17c5a); display only.
+                    val mobileFormat = com.example.cashbookbd.di.ServiceLocator
+                        .provideSessionManager(androidx.compose.ui.platform.LocalContext.current)
+                        .state.collectAsStateWithLifecycle().value.settings?.mobileNumberFormat.orEmpty()
+                    DetailRow(
+                        "Mobile",
+                        unit.customerMobile
+                            ?.let { com.example.cashbookbd.core.MobileFormat.format(it, mobileFormat) }
+                            ?: "-",
+                    )
                 }
             }
         },

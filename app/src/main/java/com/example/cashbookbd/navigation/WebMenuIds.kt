@@ -86,11 +86,18 @@ object WebMenuIds {
         "smsTemplates" to "sms_template_list",
     )
 
+    /** Labour Items — arrangeable since web d933c6a. */
+    private val LABOUR_ITEMS: Map<String, String> = mapOf(
+        "labourCategories" to "labour_category",
+        "labourItems" to "labour_item",
+    )
+
     /** The arrangeable menus and their mobile-key → web-id tables. */
     val menus: Map<String, Map<String, String>> = mapOf(
         "reports" to REPORTS,
         "transaction" to TRANSACTION,
         "admin" to ADMIN,
+        "labour_items" to LABOUR_ITEMS,
     )
 
     fun forMenu(menuId: String): Map<String, String> = menus[menuId].orEmpty()

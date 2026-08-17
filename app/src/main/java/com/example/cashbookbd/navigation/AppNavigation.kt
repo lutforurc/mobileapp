@@ -308,6 +308,9 @@ object Routes {
     /** Project Cost — summary / building detail / untagged, one screen. */
     const val PROJECT_COST_REPORT = "realestate/project-cost-report"
 
+    /** The all-projects overview — units, costs, income, payment standing. */
+    const val PROJECT_SUMMARY = "realestate/project-summary"
+
     /** Project Income — summary / detail / untagged, one screen. */
     const val PROJECT_INCOME_REPORT = "realestate/project-income-report"
 
@@ -482,6 +485,9 @@ object Routes {
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
+
+    /** The personal todo board — no permission, like Profile (web db94f9f). */
+    const val MY_TASKS = "account/my-tasks"
 
     // Reseller self-service dashboard (top-level; gated by reseller.dashboard.view)
     const val RESELLER_DASHBOARD = "reseller/dashboard"
@@ -1056,6 +1062,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable(Routes.PROJECT_SUMMARY) {
+            PermissionGate(anyOf = RealEstateMenu.permissionsFor(RealEstateMenu.PROJECT_SUMMARY_KEY)) {
+                com.example.cashbookbd.ui.realestate.ProjectSummaryScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
         composable(Routes.UNIT_PAYMENT_ADD) {
             PermissionGate(anyOf = listOf("check.register.view")) {
                 UnitPaymentScreen(
@@ -1142,14 +1157,17 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        // Writing a template answers to its own permission (api 04be826b): the
+        // list's New/pencil are gated the same way, and the server 403s
+        // store/update without it. sms.templates alone still reads the list.
         composable(Routes.SMS_TEMPLATE_ADD) {
-            PermissionGate(anyOf = listOf("sms.templates")) {
+            PermissionGate(anyOf = listOf("sms.template.edit")) {
                 SmsTemplateFormScreen(navController = navController, onLogout = backToLogin)
             }
         }
 
         composable("${Routes.SMS_TEMPLATE_EDIT}/{${Routes.SMS_TEMPLATE_ID_ARG}}") { entry ->
-            PermissionGate(anyOf = listOf("sms.templates")) {
+            PermissionGate(anyOf = listOf("sms.template.edit")) {
                 SmsTemplateFormScreen(
                     navController = navController,
                     onLogout = backToLogin,
@@ -1691,6 +1709,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         // No permission gate: every signed-in user may manage their own devices.
         composable(Routes.MY_DEVICES) {
             MyDevicesScreen(
+                navController = navController,
+                onLogout = backToLogin,
+            )
+        }
+
+        // Personal, like Profile above — the server scopes every row to the
+        // user, so there is nothing here a permission could protect.
+        composable(Routes.MY_TASKS) {
+            com.example.cashbookbd.ui.tasks.MyTasksScreen(
                 navController = navController,
                 onLogout = backToLogin,
             )

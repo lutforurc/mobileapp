@@ -276,6 +276,7 @@ fun AuthenticatedShell(
                         items = accountMenuItems(
                             onDashboard = { navigateTo(Routes.HOME) },
                             onProfile = { navigateTo(Routes.PROFILE) },
+                            onMyTasks = { navigateTo(Routes.MY_TASKS) },
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {
                                 { navigateTo(Routes.SUBSCRIPTION) }
@@ -375,9 +376,6 @@ private fun AppDrawerContent(
                 if (canReseller) add(DrawerEntry("reseller", "Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD, Routes.RESELLER_DASHBOARD))
                 if (canTransactions) add(DrawerEntry("transaction", "Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS, Routes.TRANSACTIONS))
                 if (canInvoices) add(DrawerEntry("invoice", "Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES, Routes.INVOICES))
-                // Between Invoice and Branch Transfer, where the web sidebar
-                // put its Labour Items group (b1cfc84).
-                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 if (canBranchTransfer) add(DrawerEntry("branch-transfer", "Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER, Routes.BRANCH_TRANSFER))
                 if (canReports) add(
                     DrawerEntry(
@@ -394,6 +392,10 @@ private fun AppDrawerContent(
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
+                // Down here with Products rather than up among the daily
+                // entries (web 7895207): master data, set up once and opened
+                // rarely — the menus near the top are the ones reached daily.
+                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN, Routes.ADMIN))
                 if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
                 if (canHrm) add(DrawerEntry("hrm", "HRM", Icons.Filled.Face, currentRoute == Routes.HRM, Routes.HRM))

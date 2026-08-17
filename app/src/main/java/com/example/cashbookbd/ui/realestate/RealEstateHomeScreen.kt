@@ -88,6 +88,7 @@ fun RealEstateHomeScreen(
                             item.key == RealEstateMenu.PROJECT_PURCHASE_KEY -> Routes.PROJECT_PURCHASE
                             item.key == RealEstateMenu.PROJECT_LABOUR_KEY -> Routes.PROJECT_LABOUR
                             item.key == RealEstateMenu.PROJECT_INCOME_KEY -> Routes.PROJECT_INCOME
+                            item.key == RealEstateMenu.PROJECT_SUMMARY_KEY -> Routes.PROJECT_SUMMARY
                             item.key == RealEstateMenu.PROJECT_COST_REPORT_KEY -> Routes.PROJECT_COST_REPORT
                             item.key == RealEstateMenu.PROJECT_INCOME_REPORT_KEY -> Routes.PROJECT_INCOME_REPORT
                             item.key == RealEstateMenu.SALES_SUMMARY_KEY -> Routes.SALES_SUMMARY

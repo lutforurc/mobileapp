@@ -1,6 +1,82 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-16):**
+> **Matched to (2026-08-17):**
+> ```
+> cashbookbd_react : 8bd0676  (2026-08-17 11:09)
+> cashbook_api     : 454d8d90 (2026-08-17 11:18)
+> ```
+> The 08-16..08-17 gap is closed. Ported this pass:
+>
+> - **My Tasks** (the Daily Todo List, react db94f9f..9234d4e / api
+>   9c18e8e8..5c12e239): native `ui/tasks/MyTasksScreen` +
+>   `UserTodoRepository`, reached from the account menu like the web's
+>   DropdownUser entry (route `account/my-tasks`, personal — no
+>   permission; the server scopes every row). Sticky-note cards in the
+>   web's six pastels (ink stays dark in both themes — the paper doesn't
+>   darken), Today/Upcoming buckets (past tasks are *searched* by date
+>   range, not dragged onto the board), filter chips All / My own /
+>   Assigned to me / I assigned, one button walking pending →
+>   in_progress → done → pending, pin, and hand-to-a-colleague
+>   (assignees = the company minus yourself; picking yourself stores
+>   null). Contract: GET/POST `user-todos`, PATCH `user-todos/{id}`
+>   (raw JSON so explicit nulls clear a reminder or take an assignment
+>   back — new `patchObjectRaw` on ReportApiService), DELETE (author
+>   only, 403 with reason). The author owns what a task says, the
+>   assignee how far along it is — the assignee's card hides Edit/Delete
+>   because the server 422s them. due_date travels/returns Y-m-d;
+>   reminder_time is "due-date HH:mm:00" or null (midnight = none).
+>   Skipped: the sidebar badge (`user-todos/summary` counts) — mobile
+>   has no drawer badges yet; noted as a gap.
+> - **Project Summary** (react 92b3798 / api bf996a19+15e9c6a4): native
+>   RE screen (`ProjectSummaryScreen`, menu key `reProjectSummary`
+>   before Project Cost Report), `GET real-estate/reports/
+>   project-summary-all` — every project on one line: Expense, Income,
+>   Purchase, Labour, Units/Sold, Received/Outstanding, signed P&L
+>   (green/red), client-summed Total row. Dates are sent but the server
+>   does not filter by them yet; and its SELECT still returns
+>   received/outstanding as literal 0 (the pay join is computed but
+>   never read) — both clients show zeros there until the API reads it.
+> - **SMS templates** (react 70a2dca/8bd0676 / api 04be826b): writing is
+>   gated apart from reading — `sms.template.edit` now guards the New
+>   button, the pencil and the form routes (the server 403s store/update
+>   without it; `sms.templates` alone still reads the list). The form
+>   gained the optional-part hint: `[[ ]]` drops its whole section when
+>   the variable inside is empty. The web's delete button is NOT ported
+>   deliberately — it is a stub (a TODO with no API call behind it).
+> - **Mobile Number Format** (react dc17c5a / api 39bc4a49): branch
+>   Customer Setup gains the pattern field (`mobile_number_format` meta:
+>   # = digit, all else literal, empty = as stored; display only — the
+>   stored digits stay what a phone dials and an SMS gateway wants).
+>   `Settings.mobileNumberFormat` reads it from get-settings; shared
+>   `core/MobileFormat` mirrors the web's formatter (letters pass
+>   through untouched, surplus digits append rather than drop). Applied
+>   where a number is READ: the customer list's Mobile column, Due
+>   Installments' stacked customer cell, Sold Units' customer cell and
+>   the Flat Layout unit dialog. Residual gap: the generic report
+>   engine's phone columns (Due List) print unformatted.
+> - **Labour Items menu** (react d933c6a + 7895207): moved down between
+>   Products and Admin (master data, opened rarely — the top of the
+>   drawer is for daily entries), and made arrangeable: drawer id
+>   `labour_items` + WebMenuIds submap (labour_category/labour_item), so
+>   one saved arrangement drives both clients.
+>
+> Server prerequisites per tenant: `user_todos` table
+> (`2026_08_16_create_user_todos_table.sql` or the migration),
+> `2026_08_17_sms_template_edit_permission.sql` (seeds
+> `sms.template.edit`; granting it is a decision — until granted, nobody
+> can write templates on either client), and
+> `update_sales_purchase_sms_templates.sql` for the invoice/money-received
+> SMS texts. Server-side only, nothing to port: the whole SMS sending
+> batch (454d8d90, d86189bd, 86393e53 — SendsLoggedSms fires on the same
+> endpoints mobile already posts), order-search branch narrowing
+> (acbf97e4 — mobile's order form has no suggestion fetch), the
+> unit-type console command (35cfe98b..c9432b9c). Web-only, skipped: the
+> order form's note-overwrite fix (78a0de1 — the mobile form never had
+> the suggestion logic that caused it), Ledger Details' empty
+> rows-per-page print mode (a8fe0c8 — print is web-only), and the sticky
+> notes' hover/3D-shadow theatrics.
+>
+> **Previously matched (2026-08-16):**
 > ```
 > cashbookbd_react : b1cfc84  (2026-08-16 06:21)
 > cashbook_api     : fa976d28 (2026-08-16 06:20)

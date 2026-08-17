@@ -305,6 +305,14 @@ private fun TemplateForm(state: SmsTemplateFormUiState, viewModel: SmsTemplateFo
                 "Use {{party_name}}, {{amount}}, {{date}}, {{voucher_no}}, " +
                     "{{invoice_no}} placeholders."
             )
+            // The optional-part rule (web 8bd0676 / api 86393e53): a [[ ]]
+            // wrapper drops its whole section when the variable inside is
+            // empty, so no bare label is left behind on a delivery without it.
+            HelperText(
+                "Wrap a part in [[ ]] to drop it whole when its variable is " +
+                    "empty — [[Truck# {{truck_no}} ]] leaves no bare \"Truck#\" " +
+                    "behind on a delivery that has no truck."
+            )
         }
         if (state.placeholders.isNotEmpty()) {
             DetectedPlaceholders(placeholders = state.placeholders)
