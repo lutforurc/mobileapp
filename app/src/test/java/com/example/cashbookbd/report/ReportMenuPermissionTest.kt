@@ -18,19 +18,33 @@ class ReportMenuPermissionTest {
     private fun perms(vararg names: String) = names.map { Permission(name = it) }
 
     /**
-     * Exactly the reports the web's Sidebar guards with `cashbook.view`: the
-     * cashbook family (Bank Book and the Cash & Bank Summary sit under the same
-     * sidebar gate) and the two collection reports (`group.report ||
-     * ledger.due.view || cashbook.view` on the web). No financial statement does.
+     * The web's Sidebar guards every cashbook-family report with its own
+     * permission (since the d58f1f6 gate alignment): `cashbook.view` opens the
+     * Cashbook alone — Bank Book answers to `bank.book`, the summary to
+     * `cash.bank.summery`, the collection reports to `collection.sheet` /
+     * `monthly.report`. No financial statement accepts any of them.
      */
     @Test
-    fun `cashbook_view unlocks only the cashbook and collection reports`() {
+    fun `cashbook_view unlocks only the cashbook`() {
         val titles = ReportMenu.visible(perms("cashbook.view")).map { it.title }
 
-        assertEquals(
-            listOf("Cashbook", "Bank Book", "Cash & Bank Summary", "Collection Sheet", "Monthly Report"),
-            titles,
+        assertEquals(listOf("Cashbook"), titles)
+    }
+
+    /** Each sibling report opens on its own gate, exactly as the web sidebar does. */
+    @Test
+    fun `the cashbook family reports each answer to their own permission`() {
+        val gates = mapOf(
+            "Bank Book" to "bank.book",
+            "Cash & Bank Summary" to "cash.bank.summery",
+            "Collection Sheet" to "collection.sheet",
+            "Monthly Report" to "monthly.report",
         )
+
+        gates.forEach { (title, permission) ->
+            val titles = ReportMenu.visible(perms(permission)).map { it.title }
+            assertEquals("'$permission' must unlock exactly [$title]", listOf(title), titles)
+        }
     }
 
     @Test
