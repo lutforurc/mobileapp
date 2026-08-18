@@ -335,6 +335,16 @@ object BranchForm {
                     "stock_report_type", "Stock: Brand → Category → Item",
                     description = "Groups the stock report by brand, then category, then item, instead of listing items straight.",
                 ),
+                // The web's Stock pair (2026-08-18): whether a sale below stock
+                // asks first, and whether it is refused outright.
+                BranchField.Toggle(
+                    "warn_negative_stock_sale", "Warn On Negative Stock Sale?",
+                    description = "Asks before an invoice sells more than the branch holds. Goods often arrive before the supplier's bill does, so the sale still goes through once confirmed — this only makes sure a wrong line is noticed at the time, rather than in a stock report weeks later.",
+                ),
+                BranchField.Toggle(
+                    "block_negative_stock_sale", "Block Negative Stock Sale?",
+                    description = "Refuses the invoice outright instead of asking, and nobody can override it. For a branch that only ever sells what it has already entered — turn it off where goods are sold before the supplier's bill arrives, or the sale cannot be made at all.",
+                ),
                 BranchField.Toggle(
                     "warranty_controll", "Warranty control",
                     description = "Products carry a warranty period, asked for when the product is set up and tracked from the sale.",

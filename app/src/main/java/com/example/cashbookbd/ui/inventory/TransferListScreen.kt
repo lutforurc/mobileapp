@@ -1,6 +1,7 @@
 package com.example.cashbookbd.ui.inventory
 
 import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -335,11 +339,24 @@ private fun StatusPill(status: Int) {
 /**
  * The figures product by product. The difference carries the colour: red where
  * less landed than left, amber where more did, plain ink where the two agree.
+ *
+ * A consignment is rarely one price. Nine freezers can be three bought at
+ * 3,500, three at 4,000 and three at 4,500, and the branch receiving them has
+ * to know which: that is what its stock is now worth, and what a later sale is
+ * measured against. So each line carries its cost, and one with several rates
+ * opens to show the layers behind it — the breakdown is behind a tap because
+ * most lines do not need it. Where there is more than one price no rate is
+ * shown rather than an average: the total is real money and stays, but an
+ * average rate is not a price anything was bought at. Challans raised before
+ * transfers carried their cost show no cost line at all — a row of dashes on
+ * every line is worse than no line.
  */
 @Composable
 private fun ComparisonTable(comparison: TransferComparison) {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val gridLine = MaterialTheme.appColors.gridLine
+    val hasCost = comparison.rows.any { it.amount > 0 }
+    var openRows by remember(comparison) { mutableStateOf(emptySet<Int>()) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!comparison.isReceived) {
@@ -371,11 +388,64 @@ private fun ComparisonTable(comparison: TransferComparison) {
             comparison.rows.forEachIndexed { index, row ->
                 if (index > 0) HorizontalDivider(color = gridLine)
                 ComparisonRowLine(row, nameWeight = 2f)
+                if (hasCost && row.amount > 0) {
+                    CostLine(
+                        row = row,
+                        isOpen = index in openRows,
+                        onToggle = {
+                            openRows =
+                                if (index in openRows) openRows - index else openRows + index
+                        },
+                    )
+                }
             }
             comparison.totals?.let { totals ->
                 HorizontalDivider(color = gridLine)
                 ComparisonRowLine(totals.copy(productName = "Total"), nameWeight = 2f, bold = true)
+                if (hasCost && totals.amount > 0) {
+                    Text(
+                        text = "Amount ${AmountFormat.format(totals.amount)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = AppFontWeight.SemiBold,
+                        color = onScreen,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                    )
+                }
             }
+        }
+    }
+}
+
+/**
+ * What a comparison line cost. One price reads "at 3,500 = 31,500"; several
+ * read as a count that opens to the real prices — never their average.
+ */
+@Composable
+private fun CostLine(row: ComparisonRow, isOpen: Boolean, onToggle: () -> Unit) {
+    val muted = MaterialTheme.colorScheme.onBackground.muted()
+    val canOpen = row.costLayers.size > 1
+
+    Text(
+        text = when {
+            row.rate != null -> "at ${AmountFormat.format(row.rate!!)} = ${AmountFormat.format(row.amount)}"
+            else -> "${row.costLayers.size} rates = ${AmountFormat.format(row.amount)} ${if (isOpen) "▴" else "▾"}"
+        },
+        style = MaterialTheme.typography.labelSmall,
+        color = if (canOpen) MaterialTheme.colorScheme.primary else muted,
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { if (canOpen) it.clickable(onClick = onToggle) else it }
+            .padding(horizontal = 2.dp, vertical = 1.dp),
+    )
+    if (isOpen && canOpen) {
+        row.costLayers.forEach { layer ->
+            Text(
+                text = "${qty(layer.qty)} at ${AmountFormat.format(layer.rate)} = ${AmountFormat.format(layer.amount)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = muted,
+                modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 2.dp),
+            )
         }
     }
 }

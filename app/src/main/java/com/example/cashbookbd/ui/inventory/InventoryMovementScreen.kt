@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,10 +47,10 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.FieldButton
-import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.components.StockShortageDialog
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 
@@ -86,21 +85,14 @@ fun InventoryMovementScreen(
 
     // Branch Issue's stock-shortage confirm: the server listed what's short and
     // waits for an explicit "transfer anyway" (re-posted with allow_negative).
-    state.shortages?.let { shortages ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissShortage,
-            title = { Text("Stock shortage") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    shortages.forEach { line ->
-                        Text(line, style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text("Transfer anyway?", style = MaterialTheme.typography.bodyMedium)
-                }
-            },
-            confirmButton = { LinkButton(text = "Transfer Anyway", onClick = viewModel::confirmShortage) },
-            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::dismissShortage) },
+    // The same dialog the sales forms ask with, so every screen asks the same
+    // way and it is worded in one place.
+    state.shortages?.let { warning ->
+        StockShortageDialog(
+            warning = warning,
+            action = "transfer",
+            onCancel = viewModel::dismissShortage,
+            onContinue = viewModel::confirmShortage,
         )
     }
 

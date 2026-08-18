@@ -380,7 +380,7 @@ class InventoryMovementViewModel(
                     )
                 }
                 is BranchTransferOutcome.StockShortage -> _uiState.update {
-                    it.copy(isSubmitting = false, shortages = outcome.shortages)
+                    it.copy(isSubmitting = false, shortages = outcome.warning)
                 }
             }
             is Resource.Error -> _uiState.update {

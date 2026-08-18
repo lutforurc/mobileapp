@@ -20,6 +20,16 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
 
+/**
+ * An invoice submit that reached the server: either it saved a voucher, or it
+ * bounced with the stock-shortage question awaiting the seller's answer —
+ * the same two-step the branch transfer's guard uses.
+ */
+sealed interface InvoiceOutcome {
+    data class Saved(val message: String) : InvoiceOutcome
+    data class StockShortage(val warning: StockShortageWarning) : InvoiceOutcome
+}
+
 /** The Trading sales form's invoice-level extras (vehicle + linked orders). */
 data class TradingExtras(
     val vehicleNumber: String = "",
@@ -126,6 +136,12 @@ class InvoiceRepository(
      * [electronics] routes a sales invoice to the Electronics (Computer and
      * Accessories) endpoint and adds `serial_no` to each product line, mirroring
      * the web's business-type-specific sales form.
+     *
+     * [allowNegative] is the seller's "Continue" after the server put the
+     * stock-shortage question: the very same invoice, re-posted with
+     * `allow_negative`. A branch that blocks ignores it server-side.
+     *
+     * ⚠️ Posts a REAL voucher server-side — never auto-retry.
      */
     suspend fun submit(
         spec: InvoiceSpec,
@@ -144,7 +160,8 @@ class InvoiceRepository(
         tdsAmount: Double = 0.0,
         transportationAmt: Double = 0.0,
         trackedProductId: String = "",
-    ): Resource<String> = withContext(ioDispatcher) {
+        allowNegative: Boolean = false,
+    ): Resource<InvoiceOutcome> = withContext(ioDispatcher) {
         val useElectronics = electronics && spec.electronicsEndpoint != null
         val body = if (spec.isReturn) {
             returnBody(spec, party, lines, amount, discount, notes, invoiceNo, invoiceDate, vehicleNumber)
@@ -155,6 +172,7 @@ class InvoiceRepository(
                 serviceCharge, tdsAmount, transportationAmt, trackedProductId,
             )
         }
+        if (allowNegative) body.addProperty("allow_negative", true)
         // Variant → store endpoint, as the web's PurchaseIndex/SalesIndex resolve
         // it: Electronics has its own store for both kinds; Trading only for
         // Purchase (Trading/General sales share spec.endpoint); the spec default
@@ -488,7 +506,7 @@ class InvoiceRepository(
     }
 
     /** Reads a voucher/success message; a false `success` (or error message) fails. */
-    private fun parseResult(root: JsonElement?): Resource<String> {
+    private fun parseResult(root: JsonElement?): Resource<InvoiceOutcome> {
         val obj = root?.takeIf { it.isJsonObject }?.asJsonObject
             ?: return Resource.Error("Invalid response from server.")
 
@@ -498,17 +516,24 @@ class InvoiceRepository(
             ?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
 
         if (success == false) {
+            // Not enough stock: nothing saved, nothing wrong — the server is
+            // putting a question, and only the body can tell it from a failure.
+            parseStockShortage(obj)?.let {
+                return Resource.Success(InvoiceOutcome.StockShortage(it))
+            }
             return Resource.Error(errorMessage ?: message ?: "The invoice could not be saved.")
         }
 
         val vrNo = obj.getAsJsonObject("data")?.getAsJsonObject("data")
             ?.get("vr_no")?.takeUnless { it.isJsonNull }?.asString
         return Resource.Success(
-            when {
-                !vrNo.isNullOrBlank() -> "Voucher No.: $vrNo"
-                message != null -> message
-                else -> "Invoice saved successfully."
-            }
+            InvoiceOutcome.Saved(
+                when {
+                    !vrNo.isNullOrBlank() -> "Voucher No.: $vrNo"
+                    message != null -> message
+                    else -> "Invoice saved successfully."
+                }
+            )
         )
     }
 

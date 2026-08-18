@@ -50,6 +50,7 @@ import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
+import com.example.cashbookbd.ui.components.StockShortageDialog
 import com.example.cashbookbd.ui.invoice.model.InvoiceLine
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.core.AmountFormat
@@ -78,6 +79,18 @@ fun InvoiceFormScreen(
             viewModel.onSessionExpiredHandled()
             onLogout()
         }
+    }
+
+    // The stock-shortage question: nothing saved, nothing wrong — the server
+    // listed what is short and waits for the seller's answer. Where the branch
+    // blocks, the same figures appear with no way to continue.
+    state.stockShortage?.let { warning ->
+        StockShortageDialog(
+            warning = warning,
+            action = "sell",
+            onCancel = viewModel::dismissShortage,
+            onContinue = viewModel::confirmShortage,
+        )
     }
 
     AuthenticatedShell(

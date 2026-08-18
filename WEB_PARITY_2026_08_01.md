@@ -1,6 +1,66 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-17, evening):**
+> **Matched to (2026-08-18):**
+> ```
+> cashbookbd_react : bf0eaaf  (2026-08-18)
+> cashbook_api     : a49fad11 (2026-08-18)
+> ```
+> The branch-transfer valuation batch and the stock-shortage question.
+> Ported this pass:
+>
+> - **The stock-shortage question on sales** (react bf0eaaf / api
+>   cab2be74): a sale that would overdraw the stock asks first, when the
+>   branch has asked to be asked. Shared `ui/components/
+>   StockShortageDialog` — the figures per product (Available red /
+>   Requested amber), "Continue Save" re-posting the HELD invoice with
+>   `allow_negative` (a `heldSubmission` snapshot, not whatever the form
+>   holds by then), and where the branch blocks, the same figures with no
+>   Continue at all. `InvoiceRepository.submit` now returns
+>   `InvoiceOutcome` (Saved | StockShortage): the server answers a
+>   shortage as HTTP 200 `success:false` + `stock_shortage`, and only the
+>   body tells the question from a failure. The shared shape lives in
+>   `data/repository/StockShortage.kt` (`parseStockShortage`), and Branch
+>   Issue's old string-list confirm now asks with the same dialog. The
+>   Branch form's Product Setup gains the two switches
+>   (`warn_negative_stock_sale` / `block_negative_stock_sale`) — the
+>   columns are created by the API's grab-bag artisan command; a tenant
+>   without them simply sells the way it did yesterday.
+> - **P&L: goods moved between branches** (react bd7123d / api
+>   d3e9e18c..f2e38780): `branch_transfer.issued/received` parsed from
+>   the same response; "Goods Received from Branch" (debit) and "Goods
+>   Issued to Branch" (credit) drawn after Net Sales only when goods
+>   actually crossed a branch line, both folded into the trading bases so
+>   Gross P/L balances.
+> - **Transfer comparison carries cost** (react facbbdb / api bf8f44d5):
+>   per row `rate` (null where the goods stand on several prices — never
+>   their average), `amount`, `cost_layers`, and the totals row's
+>   `amount`. On the phone the cost is a line under the qty row; a
+>   multi-rate line opens by tap to a line per price. The challan print
+>   is web-only, skipped.
+> - **Challan dates** on both list tabs read 15/08/2026 (rows arriving
+>   with a time attached are tolerated — the time is dropped, not shown).
+>   The web's issues-only ask (`transfer_type=1`, react 65ae65f) was
+>   already on mobile.
+> - **Naming pass** (react e54ffbe): "Issue Report" / "Receive Report"
+>   in the Branch Transfer menu and the generic report configs. The
+>   web's real change — moving the voucher lists off the entry forms
+>   onto report pages of their own — needed no move here: mobile's
+>   tabbed Transfer List has always lived apart from the forms.
+>
+> Nothing to port: the cash book's stale-question fix (react 8177887 —
+> sessionStorage + a store that outlives the screen; the phone's
+> ViewModel dies with the screen and already opens on the branch date
+> with an empty table). Server-side only: the inter-branch account heads
+> and ledger posting (api ae072591..41cde265, ea3ff488, 397e4ae3),
+> Balance Sheet's transfer debt rows (15488c5b — mobile's rows fill on
+> their own), the P&L branch-filter and double-count fixes (c5001acb,
+> f2e38780), SMS figure grouping the Bengali way (d2eb6990), the lorry
+> plate's case fix (c8c9d9e3), and the unit-type console command
+> (a49fad11). Server prerequisite per tenant: the inter-branch heads
+> (`inter_branch_account_heads.sql` or the artisan command) before
+> branch transfers post to the ledger.
+>
+> **Previously matched (2026-08-17, evening):**
 > ```
 > cashbookbd_react : a488a59  (2026-08-17)
 > cashbook_api     : 612de6e1 (2026-08-17)

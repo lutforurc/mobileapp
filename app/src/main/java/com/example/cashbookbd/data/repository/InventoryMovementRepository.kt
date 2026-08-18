@@ -5,6 +5,7 @@ import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.data.remote.TransactionApiService
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonNull
@@ -80,6 +81,13 @@ data class TransferChallan(
     val status: Int,
 )
 
+/** One price a consignment's goods stand on: [qty] units at [rate]. */
+data class CostLayer(
+    val qty: Double,
+    val rate: Double,
+    val amount: Double,
+)
+
 /** One product's figures on the issued-vs-received comparison. */
 data class ComparisonRow(
     val productName: String,
@@ -88,6 +96,16 @@ data class ComparisonRow(
     val damagedQty: Double,
     val shortQty: Double,
     val difference: Double,
+    /**
+     * The price, where there is one. A consignment that came in at several
+     * rates has none — the API sends null rather than their average, because
+     * an average is a figure nothing was bought at.
+     */
+    val rate: Double? = null,
+    /** What the line cost in total — real money whatever the rates. */
+    val amount: Double = 0.0,
+    /** The prices behind [amount], one entry per rate the goods stand on. */
+    val costLayers: List<CostLayer> = emptyList(),
 )
 
 /**
@@ -109,10 +127,7 @@ data class TransferComparison(
 sealed interface BranchTransferOutcome {
     data class Saved(val vrNo: String, val message: String?) : BranchTransferOutcome
 
-    data class StockShortage(
-        val shortages: List<String>,
-        val message: String,
-    ) : BranchTransferOutcome
+    data class StockShortage(val warning: StockShortageWarning) : BranchTransferOutcome
 }
 
 /**
@@ -188,8 +203,10 @@ class InventoryMovementRepository(
                             id = id,
                             vrNo = o.str("vr_no").orEmpty(),
                             challanNumber = o.str("challan_number").orEmpty(),
-                            date = o.str("challan_date")?.ifBlank { null }
-                                ?: o.str("vr_date").orEmpty(),
+                            date = asDisplayDate(
+                                o.str("challan_date")?.ifBlank { null }
+                                    ?: o.str("vr_date").orEmpty()
+                            ),
                             fromBranch = o.str("from_branch_name").orEmpty(),
                             toBranch = o.str("to_branch_name").orEmpty(),
                             status = o.str("transfer_status")?.toDoubleOrNull()?.toInt() ?: 0,
@@ -222,6 +239,21 @@ class InventoryMovementRepository(
                     damagedQty = str("damaged_qty")?.toDoubleOrNull() ?: 0.0,
                     shortQty = str("short_qty")?.toDoubleOrNull() ?: 0.0,
                     difference = str("difference")?.toDoubleOrNull() ?: 0.0,
+                    // The cost the goods stand on (2026-08-18). Absent on
+                    // challans raised before transfers carried their cost.
+                    rate = str("rate")?.toDoubleOrNull(),
+                    amount = str("amount")?.toDoubleOrNull() ?: 0.0,
+                    costLayers = get("cost_layers")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { el ->
+                            val o = el.takeIf { it.isJsonObject }?.asJsonObject
+                                ?: return@mapNotNull null
+                            CostLayer(
+                                qty = o.str("qty")?.toDoubleOrNull() ?: 0.0,
+                                rate = o.str("rate")?.toDoubleOrNull() ?: 0.0,
+                                amount = o.str("amount")?.toDoubleOrNull() ?: 0.0,
+                            )
+                        }
+                        .orEmpty(),
                 )
 
                 Resource.Success(
@@ -353,18 +385,11 @@ class InventoryMovementRepository(
                 ?.takeIf { it.isJsonPrimitive }?.asString?.ifBlank { null }
 
             if (success == false) {
-                val shortage = obj.get("stock_shortage")?.takeUnless { it.isJsonNull }
-                    ?.takeIf { it.isJsonPrimitive }?.asBoolean == true
-                if (shortage) {
-                    val shortages = obj.get("shortages")?.takeIf { it.isJsonArray }?.asJsonArray
-                        ?.mapNotNull { el -> el.takeIf { it.isJsonPrimitive }?.asString?.trim()?.ifBlank { null } }
-                        .orEmpty()
-                    return@safeCall Resource.Success(
-                        BranchTransferOutcome.StockShortage(
-                            shortages = shortages,
-                            message = message ?: "Stock is short for some items.",
-                        )
-                    )
+                // The shared shortage shape — figures per product, plus the
+                // pre-worded lines, so the screen can put the question the same
+                // way a sale does.
+                parseStockShortage(obj)?.let {
+                    return@safeCall Resource.Success(BranchTransferOutcome.StockShortage(it))
                 }
                 return@safeCall Resource.Error(message ?: "The transfer could not be saved.")
             }
@@ -443,6 +468,18 @@ class InventoryMovementRepository(
                 }
             )
         }
+    }
+
+    /**
+     * The date as the rest of the app writes it: 15/08/2026, not 2026-08-15.
+     * The API sends the day on its own in some rows and with a time attached
+     * in others, so the time part is dropped before parsing; anything
+     * unparseable passes through untouched rather than becoming a blank.
+     */
+    private fun asDisplayDate(raw: String): String {
+        if (raw.isBlank()) return raw
+        val dayPart = raw.substringBefore(' ').substringBefore('T')
+        return SimpleDate.fromApi(dayPart)?.toDisplay() ?: raw
     }
 
     /** Empty strings must go over the wire as null, per the store validators. */

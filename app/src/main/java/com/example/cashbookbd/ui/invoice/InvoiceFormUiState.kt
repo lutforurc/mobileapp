@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.invoice
 
+import com.example.cashbookbd.data.repository.StockShortageWarning
 import com.example.cashbookbd.data.repository.TradingExtras
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.ui.invoice.model.InstallmentInput
@@ -96,6 +97,12 @@ data class InvoiceFormUiState(
     val isSubmitting: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
+    /**
+     * Non-null shows the stock-shortage question: which products are short and
+     * by how much, with Continue re-posting the held invoice (allow_negative)
+     * unless the branch blocks such a sale outright.
+     */
+    val stockShortage: StockShortageWarning? = null,
     val sessionExpired: Boolean = false,
 ) {
     val total: Double get() = lines.sumOf { it.amount }

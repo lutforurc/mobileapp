@@ -42,12 +42,16 @@ object BranchTransferMenu {
             listOf("branch.transfer.create", "branch.received.create"),
         ),
         // The three reports ride the generic report engine by their config keys.
+        // "Issue Report" / "Receive Report", as the web renamed them (08-18):
+        // these are the product-wise stock reports, kept apart from the voucher
+        // list above, which answers "which challans" rather than "how much of
+        // each product".
         BranchTransferItem(
-            "branchTransferReport", "Branch Transfer Report",
+            "branchTransferReport", "Issue Report",
             listOf("branch.transfer.create"),
         ),
         BranchTransferItem(
-            "branchReceiveReport", "Branch Receive Report",
+            "branchReceiveReport", "Receive Report",
             listOf("branch.received.create"),
         ),
         BranchTransferItem(

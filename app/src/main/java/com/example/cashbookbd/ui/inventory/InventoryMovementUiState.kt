@@ -3,6 +3,7 @@ package com.example.cashbookbd.ui.inventory
 import com.example.cashbookbd.data.repository.BranchTransferLine
 import com.example.cashbookbd.data.repository.InventoryProduct
 import com.example.cashbookbd.data.repository.MaterialIssueLine
+import com.example.cashbookbd.data.repository.StockShortageWarning
 import com.example.cashbookbd.inventory.InventoryFormKind
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
@@ -62,8 +63,8 @@ data class InventoryMovementUiState(
     val transferLines: List<BranchTransferLine> = emptyList(),
     val materialLines: List<MaterialIssueLine> = emptyList(),
 
-    /** Non-null shows the stock-shortage "Transfer anyway?" confirm dialog. */
-    val shortages: List<String>? = null,
+    /** Non-null shows the stock-shortage question (figures + "transfer anyway"). */
+    val shortages: StockShortageWarning? = null,
 
     val isSubmitting: Boolean = false,
     val message: String? = null,

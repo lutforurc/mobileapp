@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.data.repository.InvoiceOutcome
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.SelectorRepository
@@ -443,9 +444,36 @@ class InvoiceFormViewModel(
     }
 
     fun submit() {
-        val currentSpec = spec ?: return
         val state = _uiState.value
         if (!state.canSubmit) return
+        send(state, allowNegative = false)
+    }
+
+    /**
+     * "Continue" after the stock-shortage question: re-posts the invoice that
+     * was held, not whatever the form holds by then — the operator may have
+     * touched the screen while reading.
+     */
+    fun confirmShortage() {
+        val held = heldSubmission ?: return
+        heldSubmission = null
+        _uiState.update { it.copy(stockShortage = null) }
+        send(held, allowNegative = true)
+    }
+
+    fun dismissShortage() {
+        heldSubmission = null
+        _uiState.update { it.copy(stockShortage = null) }
+    }
+
+    /**
+     * The invoice waiting on the stock-shortage answer, held whole so Continue
+     * can send exactly what was refused.
+     */
+    private var heldSubmission: InvoiceFormUiState? = null
+
+    private fun send(state: InvoiceFormUiState, allowNegative: Boolean) {
+        val currentSpec = spec ?: return
 
         _uiState.update { it.copy(isSubmitting = true, message = null, isError = false) }
         viewModelScope.launch {
@@ -479,44 +507,56 @@ class InvoiceFormViewModel(
                 } else {
                     state.trackedProduct?.id.orEmpty()
                 },
+                allowNegative = allowNegative,
             )
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        message = result.data,
-                        isError = false,
-                        party = null,
-                        selectedProduct = null,
-                        qty = "",
-                        price = "",
-                        serialNo = "",
-                        lines = emptyList(),
-                        amount = "",
-                        discount = "",
-                        notes = "",
-                        invoiceNo = "",
-                        isInstallment = false,
-                        installmentAmount = "",
-                        installmentsNo = "",
-                        installmentStartDate = null,
-                        isEarlyPayment = false,
-                        earlyDiscount = "",
-                        earlyPaymentDate = null,
-                        vehicleNumber = "",
-                        purchaseOrder = null,
-                        salesOrder = null,
-                        selectedWarehouse = null,
-                        bag = "",
-                        variance = "",
-                        varianceType = VARIANCE_TYPES.first(),
-                        invoiceDateTouched = false,
-                        serviceCharge = "",
-                        tdsAmount = "",
-                        transportationAmt = "",
-                        amountLocked = false,
-                        trackedProduct = null,
-                    )
+                is Resource.Success -> when (val outcome = result.data) {
+                    // Not enough stock: nothing saved, nothing wrong. Hold the
+                    // invoice and put the question.
+                    is InvoiceOutcome.StockShortage -> {
+                        heldSubmission = state
+                        _uiState.update {
+                            it.copy(isSubmitting = false, stockShortage = outcome.warning)
+                        }
+                    }
+
+                    is InvoiceOutcome.Saved -> _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            message = outcome.message,
+                            isError = false,
+                            party = null,
+                            selectedProduct = null,
+                            qty = "",
+                            price = "",
+                            serialNo = "",
+                            lines = emptyList(),
+                            amount = "",
+                            discount = "",
+                            notes = "",
+                            invoiceNo = "",
+                            isInstallment = false,
+                            installmentAmount = "",
+                            installmentsNo = "",
+                            installmentStartDate = null,
+                            isEarlyPayment = false,
+                            earlyDiscount = "",
+                            earlyPaymentDate = null,
+                            vehicleNumber = "",
+                            purchaseOrder = null,
+                            salesOrder = null,
+                            selectedWarehouse = null,
+                            bag = "",
+                            variance = "",
+                            varianceType = VARIANCE_TYPES.first(),
+                            invoiceDateTouched = false,
+                            serviceCharge = "",
+                            tdsAmount = "",
+                            transportationAmt = "",
+                            amountLocked = false,
+                            trackedProduct = null,
+                        )
+                    }
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(

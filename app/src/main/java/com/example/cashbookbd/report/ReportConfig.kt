@@ -1268,7 +1268,9 @@ object ReportMenu {
         ),
         ReportConfig(
             key = "branchTransferReport",
-            title = "Branch Transfer Report",
+            // The web's 08-18 naming pass: Issue Report — the product-wise
+            // stock report, told apart from the voucher list.
+            title = "Issue Report",
             routeName = "ReportBranchTransfer",
             webPath = "/reports/branch-transfer",
             section = ReportConfig.SECTION_BRANCH_TRANSFER,
@@ -1292,7 +1294,7 @@ object ReportMenu {
         ),
         ReportConfig(
             key = "branchReceiveReport",
-            title = "Branch Receive Report",
+            title = "Receive Report",
             routeName = "ReportBranchReceive",
             webPath = "/reports/branch-receive",
             section = ReportConfig.SECTION_BRANCH_TRANSFER,

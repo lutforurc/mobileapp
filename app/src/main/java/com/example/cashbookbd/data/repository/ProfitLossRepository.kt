@@ -115,8 +115,18 @@ class ProfitLossRepository(
         val salesReturn = trading.pick(coal3 = 7, coal4 = 19) { it.debit }
         val netSales = maxOf(0.0, sales - salesDiscount - salesReturn)
 
-        val debitBase = openingStock + netPurchase
-        val creditBase = closingStock + netSales
+        // Goods moved between branches. A transfer is neither a sale nor a
+        // purchase, but it takes stock with it — so without these two lines the
+        // branch that sent the goods shows a loss the size of the consignment,
+        // and the branch that received them a matching profit. Valued at cost
+        // by the API, from the same stock ledger closing stock is read from.
+        val goodsIssued = apiData.get("branch_transfer")?.asObjectOrNull()
+            ?.fieldMap()?.number("issued") ?: 0.0
+        val goodsReceived = apiData.get("branch_transfer")?.asObjectOrNull()
+            ?.fieldMap()?.number("received") ?: 0.0
+
+        val debitBase = openingStock + netPurchase + goodsReceived
+        val creditBase = closingStock + netSales + goodsIssued
         val grossProfit = if (creditBase > debitBase) creditBase - debitBase else 0.0
         val grossLoss = if (debitBase > creditBase) debitBase - creditBase else 0.0
 
@@ -165,6 +175,14 @@ class ProfitLossRepository(
                 }
             }
             add(ProfitLossAccountLine("Net Sales", debit = 0.0, credit = netSales, emphasis = true))
+            // Only when goods actually crossed a branch line — on the many
+            // branches that never transfer, the report reads as before.
+            if (goodsReceived > 0) {
+                add(ProfitLossAccountLine("Goods Received from Branch", debit = goodsReceived, credit = 0.0, emphasis = true))
+            }
+            if (goodsIssued > 0) {
+                add(ProfitLossAccountLine("Goods Issued to Branch", debit = 0.0, credit = goodsIssued, emphasis = true))
+            }
             if (grossProfit > 0) {
                 add(ProfitLossAccountLine("Gross Profit", debit = grossProfit, credit = 0.0, emphasis = true))
             } else {
