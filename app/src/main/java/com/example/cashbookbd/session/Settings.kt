@@ -17,6 +17,16 @@ data class Settings(
      * action, which the web shows only for the global super admin (`user.id === 1`).
      */
     val userId: Long? = null,
+    /**
+     * The colours this user picked for themselves (api a7484e3e..f6f353f5,
+     * `user_theme_settings`, one row per user, riding the session user in
+     * get-settings). Per user, not per branch — taste, not policy. One set
+     * per mode, because a colour that reads on a light screen rarely reads
+     * on a dark one. Empty fields mean "the software's own colour".
+     */
+    val userThemeLight: UserThemeMode = UserThemeMode(),
+    val userThemeDark: UserThemeMode = UserThemeMode(),
+    // (UserThemeMode is declared at the bottom of this file.)
     val businessTypeId: Int? = null,
     val inventorySystemId: Int? = null,
     /** The signed-in user's branch id — e.g. the Head Office cash received form's default receiving branch. */
@@ -124,3 +134,31 @@ data class Settings(
      */
     val letterRefDate: String? = null,
 )
+
+/**
+ * One mode's worth of a user's own colours, as "#RRGGBB" strings straight off
+ * the wire — parsed into [androidx.compose.ui.graphics.Color] only at the
+ * theme layer, so a malformed value falls back to the shipped palette there
+ * rather than crashing a parse here. Null/blank = "the software's own colour".
+ *
+ * Deliberately a subset of what the web stores: the roles that translate to
+ * this app's [com.example.cashbookbd.ui.theme.BrandPalette] cleanly. The
+ * web-furniture ones (sidebar/header/table-header), the text inks (contrast
+ * is this app's own responsibility) and the control height/radius stay
+ * web-only.
+ */
+data class UserThemeMode(
+    val primary: String? = null,
+    val secondary: String? = null,
+    val success: String? = null,
+    val danger: String? = null,
+    val warning: String? = null,
+    val info: String? = null,
+    /** The web's page_bg — this app's screen backdrop. */
+    val screen: String? = null,
+    val card: String? = null,
+) {
+    val isEmpty: Boolean
+        get() = listOfNotNull(primary, secondary, success, danger, warning, info, screen, card)
+            .all { it.isBlank() }
+}

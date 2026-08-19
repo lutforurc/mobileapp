@@ -75,6 +75,27 @@ data class SettingsUserDto(
      * `profile_photo` straight into an `<img src>`.
      */
     @SerializedName("profile_photo") val profilePhoto: String? = null,
+    /**
+     * The user's own colours (api a7484e3e): `user_theme_settings` flattened
+     * onto the session user, one value per mode, "" when never chosen. Only
+     * the roles this app maps are read; the web-furniture ones stay web-only.
+     */
+    @SerializedName("primary_color_light") val primaryColorLight: String? = null,
+    @SerializedName("primary_color_dark") val primaryColorDark: String? = null,
+    @SerializedName("secondary_color_light") val secondaryColorLight: String? = null,
+    @SerializedName("secondary_color_dark") val secondaryColorDark: String? = null,
+    @SerializedName("success_color_light") val successColorLight: String? = null,
+    @SerializedName("success_color_dark") val successColorDark: String? = null,
+    @SerializedName("danger_color_light") val dangerColorLight: String? = null,
+    @SerializedName("danger_color_dark") val dangerColorDark: String? = null,
+    @SerializedName("warning_color_light") val warningColorLight: String? = null,
+    @SerializedName("warning_color_dark") val warningColorDark: String? = null,
+    @SerializedName("info_color_light") val infoColorLight: String? = null,
+    @SerializedName("info_color_dark") val infoColorDark: String? = null,
+    @SerializedName("page_bg_color_light") val pageBgColorLight: String? = null,
+    @SerializedName("page_bg_color_dark") val pageBgColorDark: String? = null,
+    @SerializedName("card_color_light") val cardColorLight: String? = null,
+    @SerializedName("card_color_dark") val cardColorDark: String? = null,
 )
 
 /** The current branch, from `settings/get-settings`. Only the fields the app reads. */

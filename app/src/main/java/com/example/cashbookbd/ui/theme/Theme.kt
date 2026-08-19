@@ -102,17 +102,40 @@ fun DarkV2Trial(content: @Composable () -> Unit) {
 @Composable
 fun CashBookbdTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    /**
+     * The user's own colours for the mode on screen (api a7484e3e), laid over
+     * the shipped palette — null or empty leaves the palette exactly as built,
+     * on the pre-computed fast path. Passed in rather than read here, so the
+     * theme layer stays free of session plumbing (previews pass nothing).
+     */
+    userTheme: com.example.cashbookbd.session.UserThemeMode? = null,
     content: @Composable () -> Unit
 ) {
-    val palette = if (darkTheme) DarkPalette else LightPalette
-    val colors = if (darkTheme) DarkAppColors else LightAppColors
+    val custom = userTheme?.takeUnless { it.isEmpty }
+    val palette = if (custom == null) {
+        if (darkTheme) DarkPalette else LightPalette
+    } else {
+        androidx.compose.runtime.remember(darkTheme, custom) {
+            (if (darkTheme) DarkPalette else LightPalette).withUserColors(custom)
+        }
+    }
+    val colors = if (custom == null) {
+        if (darkTheme) DarkAppColors else LightAppColors
+    } else {
+        androidx.compose.runtime.remember(palette) { appColorsOf(palette) }
+    }
+    val scheme = if (custom == null) {
+        if (darkTheme) DarkScheme else LightScheme
+    } else {
+        androidx.compose.runtime.remember(palette, darkTheme) { schemeOf(palette, darkTheme) }
+    }
 
     CompositionLocalProvider(
         LocalBrandPalette provides palette,
         LocalAppColors provides colors,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme = scheme,
             typography = Typography,
             // Every Material component (cards, menus, dialogs, date pickers,
             // sheets) draws from these slots — mapping them all to [AppShape]

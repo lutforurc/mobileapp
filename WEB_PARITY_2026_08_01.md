@@ -1,6 +1,49 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-18):**
+> **Matched to (2026-08-20):**
+> ```
+> cashbookbd_react : fac73c8a (deps-latest — the feature commit; the branch
+>                    also carries the vite-8/React-19/Tailwind-4 upgrades)
+> cashbook_api     : f6f353f5
+> ```
+> Ported this pass:
+>
+> - **Real Estate per-screen permissions** (api 758e5b79 / react
+>   fac73c8a): every RealEstateMenu entry now answers to its own
+>   `real.estate.<screen>.view` permission instead of the module-wide
+>   `real.estate.view`; the parent section shows on the union (any child
+>   permission suffices), route gates flow from the menu as before.
+>   Deviations kept: Location (a mobile-only list the web sidebar lacks)
+>   and Installment Create (ungated on the web) stay on the base
+>   permission. Tenant prerequisite:
+>   `2026_08_19_real_estate_screen_permissions.sql` — it grants each new
+>   permission to exactly the roles holding real.estate.view, so nobody
+>   gains or loses access the day it runs; **run it before shipping this
+>   build**, or the RE menu goes empty for everyone.
+> - **Per-user theme colours — apply side** (api a7484e3e..f6f353f5):
+>   the colours a user picks on the web's new Color & Theme Setup now
+>   recolour this app too. They ride the session user in get-settings,
+>   one value per mode; `BrandPalette.withUserColors` lays them over the
+>   shipped palette (primary, secondary, the four status accents, the
+>   screen backdrop and the card colour — the palette stays the single
+>   source, it just starts from the user's picks). Junk or empty values
+>   fall back to the shipped colour. Web-only by design: the editor
+>   itself (set once on the web; the phone follows), the web-furniture
+>   roles (sidebar/header/table-header), the text inks (contrast stays
+>   this app's own responsibility) and control height/radius. Tenant
+>   prerequisite: `2026_08_20_create_user_theme_settings.sql`.
+>
+> **Toolchain, same pass:** Gradle 9.2.1→9.5.0 (wrapper checksum
+> re-pinned from gradle.org), AGP 9.0.1→9.3.1, compileSdk 36.1→37
+> (Compose 1.12 refuses older), Compose BOM 2025.07→2026.08 (material3
+> no longer pulls material-icons-core — now pinned explicitly at its
+> last release, 1.7.8), core-ktx 1.19, lifecycle 2.11, navigation 2.9.8,
+> activity-compose 1.13, coroutines 1.11, security-crypto 1.1.0 stable,
+> retrofit 2.11→3.0 and okhttp 4.12→5.5 (both advertised drop-in;
+> compile and unit tests green, but the network stack deserves a real
+> on-device pass before release).
+>
+> **Previously matched (2026-08-18):**
 > ```
 > cashbookbd_react : bf0eaaf  (2026-08-18)
 > cashbook_api     : a49fad11 (2026-08-18)

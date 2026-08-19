@@ -50,7 +50,17 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
 
-            CashBookbdTheme(darkTheme = darkTheme) {
+            // The colours this user picked for themselves, one set per mode
+            // (the web applies the same ones as CSS variables). They arrive on
+            // the session's get-settings payload, so a fresh login or a
+            // settings refresh recolours the running app without a restart.
+            val sessionState by remember { ServiceLocator.provideSessionManager(context) }
+                .state.collectAsStateWithLifecycle()
+            val userTheme = sessionState.settings?.let {
+                if (darkTheme) it.userThemeDark else it.userThemeLight
+            }
+
+            CashBookbdTheme(darkTheme = darkTheme, userTheme = userTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,

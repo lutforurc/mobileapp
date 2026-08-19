@@ -105,6 +105,28 @@ class SettingsRepository(
                     // branch never wrote them (Gson reads that into "false").
                     mobileNumberFormat = payload?.branch?.mobileNumberFormat?.trim()
                         ?.takeUnless { it.isEmpty() || it == "false" }.orEmpty(),
+                    // The user's own colours, one set per mode. "" = never
+                    // chosen; kept null here so the theme layer falls back.
+                    userThemeLight = com.example.cashbookbd.session.UserThemeMode(
+                        primary = payload?.user?.primaryColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        secondary = payload?.user?.secondaryColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        success = payload?.user?.successColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        danger = payload?.user?.dangerColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        warning = payload?.user?.warningColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        info = payload?.user?.infoColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        screen = payload?.user?.pageBgColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        card = payload?.user?.cardColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                    ),
+                    userThemeDark = com.example.cashbookbd.session.UserThemeMode(
+                        primary = payload?.user?.primaryColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        secondary = payload?.user?.secondaryColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        success = payload?.user?.successColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        danger = payload?.user?.dangerColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        warning = payload?.user?.warningColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        info = payload?.user?.infoColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        screen = payload?.user?.pageBgColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        card = payload?.user?.cardColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                    ),
                     letterRefPrefix = payload?.branch?.letterRefPrefix?.trim()
                         ?.takeUnless { it.isEmpty() || it == "false" },
                     letterRefDate = payload?.branch?.letterRefDate?.trim()

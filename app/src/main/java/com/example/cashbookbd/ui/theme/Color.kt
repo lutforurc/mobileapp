@@ -410,3 +410,43 @@ val MaterialTheme.accents: AppAccents
     @Composable
     @ReadOnlyComposable
     get() = LocalBrandPalette.current.accents
+
+/** "#RRGGBB" (or anything android.graphics.Color reads) → Color; junk → null. */
+private fun parseUserColor(hex: String?): Color? =
+    hex?.trim()?.takeIf { it.isNotEmpty() }?.let { value ->
+        runCatching { Color(android.graphics.Color.parseColor(value)) }.getOrNull()
+    }
+
+/**
+ * This palette with the user's own colours laid over it (api a7484e3e — the
+ * web writes the same choices onto its CSS variables). Only the roles that
+ * translate cleanly are moved; everything derived stays derived, so the
+ * palette remains the app's single source of colour — screens still read the
+ * palette, the palette just starts from the user's picks. A colour the user
+ * never chose, or one that does not parse, keeps the shipped value.
+ */
+fun BrandPalette.withUserColors(mode: com.example.cashbookbd.session.UserThemeMode?): BrandPalette {
+    if (mode == null || mode.isEmpty) return this
+
+    val primary = parseUserColor(mode.primary)
+    val secondary = parseUserColor(mode.secondary)
+    val success = parseUserColor(mode.success)
+    val danger = parseUserColor(mode.danger)
+    val warning = parseUserColor(mode.warning)
+    val info = parseUserColor(mode.info)
+    val screen = parseUserColor(mode.screen)
+    val card = parseUserColor(mode.card)
+
+    return copy(
+        primary = primary ?: this.primary,
+        secondary = secondary ?: this.secondary,
+        screen = screen ?: this.screen,
+        card = card ?: this.card,
+        accents = accents.copy(
+            green = success ?: accents.green,
+            red = danger ?: accents.red,
+            amber = warning ?: accents.amber,
+            blue = info ?: accents.blue,
+        ),
+    )
+}
