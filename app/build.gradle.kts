@@ -18,7 +18,7 @@ val devLoginProps = Properties().apply {
 // Release signing, sourced from keystore.properties (untracked, alongside the
 // keystore itself) so the credentials never enter source control. Absent on a
 // fresh clone, in which case the release build stays unsigned rather than
-// failing the whole configuration phase — debug builds are unaffected.
+// failing the whole configuration phase Ã¢â‚¬â€ debug builds are unaffected.
 //
 // Losing the keystore or its password means the published app can never be
 // updated again: Android rejects an update signed by a different key. Back both
@@ -53,7 +53,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 
 /**
  * Per-tenant branding. The tenant key is the base URL's subdomain, so switching
- * `baseUrl` above also switches the branding — no second place to keep in step.
+ * `baseUrl` above also switches the branding Ã¢â‚¬â€ no second place to keep in step.
  *
  * Assets live in `src/tenants/<key>/res` and are named identically for every
  * tenant (drawable/logo.png, and ic_launcher in the mipmap density folders), so
@@ -62,7 +62,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
  *
  * `src/tenants/default/res` is laid down first and the tenant's files are copied
  * over it, so a tenant overrides only what it actually ships and inherits the
- * rest — a tenant with just a logo keeps the stock launcher icon rather than
+ * rest Ã¢â‚¬â€ a tenant with just a logo keeps the stock launcher icon rather than
  * losing it, or worse, inheriting another tenant's. These must NOT live in
  * `src/main/res`: a resource declared there as well would collide, and anything
  * tenant-specific left there would ship to every tenant.
@@ -101,9 +101,8 @@ fun javaStringLiteral(value: String): String {
 android {
     namespace = "com.example.cashbookbd"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        // Compose 1.12 (BOM 2026.08) refuses anything older.
+        version = release(37)
     }
 
     // The merged default+tenant resources, built by prepareTenantRes below.
@@ -223,6 +222,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
 
     // Navigation
