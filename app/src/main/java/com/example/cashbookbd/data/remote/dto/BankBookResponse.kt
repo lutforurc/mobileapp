@@ -32,8 +32,16 @@ data class BankBookRowDto(
     /** Comes back as dd/MM/yyyy, though the request takes yyyy-MM-dd. */
     @SerializedName("vr_date") val vrDate: String? = null,
     @SerializedName("vr_no") val vrNo: String? = null,
-    /** May carry HTML on voucher types 3, 4 and 6. */
+    /** May carry HTML on voucher types 3, 4 and 6. Legacy — see the two below. */
     @SerializedName("nam") val particulars: String? = null,
+    /**
+     * The plain fields the 2026-08-19 security pass added: the account the row
+     * is against (also carrying the summary labels), and the party or null.
+     * Preferred over `nam`, which stays only for servers the API deploy has
+     * not reached.
+     */
+    @SerializedName("account_name") val accountName: String? = null,
+    @SerializedName("party_name") val partyName: String? = null,
     @SerializedName("remarks") val remarks: String? = null,
     /** Only populated for branches whose business_type_id is 8. */
     @SerializedName("order_number") val orderNumber: String? = null,

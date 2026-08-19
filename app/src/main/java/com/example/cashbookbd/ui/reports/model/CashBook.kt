@@ -140,7 +140,17 @@ fun BranchOptionDto.toBranchOption(): BranchOption? {
 }
 
 fun CashBookRowDto.toCashBookRow(): CashBookRow {
-    val name = particulars.stripHtml()
+    // The plain fields first (2026-08-19): the API now says the party and the
+    // account as text, and `nam`'s markup is only a fallback for a server the
+    // deploy has not reached. Same shape either way: "Party — Account".
+    val name = if (!accountName.isNullOrBlank()) {
+        listOfNotNull(
+            partyName?.trim()?.takeIf { it.isNotBlank() },
+            accountName.trim(),
+        ).joinToString(" — ")
+    } else {
+        particulars.stripHtml()
+    }
     // Summary rows are pushed with no voucher and a name ending in Total / Balance.
     val isSummary = vrNo.isNullOrBlank() &&
         (name.endsWith("Total", ignoreCase = true) || name.equals("Balance", ignoreCase = true))

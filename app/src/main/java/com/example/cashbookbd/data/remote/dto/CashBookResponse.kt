@@ -25,6 +25,15 @@ data class CashBookRowDto(
     @SerializedName("vr_no") val vrNo: String? = null,
     @SerializedName("combined_number") val combinedNumber: String? = null,
     @SerializedName("nam") val particulars: String? = null,
+    /**
+     * The plain fields the 2026-08-19 security pass added: the account the row
+     * is against (also carrying the summary labels "…Total"/"Balance"), and
+     * the party the voucher was raised with, or null. Text, no markup — `nam`
+     * above is the legacy composed fragment, kept only until every client
+     * reads these.
+     */
+    @SerializedName("account_name") val accountName: String? = null,
+    @SerializedName("party_name") val partyName: String? = null,
     @SerializedName("vr_date") val vrDate: String? = null,
     @SerializedName("remarks") val remarks: String? = null,
     @SerializedName("pay_branch_name") val payBranchName: String? = null,

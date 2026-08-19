@@ -64,7 +64,15 @@ private fun String?.splitHtmlLines(): Pair<String, String> {
 private fun String?.toAmount(): Double = this?.trim()?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 
 fun BankBookRowDto.toBankBookRow(): BankBookRow {
-    val (title, subtitle) = particulars.splitHtmlLines()
+    // The plain fields first (2026-08-19): party on the top line, account
+    // under it — exactly the two lines `nam`'s markup used to carry. The
+    // markup path stays only for a server the API deploy has not reached.
+    val (title, subtitle) = if (!accountName.isNullOrBlank()) {
+        val party = partyName?.trim()?.takeIf { it.isNotBlank() }
+        if (party != null) party to accountName.trim() else accountName.trim() to ""
+    } else {
+        particulars.splitHtmlLines()
+    }
 
     // The row kinds are told apart by `nam`: the backend prepends one
     // "Opening Balance" row and appends "<from> to <to> Total", "Total" and

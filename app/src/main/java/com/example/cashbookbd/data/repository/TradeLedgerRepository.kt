@@ -137,27 +137,42 @@ class TradeLedgerRepository(
     // ---- Row actions -------------------------------------------------------
 
     /**
-     * Approves one voucher (`GET accounts/voucher/approved/{id}`) — the web
-     * row icon's own endpoint. The server answers the bare string "1" on
-     * success and "2" for a voucher it cannot find.
+     * Approves one voucher (`POST accounts/voucher/approved/{id}`) — the web
+     * row icon's own endpoint. The 2026-08-19 security pass turned the route
+     * POST (a GET that changes a voucher was the audit's 1.1), put it behind
+     * `cashbook.approved`, scoped it to the caller's branches, and made it
+     * answer the ordinary foundData envelope instead of a bare "1"/"2".
+     * The old "1"/"2" strings are still read, for a server the API deploy has
+     * not reached yet — though on such a server this POST 405s anyway.
      *
      * ⚠️ Approval locks the voucher against editing — only confirmed taps.
      */
     suspend fun approveVoucher(voucherId: Long): Resource<String> = withContext(ioDispatcher) {
         try {
-            val response = api.get("accounts/voucher/approved/$voucherId", emptyMap())
+            val response = api.post("accounts/voucher/approved/$voucherId", emptyMap())
             if (response.code() == 401) {
                 return@withContext Resource.Error(
                     "Your session has expired. Please log in again.", isUnauthorized = true,
                 )
             }
+            if (response.code() == 403) {
+                return@withContext Resource.Error("You do not have permission to approve vouchers.")
+            }
+            if (response.code() == 405) {
+                // Old client assumption meeting an old server, or vice versa.
+                return@withContext Resource.Error("The server refused the request. Please update the app and try again.")
+            }
             val body = response.body()
             val primitive = body?.takeIf { it.isJsonPrimitive }?.asString?.trim()
-            val success = body?.takeIf { it.isJsonObject }?.asJsonObject
-                ?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            val obj = body?.takeIf { it.isJsonObject }?.asJsonObject
+            val success = obj?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            val message = obj?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
             when {
                 primitive == "1" || success == true -> Resource.Success("Voucher approved.")
                 primitive == "2" -> Resource.Error("Voucher not found.")
+                // notFound() carries the reason ("Transaction Not Found" — also
+                // what an out-of-reach branch answers, deliberately).
+                success == false -> Resource.Error(message ?: "The voucher could not be approved.")
                 else -> Resource.Error("The voucher could not be approved.")
             }
         } catch (e: IOException) {
