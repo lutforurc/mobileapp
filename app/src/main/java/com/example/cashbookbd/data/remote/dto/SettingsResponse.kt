@@ -79,23 +79,33 @@ data class SettingsUserDto(
      * The user's own colours (api a7484e3e): `user_theme_settings` flattened
      * onto the session user, one value per mode, "" when never chosen. Only
      * the roles this app maps are read; the web-furniture ones stay web-only.
+     *
+     * The payload keys carry the `theme_` prefix — they are the exact
+     * `UserThemeSetting::fieldMap()` request keys, prefix included. The first
+     * cut of this port read them bare and so never saw a single colour.
      */
-    @SerializedName("primary_color_light") val primaryColorLight: String? = null,
-    @SerializedName("primary_color_dark") val primaryColorDark: String? = null,
-    @SerializedName("secondary_color_light") val secondaryColorLight: String? = null,
-    @SerializedName("secondary_color_dark") val secondaryColorDark: String? = null,
-    @SerializedName("success_color_light") val successColorLight: String? = null,
-    @SerializedName("success_color_dark") val successColorDark: String? = null,
-    @SerializedName("danger_color_light") val dangerColorLight: String? = null,
-    @SerializedName("danger_color_dark") val dangerColorDark: String? = null,
-    @SerializedName("warning_color_light") val warningColorLight: String? = null,
-    @SerializedName("warning_color_dark") val warningColorDark: String? = null,
-    @SerializedName("info_color_light") val infoColorLight: String? = null,
-    @SerializedName("info_color_dark") val infoColorDark: String? = null,
-    @SerializedName("page_bg_color_light") val pageBgColorLight: String? = null,
-    @SerializedName("page_bg_color_dark") val pageBgColorDark: String? = null,
-    @SerializedName("card_color_light") val cardColorLight: String? = null,
-    @SerializedName("card_color_dark") val cardColorDark: String? = null,
+    @SerializedName("theme_primary_color_light") val primaryColorLight: String? = null,
+    @SerializedName("theme_primary_color_dark") val primaryColorDark: String? = null,
+    @SerializedName("theme_secondary_color_light") val secondaryColorLight: String? = null,
+    @SerializedName("theme_secondary_color_dark") val secondaryColorDark: String? = null,
+    @SerializedName("theme_success_color_light") val successColorLight: String? = null,
+    @SerializedName("theme_success_color_dark") val successColorDark: String? = null,
+    @SerializedName("theme_danger_color_light") val dangerColorLight: String? = null,
+    @SerializedName("theme_danger_color_dark") val dangerColorDark: String? = null,
+    @SerializedName("theme_warning_color_light") val warningColorLight: String? = null,
+    @SerializedName("theme_warning_color_dark") val warningColorDark: String? = null,
+    @SerializedName("theme_info_color_light") val infoColorLight: String? = null,
+    @SerializedName("theme_info_color_dark") val infoColorDark: String? = null,
+    @SerializedName("theme_page_bg_color_light") val pageBgColorLight: String? = null,
+    @SerializedName("theme_page_bg_color_dark") val pageBgColorDark: String? = null,
+    @SerializedName("theme_card_color_light") val cardColorLight: String? = null,
+    @SerializedName("theme_card_color_dark") val cardColorDark: String? = null,
+    /** The line around things — cards, rules, table cells (api d20ce33a). */
+    @SerializedName("theme_border_color_light") val borderColorLight: String? = null,
+    @SerializedName("theme_border_color_dark") val borderColorDark: String? = null,
+    /** The rows under a table's header band (api d20ce33a). */
+    @SerializedName("theme_table_body_color_light") val tableBodyColorLight: String? = null,
+    @SerializedName("theme_table_body_color_dark") val tableBodyColorDark: String? = null,
 )
 
 /** The current branch, from `settings/get-settings`. Only the fields the app reads. */
@@ -184,6 +194,12 @@ data class SettingsBranchDto(
     @SerializedName("letter_ref_prefix") val letterRefPrefix: String? = null,
     /** The date the branch's letters carry (yyyy-MM-dd); text meta. */
     @SerializedName("letter_ref_date") val letterRefDate: String? = null,
+    /**
+     * Branch Setup → Product Setup → "Product Tracking?". On, the cash
+     * received/payment product box stays on the form for every party (api
+     * 0b17783f); the web's cash screens read the same flag.
+     */
+    @SerializedName("product_tracking") val productTracking: String? = null,
 )
 
 /**

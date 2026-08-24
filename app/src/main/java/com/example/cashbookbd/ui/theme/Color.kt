@@ -436,12 +436,21 @@ fun BrandPalette.withUserColors(mode: com.example.cashbookbd.session.UserThemeMo
     val info = parseUserColor(mode.info)
     val screen = parseUserColor(mode.screen)
     val card = parseUserColor(mode.card)
+    val border = parseUserColor(mode.border)
+    val tableBody = parseUserColor(mode.tableBody)
 
     return copy(
         primary = primary ?: this.primary,
         secondary = secondary ?: this.secondary,
         screen = screen ?: this.screen,
         card = card ?: this.card,
+        // Both border weights, like the web (410f2045): once a user names a
+        // border colour they mean all of them — the noticed ones and the
+        // quiet ones alike — rather than their pick standing beside grey.
+        outline = border ?: this.outline,
+        outlineVariant = border ?: this.outlineVariant,
+        // The web's table_body — the rows under the header band.
+        cardRow = tableBody ?: this.cardRow,
         accents = accents.copy(
             green = success ?: accents.green,
             red = danger ?: accents.red,

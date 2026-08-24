@@ -377,6 +377,13 @@ object BranchForm {
                 // What the letter's reference number starts with (year + sale
                 // serial are appended, e.g. BST/ALLOT/2026/036).
                 BranchField.Text("letter_ref_prefix", "Letter Reference Prefix (e.g. BST/ALLOT)"),
+                // Whether the reference reaches the paper at all (api c6eb9f43).
+                // A branch that predates the switch reads back on — which is
+                // what its letters have always done.
+                BranchField.Toggle(
+                    "print_letter_ref", "Print Letter Reference?",
+                    description = "The allotment letter carries its Ref No line. Off, the letter prints without one, for an office that writes its own number on the sheet.",
+                ),
                 // The date the branch's letters carry, yyyy-MM-dd; blank offers
                 // the day the letter is issued.
                 BranchField.Text("letter_ref_date", "Letter Reference Date (yyyy-MM-dd)"),

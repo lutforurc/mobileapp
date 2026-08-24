@@ -116,6 +116,8 @@ class SettingsRepository(
                         info = payload?.user?.infoColorLight?.trim()?.takeIf { it.isNotEmpty() },
                         screen = payload?.user?.pageBgColorLight?.trim()?.takeIf { it.isNotEmpty() },
                         card = payload?.user?.cardColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        border = payload?.user?.borderColorLight?.trim()?.takeIf { it.isNotEmpty() },
+                        tableBody = payload?.user?.tableBodyColorLight?.trim()?.takeIf { it.isNotEmpty() },
                     ),
                     userThemeDark = com.example.cashbookbd.session.UserThemeMode(
                         primary = payload?.user?.primaryColorDark?.trim()?.takeIf { it.isNotEmpty() },
@@ -126,6 +128,8 @@ class SettingsRepository(
                         info = payload?.user?.infoColorDark?.trim()?.takeIf { it.isNotEmpty() },
                         screen = payload?.user?.pageBgColorDark?.trim()?.takeIf { it.isNotEmpty() },
                         card = payload?.user?.cardColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        border = payload?.user?.borderColorDark?.trim()?.takeIf { it.isNotEmpty() },
+                        tableBody = payload?.user?.tableBodyColorDark?.trim()?.takeIf { it.isNotEmpty() },
                     ),
                     letterRefPrefix = payload?.branch?.letterRefPrefix?.trim()
                         ?.takeUnless { it.isEmpty() || it == "false" },
@@ -133,6 +137,7 @@ class SettingsRepository(
                         ?.takeUnless { it.isEmpty() || it == "false" }
                         // A native date field only holds yyyy-MM-dd; cut like the web.
                         ?.take(10),
+                    productTracking = payload?.branch?.productTracking?.trim() == "1",
                 )
             )
         } catch (e: IOException) {

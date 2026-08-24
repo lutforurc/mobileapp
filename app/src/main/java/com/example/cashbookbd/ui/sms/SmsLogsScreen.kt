@@ -324,7 +324,7 @@ private fun SmsLogsBody(state: SmsLogsUiState, onRetry: () -> Unit) {
     }
 }
 
-/** # | Mobile | Message | Provider | Status | Attempts | Sent At | Created. */
+/** # | Mobile | Name | Message | Provider | Status | Attempts | Sent At | Created. */
 @Composable
 private fun smsLogColumns(state: SmsLogsUiState): List<ReportColumn<SmsLogRow>> {
     val onScreen = MaterialTheme.colorScheme.onBackground
@@ -336,6 +336,11 @@ private fun smsLogColumns(state: SmsLogsUiState): List<ReportColumn<SmsLogRow>> 
         },
         ReportColumn("Mobile", ReportColWidth.Fixed(120.dp)) { row, _ ->
             cellText(row.mobile.ifBlank { "-" }, color = onScreen)
+        },
+        // Who the message went to (web f4828a4b) — a log of numbers reads as
+        // a log of numbers. Narrow and wrapping, like the message beside it.
+        ReportColumn("Name", ReportColWidth.Fixed(120.dp)) { row, _ ->
+            cellText(row.recipientName.ifBlank { "-" }, color = onScreen, maxLines = 2)
         },
         ReportColumn("Message", ReportColWidth.Fixed(220.dp)) { row, _ ->
             cellText(row.message.ifBlank { "-" }, color = onScreen, maxLines = 3)

@@ -142,7 +142,11 @@ class ProductTrackingRepository(
 
     // ---- Settings ----------------------------------------------------------
 
-    /** The configured rows. Paginated server-side; like the web, page 1 only. */
+    /**
+     * The configured rows. Paginated server-side; the web pages through them
+     * (react 7069d155) — this app instead asks one wide page (per_page=100),
+     * which holds every real tenant seen so far.
+     */
     suspend fun fetchSettings(search: String): Resource<List<TrackingSetting>> =
         withContext(ioDispatcher) {
             guarded {

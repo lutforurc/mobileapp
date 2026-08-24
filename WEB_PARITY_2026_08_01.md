@@ -1,12 +1,55 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-20):**
+> **Matched to (2026-08-24):**
 > ```
-> cashbookbd_react : fac73c8a (deps-latest — the feature commit; the branch
->                    also carries the vite-8/React-19/Tailwind-4 upgrades)
-> cashbook_api     : f6f353f5
+> cashbookbd_react : acdb4f26 (Lutfor-Rahman == react-main; deps-latest merged
+>                    in, plus 6 web-only palette/dropdown commits up to 410f2045)
+> cashbook_api     : c6eb9f43 (main == Lutfor)
 > ```
-> Ported this pass:
+> Ported this pass (2026-08-24):
+>
+> - **User theme keys FIXED + two more colours** (api d20ce33a): the
+>   get-settings payload keys are `theme_primary_color_light` etc. — the
+>   `UserThemeSetting::fieldMap()` request keys, prefix included. The
+>   2026-08-20 port read them bare, so no user colour ever landed; every
+>   `SerializedName` now carries the prefix. New: `border_color` (both
+>   weights — outline and outlineVariant, like the web's --c-border +
+>   --c-border-strong) and `table_body_color` (cardRow). Tenant
+>   prerequisite: `2026_08_20_add_border_color_to_user_theme_settings.sql`.
+> - **Cash voucher product box stays put** (api 0b17783f / react 16d8de07):
+>   the settings payload now carries the branch's "Product Tracking?" meta;
+>   with it on, the Trading cash screens keep the product dropdown on the
+>   form for every party ("-- No Product --" where a party has nothing)
+>   instead of it appearing and vanishing with the account.
+> - **Order picker narrowed and self-filling** (api 9f8c733f, 4a7b25b8 /
+>   react a3e1377b): the cash voucher's order search now asks only the
+>   types that can be right (payment → purchase+stock "1,3", received →
+>   sales "2"; the endpoint reads the comma list), the server also matches
+>   the order's note; and picking an order fills the account from the
+>   order's party — by id, or by an EXACT name match, never a near miss.
+> - **SMS log Name column** (api 2dd673b7 / react f4828a4b): the sent-list
+>   sends `recipient_name` (recorded party, else an unambiguous customer
+>   match on the number); the log table shows it after Mobile, "-" when
+>   the server could not vouch for one.
+> - **Branch form: Print Letter Reference?** (api c6eb9f43 / react
+>   edfe34a3): new toggle beside the letter-ref fields; off, the allotment
+>   letter prints without its Ref No line. Defaults on (unset means on
+>   server-side, which is what letters have always done).
+>
+> Web-only, nothing to port: the shared control heights and their
+> follow-ups, the palette reaching web furniture (the mobile equivalent is
+> withUserColors), sidebar active-location, dropdown readability, keeping
+> table rows during page turns (this app has done that since 2026-08-19),
+> login-log/tracked-list pagination (the app asks one wide page), the
+> Combined Invoice col-span fix, print-time footer, customer-edit return
+> navigation, theme editor preview. **In progress on the web, not ported
+> yet: the hotel/resort booking module (specs 8c03d7ff, 9311aa3e and the
+> room/dormitory/catering commits) — port once its API lands and the
+> screens settle.**
+>
+> ---
+>
+> **Previous pass (2026-08-20)** — matched to react fac73c8a / api f6f353f5:
 >
 > - **Real Estate per-screen permissions** (api 758e5b79 / react
 >   fac73c8a): every RealEstateMenu entry now answers to its own

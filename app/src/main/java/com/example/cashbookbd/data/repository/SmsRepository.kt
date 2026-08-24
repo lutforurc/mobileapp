@@ -17,6 +17,12 @@ import java.io.IOException
 data class SmsLogRow(
     val id: String,
     val mobile: String,
+    /**
+     * Who the message went to, not just where (api 2dd673b7): the recorded
+     * party if the send named one, an unambiguous customer match on the
+     * number otherwise, and "" rather than a name nobody can vouch for.
+     */
+    val recipientName: String,
     val message: String,
     val provider: String,
     val status: String,
@@ -225,6 +231,7 @@ class SmsRepository(
     private fun JsonObject.toLogRow(): SmsLogRow = SmsLogRow(
         id = str("id").orEmpty(),
         mobile = str("mobile").orEmpty(),
+        recipientName = str("recipient_name").orEmpty(),
         message = str("message").orEmpty(),
         provider = str("provider").orEmpty(),
         status = str("status").orEmpty(),

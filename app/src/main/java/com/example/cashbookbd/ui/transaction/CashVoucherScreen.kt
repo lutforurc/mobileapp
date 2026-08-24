@@ -187,6 +187,13 @@ data class CashVoucherUiState(
     // then hides itself and the form stays exactly as it was.
     val trackedProducts: List<SelectorOption> = emptyList(),
     val trackedProduct: SelectorOption? = null,
+    /**
+     * The branch's own "Product Tracking?" switch (web 16d8de07): on, the
+     * product box stays on the form for every party — empty where a party has
+     * nothing tracked — rather than appearing and vanishing as the account
+     * changes. A field that moves is a field people stop trusting.
+     */
+    val alwaysShowProductField: Boolean = false,
 
     // Head Office: the branch the money moves against.
     val branches: List<BranchOption> = emptyList(),
@@ -259,6 +266,7 @@ class CashVoucherViewModel(
             totalLabel = spec.totalLabel,
             variant = variant,
             showSearch = searchVisible(variant),
+            alwaysShowProductField = sessionManager.state.value.settings?.productTracking == true,
         )
     )
     val uiState: StateFlow<CashVoucherUiState> = _uiState.asStateFlow()
@@ -277,6 +285,10 @@ class CashVoucherViewModel(
                     variant = fresh
                     _uiState.update { it.copy(variant = fresh, showSearch = searchVisible(fresh)) }
                     if (fresh == CashVoucherVariant.HEAD_OFFICE) loadBranches()
+                }
+                // The branch's Product Tracking switch may have flipped too.
+                _uiState.update {
+                    it.copy(alwaysShowProductField = sessionManager.state.value.settings?.productTracking == true)
                 }
             }
         }
@@ -349,9 +361,19 @@ class CashVoucherViewModel(
     suspend fun searchAccounts(query: String): Resource<List<LedgerDropdownItem>> =
         ledgerRepository.searchLedgers(query)
 
-    /** Order search (all order types, like the web's cash voucher picker). */
+    /**
+     * Order search, narrowed by direction like the web (a3e1377b): money paid
+     * out answers to a purchase (1) or stock (3) order, money taken in to a
+     * sale (2) — offering all three is offering the two that cannot be right.
+     * The endpoint reads "1,3" as a list (api 9f8c733f).
+     */
     suspend fun searchOrders(query: String): Resource<List<SelectorOption>> =
-        when (val result = invoiceRepository.searchOrders(query)) {
+        when (
+            val result = invoiceRepository.searchOrders(
+                query,
+                orderType = if (trackingContext == "received") "2" else "1,3",
+            )
+        ) {
             is Resource.Success -> {
                 orderCache = result.data.associateBy { it.id }
                 Resource.Success(
@@ -365,6 +387,25 @@ class CashVoucherViewModel(
     fun onOrderSelected(option: SelectorOption) {
         val order = orderCache[option.id] ?: return
         _uiState.update { it.copy(order = order) }
+        // The order names its party, so the account fills itself (web
+        // a3e1377b): by id when the order carries one — a name is not an
+        // answer, two parties can share one — and by an EXACT name match
+        // otherwise. A near miss leaves the field as it was: an empty box gets
+        // filled by someone reading it, a plausible wrong name does not.
+        val partyId = order.partyId.trim()
+        if (partyId.isNotBlank()) {
+            onAccountSelected(TxnSelection(partyId, order.customerName))
+            return
+        }
+        val wanted = order.customerName.trim()
+        if (wanted.isEmpty()) return
+        viewModelScope.launch {
+            val result = ledgerRepository.searchLedgers(wanted)
+            if (result is Resource.Success) {
+                result.data.firstOrNull { it.name.trim().equals(wanted, ignoreCase = true) }
+                    ?.let { onAccountSelected(TxnSelection(it.id.toString(), it.name)) }
+            }
+        }
     }
 
     fun onRemarksChange(value: String) {
@@ -716,16 +757,21 @@ fun CashVoucherScreen(
                 label = "Select Account",
             )
 
-            // Product tracking: only where the branch tracks products for this
-            // party — the dropdown hides itself everywhere else, so the form
-            // never changes for a branch that has not heard of tracking.
-            if (state.trackedProducts.isNotEmpty()) {
+            // Product tracking: where the branch runs tracking at all, the box
+            // stays put for every party — "No Product" where this party has
+            // nothing tracked (web 16d8de07). On a branch that has not heard
+            // of tracking the list is always empty and the form never changes.
+            if (state.trackedProducts.isNotEmpty() || state.alwaysShowProductField) {
                 AppSelectDropdown(
                     label = "Select Product (Optional)",
-                    options = listOf(SelectorOption(id = "", label = "None")) + state.trackedProducts,
+                    options = if (state.trackedProducts.isEmpty()) {
+                        listOf(SelectorOption(id = "", label = "-- No Product --"))
+                    } else {
+                        listOf(SelectorOption(id = "", label = "None")) + state.trackedProducts
+                    },
                     selected = state.trackedProduct,
                     onSelected = viewModel::onTrackedProductSelected,
-                    placeholder = "None",
+                    placeholder = if (state.trackedProducts.isEmpty()) "-- No Product --" else "None",
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

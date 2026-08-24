@@ -133,6 +133,12 @@ data class Settings(
      * offers the day the letter is issued instead.
      */
     val letterRefDate: String? = null,
+    /**
+     * Branch meta "Product Tracking?" (api 0b17783f): on, the cash
+     * received/payment product box stays on the form for every party rather
+     * than appearing and vanishing with the picked account's tracked list.
+     */
+    val productTracking: Boolean = false,
 )
 
 /**
@@ -157,8 +163,12 @@ data class UserThemeMode(
     /** The web's page_bg — this app's screen backdrop. */
     val screen: String? = null,
     val card: String? = null,
+    /** The line around things — this app's outline/dividers (api d20ce33a). */
+    val border: String? = null,
+    /** The rows under a table's header band — this app's cardRow. */
+    val tableBody: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = listOfNotNull(primary, secondary, success, danger, warning, info, screen, card)
+        get() = listOfNotNull(primary, secondary, success, danger, warning, info, screen, card, border, tableBody)
             .all { it.isBlank() }
 }

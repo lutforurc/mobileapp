@@ -65,6 +65,9 @@ class AddBranchViewModel(
             "print_size" to "1",            // Normal Printer
             "pad_print_mode" to "software", // Software Generated Pad Head
             "money_format" to "1",          // Taka ... Only
+            // Unset means on server-side (flagMeta default true): letters have
+            // always carried their reference, so a new branch starts that way.
+            "print_letter_ref" to "1",
         )
 
     fun load() {
