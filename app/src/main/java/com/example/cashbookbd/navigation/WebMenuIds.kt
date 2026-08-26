@@ -67,6 +67,7 @@ object WebMenuIds {
         "adminNotifications" to "admin_notifications",
         "inAppMessages" to "admin_in_app_messages",
         "inventorySystems" to "inventory_systems",
+        "tutorialVideos" to "tutorial_videos",
         "highlightRules" to "highlight_rules",
         "roles" to "roles",
         "addRoles" to "add_role",

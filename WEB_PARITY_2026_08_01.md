@@ -1,5 +1,30 @@
 # Web parity — 2026-08-01
 
+> **Full menu-by-menu audit (2026-08-26).** Every entry of the web
+> sidebar was listed against every screen this app can reach. ~140 web
+> entries across 15 sections; two real gaps found and closed:
+>
+> - **Tutorial Videos** (Admin) — the platform operator's walkthrough-link
+>   list. This app is one of the two platforms those URLs serve (its
+>   tutorial buttons read the Mobile URL column), yet the list could only
+>   be edited from the web. Now a native screen: the URL pair and switch
+>   per row saved whole by one button (`PUT admin/tutorial-videos`, as
+>   the web's table posts), plus Add Screen, per-row Edit
+>   (name/group/key) and Delete. Server-side it stays platform-admin only.
+> - **Labour Items could not be arranged from the phone** — the drawer
+>   rendered it but `DrawerMenus.all` did not list it, and Arrange Menu
+>   draws its rows from that list alone. An arrangement made on the web
+>   was obeyed; one made here could not touch it. Now listed, in the same
+>   slot the web keeps it (after Products).
+>
+> Everything else matches. Deliberately web-only, confirmed once more:
+> **Challan Layout / print-layout designer** (this app prints the
+> built-in paper), **Customer Dashboard** (a portal for the customer, not
+> the office), and the five entries the app shows as "not available yet"
+> — Purchase Import, Sales Import, Resellers, Approval Center, Voucher
+> Upload, Bulk Upload. Web's separate **Receive List** is not missing: it
+> is the second tab of this app's one Branch Transfer register.
+>
 > **Matched to (2026-08-26):**
 > ```
 > cashbookbd_react : 93d0e653 (Lutfor-Rahman == react-main)

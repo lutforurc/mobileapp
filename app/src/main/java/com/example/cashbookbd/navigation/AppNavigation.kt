@@ -116,6 +116,7 @@ import com.example.cashbookbd.ui.settings.ArrangeMenuScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
+import com.example.cashbookbd.ui.admin.TutorialVideosScreen
 import com.example.cashbookbd.ui.subscription.PlanFormScreen
 import com.example.cashbookbd.ui.producttracking.ProductStatementScreen
 import com.example.cashbookbd.ui.producttracking.ProductTrackingSettingsScreen
@@ -215,6 +216,9 @@ object Routes {
 
     /** Platform CRUD of the inventory systems the branch form picks from. */
     const val INVENTORY_SYSTEMS = "admin/inventory-systems"
+
+    /** Platform CRUD of the walkthrough-video links every screen's tutorial button reads. */
+    const val TUTORIAL_VIDEOS = "admin/tutorial-videos"
 
     /** The signed-in user's own page (name + profile photo). */
     const val PROFILE = "account/profile"
@@ -854,6 +858,17 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.INVENTORY_SYSTEMS) {
             PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
                 InventorySystemsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.TUTORIAL_VIDEOS) {
+            // Same gate as the web sidebar entry; the server additionally
+            // restricts every tutorial-videos route to the platform admin.
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                TutorialVideosScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

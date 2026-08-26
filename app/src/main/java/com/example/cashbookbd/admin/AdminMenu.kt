@@ -68,6 +68,11 @@ object AdminMenu {
             "inventorySystems", "Inventory Systems",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
         ),
+        // The walkthrough-link list this app's tutorial buttons read from.
+        AdminItem(
+            "tutorialVideos", "Tutorial Videos",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
+        ),
         AdminItem("smsLogs", "SMS Logs", listOf("sms.logs"), supported = true),
         AdminItem("smsTemplates", "SMS Templates", listOf("sms.templates"), supported = true),
         // Same slot as the web sidebar (just before Roles); gated on highlight.rules.

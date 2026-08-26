@@ -99,6 +99,7 @@ fun AdminHomeScreen(
                             item.key == "arrangeMenu" -> Routes.ARRANGE_MENU
                             item.key == "productTracking" -> Routes.PRODUCT_TRACKING_SETTINGS
                             item.key == "inventorySystems" -> Routes.INVENTORY_SYSTEMS
+                            item.key == "tutorialVideos" -> Routes.TUTORIAL_VIDEOS
                             item.key == "inAppMessages" -> Routes.IN_APP_MESSAGES
                             item.key == "orderWithTransaction" -> Routes.ORDER_WITH_TRANSACTION
                             item.key == "averagePrice" -> Routes.AVERAGE_PRICE
