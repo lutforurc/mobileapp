@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -116,15 +117,25 @@ data class TradeLedgerUiState(
     // The web ACTION column's two real actions, behind their own permissions.
     val canApprove: Boolean = false,
     val canRemoveApproval: Boolean = false,
+    /**
+     * Sales only: raise a delivery challan — the dialog that names the driver,
+     * then the printed paper (web 3f0ed2f2, behind the same `ledger.details`).
+     */
+    val canChallan: Boolean = false,
     /** The row awaiting a confirm: the voucher and which action. */
     val pendingApprove: TradeLedgerRow? = null,
     val pendingRemoveApproval: TradeLedgerRow? = null,
+    /** The row whose challan dialog is open. */
+    val pendingChallan: TradeLedgerRow? = null,
+    val isSavingChallan: Boolean = false,
+    /** Saved and ready to print — the screen navigates to the paper and clears this. */
+    val printChallanId: Long? = null,
     val busyVoucherId: Long? = null,
     val actionMessage: String? = null,
 
     val sessionExpired: Boolean = false,
 ) {
-    val showActionColumn: Boolean get() = canApprove || canRemoveApproval
+    val showActionColumn: Boolean get() = canApprove || canRemoveApproval || canChallan
 
     val title: String
         get() = if (kind == TradeLedgerKind.PURCHASE) "Purchase Ledger" else "Sales Ledger"
@@ -152,6 +163,12 @@ class TradeLedgerViewModel(
             canRemoveApproval = com.example.cashbookbd.session.Permissions.has(
                 settings?.permissions, "remove.approval",
             ),
+            // The challan lives on the Sales Ledger, behind ledger.details —
+            // the same permission the web's Print Challan icon answers to.
+            canChallan = kind == TradeLedgerKind.SALES &&
+                com.example.cashbookbd.session.Permissions.has(
+                    settings?.permissions, "ledger.details",
+                ),
         )
     )
     val uiState: StateFlow<TradeLedgerUiState> = _uiState.asStateFlow()
@@ -248,7 +265,74 @@ class TradeLedgerViewModel(
         _uiState.update { it.copy(pendingRemoveApproval = row) }
 
     fun cancelAction() =
-        _uiState.update { it.copy(pendingApprove = null, pendingRemoveApproval = null) }
+        _uiState.update {
+            it.copy(pendingApprove = null, pendingRemoveApproval = null, pendingChallan = null)
+        }
+
+    // ---- The challan flow (web 3f0ed2f2 / api cf5e0808) --------------------
+
+    fun requestChallan(row: TradeLedgerRow) = _uiState.update { it.copy(pendingChallan = row) }
+
+    /**
+     * Saves the challan details, then hands over to the printed paper.
+     *
+     * In that order, and only that order, like the web: a challan showing a
+     * driver the sale does not hold would be a document nothing in the system
+     * can account for afterwards. If the save fails the paper does not print.
+     */
+    fun confirmChallan(
+        driverName: String,
+        driverMobile: String,
+        accName: String,
+        truckFare: String,
+    ) {
+        val row = _uiState.value.pendingChallan ?: return
+        if (_uiState.value.isSavingChallan) return
+        _uiState.update { it.copy(isSavingChallan = true) }
+        viewModelScope.launch {
+            val result = repository.saveChallanDriver(
+                voucherId = row.voucherId,
+                driverName = driverName,
+                driverMobile = driverMobile,
+                accName = accName,
+                truckFare = truckFare,
+            )
+            when (result) {
+                is Resource.Success -> _uiState.update { state ->
+                    // The row remembers what was just typed, so reopening the
+                    // dialog shows the saved details without a re-fetch.
+                    val updated = row.copy(
+                        driverName = driverName.trim(),
+                        driverMobile = driverMobile.trim(),
+                        accName = accName.trim(),
+                        truckFare = truckFare.trim(),
+                    )
+                    state.copy(
+                        isSavingChallan = false,
+                        pendingChallan = null,
+                        printChallanId = row.voucherId,
+                        report = state.report?.let { report ->
+                            report.copy(
+                                rows = report.rows.map {
+                                    if (it.voucherId == row.voucherId) updated else it
+                                },
+                            )
+                        },
+                    )
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isSavingChallan = false,
+                        actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun onChallanPrintHandled() = _uiState.update { it.copy(printChallanId = null) }
 
     /** Approval locks the voucher against editing — reached only via confirm. */
     fun confirmApprove() {
@@ -344,6 +428,12 @@ fun TradeLedgerScreen(
         val message = state.actionMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         viewModel.onActionMessageShown()
+    }
+    // Details saved — hand over to the paper.
+    LaunchedEffect(state.printChallanId) {
+        val id = state.printChallanId ?: return@LaunchedEffect
+        viewModel.onChallanPrintHandled()
+        navController.navigate(Routes.salesChallanPrint(id))
     }
 
     AuthenticatedShell(
@@ -452,6 +542,7 @@ fun TradeLedgerScreen(
                         onOpenAttachment = { viewing = it },
                         onApprove = viewModel::requestApprove,
                         onRemoveApproval = viewModel::requestRemoveApproval,
+                        onChallan = viewModel::requestChallan,
                     )
                 }
             }
@@ -497,6 +588,91 @@ fun TradeLedgerScreen(
             },
         )
     }
+    state.pendingChallan?.let { row ->
+        ChallanDetailsDialog(
+            row = row,
+            saving = state.isSavingChallan,
+            onCancel = viewModel::cancelAction,
+            onConfirm = viewModel::confirmChallan,
+        )
+    }
+}
+
+/**
+ * Names the driver on the way to printing a delivery challan (the web's
+ * ChallanDriverDialog). It opens every time the challan is asked for, not only
+ * when the boxes are empty — a driver's name is mistyped at the gate about as
+ * often as it is missing, and the only other way to correct one is the voucher
+ * edit screen, which means it never gets corrected. Blank is a real answer:
+ * nothing is required, and the button only waits for the save in flight.
+ */
+@Composable
+private fun ChallanDetailsDialog(
+    row: TradeLedgerRow,
+    saving: Boolean,
+    onCancel: () -> Unit,
+    onConfirm: (driverName: String, driverMobile: String, accName: String, truckFare: String) -> Unit,
+) {
+    // Seeded from the row when the dialog opens, then the typist's own.
+    var name by remember(row.voucherId) { mutableStateOf(row.driverName) }
+    var mobile by remember(row.voucherId) { mutableStateOf(row.driverMobile) }
+    var account by remember(row.voucherId) { mutableStateOf(row.accName) }
+    var fare by remember(row.voucherId) { mutableStateOf(row.truckFare) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!saving) onCancel() },
+        title = { Text("Delivery challan ${row.challanNo}".trim()) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (row.vehicleNo.isNotBlank()) {
+                    Text(
+                        text = "Vehicle: ${row.vehicleNo}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.appColors.textOnScreenMuted,
+                    )
+                }
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "Driver Name",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = mobile,
+                    onValueChange = { mobile = it },
+                    label = "Driver Mobile",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = account,
+                    onValueChange = { account = it },
+                    label = "Bill To (হিসাব হবে)",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Text, not a number: an emptied box must stay empty. "Nobody
+                // agreed a fare" and "the fare was nothing" print differently.
+                AppTextField(
+                    value = fare,
+                    onValueChange = { v -> fare = v.filter { it.isDigit() || it == '.' } },
+                    label = "Truck Fare",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onConfirm(name, mobile, account, fare) },
+                enabled = !saving,
+            ) {
+                Text(if (saving) "Saving…" else "Save & Print")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onCancel, enabled = !saving) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -507,6 +683,7 @@ private fun TradeLedgerTable(
     onOpenAttachment: (VoucherAttachment) -> Unit,
     onApprove: (TradeLedgerRow) -> Unit,
     onRemoveApproval: (TradeLedgerRow) -> Unit,
+    onChallan: (TradeLedgerRow) -> Unit,
 ) {
     val rules = rememberHighlightRules()
     val showVoucher = settings?.showVoucherImage == true
@@ -638,9 +815,11 @@ private fun TradeLedgerTable(
                             row = r,
                             canApprove = state.canApprove,
                             canRemoveApproval = state.canRemoveApproval,
+                            canChallan = state.canChallan,
                             isBusy = state.busyVoucherId == r.voucherId,
                             onApprove = onApprove,
                             onRemoveApproval = onRemoveApproval,
+                            onChallan = onChallan,
                         )
                     }
                 }
@@ -680,9 +859,11 @@ private fun ActionIcons(
     row: TradeLedgerRow,
     canApprove: Boolean,
     canRemoveApproval: Boolean,
+    canChallan: Boolean,
     isBusy: Boolean,
     onApprove: (TradeLedgerRow) -> Unit,
     onRemoveApproval: (TradeLedgerRow) -> Unit,
+    onChallan: (TradeLedgerRow) -> Unit,
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
@@ -723,6 +904,17 @@ private fun ActionIcons(
                 modifier = Modifier
                     .size(20.dp)
                     .clickable { onRemoveApproval(row) },
+            )
+        }
+        // The web's blue truck: name the driver, then print the paper.
+        if (canChallan) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Print Challan",
+                tint = MaterialTheme.accents.blue,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable { onChallan(row) },
             )
         }
     }

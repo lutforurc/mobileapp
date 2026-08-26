@@ -1,12 +1,42 @@
 # Web parity — 2026-08-01
 
-> **Matched to (2026-08-24):**
+> **Matched to (2026-08-26):**
 > ```
-> cashbookbd_react : acdb4f26 (Lutfor-Rahman == react-main; deps-latest merged
->                    in, plus 6 web-only palette/dropdown commits up to 410f2045)
-> cashbook_api     : c6eb9f43 (main == Lutfor)
+> cashbookbd_react : 93d0e653 (Lutfor-Rahman == react-main)
+> cashbook_api     : 6f469e62 (main)
 > ```
-> Ported this pass (2026-08-24):
+> Ported this pass (2026-08-26):
+>
+> - **Print the delivery challan from the Sales Ledger** (web 3f0ed2f2 /
+>   api cf5e0808): a new action icon on the Sales Ledger (behind
+>   `ledger.details`, the web's own gate) opens the challan dialog — driver
+>   name, driver mobile, Bill To (হিসাব হবে), truck fare, pre-filled with
+>   what the sale already holds; blank is a real answer and nothing is
+>   required. Save posts `sales/challan-driver` (fare as null-or-number:
+>   "no fare agreed" and "fare of nothing" print differently), and only a
+>   successful save opens the paper — fetched as ready-made HTML from
+>   `GET sales/challan/{id}`, the token-authenticated door the API added
+>   for exactly this client, drawn in a WebView and handed to Android's
+>   print service. The web instead draws its challan through the branch's
+>   own designed layout; that print-designer engine (and the order-sheet
+>   designer with it) stays web-only — this app prints the built-in paper.
+>   Tenant prerequisites: `2026_08_24_challan_driver_columns.sql` and
+>   `2026_08_24_challan_account_and_fare.sql` (the endpoints answer
+>   plainly, not with SQL errors, on an unpatched database).
+>
+> Web-only, nothing to port: the challan/order-sheet layout designer and
+> its print-engine commits (30779007…93d0e653 — `2026_08_24_print_templates.sql`
+> serves it), sidebar submenu chevrons (this drawer's entries open screens,
+> nothing expands in place), the ledger print's rows-per-page default.
+> Server-side, inherited for free: inventory systems visible to every
+> company (0a1c4ba7), the two branch clears scoped to the company's own
+> account (9be4e5dc), the stock lookup indexes
+> (`2026_08_18_stock_guard_indexes.sql` — operator). The hotel/resort
+> booking module still has no API and stays unported.
+>
+> ---
+>
+> **Previous pass (2026-08-24)** — matched to react acdb4f26 / api c6eb9f43:
 >
 > - **User theme keys FIXED + two more colours** (api d20ce33a): the
 >   get-settings payload keys are `theme_primary_color_light` etc. — the

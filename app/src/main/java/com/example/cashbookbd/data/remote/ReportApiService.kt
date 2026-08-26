@@ -27,6 +27,14 @@ interface ReportApiService {
         @QueryMap params: Map<String, String>,
     ): Response<JsonElement>
 
+    /**
+     * A GET whose answer is a page, not JSON — the delivery challan arrives as
+     * ready-to-render HTML (`sales/challan/{id}`), served behind the bearer
+     * token precisely so a token-authenticated client can open it.
+     */
+    @GET
+    suspend fun getRaw(@Url url: String): Response<okhttp3.ResponseBody>
+
     @POST
     suspend fun post(
         @Url url: String,

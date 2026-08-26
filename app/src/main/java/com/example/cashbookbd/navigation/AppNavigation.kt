@@ -106,6 +106,7 @@ import com.example.cashbookbd.ui.admin.InAppMessageFormScreen
 import com.example.cashbookbd.ui.analytics.ComparisonScreen
 import com.example.cashbookbd.data.repository.TradeLedgerKind
 import com.example.cashbookbd.ui.account.ProfileScreen
+import com.example.cashbookbd.ui.reports.ChallanPrintScreen
 import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.reports.GroupReportScreen
 import com.example.cashbookbd.ui.reports.ConnectedMemberScreen
@@ -223,6 +224,12 @@ object Routes {
     const val TRADE_LEDGER_KIND_ARG = "kind"
 
     fun tradeLedger(kind: String): String = "reports/trade-ledger/$kind"
+
+    /** The delivery challan, drawn and handed to Android's print service. */
+    const val SALES_CHALLAN_PATTERN = "reports/sales-challan/{voucherId}"
+    const val SALES_CHALLAN_ID_ARG = "voucherId"
+
+    fun salesChallanPrint(voucherId: Long): String = "reports/sales-challan/$voucherId"
 
     /** Group Report's Operating/Purchase Cost pivot (native screen). */
     const val GROUP_REPORT = "reports/group-report"
@@ -752,6 +759,21 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                     kind = kind,
+                )
+            }
+        }
+
+        composable(
+            route = Routes.SALES_CHALLAN_PATTERN,
+            arguments = listOf(navArgument(Routes.SALES_CHALLAN_ID_ARG) { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val voucherId = backStackEntry.arguments?.getLong(Routes.SALES_CHALLAN_ID_ARG) ?: 0L
+            // The same gate as the ledger's challan icon (the web's canPrintChallan).
+            PermissionGate(anyOf = listOf("ledger.details")) {
+                ChallanPrintScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    voucherId = voucherId,
                 )
             }
         }

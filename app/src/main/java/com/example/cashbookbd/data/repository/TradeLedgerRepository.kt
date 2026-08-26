@@ -50,6 +50,15 @@ data class TradeLedgerRow(
     /** The main_trx id the approve endpoints key on (0 = row not actionable). */
     val voucherId: Long,
     val isApproved: Boolean,
+    // What the Sales Ledger's challan dialog opens with (api cf5e0808). All ""
+    // until somebody prints a challan for this sale — which is exactly what
+    // tells the dialog to open with empty boxes. Purchase rows stay "".
+    val driverName: String = "",
+    val driverMobile: String = "",
+    /** Which account the goods are billed to — the challan's "হিসাব হবে" line. */
+    val accName: String = "",
+    /** What the lorry is being paid. Text: "" (nothing agreed) is not "0". */
+    val truckFare: String = "",
 )
 
 /** The bold summary strip under the table (the web calculators' figures). */
@@ -218,6 +227,88 @@ class TradeLedgerRepository(
             }
         }
 
+    /**
+     * Records the challan details on the sale, on the way to printing it
+     * (`POST sales/challan-driver`, api cf5e0808). Blank is a real answer:
+     * clearing a box clears the column and the challan prints without it,
+     * exactly as it did before the columns existed — so nothing is required.
+     * The fare travels as null-or-number: "nobody agreed a fare" and "the
+     * fare was nothing" are different facts the paper prints differently.
+     */
+    suspend fun saveChallanDriver(
+        voucherId: Long,
+        driverName: String,
+        driverMobile: String,
+        accName: String,
+        truckFare: String,
+    ): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val body = JsonObject().apply {
+                addProperty("main_trx_id", voucherId)
+                addProperty("driver_name", driverName.trim())
+                addProperty("driver_mobile", driverMobile.trim())
+                addProperty("acc_name", accName.trim())
+                truckFare.trim().toDoubleOrNull()
+                    ?.let { addProperty("truck_fare", it) }
+                    ?: add("truck_fare", com.google.gson.JsonNull.INSTANCE)
+            }
+            val response = api.postObjectRaw("sales/challan-driver", body)
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val respBody = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+            val success = respBody?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            val message = respBody?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
+            when {
+                success == false -> Resource.Error(message ?: "The challan details could not be saved.")
+                !response.isSuccessful -> Resource.Error("Server error (${response.code()}). Please try again later.")
+                else -> Resource.Success(message ?: "Challan details saved.")
+            }
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * The delivery challan itself, as ready-to-render HTML
+     * (`GET sales/challan/{id}`, api cf5e0808 — the token-authenticated door
+     * built exactly so a client like this one can open the paper; the web's
+     * cookie route would land on the login page). A refusal comes back as the
+     * ordinary JSON envelope, which is told apart from the paper by its shape.
+     */
+    suspend fun fetchChallanHtml(voucherId: Long): Resource<String> = withContext(ioDispatcher) {
+        try {
+            val response = api.getRaw("sales/challan/$voucherId")
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val text = response.body()?.string().orEmpty()
+            // notFound() answers success:false as JSON (HTTP 200/201/404 alike).
+            val trimmed = text.trimStart()
+            if (trimmed.startsWith("{")) {
+                val json = runCatching {
+                    com.google.gson.JsonParser.parseString(trimmed).takeIf { it.isJsonObject }?.asJsonObject
+                }.getOrNull()
+                val message = json?.get("message")?.takeUnless { it.isJsonNull }?.asString?.ifBlank { null }
+                return@withContext Resource.Error(message ?: "Challan not found.")
+            }
+            if (!response.isSuccessful || trimmed.isEmpty()) {
+                return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            }
+            Resource.Success(text)
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     // ---- Row parsing -------------------------------------------------------
 
     private fun JsonObject.toRow(kind: TradeLedgerKind, groupByCategory: Boolean): TradeLedgerRow? {
@@ -311,6 +402,14 @@ class TradeLedgerRepository(
             // The web's fallback chain for the voucher id, in its order.
             voucherId = long("mtm_id") ?: long("smtm_id") ?: long("mtmid") ?: long("id") ?: 0L,
             isApproved = long("is_approved") == 1L,
+            // On the sales_master row where its columns exist; the ledger also
+            // flattens the driver pair onto the record itself (api cf5e0808).
+            // An unpatched server simply has no keys, and "" opens the dialog
+            // with empty boxes.
+            driverName = master?.text("driver_name")?.takeIf { it.isNotBlank() } ?: text("driver_name"),
+            driverMobile = master?.text("driver_mobile")?.takeIf { it.isNotBlank() } ?: text("driver_mobile"),
+            accName = master?.text("acc_name").orEmpty(),
+            truckFare = master?.text("truck_fare").orEmpty(),
         )
     }
 
