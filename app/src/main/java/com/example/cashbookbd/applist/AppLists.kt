@@ -1068,6 +1068,127 @@ object AppLists {
             addAction = ListAddAction(label = "Add Leave Type", route = Routes.hrmCrudAdd("hrmLeaveTypes")),
             editAction = ListEditAction(route = Routes.hrmCrudEditBase("hrmLeaveTypes"), idKey = "id"),
         ),
+
+        // ---- Hotel setup (the master data the booking screens hang off:
+        // buildings hold floors, a floor holds rooms, a room is of a type, and
+        // a charge type says what may go on a bill). Every delete is refused
+        // server-side while something depends on the row, and the refusal is
+        // shown verbatim. ----
+        AppListSpec(
+            key = "hotelBuildings",
+            title = "Buildings",
+            endpoint = "hotel-setup/buildings",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Building", sublineKey = "address"),
+                AppListColumn("code", "Code"),
+                AppListColumn("floors_count", "Floors", numeric = true),
+                AppListColumn("rooms_count", "Rooms", numeric = true),
+            ),
+            anyOf = listOf("hotel.building.view"),
+            paginated = true,
+            addAction = ListAddAction(
+                label = "Add Building",
+                route = Routes.hrmCrudAdd("hotelBuildings"),
+                anyOf = listOf("hotel.building.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelBuildings"), idKey = "id",
+                anyOf = listOf("hotel.building.view"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "hotel-setup/buildings/delete",
+                anyOf = listOf("hotel.building.view"),
+            ),
+        ),
+        AppListSpec(
+            key = "hotelFloors",
+            title = "Floors",
+            endpoint = "hotel-setup/floors",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Floor", sublineKey = "building.name"),
+                AppListColumn("floor_no", "No", numeric = true),
+                AppListColumn("rooms_count", "Rooms", numeric = true),
+            ),
+            anyOf = listOf("hotel.floor.view"),
+            paginated = true,
+            addAction = ListAddAction(
+                label = "Add Floor",
+                route = Routes.hrmCrudAdd("hotelFloors"),
+                anyOf = listOf("hotel.floor.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelFloors"), idKey = "id",
+                anyOf = listOf("hotel.floor.view"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "hotel-setup/floors/delete",
+                anyOf = listOf("hotel.floor.view"),
+            ),
+        ),
+        AppListSpec(
+            key = "hotelRoomTypes",
+            title = "Room Types",
+            endpoint = "hotel-setup/room-types",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Room Type", sublineKey = "code"),
+                AppListColumn(
+                    "default_sale_mode", "Sold As",
+                    valueMap = mapOf(
+                        "whole" to "Whole room",
+                        "seat" to "By the seat",
+                        "both" to "Either",
+                    ),
+                ),
+                AppListColumn("capacity", "Capacity", numeric = true),
+                AppListColumn("default_whole_rent", "Room Rent", numeric = true),
+                AppListColumn("default_seat_rent", "Seat Rent", numeric = true),
+            ),
+            anyOf = listOf("hotel.room.type.view"),
+            paginated = true,
+            addAction = ListAddAction(
+                label = "Add Room Type",
+                route = Routes.hrmCrudAdd("hotelRoomTypes"),
+                anyOf = listOf("hotel.room.type.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelRoomTypes"), idKey = "id",
+                anyOf = listOf("hotel.room.type.view"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "hotel-setup/room-types/delete",
+                anyOf = listOf("hotel.room.type.view"),
+            ),
+        ),
+        AppListSpec(
+            key = "hotelChargeTypes",
+            title = "Charge Types",
+            endpoint = "hotel-setup/charge-types",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Charge", sublineKey = "code"),
+                AppListColumn("default_rate", "Default Rate", numeric = true),
+                AppListColumn(
+                    "by_hand", "Added By Hand",
+                    valueMap = mapOf("1" to "Yes", "0" to "No", "true" to "Yes", "false" to "No"),
+                ),
+            ),
+            anyOf = listOf("hotel.charge.type.view"),
+            // Not paginated: this endpoint answers the whole list under `rows`,
+            // beside the income heads and the note the web shows.
+            paginated = false,
+            addAction = ListAddAction(
+                label = "Add Charge Type",
+                route = Routes.hrmCrudAdd("hotelChargeTypes"),
+                anyOf = listOf("hotel.charge.type.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelChargeTypes"), idKey = "id",
+                anyOf = listOf("hotel.charge.type.view"),
+            ),
+        ),
     )
 
     private val byKey: Map<String, AppListSpec> = all.associateBy { it.key }

@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
+import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
@@ -184,6 +185,10 @@ fun AuthenticatedShell(
     // "Product Tracking" — the web's group for the settings + two reports.
     val canProductTracking = com.example.cashbookbd.producttracking.ProductTrackingMenu
         .hasParentAccess(sessionState.permissions)
+    // "Hotel" — permission alone, never a business type: the Real Estate check
+    // reads an auto-increment id that differs per tenant, and the hotel
+    // permissions are granted to nobody until a property is actually set up.
+    val canHotel = HotelMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -231,6 +236,7 @@ fun AuthenticatedShell(
                 canBranchTransfer = canBranchTransfer,
                 canLabourItems = canLabourItems,
                 canProductTracking = canProductTracking,
+                canHotel = canHotel,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -364,6 +370,7 @@ private fun AppDrawerContent(
     canBranchTransfer: Boolean,
     canLabourItems: Boolean,
     canProductTracking: Boolean,
+    canHotel: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -403,6 +410,9 @@ private fun AppDrawerContent(
                 if (canProductTracking) add(DrawerEntry("product_tracking", "Product Tracking", Icons.Filled.Settings, currentRoute == Routes.PRODUCT_TRACKING, Routes.PRODUCT_TRACKING))
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
+                // Beside Real Estate: the other property module, and the web
+                // sidebar keeps them together for the same reason.
+                if (canHotel) add(DrawerEntry("hotel", "Hotel", Icons.Filled.Home, currentRoute == Routes.HOTEL, Routes.HOTEL))
                 if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
                 // Down here with Products rather than up among the daily
                 // entries (web 7895207): master data, set up once and opened

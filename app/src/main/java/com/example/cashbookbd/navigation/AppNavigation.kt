@@ -23,6 +23,7 @@ import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.admin.AdminMenu
 import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.hrm.HrmCrudForms
+import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.invoice.InvoiceMenu
@@ -116,6 +117,9 @@ import com.example.cashbookbd.ui.settings.ArrangeMenuScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
+import com.example.cashbookbd.ui.hotel.HotelBookingsScreen
+import com.example.cashbookbd.ui.hotel.HotelHomeScreen
+import com.example.cashbookbd.ui.hotel.HotelSetupScreen
 import com.example.cashbookbd.ui.admin.TutorialVideosScreen
 import com.example.cashbookbd.ui.subscription.PlanFormScreen
 import com.example.cashbookbd.ui.producttracking.ProductStatementScreen
@@ -404,6 +408,12 @@ object Routes {
 
     /** Product Tracking home — the web's group of the settings + two reports. */
     const val PRODUCT_TRACKING = "product-tracking"
+
+    // Hotel — the web's sidebar group. Gated on permission alone, never on a
+    // business type: that id is auto-increment and differs per tenant.
+    const val HOTEL = "hotel/home"
+    const val HOTEL_SETUP = "hotel/setup"
+    const val HOTEL_BOOKINGS = "hotel/bookings"
 
     /** Edit Company — base route; the list appends "/{id}" itself. */
     const val COMPANY_EDIT = "company/edit"
@@ -1243,6 +1253,32 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController = navController,
                     onLogout = backToLogin,
                 )
+            }
+        }
+
+        composable(Routes.HOTEL) {
+            PermissionGate(anyOf = HotelMenu.PARENT_PERMISSIONS) {
+                HotelHomeScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.HOTEL_SETUP) {
+            PermissionGate(
+                anyOf = listOf(
+                    "hotel.building.view",
+                    "hotel.floor.view",
+                    "hotel.room.type.view",
+                    "hotel.charge.type.view",
+                    "hotel.resource.view",
+                ),
+            ) {
+                HotelSetupScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.HOTEL_BOOKINGS) {
+            PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                HotelBookingsScreen(navController = navController, onLogout = backToLogin)
             }
         }
 

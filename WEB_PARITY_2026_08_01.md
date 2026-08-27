@@ -1,5 +1,43 @@
 # Web parity — 2026-08-01
 
+> **Hotel module — phase 1 (2026-08-27).** The module the earlier passes kept
+> deferring for want of an API now has one: react `Reseller-ui` (32 commits)
+> and api `Reseller` (~40), neither merged to their main lines yet. Ported so
+> far, matching the web's group exactly:
+>
+> - **Hotel drawer section**, gated on permission alone and never on a business
+>   type — the web makes the same choice for the same reason: the Real Estate
+>   check reads an auto-increment `business_type_id`, so "Hotel / Motel" is 9
+>   in one tenant's database and 11 in another's. The hotel permissions are
+>   granted to nobody when created, which draws the same line and cannot drift.
+>   Arrangeable like every other section (id `hotel`, entries mapped in
+>   WebMenuIds so one saved arrangement still drives both clients).
+> - **Rooms & Seats Setup** — the web's four tabs as four lists with add/edit
+>   on the shared engines: Buildings, Floors, Room Types, Charge Types. Each on
+>   its own permission, each delete refused server-side while something depends
+>   on the row.
+> - **Bookings** — the list the front desk opens daily: status filter (Hold →
+>   In House → Checked Out), search on booking no/name/mobile, and the columns
+>   that answer the counter's questions — who is coming, who is in, how many of
+>   the party are actually written down, and which hold is about to lapse. The
+>   server reorders a hold-filtered list to soonest-to-lapse; this reads that
+>   order as given.
+>
+> **Not ported yet (phases to come):** taking and allotting a booking, the
+> folio (bill, charges, receipts), check-out, Housekeeping, Calendar and the
+> hotel Reports — every one of them either moves money or moves inventory, and
+> they are listed in the menu saying so rather than opening an empty screen.
+> The rooms-and-seats elevation grid stays with them: it is a drawing, and this
+> phase is the master data underneath it.
+>
+> **Tenant prerequisites:** `2026_08_25_hotel_module.sql` (19 tables) and
+> `2026_08_24_hotel_permissions_grant.sql`. Until the 14 hotel permissions are
+> granted to somebody, the menu appears for nobody — which is deliberate.
+>
+> ⚠️ Ported from unmerged feature branches. If the hotel API changes before it
+> lands on `main`, these screens change with it.
+>
+
 > **Full menu-by-menu audit (2026-08-26).** Every entry of the web
 > sidebar was listed against every screen this app can reach. ~140 web
 > entries across 15 sections; two real gaps found and closed:

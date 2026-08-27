@@ -56,6 +56,7 @@ import com.example.cashbookbd.data.repository.UnitSalePaymentRepository
 import com.example.cashbookbd.data.repository.RealEstateSalesRepository
 import com.example.cashbookbd.data.repository.OrderRepository
 import com.example.cashbookbd.data.repository.ProductTrackingRepository
+import com.example.cashbookbd.data.repository.HotelRepository
 import com.example.cashbookbd.data.repository.TradeLedgerRepository
 import com.example.cashbookbd.data.repository.GroupReportRepository
 import com.example.cashbookbd.data.repository.ConnectedMemberRepository
@@ -155,6 +156,7 @@ object ServiceLocator {
     private var inventoryMovementRepository: InventoryMovementRepository? = null
     private var productTrackingRepository: ProductTrackingRepository? = null
     private var tradeLedgerRepository: TradeLedgerRepository? = null
+    private var hotelRepository: HotelRepository? = null
     private var groupReportRepository: GroupReportRepository? = null
     private var connectedMemberRepository: ConnectedMemberRepository? = null
     private var menuPreferencesRepository: MenuPreferencesRepository? = null
@@ -640,6 +642,13 @@ object ServiceLocator {
             tradeLedgerRepository ?: TradeLedgerRepository(
                 api = provideReportApiService(context),
             ).also { tradeLedgerRepository = it }
+        }
+
+    fun provideHotelRepository(context: Context): HotelRepository =
+        hotelRepository ?: synchronized(this) {
+            hotelRepository ?: HotelRepository(
+                api = provideReportApiService(context),
+            ).also { hotelRepository = it }
         }
 
     fun provideDashboardPreferencesRepository(context: Context): DashboardPreferencesRepository =

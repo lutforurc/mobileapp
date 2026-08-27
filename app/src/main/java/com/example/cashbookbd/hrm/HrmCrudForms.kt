@@ -347,6 +347,123 @@ object HrmCrudForms {
                 CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
             ),
         ),
+
+        // ---- Hotel setup ----------------------------------------------------
+        // The master data the booking screens hang off. Kept on this engine
+        // rather than a hotel one of its own: the four forms are plain fields
+        // over plain endpoints, which is exactly what it is for.
+        HrmCrudSpec(
+            key = "hotelBuildings",
+            title = "Building",
+            anyOf = listOf("hotel.building.view"),
+            listPath = "hotel-setup/buildings",
+            storePath = "hotel-setup/buildings/store",
+            updatePath = "hotel-setup/buildings/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.ENDPOINT,
+            editPath = "hotel-setup/buildings/edit",
+            fields = listOf(
+                CrudField("name", "Building Name", CrudFieldKind.TEXT, required = true),
+                CrudField("code", "Code", CrudFieldKind.TEXT),
+                CrudField("address", "Address", CrudFieldKind.TEXT),
+                CrudField("notes", "Notes", CrudFieldKind.TEXT),
+                CrudField("sort_order", "Sort Order", CrudFieldKind.NUMBER, default = "1"),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
+            key = "hotelFloors",
+            title = "Floor",
+            anyOf = listOf("hotel.floor.view"),
+            listPath = "hotel-setup/floors",
+            storePath = "hotel-setup/floors/store",
+            updatePath = "hotel-setup/floors/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.ENDPOINT,
+            editPath = "hotel-setup/floors/edit",
+            fields = listOf(
+                // The building a floor sits in cannot be changed after the fact
+                // — the update endpoint does not accept it — but it has to be
+                // asked on the way in, so the field stands and the server
+                // simply ignores it on an edit.
+                CrudField(
+                    "building_id", "Building", CrudFieldKind.DDL, required = true,
+                    sourcePath = "hotel-setup/buildings/ddl",
+                ),
+                CrudField("name", "Floor Name", CrudFieldKind.TEXT, required = true),
+                CrudField("floor_no", "Floor Number", CrudFieldKind.NUMBER),
+                CrudField("notes", "Notes", CrudFieldKind.TEXT),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
+            key = "hotelRoomTypes",
+            title = "Room Type",
+            anyOf = listOf("hotel.room.type.view"),
+            listPath = "hotel-setup/room-types",
+            storePath = "hotel-setup/room-types/store",
+            updatePath = "hotel-setup/room-types/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.ENDPOINT,
+            editPath = "hotel-setup/room-types/edit",
+            fields = listOf(
+                CrudField("name", "Room Type Name", CrudFieldKind.TEXT, required = true),
+                CrudField("code", "Code", CrudFieldKind.TEXT),
+                // What a room of this type is sold as. "Both" leaves the choice
+                // to the booking; a dormitory is sold by the seat.
+                CrudField(
+                    "default_sale_mode", "Sold As", CrudFieldKind.CHOICE, default = "whole",
+                    choices = listOf(
+                        SelectorOption("whole", "Whole room"),
+                        SelectorOption("seat", "By the seat"),
+                        SelectorOption("both", "Either"),
+                    ),
+                ),
+                CrudField("capacity", "Capacity (guests)", CrudFieldKind.NUMBER),
+                CrudField("default_seat_count", "Seats Per Room", CrudFieldKind.NUMBER),
+                CrudField("default_whole_rent", "Whole Room Rent", CrudFieldKind.NUMBER),
+                CrudField("default_seat_rent", "Per Seat Rent", CrudFieldKind.NUMBER),
+                CrudField("description", "Description", CrudFieldKind.TEXT),
+                CrudField("sort_order", "Sort Order", CrudFieldKind.NUMBER, default = "1"),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
+            key = "hotelChargeTypes",
+            title = "Charge Type",
+            anyOf = listOf("hotel.charge.type.view"),
+            listPath = "hotel-setup/charge-types",
+            // UPSERT on the code: there is no update endpoint, and store()
+            // matches on (company, code) — so editing a shipped type writes
+            // this company's own row over it, exactly as on the web.
+            storePath = "hotel-setup/charge-types/store",
+            updatePath = "hotel-setup/charge-types/store",
+            updateStyle = CrudUpdateStyle.BODY_ID,
+            editFetch = CrudEditFetch.FROM_LIST,
+            fields = listOf(
+                CrudField("name", "Charge Name", CrudFieldKind.TEXT, required = true),
+                // Normalised server-side into a slug, because this string is
+                // what a folio line and a tax rate are matched on.
+                CrudField("code", "Code", CrudFieldKind.TEXT, required = true),
+                CrudField("default_rate", "Default Rate", CrudFieldKind.NUMBER),
+                // The income head a charge earns into is deliberately NOT
+                // offered here. The server accepts only this company's income
+                // heads, and the list of them rides inside the charge-type
+                // response rather than a dropdown endpoint of its own — so a
+                // picker here would have to offer every level-4 account and let
+                // the server refuse most of them. It is an accounts decision
+                // made once, on the web, where the heads are shown under their
+                // groups. Left unset, a charge earns into Hotel Other Income,
+                // which is what every install does today. An edit from here
+                // keeps whatever the web nominated: the key is simply not sent.
+                CrudField(
+                    "by_hand", "Can Be Added By Hand", CrudFieldKind.CHOICE, default = "1",
+                    choices = YES_NO,
+                ),
+                CrudField("sort_order", "Sort Order", CrudFieldKind.NUMBER, default = "50"),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
     )
 
     private val byKey: Map<String, HrmCrudSpec> = all.associateBy { it.key }

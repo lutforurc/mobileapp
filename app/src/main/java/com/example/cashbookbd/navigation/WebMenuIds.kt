@@ -87,6 +87,15 @@ object WebMenuIds {
         "smsTemplates" to "sms_template_list",
     )
 
+    /** Hotel — the web's five-entry group. */
+    private val HOTEL: Map<String, String> = mapOf(
+        "hotelBookings" to "hotel_bookings",
+        "hotelCalendar" to "hotel_calendar",
+        "hotelHousekeeping" to "hotel_housekeeping",
+        "hotelReports" to "hotel_reports",
+        "hotelSetup" to "hotel_setup",
+    )
+
     /** Labour Items — arrangeable since web d933c6a. */
     private val LABOUR_ITEMS: Map<String, String> = mapOf(
         "labourCategories" to "labour_category",
@@ -99,6 +108,7 @@ object WebMenuIds {
         "transaction" to TRANSACTION,
         "admin" to ADMIN,
         "labour_items" to LABOUR_ITEMS,
+        "hotel" to HOTEL,
     )
 
     fun forMenu(menuId: String): Map<String, String> = menus[menuId].orEmpty()
