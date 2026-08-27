@@ -100,7 +100,8 @@ fun HotelHomeScreen(
 private fun HotelRowItem(item: HotelItem, onClick: () -> Unit) {
     // Calendar, Housekeeping and Reports are the phases still to come; they are
     // listed so the menu reads like the web's, and say so rather than opening
-    // an empty screen.
+    // an empty screen. Bookings now carries the whole desk flow it opens onto:
+    // taking one, and recording the arrival.
     val ready = item.key == HotelMenu.SETUP_KEY || item.key == HotelMenu.BOOKINGS_KEY
 
     Card(

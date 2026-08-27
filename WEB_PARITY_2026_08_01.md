@@ -1,5 +1,34 @@
 # Web parity — 2026-08-01
 
+> **Hotel module — phase 2 (2026-08-27): taking a booking, and allotment.**
+>
+> - **New Booking** — dates first, because everything else depends on them:
+>   what is free is a question about a range, not about a room. Then the rooms,
+>   as cards a clerk taps; a room sold by the bed opens its beds instead,
+>   because the bed is the inventory and the room is only how the beds are
+>   referred to. A room that cannot be taken says WHY in words — "sold by the
+>   bed" and "taken by BK-2026-00042 · Mr Rahman" are different problems with
+>   different answers, and a grey tile would say neither. Changing the dates
+>   clears what was picked: a room free last week may be taken this week.
+>   Corporate bookings are deliberately not offered here — they need a party to
+>   bill, and a booking nobody can chase is worse than no booking.
+> - **Check In (allotment)** — one room at a time, the way a desk works: a
+>   family checks in while the coach party is still unloading. Each room's card
+>   says what it still owes before it is opened ("one NID or passport", "one
+>   mobile number"), because the server asks for one of each AMONG a room's
+>   guests rather than from every one of them — a required field that cannot be
+>   filled gets filled with rubbish. The guest sheet opens seeded with whoever
+>   is already written down, since the list REPLACES what was there. Behind
+>   `hotel.booking.allot`, its own permission: the booking is taken by whoever
+>   answers the telephone, the arrival recorded by whoever is at the desk.
+> - The bookings list grows a **New** button and a per-row **Check in** /
+>   **Guests** link, shown only on a booking that still has an arrival to
+>   record.
+>
+> **Still to come:** the folio (bill, charges, receipts), check-out,
+> Housekeeping, Calendar and the hotel Reports.
+>
+
 > **Hotel module — phase 1 (2026-08-27).** The module the earlier passes kept
 > deferring for want of an API now has one: react `Reseller-ui` (32 commits)
 > and api `Reseller` (~40), neither merged to their main lines yet. Ported so

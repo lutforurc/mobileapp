@@ -117,7 +117,9 @@ import com.example.cashbookbd.ui.settings.ArrangeMenuScreen
 import com.example.cashbookbd.ui.auth.ForgotPasswordScreen
 import com.example.cashbookbd.ui.admin.InAppMessagesAdminScreen
 import com.example.cashbookbd.ui.admin.InventorySystemsScreen
+import com.example.cashbookbd.ui.hotel.HotelAllotmentScreen
 import com.example.cashbookbd.ui.hotel.HotelBookingsScreen
+import com.example.cashbookbd.ui.hotel.HotelNewBookingScreen
 import com.example.cashbookbd.ui.hotel.HotelHomeScreen
 import com.example.cashbookbd.ui.hotel.HotelSetupScreen
 import com.example.cashbookbd.ui.admin.TutorialVideosScreen
@@ -414,6 +416,15 @@ object Routes {
     const val HOTEL = "hotel/home"
     const val HOTEL_SETUP = "hotel/setup"
     const val HOTEL_BOOKINGS = "hotel/bookings"
+
+    /** Taking a booking — dates, then what is free, then who is booking. */
+    const val HOTEL_NEW_BOOKING = "hotel/bookings/new"
+
+    /** Allotment: the booking reopened on the day the guests arrive. */
+    const val HOTEL_ALLOTMENT_PATTERN = "hotel/bookings/{bookingId}/allotment"
+    const val HOTEL_BOOKING_ID_ARG = "bookingId"
+
+    fun hotelAllotment(bookingId: Long): String = "hotel/bookings/$bookingId/allotment"
 
     /** Edit Company — base route; the list appends "/{id}" itself. */
     const val COMPANY_EDIT = "company/edit"
@@ -1279,6 +1290,28 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.HOTEL_BOOKINGS) {
             PermissionGate(anyOf = listOf("hotel.booking.view")) {
                 HotelBookingsScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.HOTEL_NEW_BOOKING) {
+            PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                HotelNewBookingScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(
+            route = Routes.HOTEL_ALLOTMENT_PATTERN,
+            arguments = listOf(navArgument(Routes.HOTEL_BOOKING_ID_ARG) { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getLong(Routes.HOTEL_BOOKING_ID_ARG) ?: 0L
+            // Its own permission: the booking is taken by whoever answers the
+            // telephone, the arrival is recorded by whoever is at the desk.
+            PermissionGate(anyOf = listOf("hotel.booking.allot")) {
+                HotelAllotmentScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    bookingId = bookingId,
+                )
             }
         }
 

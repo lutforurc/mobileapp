@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,9 +36,11 @@ import com.example.cashbookbd.data.repository.HotelRepository
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.session.Permissions
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
 import com.example.cashbookbd.ui.reports.ReportTable
@@ -157,6 +160,12 @@ fun HotelBookingsScreen(
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+    val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+    // Recording an arrival is its own permission: the booking is taken by
+    // whoever answers the telephone, the arrival by whoever is at the desk.
+    val canAllot = Permissions.has(sessionState.permissions, "hotel.booking.allot")
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -206,6 +215,10 @@ fun HotelBookingsScreen(
                     onClick = viewModel::search,
                     isLoading = state.isLoading,
                 )
+                SecondaryButton(
+                    text = "New",
+                    onClick = { navController.navigate(Routes.HOTEL_NEW_BOOKING) },
+                )
             }
 
             when {
@@ -230,7 +243,12 @@ fun HotelBookingsScreen(
 
                 else -> Box(modifier = Modifier.weight(1f)) {
                     ReportTable(
-                        columns = bookingColumns(),
+                        columns = bookingColumns(
+                            canAllot = canAllot,
+                            onAllot = { row ->
+                                navController.navigate(Routes.hotelAllotment(row.id))
+                            },
+                        ),
                         data = state.rows,
                         noDataMessage = "No booking found",
                     )
@@ -277,9 +295,12 @@ fun HotelBookingsScreen(
 }
 
 @Composable
-private fun bookingColumns(): List<ReportColumn<HotelBookingRow>> {
+private fun bookingColumns(
+    canAllot: Boolean,
+    onAllot: (HotelBookingRow) -> Unit,
+): List<ReportColumn<HotelBookingRow>> {
     val muted = MaterialTheme.appColors.textMuted
-    return listOf(
+    val columns: List<ReportColumn<HotelBookingRow>> = listOf(
         ReportColumn("BOOKING", ReportColWidth.Fixed(130.dp)) { r, _ ->
             ReportTableCell.Slot {
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
@@ -369,6 +390,25 @@ private fun bookingColumns(): List<ReportColumn<HotelBookingRow>> {
             )
         },
     )
+
+    // Only where somebody may record an arrival, and only on a booking that
+    // still has one to record: a checked-out stay has nobody left to check in.
+    if (!canAllot) return columns
+
+    return columns + ReportColumn<HotelBookingRow>(
+        "ACTION", ReportColWidth.Fixed(96.dp), TextAlign.Center,
+    ) { r, _ ->
+        if (r.status == "hold" || r.status == "confirmed" || r.status == "checked_in") {
+            ReportTableCell.Slot {
+                LinkButton(
+                    text = if (r.status == "checked_in") "Guests" else "Check in",
+                    onClick = { onAllot(r) },
+                )
+            }
+        } else {
+            ReportTableCell.Empty
+        }
+    }
 }
 
 private fun statusLabel(status: String): String = when (status) {
