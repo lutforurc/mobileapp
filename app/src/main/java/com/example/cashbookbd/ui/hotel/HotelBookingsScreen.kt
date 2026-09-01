@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.hotel
 
+import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -41,17 +44,26 @@ import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
+import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
 import com.example.cashbookbd.ui.reports.ReportTable
 import com.example.cashbookbd.ui.reports.ReportTableCell
 import com.example.cashbookbd.ui.reports.cellText
+import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.theme.appColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** What the list is of: stays, the walk-in meals, or everything sold. */
+private val KINDS = listOf(
+    "stay" to "Stays",
+    "walk_in" to "Walk-in meals",
+    "all" to "Everything",
+)
 
 /** The status filter, in the order the desk thinks about them. */
 private val STATUSES = listOf(
@@ -69,6 +81,16 @@ data class HotelBookingsUiState(
     val rows: List<HotelBookingRow> = emptyList(),
     val status: String = "",
     val search: String = "",
+    /**
+     * The arrival range. Cut by ARRIVAL rather than by overlap: the question
+     * this list is asked is who is coming between two days, not which stays
+     * happen to touch them. Either end alone is a real filter, so both start
+     * empty and either may be set on its own.
+     */
+    val dateFrom: SimpleDate? = null,
+    val dateTo: SimpleDate? = null,
+    /** stay (rooms and halls) / walk_in (the meals alone) / all. */
+    val kind: String = "stay",
     val currentPage: Int = 1,
     val lastPage: Int = 1,
     val total: Int = 0,
@@ -93,6 +115,26 @@ class HotelBookingsViewModel(
 
     fun onSearchChange(value: String) = _uiState.update { it.copy(search = value) }
 
+    fun onDateFrom(date: SimpleDate?) {
+        _uiState.update { it.copy(dateFrom = date) }
+        load(page = 1)
+    }
+
+    fun onDateTo(date: SimpleDate?) {
+        _uiState.update { it.copy(dateTo = date) }
+        load(page = 1)
+    }
+
+    fun onKind(value: String) {
+        _uiState.update { it.copy(kind = value) }
+        load(page = 1)
+    }
+
+    fun clearDates() {
+        _uiState.update { it.copy(dateFrom = null, dateTo = null) }
+        load(page = 1)
+    }
+
     fun search() = load(page = 1)
 
     fun goToPage(page: Int) = load(page)
@@ -106,6 +148,9 @@ class HotelBookingsViewModel(
                 status = state.status.takeIf { it.isNotBlank() },
                 search = state.search,
                 page = page,
+                dateFrom = state.dateFrom?.toApi(),
+                dateTo = state.dateTo?.toApi(),
+                kind = state.kind,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -219,6 +264,55 @@ fun HotelBookingsScreen(
                     text = "New",
                     onClick = { navController.navigate(Routes.HOTEL_NEW_BOOKING) },
                 )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PickerField(
+                    label = "Arriving from",
+                    value = state.dateFrom?.toDisplay().orEmpty(),
+                    trailingIcon = Icons.Filled.DateRange,
+                    placeholder = "Any",
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        pickBookingDate(context, state.dateFrom, viewModel::onDateFrom)
+                    },
+                )
+                PickerField(
+                    label = "to",
+                    value = state.dateTo?.toDisplay().orEmpty(),
+                    trailingIcon = Icons.Filled.DateRange,
+                    placeholder = "Any",
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        pickBookingDate(context, state.dateTo, viewModel::onDateTo)
+                    },
+                )
+                if (state.dateFrom != null || state.dateTo != null) {
+                    LinkButton(text = "Clear", onClick = viewModel::clearDates)
+                }
+            }
+            // Meals sold to somebody who is not staying are off this list
+            // unless asked for: a restaurant serves more people in a fortnight
+            // than the rooms take in a year, and the desk would be paging past
+            // lunches to find who is arriving tonight.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                KINDS.forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.kind == value,
+                        onClick = { viewModel.onKind(value) },
+                        label = { Text(label) },
+                    )
+                }
             }
 
             when {
@@ -409,6 +503,24 @@ private fun bookingColumns(
             ReportTableCell.Empty
         }
     }
+}
+
+/** The range pickers, which may also be cleared — hence the nullable initial. */
+private fun pickBookingDate(
+    context: Context,
+    initial: SimpleDate?,
+    onPicked: (SimpleDate) -> Unit,
+) {
+    val start = initial ?: SimpleDate.today()
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onPicked(SimpleDate(year = year, month = month + 1, day = dayOfMonth))
+        },
+        start.year,
+        start.month - 1,
+        start.day,
+    ).show()
 }
 
 private fun statusLabel(status: String): String = when (status) {

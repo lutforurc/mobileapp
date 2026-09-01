@@ -43,6 +43,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.HotelAvailability
+import com.example.cashbookbd.data.repository.HotelParty
+import com.example.cashbookbd.data.repository.HotelReturningGuest
 import com.example.cashbookbd.data.repository.HotelRepository
 import com.example.cashbookbd.data.repository.HotelRoom
 import com.example.cashbookbd.data.repository.HotelSeat
@@ -58,6 +60,8 @@ import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.ui.theme.appColors
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,9 +71,11 @@ import kotlinx.coroutines.launch
 private val BOOKING_TYPES = listOf(
     SelectorOption("individual", "Individual"),
     SelectorOption("group", "Group"),
-    // Corporate means the bill goes to a company and the money comes later,
-    // which needs a party to bill — asked for on the web's own form and not
-    // offered here, so this app cannot take a booking nobody can chase.
+    // Corporate means the bill goes to a company and the money comes later.
+    // The server refuses one without a party — with nobody named there is
+    // nobody for the ageing report to chase — so picking it opens the company
+    // box below rather than being left out of the list.
+    SelectorOption("corporate", "Corporate"),
 )
 
 private val BOOKING_STATUSES = listOf(
@@ -97,6 +103,15 @@ data class HotelNewBookingUiState(
     val status: String = "hold",
     val notes: String = "",
 
+    /** Corporate only: the company the bill goes to. */
+    val party: HotelParty? = null,
+    val partyQuery: String = "",
+    val partyResults: List<HotelParty> = emptyList(),
+    val isSearchingParties: Boolean = false,
+
+    /** What the property already knows about the mobile being typed. */
+    val returning: HotelReturningGuest? = null,
+
     val isSaving: Boolean = false,
     val message: String? = null,
     val saved: Boolean = false,
@@ -104,7 +119,13 @@ data class HotelNewBookingUiState(
 ) {
     val hasPicked: Boolean get() = pickedRooms.isNotEmpty() || pickedSeats.isNotEmpty()
 
-    val canSave: Boolean get() = hasPicked && bookerName.isNotBlank() && !isSaving
+    val isCorporate: Boolean get() = bookingType == "corporate"
+
+    val canSave: Boolean
+        get() = hasPicked && bookerName.isNotBlank() && !isSaving &&
+            // Refused server-side anyway; said here so the button explains
+            // itself rather than the save coming back with a sentence.
+            (!isCorporate || party != null)
 }
 
 class HotelNewBookingViewModel(
@@ -198,7 +219,71 @@ class HotelNewBookingViewModel(
     }
 
     fun onBookerName(v: String) = _uiState.update { it.copy(bookerName = v) }
-    fun onBookerMobile(v: String) = _uiState.update { it.copy(bookerMobile = v) }
+
+    private var guestLookup: Job? = null
+
+    /**
+     * Looks the number up as it is typed, so a returning guest is not asked
+     * for their name again. Debounced, and only once there is enough of a
+     * number to mean anything — every keystroke would otherwise be a request.
+     */
+    fun onBookerMobile(v: String) {
+        _uiState.update { it.copy(bookerMobile = v) }
+        guestLookup?.cancel()
+        val digits = v.filter { it.isDigit() }
+        if (digits.length < 6) {
+            _uiState.update { it.copy(returning = null) }
+            return
+        }
+        guestLookup = viewModelScope.launch {
+            delay(400)
+            val result = repository.findReturningGuest(v)
+            if (result is Resource.Success && result.data.found) {
+                _uiState.update { state ->
+                    state.copy(
+                        returning = result.data,
+                        // The name only where the clerk has not typed one:
+                        // what is known is OFFERED, never written over them.
+                        bookerName = state.bookerName.ifBlank { result.data.name },
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(returning = null) }
+            }
+        }
+    }
+
+    // ---- The company a corporate bill goes to ---------------------------
+
+    private var partySearch: Job? = null
+
+    fun onPartyQuery(v: String) {
+        _uiState.update { it.copy(partyQuery = v) }
+        partySearch?.cancel()
+        if (v.isBlank()) {
+            _uiState.update { it.copy(partyResults = emptyList()) }
+            return
+        }
+        partySearch = viewModelScope.launch {
+            delay(350)
+            _uiState.update { it.copy(isSearchingParties = true) }
+            val result = repository.searchParties(v)
+            _uiState.update { state ->
+                state.copy(
+                    isSearchingParties = false,
+                    partyResults = if (result is Resource.Success) result.data else emptyList(),
+                )
+            }
+        }
+    }
+
+    fun onPartyPicked(party: HotelParty) = _uiState.update {
+        it.copy(party = party, partyQuery = party.name, partyResults = emptyList())
+    }
+
+    fun clearParty() = _uiState.update {
+        it.copy(party = null, partyQuery = "", partyResults = emptyList())
+    }
     fun onAdults(v: String) = _uiState.update { it.copy(adults = v.filter { c -> c.isDigit() }) }
     fun onChildren(v: String) = _uiState.update { it.copy(children = v.filter { c -> c.isDigit() }) }
     fun onBookingType(option: SelectorOption) = _uiState.update { it.copy(bookingType = option.id) }
@@ -222,6 +307,7 @@ class HotelNewBookingViewModel(
                 statedAdults = state.adults,
                 statedChildren = state.children,
                 notes = state.notes,
+                billedToPartyId = state.party?.id.takeIf { state.isCorporate },
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -417,6 +503,24 @@ fun HotelNewBookingScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+                    state.returning?.let { guest ->
+                        item {
+                            // Said, not applied. A clerk who sees "3 stays,
+                            // last 12/07/2026" knows who is on the telephone.
+                            Text(
+                                text = buildString {
+                                    append("Been here before — ")
+                                    append(guest.stays)
+                                    append(if (guest.stays == 1) " stay" else " stays")
+                                    if (guest.lastStay.isNotBlank()) {
+                                        append(", last ").append(guest.lastStay)
+                                    }
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.appColors.success,
+                            )
+                        }
+                    }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             AppTextField(
@@ -441,6 +545,52 @@ fun HotelNewBookingScreen(
                             onSelected = viewModel::onBookingType,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+                    if (state.isCorporate) {
+                        item {
+                            Column {
+                                AppTextField(
+                                    value = state.partyQuery,
+                                    onValueChange = viewModel::onPartyQuery,
+                                    label = "Billed to (company)",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                val picked = state.party
+                                if (picked != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Billing ${picked.name}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.appColors.success,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        LinkButton(text = "Change", onClick = viewModel::clearParty)
+                                    }
+                                } else {
+                                    Text(
+                                        text = "A corporate booking has to name the company it " +
+                                            "bills — the money comes later, and the ageing report " +
+                                            "has to know who to chase.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.appColors.textMuted,
+                                    )
+                                }
+                                state.partyResults.forEach { party ->
+                                    Text(
+                                        text = buildString {
+                                            append(party.name)
+                                            if (party.mobile.isNotBlank()) append(" · ").append(party.mobile)
+                                            if (party.code.isNotBlank()) append(" · ").append(party.code)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { viewModel.onPartyPicked(party) }
+                                            .padding(vertical = 6.dp),
+                                    )
+                                }
+                            }
+                        }
                     }
                     item {
                         AppSelectDropdown(

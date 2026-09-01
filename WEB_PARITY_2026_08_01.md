@@ -1,5 +1,50 @@
 # Web parity — 2026-08-01
 
+> **Hotel merged, and phase 2 caught up (2026-08-28).** The hotel is no
+> longer on a feature branch: react `Lutfor-Rahman` and api `main` both
+> carry it now, so the "unmerged" caveat below is spent. About fifty new
+> commits landed on each side; what touched screens already ported:
+>
+> - **Bookings list — arrival-date range** (api 276404c2 / react 8cd8cc0e):
+>   cut by ARRIVAL, not by overlap. "Bookings touching these dates" would
+>   return a fortnight's stay because one night fell inside the range — a
+>   different question from the one the list is asked, which is who is
+>   coming between two days. Either end alone is a real filter.
+> - **Bookings list — walk-in meals** (api 45c0715f, 1ca79a79): the server
+>   now defaults the list to `kind=stay`, keeping meals sold to people who
+>   are not staying off the screen the front desk runs on. The three views
+>   (Stays / Walk-in meals / Everything) are chips, and this app sends the
+>   parameter explicitly rather than relying on the default.
+> - **New Booking — corporate is now offered** (api 122f7b62 / react
+>   41807fe6): the phase-2 port left it out because it needs a party to
+>   bill and there was no picker. There is one now (`bookings/parties`,
+>   answering `cust_party_infos` ids — NOT the coa4 ids the older account
+>   dropdowns give), so picking Corporate opens the company box, and Save
+>   stays disabled until it is filled rather than letting the server
+>   refuse.
+> - **New Booking — returning guests** (api 5673a8b7 / react a60b500b): the
+>   mobile is looked up as it is typed (debounced, 6+ digits) and the form
+>   says "Been here before — 3 stays, last 12/07/2026", filling the name in
+>   only where the clerk has not typed one. What is known is offered, never
+>   written over them.
+>
+> Table renames on the server (api 9f02b02b, `hotel_*`) changed no route
+> and no payload key, so nothing else moved.
+>
+> **The queue this pass did not reach** — all of it new since 2026-08-26:
+> hotel phase 3 (folio/bill/receipts, check-out, Housekeeping board,
+> Calendar, the Occupancy-ADR-RevPAR reports, halls and sittings, room
+> amenities, per-item VAT and end-of-bill discount, booking edit after it
+> is taken, the property dashboard); the **fixed-asset register** (register,
+> categories, depreciation run and preview, disposal, year-end schedule);
+> the **six accounts screens**; **due-list ageing** (age in years/months,
+> Last Paid with its colour by recency); **order-list money columns** (PO
+> Amount / DO Amount / balance and the nine totals); the **business-type
+> list**; **User List across every company**; and the smaller ones — cash
+> book re-running on return, vehicle numbers upper-cased in the formatter,
+> a mobile column beside the email, the receipt SMS naming its party.
+>
+
 > **Hotel module — phase 2 (2026-08-27): taking a booking, and allotment.**
 >
 > - **New Booking** — dates first, because everything else depends on them:

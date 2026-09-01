@@ -125,6 +125,27 @@ data class HotelAllotment(
     val rooms: List<HotelAllotmentRoom>,
 )
 
+/** Somebody this company already has on its customer list, for a corporate bill. */
+data class HotelParty(
+    val id: Long,
+    val name: String,
+    val mobile: String,
+    val code: String,
+)
+
+/** What the property already knows about a telephone number. */
+data class HotelReturningGuest(
+    val found: Boolean,
+    val name: String,
+    val mobile: String,
+    /** How many stays this number has behind it, cancellations excluded. */
+    val stays: Int,
+    val lastStay: String,
+    /** Offered so the form can follow, never applied by the server. */
+    val bookingType: String,
+    val billedToPartyId: Long?,
+)
+
 /** A page of [HotelBookingRow]s with the paginator meta the footer needs. */
 data class HotelBookingPage(
     val rows: List<HotelBookingRow>,
@@ -155,6 +176,9 @@ class HotelRepository(
         search: String,
         page: Int,
         perPage: Int = 20,
+        dateFrom: String? = null,
+        dateTo: String? = null,
+        kind: String = "stay",
     ): Resource<HotelBookingPage> = withContext(ioDispatcher) {
         try {
             val params = buildMap {
@@ -162,6 +186,17 @@ class HotelRepository(
                 put("per_page", perPage.toString())
                 status?.takeIf { it.isNotBlank() }?.let { put("status", it) }
                 search.trim().takeIf { it.isNotEmpty() }?.let { put("q", it) }
+                // The dates cut by ARRIVAL, not by overlap: the question this
+                // list is asked is who is coming between two days, not which
+                // stays happen to touch them. Either end alone is a real
+                // filter, so each is sent only when it is set.
+                dateFrom?.takeIf { it.isNotBlank() }?.let { put("date_from", it) }
+                dateTo?.takeIf { it.isNotBlank() }?.let { put("date_to", it) }
+                // stay (the default) keeps walk-in meals off the list the front
+                // desk runs on: a restaurant serves more people in a fortnight
+                // than the rooms take in a year, and the desk would be paging
+                // past lunches to find who is arriving tonight.
+                put("kind", kind)
             }
             val response = api.get("hotel-setup/bookings", params)
             if (response.code() == 401) {
@@ -291,6 +326,7 @@ class HotelRepository(
         statedAdults: String,
         statedChildren: String,
         notes: String,
+        billedToPartyId: Long? = null,
     ): Resource<String> = withContext(ioDispatcher) {
         try {
             val body = JsonObject().apply {
@@ -305,8 +341,91 @@ class HotelRepository(
                 statedAdults.trim().toIntOrNull()?.let { addProperty("stated_adults", it) }
                 statedChildren.trim().toIntOrNull()?.let { addProperty("stated_children", it) }
                 notes.trim().takeIf { it.isNotEmpty() }?.let { addProperty("notes", it) }
+                // A corporate booking is refused without one: the bill goes to
+                // a company and the money comes later, so with no party there
+                // is nobody for the ageing report to chase.
+                billedToPartyId?.let { addProperty("billed_to_party_id", it) }
             }
             postForMessage("hotel-setup/bookings/store", body, "Booking saved.")
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+/**
+     * Has this telephone number been here before (`bookings/guest`)?
+     *
+     * Asked as the mobile is typed on the booking form, so a returning guest
+     * is not made to give their name again. What comes back is OFFERED, never
+     * applied: the server hands over the last booking's type and company too,
+     * because a guest who came on a company account usually is again — but it
+     * is the clerk who says so.
+     */
+    suspend fun findReturningGuest(mobile: String): Resource<HotelReturningGuest> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.get("hotel-setup/bookings/guest", mapOf("mobile" to mobile.trim()))
+                if (response.code() == 401) {
+                    return@withContext Resource.Error(
+                        "Your session has expired. Please log in again.", isUnauthorized = true,
+                    )
+                }
+                val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@withContext Resource.Error("Could not look that number up.")
+                val payload = body.obj("data")?.obj("data") ?: body.obj("data")
+                val found = payload?.flag("found") == true
+                Resource.Success(
+                    HotelReturningGuest(
+                        found = found,
+                        name = payload?.text("name").orEmpty(),
+                        mobile = payload?.text("mobile").orEmpty(),
+                        stays = payload?.int("stays") ?: 0,
+                        lastStay = payload?.text("last_stay").orEmpty().take(10),
+                        bookingType = payload?.text("booking_type").orEmpty(),
+                        billedToPartyId = payload?.long("billed_to_party_id"),
+                    )
+                )
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /**
+     * The companies a corporate booking may be billed to (`bookings/parties`).
+     *
+     * These are `cust_party_infos` ids — what `billed_to_party_id` points at,
+     * NOT the coa4 ids the older account dropdowns answer with.
+     */
+    suspend fun searchParties(query: String): Resource<List<HotelParty>> = withContext(ioDispatcher) {
+        try {
+            val response = api.get(
+                "hotel-setup/bookings/parties",
+                buildMap { query.trim().takeIf { it.isNotEmpty() }?.let { put("q", it) } },
+            )
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Could not read the customer list.")
+            val rows = (body.obj("data")?.get("data") ?: body.get("data"))
+                ?.takeIf { it.isJsonArray }?.asJsonArray
+            Resource.Success(
+                rows?.mapNotNull { el ->
+                    val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                    HotelParty(
+                        id = o.long("id") ?: return@mapNotNull null,
+                        name = o.text("name"),
+                        mobile = o.text("mobile"),
+                        code = o.text("idfr_code"),
+                    )
+                }.orEmpty()
+            )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: Exception) {
