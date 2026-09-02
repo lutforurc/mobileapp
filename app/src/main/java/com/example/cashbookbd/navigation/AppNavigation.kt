@@ -223,6 +223,9 @@ object Routes {
     /** Platform CRUD of the inventory systems the branch form picks from. */
     const val INVENTORY_SYSTEMS = "admin/inventory-systems"
 
+    /** Platform CRUD of the trades a branch may say it is in (switch, no delete). */
+    const val BUSINESS_TYPES = "admin/business-types"
+
     /** Platform CRUD of the walkthrough-video links every screen's tutorial button reads. */
     const val TUTORIAL_VIDEOS = "admin/tutorial-videos"
 
@@ -885,6 +888,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        composable(Routes.BUSINESS_TYPES) {
+            // Same gate as the web sidebar's entry; the server adds platform.admin.
+            PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+                com.example.cashbookbd.ui.admin.BusinessTypesScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
         composable(Routes.TUTORIAL_VIDEOS) {
             // Same gate as the web sidebar entry; the server additionally
             // restricts every tutorial-videos route to the platform admin.
@@ -1312,6 +1325,137 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onLogout = backToLogin,
                     bookingId = bookingId,
                 )
+            }
+        }
+
+        // ---- Assets: the fixed-asset register (web `asset` group) ----------
+        // Permission alone, never a business type; the three permissions are
+        // granted to nobody until the operator runs --asset-grant, so the
+        // section stays invisible until then. Routes live on AssetMenu so an
+        // entry and its destination are written down together.
+        run {
+            val asset = com.example.cashbookbd.asset.AssetMenu
+            composable(asset.ROUTE_HOME) {
+                PermissionGate(anyOf = asset.PARENT_PERMISSIONS) {
+                    com.example.cashbookbd.ui.asset.AssetHomeScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(asset.ROUTE_CATEGORIES) {
+                PermissionGate(anyOf = listOf(asset.PERM_CATEGORY_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetCategoriesScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(
+                route = asset.ROUTE_CATEGORY_FORM,
+                arguments = listOf(navArgument(asset.ARG_ID) { type = NavType.LongType; defaultValue = 0L }),
+            ) { entry ->
+                val id = entry.arguments?.getLong(asset.ARG_ID)?.takeIf { it > 0L }
+                PermissionGate(anyOf = listOf(asset.PERM_CATEGORY_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetCategoryFormScreen(
+                        navController = navController, onLogout = backToLogin, categoryId = id,
+                    )
+                }
+            }
+            composable(asset.ROUTE_REGISTER) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetRegisterScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(
+                route = asset.ROUTE_REGISTER_FORM,
+                arguments = listOf(
+                    navArgument(asset.ARG_ID) { type = NavType.LongType; defaultValue = 0L },
+                    navArgument(asset.ARG_BRANCH) { type = NavType.LongType; defaultValue = 0L },
+                ),
+            ) { entry ->
+                val id = entry.arguments?.getLong(asset.ARG_ID)?.takeIf { it > 0L }
+                val branch = entry.arguments?.getLong(asset.ARG_BRANCH)?.takeIf { it > 0L }
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetRegisterFormScreen(
+                        navController = navController, onLogout = backToLogin, assetId = id, branchId = branch,
+                    )
+                }
+            }
+            composable(
+                route = asset.ROUTE_DISPOSAL,
+                arguments = listOf(navArgument(asset.ARG_ASSET_ID) { type = NavType.LongType }),
+            ) { entry ->
+                val assetId = entry.arguments?.getLong(asset.ARG_ASSET_ID) ?: 0L
+                // Deliberately the depreciation permission, not the register's:
+                // selling an asset writes a voucher.
+                PermissionGate(anyOf = listOf(asset.PERM_DEPRECIATION_RUN)) {
+                    com.example.cashbookbd.ui.asset.AssetDisposalScreen(
+                        navController = navController, onLogout = backToLogin, assetId = assetId,
+                    )
+                }
+            }
+            composable(
+                route = asset.ROUTE_CARE,
+                arguments = listOf(navArgument(asset.ARG_ASSET_ID) { type = NavType.LongType }),
+            ) { entry ->
+                val assetId = entry.arguments?.getLong(asset.ARG_ASSET_ID) ?: 0L
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetCareScreen(
+                        navController = navController, onLogout = backToLogin, assetId = assetId,
+                    )
+                }
+            }
+            composable(asset.ROUTE_DEPRECIATION) {
+                PermissionGate(anyOf = listOf(asset.PERM_DEPRECIATION_RUN)) {
+                    com.example.cashbookbd.ui.asset.AssetDepreciationScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(asset.ROUTE_SCHEDULE) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetScheduleScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(asset.ROUTE_HANDOVERS) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetHandoversScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(asset.ROUTE_VERIFICATION) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetVerificationScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+        }
+
+        // ---- The six accounts screens (web acd3d4f5 / api c2ffabbf) --------
+        // Four under Transaction, two under Reports, each on the single
+        // permission its controller checks.
+        run {
+            val accounts = com.example.cashbookbd.accounts.AccountsMenu
+            composable(accounts.ROUTE_BANK_RECONCILIATION) {
+                PermissionGate(anyOf = listOf(accounts.PERM_BANK_RECONCILIATION)) {
+                    com.example.cashbookbd.ui.accounts.BankReconciliationScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(accounts.ROUTE_CHEQUE_REGISTER) {
+                PermissionGate(anyOf = listOf(accounts.PERM_CHEQUE_REGISTER)) {
+                    com.example.cashbookbd.ui.accounts.ChequeRegisterScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(accounts.ROUTE_YEAR_CLOSING) {
+                PermissionGate(anyOf = listOf(accounts.PERM_YEAR_CLOSING)) {
+                    com.example.cashbookbd.ui.accounts.YearClosingScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(accounts.ROUTE_BUDGET) {
+                PermissionGate(anyOf = listOf(accounts.PERM_BUDGET)) {
+                    com.example.cashbookbd.ui.accounts.BudgetScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(accounts.ROUTE_AGEING) {
+                PermissionGate(anyOf = listOf(accounts.PERM_AGEING)) {
+                    com.example.cashbookbd.ui.accounts.AgeingScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(accounts.ROUTE_AUDIT_TRAIL) {
+                PermissionGate(anyOf = listOf(accounts.PERM_AUDIT_TRAIL)) {
+                    com.example.cashbookbd.ui.accounts.AuditTrailScreen(navController = navController, onLogout = backToLogin)
+                }
             }
         }
 

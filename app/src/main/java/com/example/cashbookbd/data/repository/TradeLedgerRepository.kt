@@ -427,15 +427,9 @@ class TradeLedgerRepository(
         return TradeLedgerTotals(quantity, total, discount, payment, balance)
     }
 
-    /** The web's formatTransportationNumber: upper-cased prefix, one space. */
-    private fun formatVehicleNo(raw: String): String {
-        val trimmed = raw.trim()
-        if (trimmed.isEmpty()) return ""
-        val splitAt = trimmed.indexOfFirst { it.isDigit() }
-        if (splitAt <= 0) return trimmed.uppercase()
-        return trimmed.substring(0, splitAt).trim().uppercase() + " " +
-            trimmed.substring(splitAt).trim()
-    }
+    /** The web's formatTransportationNumber — capitals on every path (515b1071). */
+    private fun formatVehicleNo(raw: String): String =
+        com.example.cashbookbd.core.VehicleFormat.format(raw)
 
     // ---- JSON helpers ------------------------------------------------------
 

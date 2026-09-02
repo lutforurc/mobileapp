@@ -1,6 +1,5 @@
 package com.example.cashbookbd.ui.reports
 
-import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.app.DatePickerDialog
@@ -10,31 +9,25 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,27 +45,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.FilterActions
-import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
-import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.SummaryTile
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.reports.model.BalanceSheetColumns
 import com.example.cashbookbd.ui.reports.model.BalanceSheetGroup
 import com.example.cashbookbd.ui.reports.model.BalanceSheetItem
 import com.example.cashbookbd.ui.reports.model.BalanceSheetReport
-import com.example.cashbookbd.ui.reports.model.BalanceSheetSection
-import com.example.cashbookbd.ui.reports.model.BalanceSheetSummaryItem
+import com.example.cashbookbd.ui.reports.model.BalanceSheetSubsection
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.core.AmountFormat
 
 /**
- * Balance Sheet, matching the web report: summary boxes (Total Assets,
- * Liabilities + Equity, Difference), then the Assets / Liabilities / Equity
- * sections as Particulars | Opening | Movement | Closing tables — one tappable
- * row per group (with its item count) that opens the group's item breakdown —
- * and a Final Position card at the bottom.
+ * Balance Sheet in its standard shape (react 4c718343 / 303d2df1 / 84bf7deb):
+ * ONE running table, the shape the trial balance already has — Serial ·
+ * Description · Opening (Dr, Cr) · Movement (Dr, Cr) · Closing (Dr, Cr).
+ * Assets sit in the Dr column, liabilities and equity in the Cr column, which
+ * is what makes the grand totals agree in all three columns when the sheet
+ * balances. Each side is broken by the chart's level-2 heads (Current Assets,
+ * Fixed Asset, Capital Account…), and a section carrying accumulated
+ * depreciation draws it as one "Less:" line then "Net" — never two lines at
+ * the same level, since adding depreciation to cost is the mistake the layout
+ * exists to prevent. An older server without `sections` gets the flat lists
+ * under the same headings, readable without the Current/Fixed split.
  */
 @Composable
 fun BalanceSheetReportScreen(
@@ -251,49 +249,153 @@ private fun Results(state: BalanceSheetUiState, onRetry: () -> Unit) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// The sheet, as lines
+// ---------------------------------------------------------------------------
+
+/** Which money column a line's figures sit in. */
+private enum class Side { DR, CR, NONE }
+
+private enum class LineKind { SECTION, SUBSECTION, ITEM, LESS, SUBTOTAL, TOTAL, GRAND }
+
+/**
+ * One row of the running table — the web's SheetLine. A band (section),
+ * a level-2 heading, a numbered group that opens its accounts, the Less line,
+ * a subsection's Net/Total, a side's Total, and the grand total at the foot.
+ */
+private data class SheetLine(
+    val kind: LineKind,
+    val label: String,
+    val side: Side = Side.NONE,
+    val columns: BalanceSheetColumns? = null,
+    val serial: Int? = null,
+    /** The group behind an ITEM line, for the breakdown sheet. */
+    val group: BalanceSheetGroup? = null,
+    val sectionTitle: String = "",
+) {
+    val isBand: Boolean get() = kind == LineKind.SECTION
+    val isBold: Boolean get() = kind != LineKind.ITEM && kind != LineKind.LESS && kind != LineKind.SUBSECTION
+    val isSummary: Boolean get() = kind == LineKind.SUBTOTAL || kind == LineKind.TOTAL || kind == LineKind.GRAND
+}
+
+/**
+ * The web's emission order (pushSectioned): band, then per level-2 head its
+ * heading and numbered items, then Less/Net or Total, then the side's total;
+ * and after all three sides, Total Liabilities & Equity. Serials run straight
+ * through every side, as on the paper.
+ */
+private fun buildLines(report: BalanceSheetReport): List<SheetLine> {
+    val lines = mutableListOf<SheetLine>()
+    var serial = 0
+    val sideTotals = mutableMapOf<String, BalanceSheetColumns>()
+
+    val sides: List<Triple<String, Side, List<BalanceSheetSubsection>>> = if (report.hasSections) {
+        listOf(
+            Triple("Assets", Side.DR, report.sectioned["Assets"].orEmpty()),
+            Triple("Liabilities", Side.CR, report.sectioned["Liabilities"].orEmpty()),
+            Triple("Equity", Side.CR, report.sectioned["Equity"].orEmpty()),
+        )
+    } else {
+        // The fallback for an older server: the flat lists under the same
+        // headings, one unnamed subsection each, readable without the split.
+        report.sections.map { section ->
+            val side = if (section.title == "Assets") Side.DR else Side.CR
+            Triple(
+                section.title, side,
+                listOf(
+                    BalanceSheetSubsection(
+                        name = "",
+                        groups = section.groups,
+                        columns = BalanceSheetColumns(section.opening, section.movement, section.closing),
+                    )
+                ),
+            )
+        }
+    }
+
+    for ((title, side, subsections) in sides) {
+        if (subsections.isEmpty()) continue
+        lines += SheetLine(LineKind.SECTION, title, sectionTitle = title)
+        var sideTotal = BalanceSheetColumns.ZERO
+        for (sub in subsections) {
+            if (sub.name.isNotBlank()) lines += SheetLine(LineKind.SUBSECTION, sub.name, sectionTitle = title)
+            for (group in sub.listedGroups) {
+                serial += 1
+                lines += SheetLine(
+                    kind = LineKind.ITEM,
+                    label = group.title,
+                    side = side,
+                    columns = BalanceSheetColumns(group.opening, group.movement, group.closing),
+                    serial = serial,
+                    group = group,
+                    sectionTitle = title,
+                )
+            }
+            when {
+                sub.hasContra -> {
+                    // Negated from what the server reports, so the deduction
+                    // reads in brackets under the cost it comes off.
+                    lines += SheetLine(
+                        kind = LineKind.LESS,
+                        label = "Less: Accumulated Depreciation",
+                        side = side,
+                        columns = (sub.depreciation ?: BalanceSheetColumns.ZERO).negated(),
+                        sectionTitle = title,
+                    )
+                    lines += SheetLine(LineKind.SUBTOTAL, "Net ${sub.name}", side, sub.columns, sectionTitle = title)
+                }
+                sub.name.isNotBlank() ->
+                    lines += SheetLine(LineKind.SUBTOTAL, "Total ${sub.name}", side, sub.columns, sectionTitle = title)
+            }
+            sideTotal += sub.columns
+        }
+        sideTotals[title] = sideTotal
+        val totalLabel = if (report.hasSections || title == "Assets") "Total $title" else "$title Total"
+        lines += SheetLine(LineKind.TOTAL, totalLabel, side, sideTotal, sectionTitle = title)
+    }
+
+    val liabAndEquity = (sideTotals["Liabilities"] ?: BalanceSheetColumns.ZERO) +
+        (sideTotals["Equity"] ?: BalanceSheetColumns.ZERO)
+    if (sideTotals.containsKey("Liabilities") || sideTotals.containsKey("Equity")) {
+        lines += SheetLine(LineKind.GRAND, "Total Liabilities & Equity", Side.CR, liabAndEquity)
+    }
+    return lines
+}
+
 @Composable
 private fun ReportContent(
     report: BalanceSheetReport,
     branchName: String?,
     range: String?,
 ) {
-    // The group whose item breakdown is open (with its section title), if any.
+    // The group whose account breakdown is open (with its side's title), if any.
     var selectedGroup by remember { mutableStateOf<Pair<String, BalanceSheetGroup>?>(null) }
+    val lines = remember(report) { buildLines(report) }
+    val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
+    val band = MaterialTheme.colorScheme.secondaryContainer
+    val columns = remember(summaryInk) {
+        sheetColumns(summaryInk) { line -> line.group?.let { selectedGroup = line.sectionTitle to it } }
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 24.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         val subtitle = listOfNotNull(branchName, range).joinToString("  •  ")
         if (subtitle.isNotBlank()) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.appColors.textOnScreenMuted,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
             )
         }
-
-        if (report.summary.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                report.summary.forEach { SummaryBox(it) }
-            }
+        Box(modifier = Modifier.weight(1f)) {
+            ReportTable(
+                columns = columns,
+                data = lines,
+                headerGroups = sheetHeaderGroups,
+                rowBackground = { line, _ -> if (line.isBand || line.isSummary) band else null },
+            )
         }
-
-        report.sections.forEach { section ->
-            SectionBlock(section, onGroupClick = { selectedGroup = section.title to it })
-            Spacer(Modifier.height(12.dp))
-        }
-
-        FinalPositionCard(report = report, branchName = branchName, range = range)
+        DifferenceNote(report)
     }
 
     selectedGroup?.let { (sectionTitle, group) ->
@@ -305,176 +407,117 @@ private fun ReportContent(
     }
 }
 
+/**
+ * The web shows its net-profit debug block only when the two sides disagree;
+ * here one line says by how much, so a reader knows to look at the chart.
+ */
 @Composable
-private fun SummaryBox(item: BalanceSheetSummaryItem) {
-    StatTile(label = item.label, value = formatSigned(item.value))
+private fun DifferenceNote(report: BalanceSheetReport) {
+    val difference = report.summary.firstOrNull { it.label == "Difference" }?.value ?: 0.0
+    if (kotlin.math.abs(difference) <= 0.009) return
+    Text(
+        text = "Difference detected: ${formatSigned(difference)}. " +
+            "Please review opening, movement, or group mapping.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.appColors.danger,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
-/** A small labelled figure box (the summary row and the breakdown's stats). */
-@Composable
-private fun StatTile(label: String, value: String) {
-    SummaryTile {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = AppFontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
+// # | Description | Opening Dr Cr | Movement Dr Cr | Closing Dr Cr — the
+// trial balance's grid, so the two reports read the same way.
+private val BS_COL_SL = 44.dp
+private val BS_COL_DESC = 176.dp
+private val BS_COL_NUM = 96.dp
 
-// PARTICULARS | OPENING | MOVEMENT | CLOSING — one row per group, as on the
-// web. The name cell carries the item-count badge and opens the breakdown.
-private val BS_COL_PARTICULARS = 170.dp
-private val BS_COL_AMOUNT = 100.dp
-
-private fun balanceSheetColumns(onGroupClick: (BalanceSheetGroup) -> Unit) = listOf(
-    ReportColumn<BalanceSheetGroup>("PARTICULARS", ReportColWidth.Fixed(BS_COL_PARTICULARS)) { g, _ ->
-        ReportTableCell.Slot { GroupNameCell(group = g, onClick = { onGroupClick(g) }) }
-    },
-    ReportColumn<BalanceSheetGroup>("OPENING", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { g, _ ->
-        cellText(amountOrDash(g.opening), align = TextAlign.End)
-    },
-    ReportColumn<BalanceSheetGroup>("MOVEMENT", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { g, _ ->
-        cellText(amountOrDash(g.movement), align = TextAlign.End)
-    },
-    ReportColumn<BalanceSheetGroup>("CLOSING", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { g, _ ->
-        cellText(amountOrDash(g.closing), align = TextAlign.End)
-    },
+private val sheetHeaderGroups = listOf(
+    ReportHeaderGroup("", 1),
+    ReportHeaderGroup("", 1),
+    ReportHeaderGroup("OPENING", 2),
+    ReportHeaderGroup("MOVEMENT", 2),
+    ReportHeaderGroup("CLOSING", 2),
 )
 
-/** Group name in bold with the web's "N items" badge beneath; taps open the breakdown. */
+private fun sheetColumns(
+    summaryInk: Color,
+    onItemClick: (SheetLine) -> Unit,
+): List<ReportColumn<SheetLine>> {
+    fun ink(line: SheetLine) = if (line.isBand || line.isSummary) summaryInk else Color.Unspecified
+    fun money(line: SheetLine, value: Double?, side: Side): ReportTableCell =
+        cellText(
+            text = if (value == null || line.side != side) "-" else amountCell(value),
+            align = TextAlign.End,
+            bold = line.isBold,
+            color = ink(line),
+        )
+    return listOf(
+        ReportColumn("#", ReportColWidth.Fixed(BS_COL_SL), TextAlign.Center) { line, _ ->
+            cellText(line.serial?.toString() ?: "", align = TextAlign.Center, color = ink(line))
+        },
+        ReportColumn("DESCRIPTION", ReportColWidth.Fixed(BS_COL_DESC)) { line, _ ->
+            if (line.kind == LineKind.ITEM) {
+                ReportTableCell.Slot { ItemNameCell(line, onClick = { onItemClick(line) }) }
+            } else {
+                cellText(
+                    text = line.label,
+                    bold = line.isBold || line.kind == LineKind.SUBSECTION,
+                    color = ink(line),
+                    maxLines = 2,
+                    // The deduction is indented under the cost it comes off.
+                    startPadding = if (line.kind == LineKind.LESS) 12.dp else 0.dp,
+                )
+            }
+        },
+        ReportColumn("DR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.opening, Side.DR) },
+        ReportColumn("CR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.opening, Side.CR) },
+        ReportColumn("DR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.movement, Side.DR) },
+        ReportColumn("CR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.movement, Side.CR) },
+        ReportColumn("DR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.closing, Side.DR) },
+        ReportColumn("CR", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { l, _ -> money(l, l.columns?.closing, Side.CR) },
+    )
+}
+
+/** A numbered group's name with its account count beneath; taps open the breakdown. */
 @Composable
-private fun GroupNameCell(group: BalanceSheetGroup, onClick: () -> Unit) {
+private fun ItemNameCell(line: SheetLine, onClick: () -> Unit) {
+    val count = line.group?.items?.size ?: 0
     Column(
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         Text(
-            text = group.title,
+            text = line.label,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = AppFontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = itemCountLabel(group.items.size),
+            text = "$count account" + if (count == 1) "" else "s",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground.muted(),
+            color = MaterialTheme.appColors.textOnScreenMuted,
         )
     }
 }
 
-private fun itemCountLabel(count: Int): String =
-    "$count item" + if (count == 1) "" else "s"
-
-@Composable
-private fun SectionBlock(
-    section: BalanceSheetSection,
-    onGroupClick: (BalanceSheetGroup) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // Section title
-        Text(
-            text = section.title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = AppFontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
-        )
-        ReportTable(
-            columns = balanceSheetColumns(onGroupClick),
-            data = section.groups,
-            footerRows = listOf(
-                listOf(
-                    ReportFooterCell(cellText("Total ${section.title}", bold = true)),
-                    ReportFooterCell(cellText(amountOrDash(section.opening), align = TextAlign.End, bold = true)),
-                    ReportFooterCell(cellText(amountOrDash(section.movement), align = TextAlign.End, bold = true)),
-                    ReportFooterCell(cellText(amountOrDash(section.closing), align = TextAlign.End, bold = true)),
-                ),
-            ),
-            // Embedded in the screen's outer vertical scroll.
-            scrollable = false,
-        )
-    }
-}
-
-/** The web's bottom "Final Position" card: Liabilities + Equity, plus a difference warning. */
-@Composable
-private fun FinalPositionCard(report: BalanceSheetReport, branchName: String?, range: String?) {
-    val liabAndEquity = report.summary.firstOrNull { it.label == "Liabilities + Equity" }?.value ?: 0.0
-    val difference = report.summary.firstOrNull { it.label == "Difference" }?.value ?: 0.0
-
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Final Position",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = AppFontWeight.SemiBold,
-                    )
-                    val caption = listOfNotNull(branchName, range).joinToString("  •  ")
-                    if (caption.isNotBlank()) {
-                        Text(
-                            text = caption,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Liabilities + Equity",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = formatSigned(liabAndEquity),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = AppFontWeight.Bold,
-                    )
-                }
-            }
-            if (kotlin.math.abs(difference) > 0.009) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Difference detected: ${formatSigned(difference)}. " +
-                        "Please review opening, movement, or group mapping.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
-}
-
-// PARTICULAR | OPENING | MOVEMENT | CLOSING for the breakdown's items.
+// PARTICULAR | OPENING | MOVEMENT | CLOSING for the breakdown's accounts.
 private val groupItemColumns = listOf(
     ReportColumn<BalanceSheetItem>("PARTICULAR", ReportColWidth.Fixed(150.dp)) { item, _ ->
         cellText(item.description.ifBlank { "-" }, maxLines = 2)
     },
-    ReportColumn<BalanceSheetItem>("OPENING", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { item, _ ->
-        cellText(amountOrDash(item.opening), align = TextAlign.End)
+    ReportColumn<BalanceSheetItem>("OPENING", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { item, _ ->
+        cellText(amountCell(item.opening), align = TextAlign.End)
     },
-    ReportColumn<BalanceSheetItem>("MOVEMENT", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { item, _ ->
-        cellText(amountOrDash(item.movement), align = TextAlign.End)
+    ReportColumn<BalanceSheetItem>("MOVEMENT", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { item, _ ->
+        cellText(amountCell(item.movement), align = TextAlign.End)
     },
-    ReportColumn<BalanceSheetItem>("CLOSING", ReportColWidth.Fixed(BS_COL_AMOUNT), TextAlign.End) { item, _ ->
-        cellText(amountOrDash(item.closing), align = TextAlign.End, bold = true)
+    ReportColumn<BalanceSheetItem>("CLOSING", ReportColWidth.Fixed(BS_COL_NUM), TextAlign.End) { item, _ ->
+        cellText(amountCell(item.closing), align = TextAlign.End, bold = true)
     },
 )
 
-/** The web's GroupDetailsModal: stats for the tapped group, then its items. */
+/** The web's GroupDetailsModal: stats for the tapped group, then its accounts. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GroupDetailsSheet(
@@ -505,7 +548,7 @@ private fun GroupDetailsSheet(
                 StatTile("Opening", formatSigned(group.opening))
                 StatTile("Movement", formatSigned(group.movement))
                 StatTile("Closing", formatSigned(group.closing))
-                StatTile("Items", group.items.size.toString())
+                StatTile("Accounts", group.items.size.toString())
             }
             ReportTable(
                 columns = groupItemColumns,
@@ -514,6 +557,27 @@ private fun GroupDetailsSheet(
                 scrollable = false,
             )
         }
+    }
+}
+
+/** A small labelled figure box (the breakdown's stats). */
+@Composable
+private fun StatTile(label: String, value: String) {
+    SummaryTile {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = AppFontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -527,8 +591,12 @@ private fun CenterBox(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** Zero renders as "-" in table cells, per the app-wide report convention. */
-private fun amountOrDash(value: Double): String = AmountFormat.formatOrDash(value)
+/** Zero is a dash and a negative is bracketed — screen and paper agree (web 84bf7deb). */
+private fun amountCell(value: Double): String = when {
+    kotlin.math.abs(value) < 0.005 -> "-"
+    value < 0 -> "(${AmountFormat.format(-value)})"
+    else -> AmountFormat.format(value)
+}
 
 /** The web's formatAmount: negatives are parenthesised — (1,234.00). */
 private fun formatSigned(value: Double): String =

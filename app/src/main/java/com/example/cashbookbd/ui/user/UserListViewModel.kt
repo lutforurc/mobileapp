@@ -32,7 +32,8 @@ class UserListViewModel(
     fun load(page: Int, silent: Boolean = false) {
         if (!silent) _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            when (val result = repository.loadUsers(page, USERS_PER_PAGE, _uiState.value.searchQuery)) {
+            val current = _uiState.value
+            when (val result = repository.loadUsers(page, USERS_PER_PAGE, current.searchQuery, current.allCompanies)) {
                 is Resource.Success -> _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -58,6 +59,13 @@ class UserListViewModel(
 
     /** Runs the current query from the first page (the web's Search button). */
     fun onSearch() = load(page = 1)
+
+    /** Flipping the company scope starts over from page 1, like the web. */
+    fun onAllCompanies(on: Boolean) {
+        if (_uiState.value.allCompanies == on) return
+        _uiState.update { it.copy(allCompanies = on) }
+        load(page = 1)
+    }
 
     fun nextPage() {
         if (_uiState.value.canNext) load(_uiState.value.currentPage + 1)

@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
+import com.example.cashbookbd.ui.reports.model.AgeParts
 import com.example.cashbookbd.ui.reports.model.DueListReport
 import com.example.cashbookbd.ui.reports.model.DueRow
 import com.google.gson.JsonArray
@@ -142,6 +143,12 @@ class DueListRepository(
                     areaCode = it.stringOrNull(AREA_KEYS),
                     debit = it.number(DEBIT_KEYS),
                     credit = it.number(CREDIT_KEYS),
+                    ageing = it.ageingBuckets(),
+                    oldestDays = it.number(listOf("oldest_days")).toInt(),
+                    oldestAge = it.ageParts("oldest_age"),
+                    lastPaid = it.stringOrNull(listOf("last_paid"))?.take(10),
+                    lastPaidAge = it.ageParts("last_paid_age"),
+                    lastPaidDays = it.intOrNull("last_paid_days"),
                 )
             }
 
@@ -220,4 +227,35 @@ class DueListRepository(
     }
 
     private fun JsonElement.asObjectOrNull(): JsonObject? = if (isJsonObject) asJsonObject else null
+
+    /**
+     * The four ageing buckets in the server's fixed order (0-30, 31-60, 61-90,
+     * 90+), matched by label rather than position so a reordered array cannot
+     * put a fresh debt in the red column. Missing = four zeros.
+     */
+    private fun Map<String, JsonElement>.ageingBuckets(): List<Double> {
+        val arr = get("ageing")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?: return listOf(0.0, 0.0, 0.0, 0.0)
+        val byLabel = arr.mapNotNull { it.asObjectOrNull() }.associate { o ->
+            val label = o.get("label")?.takeUnless { it.isJsonNull }?.asString.orEmpty().trim()
+            val amount = o.get("amount")?.takeUnless { it.isJsonNull }
+                ?.takeIf { it.isJsonPrimitive }?.asString?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+            label to amount
+        }
+        return AGEING_LABELS.map { byLabel[it] ?: 0.0 }
+    }
+
+    /** A `{y, m, d}` object, or null when the server sent none. */
+    private fun Map<String, JsonElement>.ageParts(key: String): AgeParts? {
+        val o = get(key)?.asObjectOrNull() ?: return null
+        fun part(k: String) = o.get(k)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.toDoubleOrNull()?.toInt() ?: 0
+        return AgeParts(part("y"), part("m"), part("d"))
+    }
+
+    private fun Map<String, JsonElement>.intOrNull(key: String): Int? =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.toDoubleOrNull()?.toInt()
 }
+
+private val AGEING_LABELS = listOf("0-30", "31-60", "61-90", "90+")

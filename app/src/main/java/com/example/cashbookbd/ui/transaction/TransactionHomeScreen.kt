@@ -111,12 +111,14 @@ private fun TransactionRowItem(item: TransactionItem, onClick: () -> Unit) {
 
 /** Installments opens the customer installment schedule; the rest open a form. */
 private fun NavHostController.openTransaction(item: TransactionItem) {
-    val route = if (item.key == "installments") {
+    // The four accounts screens have screens of their own (ui/accounts).
+    val accounts = com.example.cashbookbd.accounts.AccountsMenu.byKey(item.key)
+    val route = when {
+        accounts != null -> accounts.route
         // The web's Installments page (receive per row) — the Due Installments
         // report stays under Reports.
-        Routes.INSTALLMENTS
-    } else {
-        Routes.txnView(item.key)
+        item.key == "installments" -> Routes.INSTALLMENTS
+        else -> Routes.txnView(item.key)
     }
     navigate(route)
 }

@@ -98,6 +98,7 @@ fun AdminHomeScreen(
                             item.key == "softwareInfo" -> Routes.SOFTWARE_INFO
                             item.key == "arrangeMenu" -> Routes.ARRANGE_MENU
                             item.key == "productTracking" -> Routes.PRODUCT_TRACKING_SETTINGS
+                            item.key == AdminMenu.BUSINESS_TYPES_KEY -> Routes.BUSINESS_TYPES
                             item.key == "inventorySystems" -> Routes.INVENTORY_SYSTEMS
                             item.key == "tutorialVideos" -> Routes.TUTORIAL_VIDEOS
                             item.key == "inAppMessages" -> Routes.IN_APP_MESSAGES

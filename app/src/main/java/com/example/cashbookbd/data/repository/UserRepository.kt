@@ -37,6 +37,8 @@ data class UserRow(
     val role: String,
     /** Sign-in allowed. Anything but an explicit 0 counts as enabled (web rule). */
     val enabled: Boolean = true,
+    /** The user's company — only meaningful when the list spans every company. */
+    val company: String = "",
 )
 
 /** A page of [UserRow]s with the paginator meta the footer needs. */
@@ -181,7 +183,18 @@ class UserRepository(
      * wrapped by foundData, so the rows sit three levels deep at
      * `data.data.data`, alongside the `current_page`/`last_page`/`total` meta.
      */
-    suspend fun loadUsers(page: Int, perPage: Int, search: String): Resource<UserPage> = withContext(ioDispatcher) {
+    suspend fun loadUsers(
+        page: Int,
+        perPage: Int,
+        search: String,
+        /**
+         * Every company's users, not just the caller's (web b40a7bd2 / api
+         * c0df19d7). The server checks the platform company first, THEN
+         * `all.user.view`; anyone else is silently scoped to their own company,
+         * so sending it is never a leak — only a request.
+         */
+        allCompanies: Boolean = false,
+    ): Resource<UserPage> = withContext(ioDispatcher) {
         try {
             val response = api.get(
                 "user/user-list",
@@ -190,6 +203,7 @@ class UserRepository(
                     "per_page" to perPage.toString(),
                     "search" to search.trim(),
                     "owners_only" to "0",
+                    "all_tenant_users" to if (allCompanies) "1" else "0",
                 ),
             )
             if (response.code() == HTTP_UNAUTHORIZED) {
@@ -421,6 +435,7 @@ class UserRepository(
             email = str("email").orEmpty(),
             phone = str("phone").orEmpty(),
             branch = str("branch").orEmpty(),
+            company = str("company").orEmpty(),
             // The row's primary role name (may be "Super Administrator"); the
             // roles[] array drops it, so fall back to that only when blank.
             role = str("role") ?: firstOfArray("roles").orEmpty(),

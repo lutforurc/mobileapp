@@ -21,6 +21,13 @@ object TransactionMenu {
     // The web sidebar's order (2026-08-04): the cash/bank pairs first,
     // Installments after them.
     val all: List<TransactionItem> = listOf(
+        // The four accounts screens the web hangs at the top of Transaction
+        // (acd3d4f5) — each on its own view/run permission, the keys the
+        // controllers themselves check. Screens live under ui/accounts.
+        TransactionItem("bankReconciliation", "Bank Reconciliation", listOf("bank.reconciliation.view")),
+        TransactionItem("chequeRegister", "Cheque Register", listOf("cheque.register.view")),
+        TransactionItem("yearClosing", "Year Closing", listOf("year.closing.run")),
+        TransactionItem("budget", "Budget", listOf("budget.view")),
         TransactionItem("cashReceived", "Cash Received", listOf("cash.received.create")),
         TransactionItem("cashPayment", "Cash Payment", listOf("cash.payment.create")),
         TransactionItem("bankReceived", "Bank Received", listOf("bank.received.create")),

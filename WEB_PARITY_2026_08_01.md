@@ -1,5 +1,89 @@
 # Web parity — 2026-08-01
 
+> **Matched to react `1e7644af` (Lutfor-Rahman) / api `f4f87e2f` (main) —
+> 2026-09-02.** The queue the 08-28 pass left is largely cleared:
+>
+> - **Fixed-asset register** — its own drawer section "Assets" (between Hotel
+>   and Products, web menu id `asset`; permission alone, `asset.category.view`
+>   / `asset.register.view` / `asset.depreciation.run`, granted to nobody until
+>   `patch:add-unit-type --asset-grant`). The web's seven tabs are seven
+>   screens under `ui/asset`: Categories (rates and the four ledger heads;
+>   delete only with no assets under it), Register (search/category/status,
+>   15 a page; edit, sell/write off, care panel, delete only while nothing has
+>   been charged; cost and brought-forward frozen once a year is charged),
+>   Depreciation (plan → "Charge X" behind a confirm, Undo behind a confirm —
+>   both REAL vouchers, whole taka, 30 June year end, by the day in the first
+>   and last year), Schedule (zero is a dash; amber "not charged yet" banner),
+>   Handovers (who has what, `asset/movements`), Verification (There /
+>   Damaged / Not there; tapping the chosen one again unticks — `found: null`;
+>   optimistic with rollback), and the asset's own care panel (custody to a
+>   STAFF MEMBER or a BRANCH by id, never free text — web 9ce160b7 / api
+>   0bd0709b; the count; upkeep — nothing here posts). Under-construction
+>   (CWIP) and the QR label sheet stay web-only. Routes live on `AssetMenu`.
+> - **Six accounts screens** (react acd3d4f5 / api c2ffabbf) — four at the top
+>   of Transaction (Bank Reconciliation, Cheque Register, Year Closing,
+>   Budget) and two at the top of Reports (Ageing, Audit Trail), each on the
+>   one permission its controller checks (`bank.reconciliation.view`,
+>   `cheque.register.view` — NOT check.register.view, `year.closing.run`,
+>   `budget.view`, `ageing.report.view`, `audit.trail.view`). Every act that
+>   writes a voucher (close a statement, bounce a cheque, run or reverse a
+>   year) sits behind a confirm. Screens under `ui/accounts`, routes on
+>   `AccountsMenu`; the web's parent menuPermissions mirrored.
+> - **Balance sheet in its standard shape** (api a30c16aa / react 4c718343):
+>   the screen now reads `sections` — the chart's level-2 heads, classified by
+>   the chart rather than by the sign of the balance — and draws ONE running
+>   table like the trial balance: Serial · Description · Opening/Movement/
+>   Closing each Dr and Cr. Assets in Dr, liabilities and equity in Cr; a head
+>   carrying accumulated depreciation draws "Less: Accumulated Depreciation"
+>   then "Net <head>", never two lines at one level; Retained Earnings is the
+>   fourth equity head; the foot is Total Liabilities & Equity. An older
+>   server without `sections` falls back to the flat lists under the same
+>   headings. The summary cards and Final Position card are gone, as on the
+>   web; a difference note shows only when the sides disagree.
+> - **Due list ageing** (api a20af1ed…4daf6db7 / react baad5aec…23063974):
+>   an Ageing switch (on by default) adds Last Paid (date over "7m 29d",
+>   green ≤30 days, amber ≤90, red after; "never" in red for a party never
+>   paid on these books — receipts only) and the four buckets 0-30 / 31-60 /
+>   61-90 / 90+, the last red when non-zero with the oldest item's age
+>   beneath. Area Code column added. The buckets sum to the row's debit, so
+>   the footer deliberately leaves them blank.
+> - **Orders list money** (api df9232ad…0b9b52ad / react fb2eacf7…d1d38e06):
+>   a three-line Bal. Amt cell (PO / DO / Net, magnitudes — the column reads
+>   OUTSTANDING, direction is the order type) and the nine totals in a strip
+>   above the table, computed from the payload's `summary` (whole filter, not
+>   the page), all nine always, a nought written as a nought. The AppList
+>   engine gained `summaryTiles` and `CellFormat.ORDER_OUTSTANDING`.
+> - **User List** — "All companies" switch behind `all.user.view`
+>   (`all_tenant_users=1`; the server also requires the platform company and
+>   quietly scopes everyone else) adding a Company column, and a Mobile column
+>   beside Email grouped by the branch's pattern.
+> - **Business Types** (react 51b6c5d8 / api b7505a39) — Admin, just above
+>   Inventory Systems: form on top, list under, a switch per row and NO bin
+>   (branches store the id; a freed one would be inherited). The public
+>   registration's business-type picker is web-only (this app has no
+>   self-registration).
+> - **Vehicle numbers in capitals** (react 515b1071): one shared
+>   `core/VehicleFormat` (the web's formatTransportationNumber, capitals on
+>   every path), used by the Purchase/Sales Ledger and the generic engine's
+>   new `vehicleColumns` (Customer Supplier Statement's `truck_no`).
+> - **Server-only / no-ops:** the receipt SMS naming its party (api
+>   5780cb84); cash book re-running on return (b2b2cadf) — the phone's screen
+>   keeps its view model while a child screen is open and starts clean from
+>   the drawer, which is exactly the web's new behaviour; rows-per-page
+>   defaults, the DatePicker year guard and the print-designer fixes are
+>   web-only.
+>
+> **Still owed:** hotel phase 3 (folio/bill/receipts, check-out, Housekeeping
+> board, Calendar, Occupancy/ADR/RevPAR reports, halls + sittings, room
+> amenities, per-item VAT + end-of-bill discount, editing a taken booking, the
+> property dashboard) — the hotel permissions are granted to nobody by default
+> so nothing shows until an operator hands them out; the asset CWIP tab; the
+> fixed-asset QR label sheet. Tenant prerequisites for this pass: everything
+> under `php artisan patch:add-unit-type` (asset schema + `--asset-grant`,
+> the six accounts tables + `--bank-grant`), and
+> `2026_08_29_registration_business_type.sql`.
+>
+
 > **Hotel merged, and phase 2 caught up (2026-08-28).** The hotel is no
 > longer on a feature branch: react `Lutfor-Rahman` and api `main` both
 > carry it now, so the "unmerged" caveat below is spent. About fifty new

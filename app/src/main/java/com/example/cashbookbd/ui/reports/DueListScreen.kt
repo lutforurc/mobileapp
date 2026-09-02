@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -97,6 +98,9 @@ fun DueListScreen(
                 onReset = viewModel::reset,
             )
             androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (uiState.report != null && !uiState.isEmptyResult) {
+                AgeingToggle(checked = uiState.showAgeing, onChecked = viewModel::onShowAgeing)
+            }
             Box(modifier = Modifier.weight(1f)) {
                 Results(state = uiState, onRetry = viewModel::apply)
             }
@@ -222,7 +226,30 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
             )
         }
 
-        else -> DueTable(report = state.report)
+        else -> DueTable(report = state.report, showAgeing = state.showAgeing)
+    }
+}
+
+/** The web's Ageing switch, in the row above the table. */
+@Composable
+private fun AgeingToggle(checked: Boolean, onChecked: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Text(
+            text = "Ageing",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = onChecked,
+            modifier = Modifier.scale(0.8f),
+        )
     }
 }
 
@@ -233,57 +260,182 @@ private fun Results(state: DueListUiState, onRetry: () -> Unit) {
 private val COL_SL = 48.dp
 private val COL_PARTY = 200.dp
 private val COL_PAGE = 92.dp
+private val COL_AREA = 80.dp
 private val COL_NUM = 104.dp
+private val COL_LAST_PAID = 112.dp
+private val COL_BUCKET = 96.dp
 
-private val dueListColumns = listOf(
-    ReportColumn<DueRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, i ->
-        cellText((i + 1).toString(), align = TextAlign.Center)
-    },
-    ReportColumn<DueRow>("CUSTOMER/SUPPLIER", ReportColWidth.Fixed(COL_PARTY)) { r, _ ->
-        ReportTableCell.Slot { PartyCell(r) }
-    },
-    ReportColumn<DueRow>("PAGE", ReportColWidth.Fixed(COL_PAGE)) { r, _ ->
-        cellText(r.page ?: "-", maxLines = 2)
-    },
-    ReportColumn<DueRow>("DEBIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.debit), align = TextAlign.End)
-    },
-    ReportColumn<DueRow>("CREDIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
-        cellText(formatCell(r.credit), align = TextAlign.End)
-    },
-)
+/**
+ * The web's column order: Sl · Customer/Supplier · Page · Area Code · Debit ·
+ * Credit, then — with the Ageing switch on — Last Paid and the four buckets.
+ */
+@Composable
+private fun dueListColumns(showAgeing: Boolean): List<ReportColumn<DueRow>> {
+    val danger = MaterialTheme.appColors.danger
+    val success = MaterialTheme.appColors.success
+    val warning = MaterialTheme.appColors.warning
+    return buildList {
+        add(ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, i ->
+            cellText((i + 1).toString(), align = TextAlign.Center)
+        })
+        add(ReportColumn("CUSTOMER/SUPPLIER", ReportColWidth.Fixed(COL_PARTY)) { r, _ ->
+            ReportTableCell.Slot { PartyCell(r) }
+        })
+        add(ReportColumn("PAGE", ReportColWidth.Fixed(COL_PAGE)) { r, _ ->
+            cellText(r.page ?: "-", maxLines = 2)
+        })
+        add(ReportColumn("AREA", ReportColWidth.Fixed(COL_AREA)) { r, _ ->
+            cellText(r.areaCode ?: "-")
+        })
+        add(ReportColumn("DEBIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+            cellText(formatCell(r.debit), align = TextAlign.End)
+        })
+        add(ReportColumn("CREDIT", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
+            cellText(formatCell(r.credit), align = TextAlign.End)
+        })
+        if (!showAgeing) return@buildList
+        add(ReportColumn("LAST PAID", ReportColWidth.Fixed(COL_LAST_PAID), TextAlign.Center) { r, _ ->
+            ReportTableCell.Slot { LastPaidCell(r, success = success, warning = warning, danger = danger) }
+        })
+        listOf("0-30 d", "31-60 d", "61-90 d").forEachIndexed { index, header ->
+            add(ReportColumn(header, ReportColWidth.Fixed(COL_BUCKET), TextAlign.End) { r, _ ->
+                cellText(formatCell(r.ageing.getOrElse(index) { 0.0 }), align = TextAlign.End)
+            })
+        }
+        add(ReportColumn("90+ DAYS", ReportColWidth.Fixed(COL_BUCKET), TextAlign.End) { r, _ ->
+            ReportTableCell.Slot { OverNinetyCell(r, danger = danger) }
+        })
+    }
+}
 
 @Composable
-private fun DueTable(report: com.example.cashbookbd.ui.reports.model.DueListReport) {
+private fun DueTable(report: com.example.cashbookbd.ui.reports.model.DueListReport, showAgeing: Boolean) {
+    val columns = dueListColumns(showAgeing)
     ReportTable(
-        columns = dueListColumns,
+        columns = columns,
         data = report.rows,
-        footerRows = dueFooterRows(report),
+        footerRows = dueFooterRows(report, columns.size),
     )
+}
+
+/**
+ * Last Paid (web d6044d19 / 23063974): the receipt date over its age, coloured
+ * by how recent it is — the thresholds are the bucket edges, 30 and 90 days.
+ * A party never paid on these books says "never", in red, with no date line:
+ * a quiet account reads differently from a slow one.
+ */
+@Composable
+private fun LastPaidCell(
+    row: DueRow,
+    success: androidx.compose.ui.graphics.Color,
+    warning: androidx.compose.ui.graphics.Color,
+    danger: androidx.compose.ui.graphics.Color,
+) {
+    val tone = when {
+        row.lastPaidDays == null -> danger
+        row.lastPaidDays <= 30 -> success
+        row.lastPaidDays <= 90 -> warning
+        else -> danger
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (row.lastPaid == null) {
+            Text(
+                text = "never",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = AppFontWeight.SemiBold,
+                color = danger,
+            )
+        } else {
+            Text(
+                text = displayDate(row.lastPaid),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+            )
+            row.lastPaidAge?.let {
+                Text(
+                    text = it.format(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = AppFontWeight.SemiBold,
+                    color = tone,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The 90+ bucket in red when anything sits in it, with the oldest item's age
+ * beneath (web 5f491c2f / baad5aec) — the figure says how much, the age says
+ * how long somebody has been waiting.
+ */
+@Composable
+private fun OverNinetyCell(row: DueRow, danger: androidx.compose.ui.graphics.Color) {
+    val amount = row.ageing.getOrElse(3) { 0.0 }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Text(
+            text = formatCell(amount),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (amount > 0) danger else MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+        )
+        if (amount > 0 && row.oldestDays > 90) {
+            row.oldestAge?.let {
+                Text(
+                    text = it.format(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = danger,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** yyyy-MM-dd → dd/MM/yyyy; anything else verbatim. */
+private fun displayDate(raw: String): String {
+    val m = Regex("""^(\d{4})-(\d{2})-(\d{2})""").find(raw) ?: return raw
+    val (y, mo, d) = m.destructured
+    return "$d/$mo/$y"
 }
 
 /** Total and the net Balance rows, mirroring the backend's summary lines. */
 private fun dueFooterRows(
     report: com.example.cashbookbd.ui.reports.model.DueListReport,
+    columnCount: Int,
 ): List<List<ReportFooterCell>> = listOf(
-    dueFooterRow("Total", report.totalDebit, report.totalCredit),
+    dueFooterRow("Total", report.totalDebit, report.totalCredit, columnCount),
     dueFooterRow(
         "Balance",
         // Net balance shows on the side it falls: receivable → debit, advance → credit.
         if (report.netBalance >= 0) report.netBalance else 0.0,
         if (report.netBalance < 0) -report.netBalance else 0.0,
+        columnCount,
     ),
 )
 
-/** A bold Total / Balance footer row with the label under the party column. */
-private fun dueFooterRow(label: String, debit: Double, credit: Double): List<ReportFooterCell> =
-    listOf(
-        ReportFooterCell(ReportTableCell.Empty),                    // SL
-        ReportFooterCell(cellText(label, bold = true)),             // party
-        ReportFooterCell(ReportTableCell.Empty),                    // page
-        ReportFooterCell(cellText(formatCell(debit), align = TextAlign.End, bold = true)),
-        ReportFooterCell(cellText(formatCell(credit), align = TextAlign.End, bold = true)),
-    )
+/**
+ * A bold Total / Balance footer row with the label under the party column.
+ * The ageing columns stay blank on purpose: the buckets already sum to each
+ * row's debit, and a second total would invite adding them to it.
+ */
+private fun dueFooterRow(label: String, debit: Double, credit: Double, columnCount: Int): List<ReportFooterCell> =
+    buildList {
+        add(ReportFooterCell(ReportTableCell.Empty))                    // SL
+        add(ReportFooterCell(cellText(label, bold = true)))             // party
+        add(ReportFooterCell(ReportTableCell.Empty))                    // page
+        add(ReportFooterCell(ReportTableCell.Empty))                    // area
+        add(ReportFooterCell(cellText(formatCell(debit), align = TextAlign.End, bold = true)))
+        add(ReportFooterCell(cellText(formatCell(credit), align = TextAlign.End, bold = true)))
+        repeat(columnCount - size) { add(ReportFooterCell(ReportTableCell.Empty)) }
+    }
 
 /** The party column's stacked name / phone / address block. */
 @Composable

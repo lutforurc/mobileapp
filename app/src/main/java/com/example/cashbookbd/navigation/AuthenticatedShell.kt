@@ -189,6 +189,9 @@ fun AuthenticatedShell(
     // reads an auto-increment id that differs per tenant, and the hotel
     // permissions are granted to nobody until a property is actually set up.
     val canHotel = HotelMenu.hasParentAccess(sessionState.permissions)
+    // "Assets" — the fixed-asset register; permission alone, like the hotel,
+    // and granted to nobody until --asset-grant is run.
+    val canAssets = com.example.cashbookbd.asset.AssetMenu.hasParentAccess(sessionState.permissions)
 
     val themeManager = remember { ServiceLocator.provideThemeManager(context) }
     val themeMode by themeManager.mode.collectAsStateWithLifecycle()
@@ -237,6 +240,7 @@ fun AuthenticatedShell(
                 canLabourItems = canLabourItems,
                 canProductTracking = canProductTracking,
                 canHotel = canHotel,
+                canAssets = canAssets,
                 onDestinationClick = { route ->
                     scope.launch { drawerState.close() }
                     navigateTo(route)
@@ -371,6 +375,7 @@ private fun AppDrawerContent(
     canLabourItems: Boolean,
     canProductTracking: Boolean,
     canHotel: Boolean,
+    canAssets: Boolean,
     onDestinationClick: (String) -> Unit,
 ) {
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -413,6 +418,11 @@ private fun AppDrawerContent(
                 // Beside Real Estate: the other property module, and the web
                 // sidebar keeps them together for the same reason.
                 if (canHotel) add(DrawerEntry("hotel", "Hotel", Icons.Filled.Home, currentRoute == Routes.HOTEL, Routes.HOTEL))
+                // Between Hotel and Products, where the web sidebar puts it.
+                if (canAssets) {
+                    val assetHome = com.example.cashbookbd.asset.AssetMenu.ROUTE_HOME
+                    add(DrawerEntry("asset", "Assets", Icons.Filled.Build, currentRoute == assetHome, assetHome))
+                }
                 if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
                 // Down here with Products rather than up among the daily
                 // entries (web 7895207): master data, set up once and opened

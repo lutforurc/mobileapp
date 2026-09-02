@@ -14,6 +14,12 @@ data class UserListUiState(
     /** The text in the search box (applied on Search, like the web). */
     val searchQuery: String = "",
 
+    /**
+     * The web's "All companies" switch (b40a7bd2): every company's users, with
+     * a Company column. Offered only to `all.user.view`; the server re-checks.
+     */
+    val allCompanies: Boolean = false,
+
     val currentPage: Int = 1,
     val lastPage: Int = 1,
     val total: Int = 0,

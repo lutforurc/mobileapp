@@ -3,6 +3,8 @@ package com.example.cashbookbd.ui.applist
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -490,10 +492,52 @@ private fun ListBody(
             ) {
                 buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit)
             }
-            // Keyed on the page so a fresh page starts reading from the top —
-            // the old page (and its scroll) stays up until the new rows land.
-            androidx.compose.runtime.key(state.currentPage, state.perPage) {
-                ReportTable(columns = columns, data = state.rows)
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (state.summary.isNotEmpty()) {
+                    SummaryStrip(state.summary)
+                }
+                // Keyed on the page so a fresh page starts reading from the top —
+                // the old page (and its scroll) stays up until the new rows land.
+                androidx.compose.runtime.key(state.currentPage, state.perPage) {
+                    ReportTable(columns = columns, data = state.rows, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The web's totals row: every tile, always, in one horizontally scrolling
+ * strip. A nought is written as a nought here, not the tables' dash — on a
+ * total a dash reads as "not calculated" (react cda71206).
+ */
+@Composable
+private fun SummaryStrip(summary: List<com.example.cashbookbd.data.repository.AppListSummaryValue>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        summary.forEach { tile ->
+            com.example.cashbookbd.ui.components.SummaryTile(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = tile.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (tile.highlight) MaterialTheme.appColors.warning
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+                Text(
+                    text = com.example.cashbookbd.core.AmountFormat.format(tile.value),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = AppFontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -525,7 +569,11 @@ private fun buildColumns(
                 header = col.label,
                 width = ReportColWidth.Fixed(if (col.numeric) 112.dp else 168.dp),
                 align = align,
-            ) { row, _ -> cellText(row.cells.getOrNull(ci).orEmpty(), align = align, maxLines = 2) },
+            ) { row, _ ->
+                // The three-line money cell needs its three lines.
+                val lines = if (col.format == com.example.cashbookbd.applist.CellFormat.ORDER_OUTSTANDING) 3 else 2
+                cellText(row.cells.getOrNull(ci).orEmpty(), align = align, maxLines = lines)
+            },
         )
     }
     val hasEdit = state.editAction != null

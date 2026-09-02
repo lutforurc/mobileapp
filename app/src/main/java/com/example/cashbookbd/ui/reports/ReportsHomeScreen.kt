@@ -125,6 +125,8 @@ private fun ReportRowItem(report: ReportConfig, onClick: () -> Unit) {
 /** Routes a tapped report to its native screen, or the generic report flow. */
 private fun NavHostController.openReport(report: ReportConfig) {
     val route = when (report.key) {
+        "ageing" -> com.example.cashbookbd.accounts.AccountsMenu.ROUTE_AGEING
+        "auditTrail" -> com.example.cashbookbd.accounts.AccountsMenu.ROUTE_AUDIT_TRAIL
         "cashbook" -> Routes.CASHBOOK
         "ledger" -> Routes.LEDGER
         "bankbook" -> Routes.BANKBOOK

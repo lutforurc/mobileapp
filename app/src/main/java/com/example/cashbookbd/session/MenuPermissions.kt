@@ -9,6 +9,11 @@ object MenuPermissions {
 
     val map: Map<String, List<String>> = mapOf(
         "transaction" to listOf(
+            // The four accounts screens the web hangs here (acd3d4f5).
+            "bank.reconciliation.view",
+            "cheque.register.view",
+            "year.closing.run",
+            "budget.view",
             "cash.received.create",
             "cash.payment.create",
             "bank.received.create",
@@ -25,7 +30,13 @@ object MenuPermissions {
         "invoice" to listOf("purchase.create", "sales.create", "labour.invoice.create"),
         // The Labour Items master-data group (web menuPermissions.ts, b1cfc84).
         "labour_items" to listOf("labour.category.view", "labour.item.view"),
+        // The fixed-asset register (web menuPermissions.ts:168) — permission
+        // alone, never a business type; granted to nobody until --asset-grant.
+        "asset" to listOf("asset.category.view", "asset.register.view"),
         "reports" to listOf(
+            // The two accounts reports the web lists first (acd3d4f5).
+            "ageing.report.view",
+            "audit.trail.view",
             "cashbook.view",
             "installment.create",
             "ledger.view",

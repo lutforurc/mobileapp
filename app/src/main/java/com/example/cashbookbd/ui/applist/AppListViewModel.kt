@@ -112,6 +112,7 @@ class AppListViewModel(
                         isLoading = false,
                         isPageLoading = false,
                         rows = result.data.rows,
+                        summary = result.data.summary,
                         currentPage = result.data.currentPage,
                         lastPage = result.data.lastPage,
                         total = result.data.total,

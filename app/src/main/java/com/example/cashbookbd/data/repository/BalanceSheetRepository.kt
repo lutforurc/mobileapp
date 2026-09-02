@@ -4,7 +4,9 @@ import android.util.Log
 import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.remote.ReportApiService
+import com.example.cashbookbd.ui.reports.model.BalanceSheetColumns
 import com.example.cashbookbd.ui.reports.model.BalanceSheetGroup
+import com.example.cashbookbd.ui.reports.model.BalanceSheetSubsection
 import com.example.cashbookbd.ui.reports.model.BalanceSheetItem
 import com.example.cashbookbd.ui.reports.model.BalanceSheetReport
 import com.example.cashbookbd.ui.reports.model.BalanceSheetSection
@@ -137,7 +139,72 @@ class BalanceSheetRepository(
             BalanceSheetSummaryItem("Difference", difference),
         )
 
-        return Resource.Success(BalanceSheetReport(sections = sections, summary = summary))
+        return Resource.Success(
+            BalanceSheetReport(
+                sections = sections,
+                summary = summary,
+                sectioned = parseSectioned(apiData),
+            )
+        )
+    }
+
+    /**
+     * The `sections` key (api a30c16aa): each side's groups hung under their
+     * level-2 heads, classified by the chart rather than by the sign of the
+     * balance. Absent on an older server — the caller then draws the flat
+     * lists, readable without the Current/Fixed split.
+     */
+    private fun parseSectioned(apiData: JsonObject): Map<String, List<BalanceSheetSubsection>> {
+        val root = apiData.get("sections")?.asObjectOrNull() ?: return emptyMap()
+        return SECTION_KEYS.associate { (key, title) ->
+            val list = root.get(key)?.takeUnless { it.isJsonNull }
+                ?.let { if (it.isJsonArray) it.asJsonArray.mapNotNull { e -> e.asObjectOrNull() } else emptyList() }
+                .orEmpty()
+            title to list.map { it.toSubsection() }
+        }
+    }
+
+    private fun JsonObject.toSubsection(): BalanceSheetSubsection {
+        val f = fieldMap()
+        val groups = get("groups")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { it.asObjectOrNull() }
+            ?.map { record ->
+                val items = record.get("items")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapNotNull { it.asObjectOrNull()?.toItem() }.orEmpty()
+                val rf = record.fieldMap()
+                BalanceSheetGroup(
+                    title = rf.string(GROUP_TITLE_KEYS),
+                    items = items,
+                    opening = rf.numberOrNull(OPENING_KEYS) ?: items.sumOf { it.opening },
+                    movement = rf.numberOrNull(MOVEMENT_KEYS) ?: items.sumOf { it.movement },
+                    closing = rf.numberOrNull(GROUP_CLOSING_KEYS) ?: items.sumOf { it.closing },
+                    isContra = record.get("is_contra")?.takeUnless { it.isJsonNull }
+                        ?.takeIf { it.isJsonPrimitive }?.asString
+                        ?.let { it == "true" || it == "1" } == true,
+                )
+            }
+            .orEmpty()
+        val hasContra = get("has_contra")?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+            ?.asString?.let { it == "true" || it == "1" } == true
+        return BalanceSheetSubsection(
+            name = f.string(listOf("name")),
+            groups = groups,
+            columns = get("columns")?.asObjectOrNull().toColumns()
+                ?: BalanceSheetColumns(
+                    groups.sumOf { it.opening }, groups.sumOf { it.movement }, groups.sumOf { it.closing },
+                ),
+            hasContra = hasContra,
+            depreciation = if (hasContra) get("depreciation_columns")?.asObjectOrNull().toColumns() else null,
+        )
+    }
+
+    private fun JsonObject?.toColumns(): BalanceSheetColumns? {
+        val o = this ?: return null
+        return BalanceSheetColumns(
+            opening = o.numberOrNull("opening") ?: 0.0,
+            movement = o.numberOrNull("movement") ?: 0.0,
+            closing = o.numberOrNull("closing") ?: 0.0,
+        )
     }
 
     private fun parseSection(title: String, records: List<JsonObject>): BalanceSheetSection {

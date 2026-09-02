@@ -19,6 +19,13 @@ data class DueListUiState(
     val appliedBranchName: String? = null,
     val appliedEndDate: String? = null,
 
+    /**
+     * The web's Ageing switch (61ea28f5: on by default, "since nobody found
+     * the switch"). Client state only — the server always sends the buckets;
+     * this decides whether the five columns are drawn.
+     */
+    val showAgeing: Boolean = true,
+
     val sessionExpired: Boolean = false,
 ) {
     val canApply: Boolean

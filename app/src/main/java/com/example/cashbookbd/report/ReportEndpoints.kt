@@ -27,6 +27,10 @@ object ReportEndpoints {
         "dueInstallments" to "accounts/installment/filter",
         "employeeInstallments" to "accounts/installment/employees",
         "dueList" to "reports/duelist",
+        // The two accounts reports (api c2ffabbf) — native screens; listed so
+        // the registry stays complete.
+        "ageing" to "ageing",
+        "auditTrail" to "audit-trail",
         "ledger" to "reports/api-ledger",
         "productLedgerData" to "reports/product-ledger-data",
         "labourLedger" to "reports/labour/ledger",

@@ -31,6 +31,9 @@ object AdminMenu {
     /** Routes to the Add Role form. */
     const val ADD_ROLES_KEY = "addRoles"
 
+    /** Routes to the Business Types screen (form + list, switch, no delete). */
+    const val BUSINESS_TYPES_KEY = "businessTypes"
+
     private val USER_VIEW = listOf("all.user.view", "user.view")
 
     val all: List<AdminItem> = listOf(
@@ -62,6 +65,12 @@ object AdminMenu {
         // Platform screens (the server additionally restricts to platform admin).
         AdminItem(
             "inAppMessages", "In-App Messages",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
+        ),
+        // The trades a branch may say it is in (web 51b6c5d8) — a switch and
+        // no bin: branches store the id, so a freed one would be inherited.
+        AdminItem(
+            BUSINESS_TYPES_KEY, "Business Types",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
         ),
         AdminItem(

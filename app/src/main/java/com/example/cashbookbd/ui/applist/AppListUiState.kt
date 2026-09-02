@@ -27,6 +27,8 @@ data class AppListUiState(
     val isPageLoading: Boolean = false,
     val error: String? = null,
     val rows: List<AppListRow> = emptyList(),
+    /** The summary strip above the table (the Orders list's nine totals). */
+    val summary: List<com.example.cashbookbd.data.repository.AppListSummaryValue> = emptyList(),
     val isPaginated: Boolean = false,
     /** Rows requested per page; user-selectable from [PER_PAGE_OPTIONS]. */
     val perPage: Int = 25,

@@ -11,6 +11,9 @@ import com.example.cashbookbd.data.repository.MenuPreferences
 object WebMenuIds {
 
     private val REPORTS: Map<String, String> = mapOf(
+        // The two accounts reports the web lists first (acd3d4f5).
+        "ageing" to "ageing_report",
+        "auditTrail" to "audit_trail",
         "cashbook" to "reports/cashbook",
         "bankbook" to "report_bankbook",
         "cashBankReceivedPayment" to "cash_bank_received_payment",
@@ -45,6 +48,11 @@ object WebMenuIds {
     )
 
     private val TRANSACTION: Map<String, String> = mapOf(
+        // The four accounts screens the web lists first (acd3d4f5).
+        "bankReconciliation" to "accounts/bank/reconciliation",
+        "chequeRegister" to "accounts/cheque-register",
+        "yearClosing" to "accounts/year-closing",
+        "budget" to "accounts/budget",
         "cashReceived" to "cash_receive",
         "cashPayment" to "accounts/cash/payment",
         "bankReceived" to "accounts/bank/receive",
@@ -66,6 +74,7 @@ object WebMenuIds {
         "resellers" to "reseller_admin",
         "adminNotifications" to "admin_notifications",
         "inAppMessages" to "admin_in_app_messages",
+        "businessTypes" to "business_types",
         "inventorySystems" to "inventory_systems",
         "tutorialVideos" to "tutorial_videos",
         "highlightRules" to "highlight_rules",
@@ -96,6 +105,11 @@ object WebMenuIds {
         "hotelSetup" to "hotel_setup",
     )
 
+    /** Assets — the web's one-child group; the app lists its tabs as entries. */
+    private val ASSET: Map<String, String> = mapOf(
+        "assetCategories" to "asset_setup",
+    )
+
     /** Labour Items — arrangeable since web d933c6a. */
     private val LABOUR_ITEMS: Map<String, String> = mapOf(
         "labourCategories" to "labour_category",
@@ -109,6 +123,7 @@ object WebMenuIds {
         "admin" to ADMIN,
         "labour_items" to LABOUR_ITEMS,
         "hotel" to HOTEL,
+        "asset" to ASSET,
     )
 
     fun forMenu(menuId: String): Map<String, String> = menus[menuId].orEmpty()

@@ -90,6 +90,10 @@ class DueListViewModel(
         _uiState.update { it.copy(endDate = date) }
     }
 
+    fun onShowAgeing(on: Boolean) {
+        _uiState.update { it.copy(showAgeing = on) }
+    }
+
     fun reset() {
         _uiState.update {
             it.copy(

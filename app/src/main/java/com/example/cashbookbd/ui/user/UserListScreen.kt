@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -86,6 +87,10 @@ fun UserListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val canAddUser = Permissions.hasAny(sessionState.permissions, CREATE_USER_PERMISSIONS)
+    // The web offers "All companies" on all.user.view alone; the server then
+    // requires the platform company as well and quietly scopes everyone else.
+    val canViewAllCompanies = Permissions.hasAny(sessionState.permissions, listOf("all.user.view"))
+    val mobileFormat = sessionState.settings?.mobileNumberFormat.orEmpty()
     // The web shows the temporary-password key only for the global super admin.
     val isSuperAdmin = sessionState.settings?.userId == 1L
 
@@ -148,6 +153,8 @@ fun UserListScreen(
                 onSearch = viewModel::onSearch,
                 canAddUser = canAddUser,
                 onAdd = { navController.navigate(Routes.USER_ADD) },
+                allCompanies = if (canViewAllCompanies) state.allCompanies else null,
+                onAllCompanies = viewModel::onAllCompanies,
             )
             Spacer(Modifier.height(12.dp))
 
@@ -155,6 +162,8 @@ fun UserListScreen(
                 UserListBody(
                     state = state,
                     isSuperAdmin = isSuperAdmin,
+                    showCompany = canViewAllCompanies && state.allCompanies,
+                    mobileFormat = mobileFormat,
                     selfUserId = sessionState.settings?.userId,
                     onEdit = { row -> navController.navigate("${Routes.USER_EDIT}/${row.userId}") },
                     onTempPassword = { row -> viewModel.generateTemporaryPassword(row.userId) },
@@ -189,6 +198,9 @@ private fun SearchToolbar(
     onSearch: () -> Unit,
     canAddUser: Boolean,
     onAdd: () -> Unit,
+    /** Null hides the switch (the user lacks all.user.view). */
+    allCompanies: Boolean?,
+    onAllCompanies: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -217,10 +229,33 @@ private fun SearchToolbar(
             modifier = Modifier.height(FormFieldHeight),
         )
     }
-    if (canAddUser) {
+    if (canAddUser || allCompanies != null) {
         Spacer(Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            AddButton(text = "Add User", onClick = onAdd, compact = true)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            if (allCompanies != null) {
+                // The web's "All companies" toggle, beside the search bar.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = allCompanies,
+                        onCheckedChange = onAllCompanies,
+                        modifier = Modifier.scale(0.8f),
+                    )
+                    Text(
+                        text = "All companies",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+            } else {
+                Spacer(Modifier.width(1.dp))
+            }
+            if (canAddUser) {
+                AddButton(text = "Add User", onClick = onAdd, compact = true)
+            }
         }
     }
 }
@@ -229,6 +264,8 @@ private fun SearchToolbar(
 private fun UserListBody(
     state: UserListUiState,
     isSuperAdmin: Boolean,
+    showCompany: Boolean,
+    mobileFormat: String,
     selfUserId: Long?,
     onEdit: (UserRow) -> Unit,
     onTempPassword: (UserRow) -> Unit,
@@ -258,18 +295,27 @@ private fun UserListBody(
         }
 
         else -> ReportTable(
-            columns = userColumns(state, isSuperAdmin, selfUserId, onEdit, onTempPassword, onToggleStatus),
+            columns = userColumns(
+                state, isSuperAdmin, showCompany, mobileFormat, selfUserId,
+                onEdit, onTempPassword, onToggleStatus,
+            ),
             data = state.rows,
             noDataMessage = "No users found.",
         )
     }
 }
 
-/** The table columns: # | User Name | Working Branch | Email | Role | Action. */
+/**
+ * The table columns: # | User Name | [Company] | Working Branch | Email |
+ * Mobile | Role | Action. Company shows only while the list spans every
+ * company (web b40a7bd2); Mobile sits beside the email (web 9e773caf).
+ */
 @Composable
 private fun userColumns(
     state: UserListUiState,
     isSuperAdmin: Boolean,
+    showCompany: Boolean,
+    mobileFormat: String,
     selfUserId: Long?,
     onEdit: (UserRow) -> Unit,
     onTempPassword: (UserRow) -> Unit,
@@ -278,20 +324,31 @@ private fun userColumns(
     val onScreen = MaterialTheme.colorScheme.onBackground
     // Serial continues across pages, like the web's offset-based numbering.
     val offset = (state.currentPage - 1) * USERS_PER_PAGE
-    return listOf(
-        ReportColumn("#", ReportColWidth.Fixed(40.dp), TextAlign.Center) { _, index ->
+    return buildList {
+        add(ReportColumn("#", ReportColWidth.Fixed(40.dp), TextAlign.Center) { _, index ->
             cellText((offset + index + 1).toString(), align = TextAlign.Center, color = onScreen)
-        },
-        ReportColumn("User Name", ReportColWidth.Fixed(140.dp)) { row, _ ->
+        })
+        add(ReportColumn("User Name", ReportColWidth.Fixed(140.dp)) { row, _ ->
             cellText(row.name.ifBlank { "-" }, color = onScreen, maxLines = 2)
-        },
-        ReportColumn("Working Branch", ReportColWidth.Fixed(150.dp)) { row, _ ->
+        })
+        if (showCompany) {
+            add(ReportColumn("Company", ReportColWidth.Fixed(150.dp)) { row, _ ->
+                cellText(row.company.ifBlank { "-" }, color = onScreen, maxLines = 2)
+            })
+        }
+        add(ReportColumn("Working Branch", ReportColWidth.Fixed(150.dp)) { row, _ ->
             cellText(row.branch.ifBlank { "-" }, color = onScreen, maxLines = 2)
-        },
-        ReportColumn("Email", ReportColWidth.Fixed(190.dp)) { row, _ ->
+        })
+        add(ReportColumn("Email", ReportColWidth.Fixed(190.dp)) { row, _ ->
             cellText(row.email.ifBlank { "-" }, color = onScreen, maxLines = 2)
-        },
-        ReportColumn("Role", ReportColWidth.Fixed(160.dp)) { row, _ ->
+        })
+        add(ReportColumn("Mobile", ReportColWidth.Fixed(130.dp)) { row, _ ->
+            // Grouped by the branch's pattern; the stored digits stay bare.
+            val shown = row.phone.takeIf { it.isNotBlank() }
+                ?.let { com.example.cashbookbd.core.MobileFormat.format(it, mobileFormat) }
+            cellText(shown ?: "-", color = onScreen)
+        })
+        add(ReportColumn("Role", ReportColWidth.Fixed(160.dp)) { row, _ ->
             if (row.role.isBlank()) {
                 cellText("-", color = onScreen)
             } else {
@@ -301,8 +358,8 @@ private fun userColumns(
                     }
                 }
             }
-        },
-        ReportColumn("Action", ReportColWidth.Fixed(if (isSuperAdmin) 160.dp else 120.dp), TextAlign.Center) { row, _ ->
+        })
+        add(ReportColumn("Action", ReportColWidth.Fixed(if (isSuperAdmin) 160.dp else 120.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {
                 UserActionCell(
                     row = row,
@@ -318,8 +375,8 @@ private fun userColumns(
                     onToggleStatus = onToggleStatus,
                 )
             }
-        },
-    )
+        })
+    }
 }
 
 @Composable

@@ -25,7 +25,31 @@ enum class CellFormat {
      * always agrees with the figure the report worked out. Empty parts drop.
      */
     DAY_SPAN,
+
+    /**
+     * The Orders list's money column (web d1d38e06 / 925b7c4a): the row's
+     * `balance_amount` — what the order still owes — set on the side its
+     * `order_type` says (1 = purchase, 2 = sales), with the other side nought
+     * and the net beneath. Printed as magnitudes: the column reads
+     * OUTSTANDING; direction is the order type, not a minus sign.
+     */
+    ORDER_OUTSTANDING,
 }
+
+/**
+ * One figure in the list's summary strip, derived from the payload's
+ * `summary` object: Σ[plus] − Σ[minus]. The Orders list's nine totals are all
+ * of this shape ("PO Trx Bal Qty" = purchase_quantity − purchase_trx_quantity).
+ * A missing key counts as nought — server-only figures must never be re-summed
+ * from the page, which would silently be the wrong scope.
+ */
+data class ListSummaryTile(
+    val label: String,
+    val plus: List<String>,
+    val minus: List<String> = emptyList(),
+    /** Drawn in the attention tone, like the web's amber tiles. */
+    val highlight: Boolean = false,
+)
 
 /** One column of a list table. [key] supports dot paths for nested fields. */
 data class AppListColumn(
@@ -159,6 +183,12 @@ data class AppListSpec(
      * `openingbalance` and `purchase` for the dialog to pre-fill.
      */
     val openingStock: Boolean = false,
+    /**
+     * Figures drawn in a strip above the table from the payload's `summary`
+     * object (beside the paginator). Computed server-side over EVERY row the
+     * filter matched, so a page turn does not move them.
+     */
+    val summaryTiles: List<ListSummaryTile> = emptyList(),
 )
 
 /**
@@ -335,10 +365,54 @@ object AppLists {
                 AppListColumn("order_rate", "Rate", numeric = true),
                 AppListColumn("total_order", "Order Qty", numeric = true),
                 AppListColumn("trx_quantity", "Trx Qty", numeric = true),
+                // The web's three-line money column: PO Trx Bal Amt / DO Trx
+                // Bal Amt / Balance Amount (react d1d38e06, api df9232ad).
+                AppListColumn(
+                    "balance_amount", "Bal. Amt (PO / DO / Net)",
+                    numeric = true, format = CellFormat.ORDER_OUTSTANDING,
+                ),
             ),
             anyOf = listOf("order.view"),
             paginated = true,
             addAction = ListAddAction(label = "Create Order", route = Routes.ORDER_ADD),
+            // The nine totals, always all nine in this order whatever the
+            // order-type filter says (react bb088adf / 7fd5edbc): filtered to
+            // purchases, the DO tiles simply read nought.
+            summaryTiles = listOf(
+                ListSummaryTile("Total Trx Qty", plus = listOf("trx_quantity")),
+                ListSummaryTile("PO Trx Qty", plus = listOf("purchase_trx_quantity")),
+                ListSummaryTile("DO Trx Qty", plus = listOf("sales_trx_quantity")),
+                ListSummaryTile(
+                    "PO Trx. Bal. Qty",
+                    plus = listOf("purchase_quantity"), minus = listOf("purchase_trx_quantity"),
+                    highlight = true,
+                ),
+                ListSummaryTile(
+                    "DO Trx. Bal. Qty",
+                    plus = listOf("sales_quantity"), minus = listOf("sales_trx_quantity"),
+                    highlight = true,
+                ),
+                ListSummaryTile(
+                    "Trx. Def. Qty",
+                    plus = listOf("purchase_quantity", "sales_trx_quantity"),
+                    minus = listOf("purchase_trx_quantity", "sales_quantity"),
+                    highlight = true,
+                ),
+                ListSummaryTile(
+                    "PO Trx Bal Amt",
+                    plus = listOf("purchase_amount"), minus = listOf("purchase_trx_amount"),
+                ),
+                ListSummaryTile(
+                    "DO Trx Bal Amt",
+                    plus = listOf("sales_amount"), minus = listOf("sales_trx_amount"),
+                ),
+                ListSummaryTile(
+                    "Balance Amount",
+                    plus = listOf("purchase_amount", "sales_trx_amount"),
+                    minus = listOf("purchase_trx_amount", "sales_amount"),
+                    highlight = true,
+                ),
+            ),
         ),
         AppListSpec(
             key = "smsTemplates",

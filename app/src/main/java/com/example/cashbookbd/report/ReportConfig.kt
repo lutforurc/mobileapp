@@ -255,6 +255,11 @@ data class ReportConfig(
      */
     val textColumns: List<String> = emptyList(),
     /**
+     * Raw API row keys (case-insensitive) holding a vehicle number — printed in
+     * capitals through the shared formatter (web 515b1071), display only.
+     */
+    val vehicleColumns: List<String> = emptyList(),
+    /**
      * Raw API row keys (case-insensitive) holding a party's mobile number —
      * grouped by the branch's `mobile_number_format` pattern for display
      * (dc17c5a). Put them in [textColumns] too, or the number formats as an
@@ -459,6 +464,9 @@ object ReportMenu {
      * open at least one report — matching the web sidebar's per-item permissions.
      */
     val PARENT_PERMISSIONS = listOf(
+        // The two accounts reports the web lists first (acd3d4f5).
+        "ageing.report.view",
+        "audit.trail.view",
         "cashbook.view",
         "bank.book",
         "cash.bank.summery",
@@ -499,6 +507,32 @@ object ReportMenu {
 
     val all: List<ReportConfig> = listOf(
 
+        // The two accounts reports the web lists at the top of Reports
+        // (acd3d4f5). Both are bespoke screens under ui/accounts: the ageing
+        // buckets and the editable credit terms, and the audit trail's
+        // per-field change list, do not fit the generic table.
+        ReportConfig(
+            key = "ageing",
+            title = "Ageing",
+            routeName = "ReportAgeing",
+            webPath = "/reports/ageing",
+            anyOf = listOf("ageing.report.view"),
+            endpointKey = "ageing",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_END_DATE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "auditTrail",
+            title = "Audit Trail",
+            routeName = "ReportAuditTrail",
+            webPath = "/reports/audit-trail",
+            anyOf = listOf("audit.trail.view"),
+            endpointKey = "auditTrail",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
 
         ReportConfig(
             key = "cashbook",
@@ -764,6 +798,7 @@ object ReportMenu {
                 "purchase_total" to "Pur. Total",
                 "sales_total" to "Sal. Total",
             ),
+            vehicleColumns = listOf("truck_no"),
         ),
         ReportConfig(
             key = "dueInstallments",

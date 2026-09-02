@@ -207,7 +207,27 @@ class GenericReportRepository(
                 rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
             }
         }
-        return built.withPhoneFormat(config)
+        return built.withPhoneFormat(config).withVehicleFormat(config)
+    }
+
+    /**
+     * Vehicle numbers in capitals (web 515b1071) — applied to the finished
+     * cells, like the phone grouping, so it composes with any response shape.
+     */
+    private fun List<ReportRow>.withVehicleFormat(config: ReportConfig): List<ReportRow> {
+        if (config.vehicleColumns.isEmpty()) return this
+        val keys = config.vehicleColumns.map { it.lowercase(Locale.US) }.toSet()
+        return map { row ->
+            row.copy(
+                cells = row.cells.map { cell ->
+                    if (cell.key.lowercase(Locale.US) in keys && cell.value.isNotBlank() && cell.value != "-") {
+                        cell.copy(value = com.example.cashbookbd.core.VehicleFormat.format(cell.value))
+                    } else {
+                        cell
+                    }
+                },
+            )
+        }
     }
 
     /**

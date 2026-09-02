@@ -50,12 +50,21 @@ data class OpeningStockRow(
     val vrNo: String = "",
 )
 
+/** One figure of the summary strip, already computed and labelled. */
+data class AppListSummaryValue(
+    val label: String,
+    val value: Double,
+    val highlight: Boolean,
+)
+
 /** A page of list rows plus the server-side pagination meta. */
 data class AppListResult(
     val rows: List<AppListRow>,
     val currentPage: Int = 1,
     val lastPage: Int = 1,
     val total: Int = 0,
+    /** The spec's summary tiles, resolved against the payload's `summary`. */
+    val summary: List<AppListSummaryValue> = emptyList(),
 )
 
 /**
@@ -271,11 +280,16 @@ class AppListRepository(
         val toggle = spec.statusToggle
         val edit = spec.editAction
         val delete = spec.deleteAction
+        val summary = summaryValues(payload, spec)
         val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
             AppListRow(
                 cells = spec.columns.map { col ->
-                    val primary = format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap, cellFormat = col.format)
+                    val primary = if (col.format == CellFormat.ORDER_OUTSTANDING) {
+                        formatOrderOutstanding(obj, col.key)
+                    } else {
+                        format(dotGet(obj, col.key), numeric = col.numeric, valueMap = col.valueMap, cellFormat = col.format)
+                    }
                     val subline = col.sublineKey
                         ?.let { format(dotGet(obj, it), numeric = false) }
                         ?.takeIf { it.isNotBlank() && it != "-" }
@@ -299,10 +313,49 @@ class AppListRepository(
                 currentPage = paginator.int("current_page", 1),
                 lastPage = paginator.int("last_page", 1),
                 total = paginator.int("total", rows.size),
+                summary = summary,
             )
         } else {
-            AppListResult(rows = rows, total = rows.size)
+            AppListResult(rows = rows, total = rows.size, summary = summary)
         }
+    }
+
+    /**
+     * The spec's summary tiles against the payload's `summary` object (the
+     * Orders list puts it beside the paginator, api 064f58f8). Missing keys
+     * are nought — never re-summed from the page rows.
+     */
+    private fun summaryValues(payload: JsonElement, spec: AppListSpec): List<AppListSummaryValue> {
+        if (spec.summaryTiles.isEmpty()) return emptyList()
+        val summary = payload.takeIf { it.isJsonObject }?.asJsonObject
+            ?.get("summary")?.takeIf { it.isJsonObject }?.asJsonObject
+        fun figure(key: String): Double =
+            summary?.get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+                ?.asString?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+        return spec.summaryTiles.map { tile ->
+            AppListSummaryValue(
+                label = tile.label,
+                value = tile.plus.sumOf(::figure) - tile.minus.sumOf(::figure),
+                highlight = tile.highlight,
+            )
+        }
+    }
+
+    /**
+     * The web's Orders money cell (d1d38e06 / 925b7c4a): the outstanding
+     * balance on the side `order_type` names, the other side nought, and the
+     * net beneath — all as magnitudes. Three short lines so a phone column can
+     * carry what the web spreads under a three-line heading.
+     */
+    private fun formatOrderOutstanding(obj: JsonObject, key: String): String {
+        val outstanding = dotGet(obj, key)?.takeIf { it.isJsonPrimitive }?.asString
+            ?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+        val isPurchase = dotGet(obj, "order_type")?.takeIf { it.isJsonPrimitive }?.asString
+            ?.toDoubleOrNull()?.toInt() == 1
+        val po = if (isPurchase) outstanding else 0.0
+        val dO = if (isPurchase) 0.0 else outstanding
+        fun line(prefix: String, value: Double) = "$prefix ${AmountFormat.formatOrDash(kotlin.math.abs(value))}"
+        return listOf(line("PO", po), line("DO", dO), line("Net", po - dO)).joinToString("\n")
     }
 
     /** The opening-stock fields, or null when the row carries no `product_id`. */
