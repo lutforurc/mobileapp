@@ -84,6 +84,7 @@ fun AssetHomeScreen(
                         when (item.key) {
                             AssetMenu.CATEGORIES_KEY -> navController.navigate(AssetMenu.ROUTE_CATEGORIES)
                             AssetMenu.REGISTER_KEY -> navController.navigate(AssetMenu.ROUTE_REGISTER)
+                            AssetMenu.CWIP_KEY -> navController.navigate(AssetMenu.ROUTE_CWIP)
                             AssetMenu.DEPRECIATION_KEY -> navController.navigate(AssetMenu.ROUTE_DEPRECIATION)
                             AssetMenu.SCHEDULE_KEY -> navController.navigate(AssetMenu.ROUTE_SCHEDULE)
                             AssetMenu.HANDOVERS_KEY -> navController.navigate(AssetMenu.ROUTE_HANDOVERS)
@@ -99,8 +100,8 @@ fun AssetHomeScreen(
 
 @Composable
 private fun AssetRowItem(item: AssetItem, onClick: () -> Unit) {
-    // Work in progress is the one tab still only on the web; it is listed so the
-    // menu reads like the web's and says so, rather than opening an empty screen.
+    // Every tab of the web's screen is here now; the greyed state is kept for
+    // whatever is ported next, so a listed entry never opens an empty screen.
     val ready = item.supported
 
     Card(

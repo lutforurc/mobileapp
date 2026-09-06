@@ -85,8 +85,13 @@ fun HotelHomeScreen(
                     item = item,
                     onClick = {
                         when (item.key) {
+                            HotelMenu.DASHBOARD_KEY -> navController.navigate(Routes.HOTEL_DASHBOARD)
                             HotelMenu.SETUP_KEY -> navController.navigate(Routes.HOTEL_SETUP)
                             HotelMenu.BOOKINGS_KEY -> navController.navigate(Routes.HOTEL_BOOKINGS)
+                            HotelMenu.HALL_BOOKINGS_KEY -> navController.navigate(HotelMenu.ROUTE_HALL_BOOKING)
+                            HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
+                            HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
+                            HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
                             else -> Unit
                         }
                     },
@@ -98,11 +103,9 @@ fun HotelHomeScreen(
 
 @Composable
 private fun HotelRowItem(item: HotelItem, onClick: () -> Unit) {
-    // Calendar, Housekeeping and Reports are the phases still to come; they are
-    // listed so the menu reads like the web's, and say so rather than opening
-    // an empty screen. Bookings now carries the whole desk flow it opens onto:
-    // taking one, and recording the arrival.
-    val ready = item.key == HotelMenu.SETUP_KEY || item.key == HotelMenu.BOOKINGS_KEY
+    // Every entry opens a screen now (phase 3 landed 2026-09-06); the flag
+    // stays so a future entry can be listed before it is built.
+    val ready = item.supported
 
     Card(
         modifier = Modifier

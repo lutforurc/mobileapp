@@ -55,6 +55,7 @@ import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
 import com.example.cashbookbd.ui.reports.ReportTable
@@ -404,6 +405,31 @@ fun AssetRegisterScreen(
                                 AssetMenu.registerForm(null, state.selectedBranch?.id),
                             )
                         },
+                        compact = true,
+                    )
+                    // ⚠️ THE ROWS ON SCREEN, and only those. Whoever is about to
+                    // walk the building with a sheet of stickers has already
+                    // narrowed the register down to what they are labelling; a
+                    // button that printed all nine hundred assets instead would
+                    // be a button nobody dares press.
+                    SecondaryButton(
+                        text = "Print labels",
+                        onClick = {
+                            AssetLabelsHolder.hold(
+                                rows = state.rows.map { row ->
+                                    AssetLabelRow(
+                                        code = row.code,
+                                        name = row.name,
+                                        categoryName = row.categoryName,
+                                        location = row.location,
+                                        serialNo = row.serialNo,
+                                    )
+                                },
+                                caption = state.selectedBranch?.name.orEmpty(),
+                            )
+                            navController.navigate(AssetMenu.ROUTE_LABELS)
+                        },
+                        enabled = state.rows.isNotEmpty(),
                         compact = true,
                     )
                     if (state.message != null) {

@@ -58,6 +58,7 @@ object AssetMenu {
     const val ARG_ID = "id"
     const val ARG_BRANCH = "branch"
     const val ARG_ASSET_ID = "assetId"
+    const val ARG_WORK_ID = "workId"
 
     const val ROUTE_CATEGORY_FORM = "asset/categories/form?id={id}"
     fun categoryForm(id: Long?): String = "asset/categories/form?id=${id ?: 0L}"
@@ -73,6 +74,22 @@ object AssetMenu {
     const val ROUTE_CARE = "asset/care/{assetId}"
     fun care(assetId: Long): String = "asset/care/$assetId"
 
+    // ---- Under construction -------------------------------------------------
+    // A thing being built is not in the register yet, so its screens sit apart
+    // from it: the list of works, and one work read line by line.
+
+    const val ROUTE_CWIP = "asset/cwip"
+    const val ROUTE_CWIP_COSTS = "asset/cwip/{workId}/costs"
+    fun cwipCosts(workId: Long): String = "asset/cwip/$workId/costs"
+
+    /**
+     * The sticker sheet. It carries no argument: the rows it prints are the ones
+     * ON SCREEN in the register, handed over through AssetLabelsHolder rather
+     * than squeezed into a route string as a JSON blob thousands of characters
+     * long.
+     */
+    const val ROUTE_LABELS = "asset/register/labels"
+
     const val ROUTE_DEPRECIATION = "asset/depreciation"
     const val ROUTE_SCHEDULE = "asset/schedule"
     const val ROUTE_HANDOVERS = "asset/handovers"
@@ -82,11 +99,8 @@ object AssetMenu {
         AssetItem(CATEGORIES_KEY, "Categories", "Rates and heads", listOf(PERM_CATEGORY_VIEW)),
         AssetItem(REGISTER_KEY, "Register", "What the company owns", listOf(PERM_REGISTER_VIEW)),
         // A thing being built is not in the register yet and is not depreciated
-        // yet — so it sits between the two. Web only for the moment.
-        AssetItem(
-            CWIP_KEY, "Under construction", "Not an asset yet",
-            listOf(PERM_REGISTER_VIEW), supported = false,
-        ),
+        // yet — so it sits between the two, exactly where the web puts it.
+        AssetItem(CWIP_KEY, "Under construction", "Not an asset yet", listOf(PERM_REGISTER_VIEW)),
         AssetItem(DEPRECIATION_KEY, "Depreciation", "The yearly charge", listOf(PERM_DEPRECIATION_RUN)),
         AssetItem(SCHEDULE_KEY, "Schedule", "The year-end note", listOf(PERM_REGISTER_VIEW)),
         AssetItem(HANDOVERS_KEY, "Handovers", "Who has what", listOf(PERM_REGISTER_VIEW)),

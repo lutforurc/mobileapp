@@ -429,6 +429,12 @@ object Routes {
 
     fun hotelAllotment(bookingId: Long): String = "hotel/bookings/$bookingId/allotment"
 
+    // Phase 3: the screens opened every day beside the bookings list.
+    const val HOTEL_HOUSEKEEPING = "hotel/housekeeping"
+    const val HOTEL_CALENDAR = "hotel/calendar"
+    const val HOTEL_REPORTS = "hotel/reports"
+    const val HOTEL_DASHBOARD = "hotel/dashboard"
+
     /** Edit Company — base route; the list appends "/{id}" itself. */
     const val COMPANY_EDIT = "company/edit"
     const val COMPANY_ID_ARG = "companyId"
@@ -1328,6 +1334,124 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        // ---- Hotel phase 3: the desk's daily screens ------------------------
+        composable(Routes.HOTEL_HOUSEKEEPING) {
+            // Its own permission: housekeeping is its own job.
+            PermissionGate(anyOf = listOf("hotel.housekeeping.view")) {
+                com.example.cashbookbd.ui.hotel.HotelHousekeepingScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+        composable(Routes.HOTEL_CALENDAR) {
+            PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                com.example.cashbookbd.ui.hotel.HotelCalendarScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+        composable(Routes.HOTEL_REPORTS) {
+            PermissionGate(anyOf = listOf("hotel.report.view")) {
+                com.example.cashbookbd.ui.hotel.HotelReportsScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+        composable(Routes.HOTEL_DASHBOARD) {
+            // Four independent reads; whichever the session may see fills in.
+            PermissionGate(anyOf = listOf("hotel.booking.view", "hotel.report.view", "hotel.housekeeping.view")) {
+                com.example.cashbookbd.ui.hotel.HotelDashboardScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        // ---- Hotel setup: rooms, the property drawing, service charge ------
+        run {
+            val hotel = HotelMenu
+            composable(hotel.ROUTE_ROOMS) {
+                PermissionGate(anyOf = listOf("hotel.resource.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelRoomsScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(
+                route = hotel.ROUTE_ROOM_FORM,
+                arguments = listOf(
+                    navArgument(hotel.ROUTE_ROOM_ID_ARG) { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
+                val roomId = entry.arguments?.getString(hotel.ROUTE_ROOM_ID_ARG)?.toLongOrNull()
+                PermissionGate(anyOf = listOf("hotel.resource.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelRoomFormScreen(
+                        roomId = roomId, navController = navController, onLogout = backToLogin,
+                    )
+                }
+            }
+            composable(hotel.ROUTE_LAYOUT) {
+                PermissionGate(anyOf = listOf("hotel.resource.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelLayoutScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(hotel.ROUTE_TAX_RATES) {
+                PermissionGate(anyOf = listOf("hotel.charge.type.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelTaxRatesScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(hotel.ROUTE_HALL_BOOKING) {
+                PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelHallBookingScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+
+            // ---- Hotel money side: the folio and what hangs off it ----------
+            val bookingArg = navArgument(hotel.BOOKING_ID_ARG) { type = NavType.LongType }
+            composable(route = hotel.ROUTE_FOLIO, arguments = listOf(bookingArg)) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                PermissionGate(anyOf = listOf("hotel.folio.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelFolioScreen(
+                        navController = navController, onLogout = backToLogin, bookingId = bookingId,
+                    )
+                }
+            }
+            composable(
+                route = hotel.ROUTE_BILL_PAPER,
+                arguments = listOf(
+                    bookingArg,
+                    navArgument(hotel.PAYMENT_ID_ARG) { type = NavType.LongType; defaultValue = 0L },
+                ),
+            ) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                val paymentId = entry.arguments?.getLong(hotel.PAYMENT_ID_ARG)?.takeIf { it > 0L }
+                PermissionGate(anyOf = listOf("hotel.folio.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelBillPaperScreen(
+                        navController = navController, onLogout = backToLogin,
+                        bookingId = bookingId, paymentId = paymentId,
+                    )
+                }
+            }
+            composable(route = hotel.ROUTE_CHECKOUT, arguments = listOf(bookingArg)) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                PermissionGate(anyOf = listOf("hotel.booking.checkout")) {
+                    com.example.cashbookbd.ui.hotel.HotelCheckOutScreen(
+                        navController = navController, onLogout = backToLogin, bookingId = bookingId,
+                    )
+                }
+            }
+            composable(route = hotel.ROUTE_CANCEL, arguments = listOf(bookingArg)) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                PermissionGate(anyOf = listOf("hotel.booking.cancel")) {
+                    com.example.cashbookbd.ui.hotel.HotelCancelScreen(
+                        navController = navController, onLogout = backToLogin, bookingId = bookingId,
+                    )
+                }
+            }
+            composable(route = hotel.ROUTE_EDIT, arguments = listOf(bookingArg)) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelBookingEditScreen(
+                        navController = navController, onLogout = backToLogin, bookingId = bookingId,
+                    )
+                }
+            }
+            composable(hotel.ROUTE_WALK_IN) {
+                PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelWalkInScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+        }
+
         // ---- Assets: the fixed-asset register (web `asset` group) ----------
         // Permission alone, never a business type; the three permissions are
         // granted to nobody until the operator runs --asset-grant, so the
@@ -1418,6 +1542,30 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             composable(asset.ROUTE_VERIFICATION) {
                 PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
                     com.example.cashbookbd.ui.asset.AssetVerificationScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            // Under construction: a thing being built is not in the register
+            // yet and is not depreciated yet, so it sits between the two.
+            composable(asset.ROUTE_CWIP) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetCwipScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(
+                route = asset.ROUTE_CWIP_COSTS,
+                arguments = listOf(navArgument(asset.ARG_WORK_ID) { type = NavType.LongType }),
+            ) { entry ->
+                val workId = entry.arguments?.getLong(asset.ARG_WORK_ID) ?: 0L
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetCwipCostsScreen(
+                        navController = navController, onLogout = backToLogin, workId = workId,
+                    )
+                }
+            }
+            // The QR label sheet for the rows on the register screen.
+            composable(asset.ROUTE_LABELS) {
+                PermissionGate(anyOf = listOf(asset.PERM_REGISTER_VIEW)) {
+                    com.example.cashbookbd.ui.asset.AssetLabelsPrintScreen(navController = navController, onLogout = backToLogin)
                 }
             }
         }

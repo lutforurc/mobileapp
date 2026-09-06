@@ -1237,6 +1237,90 @@ object AppLists {
             ),
         ),
         AppListSpec(
+            key = "hotelFacilities",
+            title = "Facilities",
+            endpoint = "hotel-setup/facilities",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Facility", sublineKey = "code"),
+                // Which kind of thing it may be offered on. "Either" is the
+                // common answer — air conditioning, Wi-Fi, a lift.
+                AppListColumn(
+                    "applies_to", "Offered On",
+                    valueMap = mapOf(
+                        "both" to "Either",
+                        "room" to "Rooms only",
+                        "hall" to "Halls only",
+                    ),
+                ),
+                // How many rooms have it — what makes deleting one a decision.
+                AppListColumn("rooms_count", "Rooms", numeric = true),
+                AppListColumn("sort_order", "Order", numeric = true),
+                AppListColumn(
+                    "status", "Status",
+                    valueMap = mapOf("1" to "Active", "0" to "Inactive"),
+                ),
+            ),
+            // The company's list, not the property's — shared by every hotel
+            // the company runs, so it sits under the rooms' own permission.
+            anyOf = listOf("hotel.resource.view"),
+            paginated = true,
+            addAction = ListAddAction(
+                label = "Add Facility",
+                route = Routes.hrmCrudAdd("hotelFacilities"),
+                anyOf = listOf("hotel.resource.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelFacilities"), idKey = "id",
+                anyOf = listOf("hotel.resource.view"),
+            ),
+            deleteAction = ListDeleteAction(
+                endpointBase = "hotel-setup/facilities/delete",
+                anyOf = listOf("hotel.resource.view"),
+            ),
+        ),
+        AppListSpec(
+            key = "hotelSlots",
+            title = "Sittings",
+            endpoint = "hotel-setup/slots",
+            method = ListMethod.GET,
+            columns = listOf(
+                AppListColumn("name", "Sitting", sublineKey = "code"),
+                // The hours, start over end. A sitting that runs past
+                // midnight says so in the next column rather than by an end
+                // time that reads as earlier than its start.
+                AppListColumn("start_time", "Hours", sublineKey = "end_time"),
+                AppListColumn(
+                    "ends_next_day", "Next Day",
+                    valueMap = mapOf("1" to "Yes", "0" to "No", "true" to "Yes", "false" to "No"),
+                ),
+                AppListColumn("sort_order", "Order", numeric = true),
+                AppListColumn(
+                    "status", "Status",
+                    valueMap = mapOf("1" to "Active", "0" to "Inactive"),
+                ),
+            ),
+            // Shares the rooms' permission: whoever may create the hall
+            // decides how it is sold.
+            anyOf = listOf("hotel.resource.view"),
+            paginated = true,
+            addAction = ListAddAction(
+                label = "Add Sitting",
+                route = Routes.hrmCrudAdd("hotelSlots"),
+                anyOf = listOf("hotel.resource.view"),
+            ),
+            editAction = ListEditAction(
+                route = Routes.hrmCrudEditBase("hotelSlots"), idKey = "id",
+                anyOf = listOf("hotel.resource.view"),
+            ),
+            // Refused server-side once the sitting has been sold; the
+            // sentence says to set it inactive instead.
+            deleteAction = ListDeleteAction(
+                endpointBase = "hotel-setup/slots/delete",
+                anyOf = listOf("hotel.resource.view"),
+            ),
+        ),
+        AppListSpec(
             key = "hotelChargeTypes",
             title = "Charge Types",
             endpoint = "hotel-setup/charge-types",

@@ -1,5 +1,59 @@
 # Web parity — 2026-08-01
 
+> **Hotel phase 3 and the last asset pieces — 2026-09-06.** Still matched to
+> react `1e7644af` / api `f4f87e2f`; this pass closes what the 09-02 pass
+> listed as owed. Everything below is source-complete and compiles; none of
+> it has been run on a device (the hotel/asset permissions are granted to
+> nobody until an operator runs the grant files, so a test login needs them
+> first).
+>
+> - **Folio / bill** (`hotel/bookings/{id}/folio`, `hotel.folio.view`; writes
+>   `hotel.folio.bill`): nights folded into one line per room, charges, per-
+>   item VAT with the END-of-bill discount, receipts with `RC-YYYY-MM-0001`
+>   numbers, the working line, "not posted" chips, chart-missing and carried
+>   banners; Bill the nights / Add a charge / Take money (tills from
+>   `folio/tills`) / Give a discount / Bill it to… (party = `bookings/parties`,
+>   `hotel.booking.transfer`) — every write re-reads the folio and sits behind
+>   a dialog. The bill and receipt papers are JSON on this server (not an
+>   HTML door like the challan), so `HotelBillPaperScreen` draws a default
+>   paper in a WebView and hands it to the print service; the branch's saved
+>   layout is web-only.
+> - **Check-out** (`hotel.booking.checkout`): the plan first, a room picker
+>   when more than one room, partial check-out keeps the screen, the money
+>   refusal and the carry-to-party option verbatim. **Cancel**
+>   (`hotel.booking.cancel`; a refund also needs `hotel.folio.bill`): refund
+>   + retained shown live. **Booking edit** after it is taken: a diff, with
+>   `dry_run` preview before Save. **Walk-in sale**: no rooms, straight to
+>   its folio. The bookings list grew the web's action column (Edit · Check
+>   in/Guests · Bill · Check out · Cancel), the status chips and the hold
+>   countdown that ticks by the minute.
+> - **Housekeeping** (`hotel.housekeeping.view`): block → floor → room in the
+>   server's order, four states with their tints, out-of-order demands a note,
+>   history per room. **Calendar**: the month heat grid and the room-by-room
+>   tape (7/14/21/31 nights); nothing books from here. **Reports**
+>   (`hotel.report.view`): guest register (one row per GUEST), money taken
+>   (netted, by method/account), performance (Occupancy/ADR/RevPAR; the
+>   non-lodging refusal replaces the tab). **Dashboard**: four independent
+>   reads, a tile group goes "—" when the session may not see it — a
+>   mobile-only entry at the head of the Hotel section (the web draws it on
+>   the main dashboard of a lodging branch).
+> - **Setup completed**: Facilities (with "Add the standard twenty-two"),
+>   Rooms & Seats (the full form incl. the run-of-rooms bulk switch, the
+>   facilities tick list and the guest-facing description; per-bed editor),
+>   Sittings, the Layout drawing (colour by type / sale mode / status, badges
+>   on every tile, the room panel), Service Charge — nine tabs in the web's
+>   order. **Hall Booking** (`hotel/hall-bookings`): hall × sitting grid,
+>   picks survive a date change, the confirm names every sitting.
+> - **Assets**: the CWIP tab (works, cost lines, capitalise behind a confirm
+>   showing the legs) and the QR label sheet (an offline QR encoder inlined
+>   in the printed HTML; the code opens the web register with `?q=`).
+>
+> Deliberately not ported: the branch form's hotel time/hold fields (set on
+> the web; shown here), the printed bill's layout designer, the night-audit
+> command (server). Owed: nothing on the web side as of `1e7644af`; the next
+> pass starts from `git log 1e7644af..Lutfor-Rahman` / `f4f87e2f..main`.
+>
+
 > **Matched to react `1e7644af` (Lutfor-Rahman) / api `f4f87e2f` (main) —
 > 2026-09-02.** The queue the 08-28 pass left is largely cleared:
 >

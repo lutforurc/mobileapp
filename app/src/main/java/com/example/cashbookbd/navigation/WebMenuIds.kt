@@ -99,6 +99,7 @@ object WebMenuIds {
     /** Hotel — the web's five-entry group. */
     private val HOTEL: Map<String, String> = mapOf(
         "hotelBookings" to "hotel_bookings",
+        "hotelHallBookings" to "hotel_hall_bookings",
         "hotelCalendar" to "hotel_calendar",
         "hotelHousekeeping" to "hotel_housekeeping",
         "hotelReports" to "hotel_reports",

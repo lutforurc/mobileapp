@@ -429,6 +429,66 @@ object HrmCrudForms {
             ),
         ),
         HrmCrudSpec(
+            key = "hotelFacilities",
+            title = "Facility",
+            anyOf = listOf("hotel.resource.view"),
+            listPath = "hotel-setup/facilities",
+            storePath = "hotel-setup/facilities/store",
+            updatePath = "hotel-setup/facilities/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.ENDPOINT,
+            editPath = "hotel-setup/facilities/edit",
+            fields = listOf(
+                CrudField("name", "Facility", CrudFieldKind.TEXT, required = true),
+                // Slugged from the name when left blank; it is what the
+                // standard-list seed matches on, so "Wi-Fi" and "wi_fi" are
+                // one code, not two.
+                CrudField("code", "Short Code", CrudFieldKind.TEXT),
+                // "Either" first: most facilities are neither a bedroom's nor
+                // a hall's alone.
+                CrudField(
+                    "applies_to", "Offered On", CrudFieldKind.CHOICE, default = "both",
+                    choices = listOf(
+                        SelectorOption("both", "Either — a room or a hall"),
+                        SelectorOption("room", "Rooms only"),
+                        SelectorOption("hall", "Halls only"),
+                    ),
+                ),
+                CrudField("sort_order", "Order", CrudFieldKind.NUMBER, default = "0"),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
+            key = "hotelSlots",
+            title = "Sitting",
+            anyOf = listOf("hotel.resource.view"),
+            listPath = "hotel-setup/slots",
+            storePath = "hotel-setup/slots/store",
+            updatePath = "hotel-setup/slots/update",
+            updateStyle = CrudUpdateStyle.PATH_ID,
+            editFetch = CrudEditFetch.ENDPOINT,
+            editPath = "hotel-setup/slots/edit",
+            fields = listOf(
+                CrudField("name", "Sitting", CrudFieldKind.TEXT, required = true),
+                // Lower-cased by the server; two of one name are two rows a
+                // clerk cannot tell apart on a dropdown.
+                CrudField("code", "Code", CrudFieldKind.TEXT, required = true),
+                // An evening sitting by default — the one every community
+                // centre sells first, and a form that opens on 00:00-00:00 is
+                // one nobody can save.
+                CrudField("start_time", "Starts", CrudFieldKind.TIME, required = true, default = "18:00"),
+                CrudField("end_time", "Ends", CrudFieldKind.TIME, required = true, default = "23:00"),
+                // A sitting that runs past midnight ends after it starts only
+                // with this ticked; the server says so in its own words.
+                CrudField(
+                    "ends_next_day", "Ends Next Day", CrudFieldKind.CHOICE, default = "0",
+                    choices = YES_NO,
+                ),
+                CrudField("sort_order", "Order", CrudFieldKind.NUMBER, default = "0"),
+                CrudField("status", "Status", CrudFieldKind.CHOICE, default = "1", choices = ACTIVE_INACTIVE),
+            ),
+        ),
+        HrmCrudSpec(
             key = "hotelChargeTypes",
             title = "Charge Type",
             anyOf = listOf("hotel.charge.type.view"),

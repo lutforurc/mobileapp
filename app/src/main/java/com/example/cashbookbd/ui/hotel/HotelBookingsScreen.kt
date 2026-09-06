@@ -6,6 +6,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +41,7 @@ import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.HotelBookingRow
 import com.example.cashbookbd.data.repository.HotelRepository
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.session.Permissions
@@ -51,7 +56,9 @@ import com.example.cashbookbd.ui.reports.ReportTable
 import com.example.cashbookbd.ui.reports.ReportTableCell
 import com.example.cashbookbd.ui.reports.cellText
 import com.example.cashbookbd.ui.reports.model.SimpleDate
+import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.ui.theme.appColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -190,10 +197,9 @@ class HotelBookingsViewModel(
 /**
  * The bookings list — the screen the front desk opens every day.
  *
- * Read-only in this phase: taking a booking, allotting rooms on arrival, the
- * folio and check-out all move money or inventory and follow next. What this
- * answers is the question asked at the counter twenty times a day — who is
- * coming, who is in, and which hold is about to lapse.
+ * What this answers is the question asked at the counter twenty times a day —
+ * who is coming, who is in, and which hold is about to lapse — and each row
+ * opens onto the acts that follow: the arrival, the bill, check-out, cancel.
  */
 @Composable
 fun HotelBookingsScreen(
@@ -211,6 +217,19 @@ fun HotelBookingsScreen(
     // Recording an arrival is its own permission: the booking is taken by
     // whoever answers the telephone, the arrival by whoever is at the desk.
     val canAllot = Permissions.has(sessionState.permissions, "hotel.booking.allot")
+    // Ending a stay and calling one off are each their own permission too.
+    val canCheckOut = Permissions.has(sessionState.permissions, "hotel.booking.checkout")
+    val canCancel = Permissions.has(sessionState.permissions, "hotel.booking.cancel")
+    // The hold column counts down, so it is recomputed once a minute — the
+    // words change ("45 min left"), and a list nobody refreshes would still
+    // say an hour when the beds had gone back.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            now = System.currentTimeMillis()
+        }
+    }
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -263,6 +282,12 @@ fun HotelBookingsScreen(
                 SecondaryButton(
                     text = "New",
                     onClick = { navController.navigate(Routes.HOTEL_NEW_BOOKING) },
+                )
+                // A meal sold to somebody who is not staying: no room, no
+                // nights — a bill to put charges on.
+                SecondaryButton(
+                    text = "Walk-in sale",
+                    onClick = { navController.navigate(HotelMenu.ROUTE_WALK_IN) },
                 )
             }
             Row(
@@ -339,9 +364,16 @@ fun HotelBookingsScreen(
                     ReportTable(
                         columns = bookingColumns(
                             canAllot = canAllot,
+                            canCheckOut = canCheckOut,
+                            canCancel = canCancel,
+                            now = now,
+                            onEdit = { row -> navController.navigate(HotelMenu.edit(row.id)) },
                             onAllot = { row ->
                                 navController.navigate(Routes.hotelAllotment(row.id))
                             },
+                            onBill = { row -> navController.navigate(HotelMenu.folio(row.id)) },
+                            onCheckOut = { row -> navController.navigate(HotelMenu.checkOut(row.id)) },
+                            onCancel = { row -> navController.navigate(HotelMenu.cancel(row.id)) },
                         ),
                         data = state.rows,
                         noDataMessage = "No booking found",
@@ -388,22 +420,32 @@ fun HotelBookingsScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun bookingColumns(
     canAllot: Boolean,
+    canCheckOut: Boolean,
+    canCancel: Boolean,
+    now: Long,
+    onEdit: (HotelBookingRow) -> Unit,
     onAllot: (HotelBookingRow) -> Unit,
+    onBill: (HotelBookingRow) -> Unit,
+    onCheckOut: (HotelBookingRow) -> Unit,
+    onCancel: (HotelBookingRow) -> Unit,
 ): List<ReportColumn<HotelBookingRow>> {
     val muted = MaterialTheme.appColors.textMuted
+    val danger = MaterialTheme.appColors.danger
+    val warning = MaterialTheme.appColors.warning
     val columns: List<ReportColumn<HotelBookingRow>> = listOf(
         ReportColumn("BOOKING", ReportColWidth.Fixed(130.dp)) { r, _ ->
             ReportTableCell.Slot {
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                     Text(r.bookingNo, style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                    Text(
-                        text = statusLabel(r.status),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = statusColor(r.status),
-                        maxLines = 1,
+                    // "(N)" only once somebody has actually been written down.
+                    HotelStatusChip(
+                        status = r.status,
+                        guestsCount = r.guestsCount,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }
@@ -430,17 +472,28 @@ private fun bookingColumns(
         ReportColumn("STAY", ReportColWidth.Fixed(160.dp)) { r, _ ->
             ReportTableCell.Slot {
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                    Text(
-                        text = "${r.checkInDate} → ${r.checkOutDate}",
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = if (r.nights == 1) "1 night" else "${r.nights} nights",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = muted,
-                        maxLines = 1,
-                    )
+                    if (r.bookingType == "walk_in") {
+                        // A meal, not a stay: the day it was served, and no room.
+                        Text(text = r.checkInDate, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        Text(
+                            text = "Walk-in, no room",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = muted,
+                            maxLines = 1,
+                        )
+                    } else {
+                        Text(
+                            text = "${r.checkInDate} → ${r.checkOutDate}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = if (r.nights == 1) "1 night" else "${r.nights} nights",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = muted,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         },
@@ -468,10 +521,43 @@ private fun bookingColumns(
                 }
             }
         },
-        ReportColumn("HOLD UNTIL", ReportColWidth.Fixed(120.dp)) { r, _ ->
-            // Only a hold has one; everywhere else a dash rather than a blank,
+        ReportColumn("HOLD UNTIL", ReportColWidth.Fixed(130.dp)) { r, _ ->
+            // Only a hold counts down. How long is LEFT, not when it ends —
+            // the property sets its hold in hours, and that is the number the
+            // desk is looking for. Everywhere else a dash rather than a blank,
             // so an empty cell is never read as a missing deadline.
-            cellText(r.holdUntil.ifBlank { "-" })
+            if (r.status == "hold") {
+                val words = holdCountdown(r.holdUntil, now)
+                ReportTableCell.Slot {
+                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                        Text(
+                            text = words.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (words.tone == HoldTone.LAPSED || words.tone == HoldTone.URGENT) {
+                                AppFontWeight.Bold
+                            } else {
+                                AppFontWeight.Normal
+                            },
+                            color = when (words.tone) {
+                                HoldTone.LAPSED -> danger
+                                HoldTone.URGENT -> warning
+                                else -> muted
+                            },
+                            maxLines = 1,
+                        )
+                        if (r.holdUntil.isNotBlank()) {
+                            Text(
+                                text = r.holdUntil,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = muted,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            } else {
+                cellText(r.holdUntil.ifBlank { "-" })
+            }
         },
         ReportColumn("TYPE", ReportColWidth.Fixed(100.dp)) { r, _ ->
             cellText(
@@ -485,22 +571,44 @@ private fun bookingColumns(
         },
     )
 
-    // Only where somebody may record an arrival, and only on a booking that
-    // still has one to record: a checked-out stay has nobody left to check in.
-    if (!canAllot) return columns
-
+    // The doors off a row, in the order the desk uses them: Edit, the arrival,
+    // the Bill (always — a cancelled stay may still have money on it), Check
+    // out, and Cancel last because it is the one nobody wants pressed by
+    // accident. A cancelled or lapsed booking is a single dash.
     return columns + ReportColumn<HotelBookingRow>(
-        "ACTION", ReportColWidth.Fixed(96.dp), TextAlign.Center,
+        "ACTION", ReportColWidth.Fixed(230.dp),
     ) { r, _ ->
-        if (r.status == "hold" || r.status == "confirmed" || r.status == "checked_in") {
-            ReportTableCell.Slot {
-                LinkButton(
-                    text = if (r.status == "checked_in") "Guests" else "Check in",
-                    onClick = { onAllot(r) },
-                )
-            }
+        val closed = r.status == "cancelled" || r.status == "expired"
+        if (closed) {
+            cellText("—", align = TextAlign.Center)
         } else {
-            ReportTableCell.Empty
+            val open = r.status == "hold" || r.status == "confirmed" || r.status == "checked_in"
+            ReportTableCell.Slot {
+                FlowRow(
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (r.status != "checked_out") {
+                        LinkButton(text = "Edit", onClick = { onEdit(r) })
+                    }
+                    // Only where somebody may record an arrival, on a booking
+                    // that still has one to record — and never on a walk-in,
+                    // which has no room to arrive at.
+                    if (canAllot && open && r.bookingType != "walk_in") {
+                        LinkButton(
+                            text = if (r.status == "checked_in") "Guests" else "Check in",
+                            onClick = { onAllot(r) },
+                        )
+                    }
+                    LinkButton(text = "Bill", onClick = { onBill(r) })
+                    if (canCheckOut && r.status == "checked_in") {
+                        LinkButton(text = "Check out", onClick = { onCheckOut(r) })
+                    }
+                    if (canCancel && r.status != "checked_out") {
+                        LinkButton(text = "Cancel", onClick = { onCancel(r) }, color = danger)
+                    }
+                }
+            }
         }
     }
 }
@@ -521,23 +629,4 @@ private fun pickBookingDate(
         start.month - 1,
         start.day,
     ).show()
-}
-
-private fun statusLabel(status: String): String = when (status) {
-    "hold" -> "Hold"
-    "confirmed" -> "Confirmed"
-    "checked_in" -> "In house"
-    "checked_out" -> "Checked out"
-    "cancelled" -> "Cancelled"
-    "expired" -> "Expired"
-    else -> status.ifBlank { "-" }
-}
-
-@Composable
-private fun statusColor(status: String) = when (status) {
-    "hold" -> MaterialTheme.appColors.warning
-    "confirmed" -> MaterialTheme.appColors.info
-    "checked_in" -> MaterialTheme.appColors.success
-    "cancelled", "expired" -> MaterialTheme.appColors.danger
-    else -> MaterialTheme.appColors.textMuted
 }
