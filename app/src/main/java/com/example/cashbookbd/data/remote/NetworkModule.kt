@@ -83,6 +83,10 @@ object NetworkModule {
             .addInterceptor(AcceptJsonInterceptor)
             .addInterceptor(DeviceHeadersInterceptor(deviceIdProvider, deviceNameProvider))
             .addInterceptor(AuthInterceptor(tokenProvider))
+            // After AuthInterceptor, so it sees the response to an authenticated
+            // request: the subscription refusal only ever comes back to a call
+            // that carried a token.
+            .addInterceptor(SubscriptionBlockInterceptor())
             .addInterceptor(logging)
             .build()
     }

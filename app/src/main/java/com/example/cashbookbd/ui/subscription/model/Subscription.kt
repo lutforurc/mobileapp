@@ -17,6 +17,8 @@ data class SubscriptionPlan(
     val currency: String,
     val billingInterval: String,
     val trialDays: Int,
+    /** Days a lapsed subscription on this plan keeps working before the API refuses it. */
+    val graceDays: Int = 0,
     /** null quota = Unlimited. */
     val maxEmployees: Int?,
     val maxCustomers: Int?,
@@ -36,6 +38,15 @@ data class CurrentSubscription(
     val planName: String,
     val status: String,
     val accessStatus: String,
+    /**
+     * SubscriptionGate's verdict: "full", "grace" or "blocked". Read this
+     * rather than deriving it from the dates -- the server already decided, and
+     * a second opinion here is how the web used to disagree with the API about
+     * who was locked out.
+     */
+    val accessState: String = "full",
+    /** Days left in the grace window; null once it is over or not yet begun. */
+    val graceDaysLeft: Int? = null,
     val startDate: String,
     val endDate: String,
     val trialEndAt: String,

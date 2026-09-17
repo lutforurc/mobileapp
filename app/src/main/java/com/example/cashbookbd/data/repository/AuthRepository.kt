@@ -72,6 +72,10 @@ class AuthRepository(
         dashboardCache.clear()
         // Drop the previous user's permissions so nothing leaks across sessions.
         sessionManager.clear()
+        // The next company to sign in on this phone has nothing to do with the
+        // last one's bill -- without this, a lapsed tenant's block screen would
+        // still be over the top of a paid-up tenant's session.
+        com.example.cashbookbd.data.remote.SubscriptionBlockSignal.clear()
     }
 
     suspend fun login(
@@ -113,6 +117,10 @@ class AuthRepository(
                         tokenManager.saveToken(body.data!!.token!!, rememberMe)
                         // Fresh session — drop any dashboard cached for a prior user.
                         dashboardCache.clear()
+                        // And any subscription block left over from the last one.
+                        // A renewed company signing back in must not meet the
+                        // screen its lapse put up an hour ago.
+                        com.example.cashbookbd.data.remote.SubscriptionBlockSignal.clear()
                         LoginResult.Success(body.data)
                     }
                 }

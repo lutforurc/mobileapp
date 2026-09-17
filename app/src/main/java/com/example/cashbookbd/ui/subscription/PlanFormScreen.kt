@@ -84,6 +84,7 @@ data class PlanFormUiState(
     val price: String = "",
     val currency: String = "BDT",
     val trialDays: String = "0",
+    val graceDays: String = "7",
     val sortOrder: String = "0",
     // Blank = Unlimited on every quota.
     val maxEmployees: String = "",
@@ -138,6 +139,7 @@ class PlanFormViewModel(
                             price = plan.num("price"),
                             currency = plan.str("currency").orEmpty().ifBlank { "BDT" },
                             trialDays = plan.num("trial_days").ifBlank { "0" },
+                            graceDays = plan.num("grace_days").ifBlank { "7" },
                             sortOrder = plan.num("sort_order").ifBlank { "0" },
                             maxEmployees = plan.num("max_employees"),
                             maxCustomers = plan.num("max_customers"),
@@ -177,6 +179,7 @@ class PlanFormViewModel(
     fun onPrice(v: String) = _uiState.update { it.copy(price = v) }
     fun onCurrency(v: String) = _uiState.update { it.copy(currency = v) }
     fun onTrialDays(v: String) = _uiState.update { it.copy(trialDays = v) }
+    fun onGraceDays(v: String) = _uiState.update { it.copy(graceDays = v) }
     fun onSortOrder(v: String) = _uiState.update { it.copy(sortOrder = v) }
     fun onMaxEmployees(v: String) = _uiState.update { it.copy(maxEmployees = v) }
     fun onMaxCustomers(v: String) = _uiState.update { it.copy(maxCustomers = v) }
@@ -212,6 +215,8 @@ class PlanFormViewModel(
                 put("price", state.price.toDoubleOrNull() ?: 0.0)
                 put("currency", state.currency.trim().ifBlank { "BDT" })
                 put("trial_days", state.trialDays.toIntOrNull() ?: 0)
+                // 0 is a real answer here -- "closes the day after it ends".
+                put("grace_days", state.graceDays.toIntOrNull() ?: 0)
                 put("sort_order", state.sortOrder.toIntOrNull() ?: 0)
                 state.maxEmployees.toIntOrNull()?.let { put("max_employees", it) }
                 state.maxCustomers.toIntOrNull()?.let { put("max_customers", it) }
@@ -393,8 +398,14 @@ fun PlanFormScreen(
                             keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f),
                         )
                         AppTextField(
-                            state.sortOrder, viewModel::onSortOrder, label = "Sort Order",
+                            state.graceDays, viewModel::onGraceDays, label = "Grace Days",
                             keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AppTextField(
+                            state.sortOrder, viewModel::onSortOrder, label = "Sort Order",
+                            keyboardType = KeyboardType.Number, modifier = Modifier.fillMaxWidth(0.5f),
                         )
                     }
                     Text(

@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AppNavigation
+import com.example.cashbookbd.ui.subscription.SubscriptionBlockGate
 import com.example.cashbookbd.ui.theme.CashBookbdTheme
 import com.example.cashbookbd.ui.theme.ThemeMode
 
@@ -65,7 +66,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    AppNavigation()
+                    // ⚠️ ABOVE AppNavigation, not inside it. Once a company's
+                    // grace period is over the API refuses every call, so a
+                    // block drawn per screen would be the same message on every
+                    // screen in turn with nothing working in between. One gate
+                    // at the top, and the app simply is not there.
+                    SubscriptionBlockGate {
+                        AppNavigation()
+                    }
                 }
             }
         }

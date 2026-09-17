@@ -46,6 +46,12 @@ class SubscriptionRepository(
                 planName = obj.str("plan_name").orEmpty(),
                 status = obj.str("status").orEmpty(),
                 accessStatus = obj.str("access_status").orEmpty(),
+                // An API not yet carrying SubscriptionGate sends neither; a
+                // company it would have blocked still reads access_status
+                // 'blocked', which is the safe half of the fallback.
+                accessState = obj.str("access_state")
+                    ?: if (obj.str("access_status") == "blocked") "blocked" else "full",
+                graceDaysLeft = obj.int("grace_days_left"),
                 startDate = obj.str("start_date").orEmpty(),
                 endDate = obj.str("end_date").orEmpty(),
                 trialEndAt = obj.str("trial_end_at").orEmpty(),
@@ -92,6 +98,7 @@ class SubscriptionRepository(
         currency = obj.str("currency").orEmpty(),
         billingInterval = obj.str("billing_interval").orEmpty(),
         trialDays = obj.int("trial_days") ?: 0,
+        graceDays = obj.int("grace_days") ?: 0,
         maxEmployees = obj.int("max_employees"),
         maxCustomers = obj.int("max_customers"),
         maxProducts = obj.int("max_products"),
