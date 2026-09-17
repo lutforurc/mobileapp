@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.cashbookbd.core.DateFormat
 import com.example.cashbookbd.data.remote.SubscriptionBlock
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
@@ -80,14 +81,14 @@ fun SubscriptionBlockedScreen(
                     Column(Modifier.padding(16.dp)) {
                         block.endDate?.let {
                             Text(
-                                text = "Plan ended: $it",
+                                text = "Plan ended: ${DateFormat.dayMonthYear(it)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.muted(),
                             )
                         }
                         block.gracePeriodEndAt?.let {
                             Text(
-                                text = "Grace period ended: ${it.take(10)}",
+                                text = "Grace period ended: ${DateFormat.dayMonthYear(it)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.muted(),
                             )

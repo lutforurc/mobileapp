@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.core.DateFormat
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.BrandPill
@@ -136,7 +137,9 @@ private fun DateRow(label: String, value: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value.ifBlank { "-" }, fontWeight = AppFontWeight.SemiBold)
+            // Formatted HERE rather than at each of the four call sites, which
+            // is what keeps them from drifting apart again.
+            Text(DateFormat.dayMonthYear(value), fontWeight = AppFontWeight.SemiBold)
         }
     }
 }
