@@ -116,6 +116,8 @@ object HotelMenu {
     const val ROUTE_BILL_PAPER = "hotel/bookings/{bookingId}/paper?paymentId={paymentId}"
     const val ROUTE_CHECKOUT = "hotel/bookings/{bookingId}/checkout"
     const val ROUTE_CANCEL = "hotel/bookings/{bookingId}/cancel"
+    const val ROUTE_NO_SHOW = "hotel/bookings/{bookingId}/no-show"
+    const val ROUTE_REGISTRATION_CARD = "hotel/bookings/{bookingId}/registration-card"
     const val ROUTE_EDIT = "hotel/bookings/{bookingId}/edit"
     const val ROUTE_WALK_IN = "hotel/bookings/walk-in"
 
@@ -127,5 +129,7 @@ object HotelMenu {
 
     fun checkOut(bookingId: Long): String = "hotel/bookings/$bookingId/checkout"
     fun cancel(bookingId: Long): String = "hotel/bookings/$bookingId/cancel"
+    fun noShow(bookingId: Long): String = "hotel/bookings/$bookingId/no-show"
+    fun registrationCard(bookingId: Long): String = "hotel/bookings/$bookingId/registration-card"
     fun edit(bookingId: Long): String = "hotel/bookings/$bookingId/edit"
 }

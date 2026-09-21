@@ -46,6 +46,7 @@ import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
+import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SummaryTile
 import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.model.BranchOption
@@ -168,6 +169,10 @@ class YearClosingViewModel(
                 is Resource.Success -> _uiState.update {
                     it.copy(
                         isLoading = false,
+                        // The server snaps whatever date was sent to the company's
+                        // own year end (§41) — the picker should show that, not
+                        // what was guessed before the company's year was known.
+                        yearEnd = SimpleDate.fromApi(result.data.plan.yearEnd) ?: it.yearEnd,
                         view = result.data,
                         note = result.data.note,
                         error = null,
@@ -320,16 +325,21 @@ fun YearClosingScreen(
                 placeholder = if (state.isBranchesLoading) "Loading branches…" else "All branches",
             )
             Spacer(Modifier.height(10.dp))
-            AppSelectDropdown(
+            SearchableSelectDropdown(
                 label = "Profit goes to",
-                options = state.view?.capitalHeads.orEmpty().map {
-                    SelectorOption(it.id.toString(), it.name, it.groupName)
-                },
                 selected = state.capitalHead?.let {
                     SelectorOption(it.id.toString(), it.name, it.groupName)
                 },
+                search = { keyword ->
+                    val matches = state.view?.capitalHeads.orEmpty()
+                        .filter { it.name.contains(keyword, ignoreCase = true) }
+                        .map { SelectorOption(it.id.toString(), it.name, it.groupName) }
+                    Resource.Success(matches)
+                },
                 onSelected = { option -> option.id.toLongOrNull()?.let(viewModel::onCapitalHead) },
                 placeholder = "Pick the capital head",
+                emptyText = "No capital head by that name",
+                minSearchChars = 1,
             )
 
             Spacer(Modifier.height(14.dp))
@@ -432,6 +442,24 @@ private fun PlanBody(
     onReverse: (YearClosingRow) -> Unit,
 ) {
     val plan = view.plan
+
+    if (view.lockedUntil != null) {
+        Text(
+            text = "Books locked up to ${SimpleDate.fromApi(view.lockedUntil)?.toDisplay() ?: view.lockedUntil}.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.appColors.warning,
+        )
+        Spacer(Modifier.height(6.dp))
+    }
+    if (view.months != 12) {
+        Text(
+            text = "${view.months} month${if (view.months == 1) "" else "s"} — the year changed" +
+                if (view.financialYearLabel.isNotBlank()) " (now runs ${view.financialYearLabel})." else ".",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.appColors.warning,
+        )
+        Spacer(Modifier.height(6.dp))
+    }
 
     SummaryTile(modifier = Modifier.fillMaxWidth()) {
         Text(

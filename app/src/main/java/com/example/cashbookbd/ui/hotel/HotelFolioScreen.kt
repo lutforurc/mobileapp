@@ -103,7 +103,7 @@ private val FALLBACK_CHARGE_TYPES = listOf(
     SelectorOption("other", "Other"),
 )
 
-enum class FolioDialog { BILL_NIGHTS, CHARGE, MONEY, DISCOUNT, TRANSFER }
+enum class FolioDialog { BILL_NIGHTS, CHARGE, MONEY, DISCOUNT, TRANSFER, BILL_NAME }
 
 data class FolioChargeDraft(
     val chargeType: String = "",
@@ -129,6 +129,8 @@ data class FolioDiscountDraft(
     val reason: String = "",
 )
 
+data class FolioBillNameDraft(val name: String = "")
+
 data class FolioTransferDraft(
     val party: HotelParty? = null,
     /** Send it back to the guest instead of on to a company. */
@@ -149,6 +151,7 @@ data class HotelFolioUiState(
     val money: FolioMoneyDraft = FolioMoneyDraft(),
     val discount: FolioDiscountDraft = FolioDiscountDraft(),
     val transfer: FolioTransferDraft = FolioTransferDraft(),
+    val billName: FolioBillNameDraft = FolioBillNameDraft(),
     val isWorking: Boolean = false,
     val message: String? = null,
     val sessionExpired: Boolean = false,
@@ -242,8 +245,17 @@ class HotelFolioViewModel(
                     ),
                 )
             }
-            FolioDialog.TRANSFER -> _uiState.update { it.copy(dialog = dialog, transfer = FolioTransferDraft()) }
+            FolioDialog.TRANSFER -> {
+                val bill = _uiState.value.bill
+                val seededParty = if (bill?.carried == true && bill.owedById != null) {
+                    HotelParty(id = bill.owedById, name = bill.owedByName, mobile = "", code = "")
+                } else null
+                _uiState.update { it.copy(dialog = dialog, transfer = FolioTransferDraft(party = seededParty)) }
+            }
             FolioDialog.BILL_NIGHTS -> _uiState.update { it.copy(dialog = dialog) }
+            FolioDialog.BILL_NAME -> _uiState.update {
+                it.copy(dialog = dialog, billName = FolioBillNameDraft(folio.booking.billName))
+            }
         }
     }
 
@@ -262,6 +274,13 @@ class HotelFolioViewModel(
 
     fun onTransfer(transform: (FolioTransferDraft) -> FolioTransferDraft) =
         _uiState.update { it.copy(transfer = transform(it.transfer)) }
+
+    fun onBillName(name: String) = _uiState.update { it.copy(billName = FolioBillNameDraft(name)) }
+
+    fun saveBillName() {
+        val name = _uiState.value.billName.name
+        write { repository.folioBillName(bookingId, name) }
+    }
 
     private fun loadTills() {
         viewModelScope.launch {
@@ -664,6 +683,14 @@ private fun FolioBody(
                         text = "Bill it to…",
                         onClick = { onOpen(FolioDialog.TRANSFER) },
                         enabled = !isWorking && !closed,
+                        compact = true,
+                    )
+                }
+                if (canBill) {
+                    SecondaryButton(
+                        text = if (booking.billName.isBlank()) "Name on the bill…" else "Name: ${booking.billName}",
+                        onClick = { onOpen(FolioDialog.BILL_NAME) },
+                        enabled = !isWorking,
                         compact = true,
                     )
                 }
@@ -1218,13 +1245,43 @@ private fun FolioDialogs(state: HotelFolioUiState, viewModel: HotelFolioViewMode
                     }
                 },
                 confirmButton = {
+                    val changesHolder = (d.backToGuest && bill?.carried == true) ||
+                        (d.party != null && d.party.id != bill?.owedById)
                     PrimaryButton(
                         text = bill?.let { "Move ${hotelMoney(it.outstanding)}" } ?: "Move",
                         onClick = viewModel::saveTransfer,
-                        enabled = !working && (d.backToGuest || d.party != null),
+                        enabled = !working && changesHolder,
                         isLoading = working,
                         compact = true,
                     )
+                },
+                dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::close, enabled = !working) },
+            )
+        }
+
+        FolioDialog.BILL_NAME -> {
+            val bill = state.bill
+            AlertDialog(
+                onDismissRequest = viewModel::close,
+                title = { Text("Name on the bill") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "What is printed as \"Billed To\". Leave blank to fall back to " +
+                                (bill?.owedByName ?: "whoever the bill is owed by") + ".",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.appColors.textMuted,
+                        )
+                        AppTextField(
+                            value = state.billName.name,
+                            onValueChange = { v -> viewModel.onBillName(v.take(191)) },
+                            label = "Bill name",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                confirmButton = {
+                    PrimaryButton(text = "Save", onClick = viewModel::saveBillName, enabled = !working, isLoading = working, compact = true)
                 },
                 dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::close, enabled = !working) },
             )

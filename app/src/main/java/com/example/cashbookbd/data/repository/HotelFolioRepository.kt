@@ -35,6 +35,8 @@ data class HotelFolioBooking(
     val discountAmount: Double?,
     val discountReason: String,
     val notes: String,
+    /** The name typed for the printed bill; blank falls back to whoever it is billed to. */
+    val billName: String,
 ) {
     val isWalkIn: Boolean get() = bookingType == "walk_in"
 }
@@ -345,6 +347,12 @@ class HotelFolioRepository(
         folioWrite(api.postObjectRaw("hotel-setup/bookings/folio/$bookingId/discount", body), "Discount recorded")
     }
 
+    /** The name printed on the bill; empty resets it to whoever the bill is owed by. */
+    suspend fun folioBillName(bookingId: Long, billName: String): Resource<HotelFolioWrite> = guarded {
+        val body = JsonObject().apply { addProperty("bill_name", billName.trim()) }
+        folioWrite(api.postObjectRaw("hotel-setup/bookings/folio/$bookingId/bill-name", body), "Bill name saved")
+    }
+
     /** Money in or out against the bill (`folio/{id}/receive`). */
     suspend fun receiveMoney(
         bookingId: Long,
@@ -577,6 +585,34 @@ class HotelFolioRepository(
         when (val a = answer(response, "You do not have permission to cancel a booking.")) {
             is Answer.Refused -> a.error
             is Answer.Ok -> Resource.Success(a.message ?: "Booking cancelled")
+        }
+    }
+
+    /**
+     * The guest never came (`bookings/no-show/{id}`, perm hotel.booking.cancel).
+     * Not a cancellation: the same money as [cancelBooking] splits the same
+     * way, but nothing is refunded unless [refundAmount] says so — a no-show
+     * has none of a cancelling guest's claim to their advance back.
+     */
+    suspend fun noShowBooking(
+        bookingId: Long,
+        reason: String,
+        refundAmount: Double,
+        coa4Id: Long?,
+        noShowOn: String?,
+    ): Resource<String> = guarded {
+        val body = JsonObject().apply {
+            reason.trim().takeIf { it.isNotEmpty() }?.let { addProperty("reason", it) }
+            if (refundAmount > 0) {
+                addProperty("refund_amount", refundAmount)
+                coa4Id?.let { addProperty("coa4_id", it) }
+            }
+            noShowOn?.takeIf { it.isNotBlank() }?.let { addProperty("no_show_on", it) }
+        }
+        val response = api.postObjectRaw("hotel-setup/bookings/no-show/$bookingId", body)
+        when (val a = answer(response, "You do not have permission to record a no-show.")) {
+            is Answer.Refused -> a.error
+            is Answer.Ok -> Resource.Success(a.message ?: "Marked as a no-show")
         }
     }
 
@@ -830,6 +866,7 @@ class HotelFolioRepository(
             discountAmount = dbl("discount_amount"),
             discountReason = text("discount_reason"),
             notes = text("notes"),
+            billName = text("bill_name"),
         )
     }
 

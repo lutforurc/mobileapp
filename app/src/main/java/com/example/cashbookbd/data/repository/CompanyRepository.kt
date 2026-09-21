@@ -27,6 +27,9 @@ data class CompanyEditData(
     val email: String,
     val address: String,
     val notes: String,
+    /** 1–12; the month the company's financial year starts in. Defaults to July (7). */
+    val fyStartMonth: Int,
+    val yearClosingEnabled: Boolean,
 )
 
 /**
@@ -63,6 +66,8 @@ class CompanyRepository(
                 email = record.str("email").orEmpty(),
                 address = record.str("address").orEmpty(),
                 notes = record.str("notes").orEmpty(),
+                fyStartMonth = record.int("fy_start_month")?.takeIf { it in 1..12 } ?: 7,
+                yearClosingEnabled = record.flag("year_closing_enabled"),
             )
         }) { reportApi.get("company/company-edit/$companyId", emptyMap()) }
     }
@@ -79,6 +84,8 @@ class CompanyRepository(
         email: String,
         address: String,
         notes: String,
+        fyStartMonth: Int,
+        yearClosingEnabled: Boolean,
         /** JPEG bytes for the light/dark logos; null leaves the stored one. */
         lightLogo: ByteArray? = null,
         darkLogo: ByteArray? = null,
@@ -98,6 +105,8 @@ class CompanyRepository(
                 addProperty("email", email.trim())
                 addProperty("address", address.trim())
                 addProperty("notes", notes.trim())
+                addProperty("fy_start_month", fyStartMonth)
+                addProperty("year_closing_enabled", yearClosingEnabled)
             }
             return@withContext request(readMessage) {
                 transactionApi.postObject("company/company-update", body)
@@ -117,6 +126,8 @@ class CompanyRepository(
             "email" to text(email.trim()),
             "address" to text(address.trim()),
             "notes" to text(notes.trim()),
+            "fy_start_month" to text(fyStartMonth.toString()),
+            "year_closing_enabled" to text(if (yearClosingEnabled) "1" else "0"),
         )
         val parts = buildList {
             lightLogo?.let {
@@ -195,5 +206,18 @@ class CompanyRepository(
         val el = this?.get(key)?.takeUnless { it.isJsonNull } ?: return null
         if (!el.isJsonPrimitive) return null
         return el.asString.trim().ifBlank { null }
+    }
+
+    private fun JsonObject?.int(key: String): Int? {
+        val el = this?.get(key)?.takeUnless { it.isJsonNull } ?: return null
+        if (!el.isJsonPrimitive) return null
+        return runCatching { el.asInt }.getOrNull()
+    }
+
+    private fun JsonObject?.flag(key: String): Boolean {
+        val el = this?.get(key)?.takeUnless { it.isJsonNull } ?: return false
+        if (!el.isJsonPrimitive) return false
+        val prim = el.asJsonPrimitive
+        return if (prim.isBoolean) prim.asBoolean else runCatching { prim.asInt != 0 }.getOrDefault(false)
     }
 }

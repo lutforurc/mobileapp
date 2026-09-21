@@ -54,6 +54,27 @@ import kotlinx.coroutines.launch
 /** The web form caps the name at 255 characters (`max:255`). */
 private const val NAME_MAX_LENGTH = 255
 
+private val MONTH_NAMES = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+private val MONTH_OPTIONS = MONTH_NAMES.mapIndexed { index, name ->
+    com.example.cashbookbd.ui.reports.model.SelectorOption((index + 1).toString(), name)
+}
+
+/** Mirrors the server's FinancialYear::label() — the year runs 1 [start] to the last day before it comes round again. */
+private fun fyRangeLabel(startMonth: Int): String {
+    val month = startMonth.coerceIn(1, 12)
+    val endMonth = if (month == 1) 12 else month - 1
+    val endDay = when (endMonth) {
+        2 -> 28
+        4, 6, 9, 11 -> 30
+        else -> 31
+    }
+    return "1 ${MONTH_NAMES[month - 1]} – $endDay ${MONTH_NAMES[endMonth - 1]}"
+}
+
 data class EditCompanyUiState(
     val isLoading: Boolean = true,
     val loadError: String? = null,
@@ -65,6 +86,8 @@ data class EditCompanyUiState(
     val email: String = "",
     val address: String = "",
     val notes: String = "",
+    val fyStartMonth: Int = 7,
+    val yearClosingEnabled: Boolean = false,
     /** Freshly picked logo bytes (JPEG, ≤2 MB); null leaves the stored one. */
     val lightLogo: ByteArray? = null,
     val darkLogo: ByteArray? = null,
@@ -102,6 +125,8 @@ class EditCompanyViewModel(
                         email = result.data.email,
                         address = result.data.address,
                         notes = result.data.notes,
+                        fyStartMonth = result.data.fyStartMonth,
+                        yearClosingEnabled = result.data.yearClosingEnabled,
                     )
                 }
                 is Resource.Error -> _uiState.update {
@@ -122,6 +147,8 @@ class EditCompanyViewModel(
     fun onEmail(value: String) = _uiState.update { it.copy(email = value) }
     fun onAddress(value: String) = _uiState.update { it.copy(address = value) }
     fun onNotes(value: String) = _uiState.update { it.copy(notes = value) }
+    fun onFyStartMonth(month: Int) = _uiState.update { it.copy(fyStartMonth = month) }
+    fun onYearClosingEnabled(value: Boolean) = _uiState.update { it.copy(yearClosingEnabled = value) }
 
     /** Encodes a picked logo to JPEG within the server's 2 MB rule. */
     fun onLogoPicked(context: Context, uri: android.net.Uri, dark: Boolean) {
@@ -154,6 +181,8 @@ class EditCompanyViewModel(
                 email = state.email,
                 address = state.address,
                 notes = state.notes,
+                fyStartMonth = state.fyStartMonth,
+                yearClosingEnabled = state.yearClosingEnabled,
                 lightLogo = state.lightLogo,
                 darkLogo = state.darkLogo,
             )
@@ -338,6 +367,21 @@ private fun CompanyForm(state: EditCompanyUiState, viewModel: EditCompanyViewMod
                 color = MaterialTheme.appColors.textOnScreenMuted,
             )
         }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            com.example.cashbookbd.ui.components.AppSelectDropdown(
+                label = "Financial year starts in",
+                options = MONTH_OPTIONS,
+                selected = MONTH_OPTIONS.getOrNull(state.fyStartMonth - 1),
+                onSelected = { option -> option.id.toIntOrNull()?.let(viewModel::onFyStartMonth) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = "Runs ${fyRangeLabel(state.fyStartMonth)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.appColors.textOnScreenMuted,
+            )
+        }
+        FlagSwitch("Year closing enabled", state.yearClosingEnabled, viewModel::onYearClosingEnabled)
         // The web form's two logo uploads — light, and the optional dark-mode
         // variant that falls back to the light one everywhere it is missing.
         val context = LocalContext.current
@@ -372,6 +416,17 @@ private fun CompanyForm(state: EditCompanyUiState, viewModel: EditCompanyViewMod
             isLoading = state.isSaving,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun FlagSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 

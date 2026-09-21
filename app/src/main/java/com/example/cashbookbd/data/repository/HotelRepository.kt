@@ -125,6 +125,37 @@ data class HotelAllotment(
     val rooms: List<HotelAllotmentRoom>,
 )
 
+/** One guest's registration card — the rate they signed for, not today's tariff. */
+data class HotelRegistrationCard(
+    val room: String,
+    val rate: Double?,
+    val guestName: String,
+    val guestMobile: String,
+    val guestNationalId: String,
+    val guestAddress: String,
+    val guestGender: String,
+    val guestAge: String,
+    val isChild: Boolean,
+    val isPrimary: Boolean,
+)
+
+/** Every guest recorded on a booking, printable two to an A4 sheet. */
+data class HotelRegistrationCards(
+    val bookingNo: String,
+    val bookingDate: String,
+    val checkInDate: String,
+    val checkOutDate: String,
+    val nights: Int,
+    val bookerName: String,
+    val bookerMobile: String,
+    val branchName: String,
+    val branchAddress: String,
+    val branchPhone: String,
+    /** The branch's own terms text, from Hotel Setup; blank prints no clause. */
+    val terms: String,
+    val cards: List<HotelRegistrationCard>,
+)
+
 /** Somebody this company already has on its customer list, for a corporate bill. */
 data class HotelParty(
     val id: Long,
@@ -476,6 +507,74 @@ class HotelRepository(
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }
+    }
+
+    /**
+     * One printable card per recorded guest, at the rate their room was let
+     * at — not today's tariff (`bookings/allotment/{id}/card`).
+     */
+    suspend fun fetchRegistrationCards(bookingId: Long): Resource<HotelRegistrationCards> = withContext(ioDispatcher) {
+        try {
+            val response = api.get("hotel-setup/bookings/allotment/$bookingId/card", emptyMap())
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            if (response.code() == 403) {
+                return@withContext Resource.Error("You do not have permission to check guests in.")
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            if (body.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Error(
+                    body.get("message")?.takeUnless { it.isJsonNull }?.asString
+                        ?: "Nobody has been checked in yet — record the guests first, then print their cards.",
+                )
+            }
+            val payload = body.obj("data")?.obj("data") ?: body.obj("data")
+                ?: return@withContext Resource.Error("The registration cards could not be read.")
+            val booking = payload.obj("booking")
+            val branch = payload.obj("branch")
+            Resource.Success(
+                HotelRegistrationCards(
+                    bookingNo = booking?.text("booking_no").orEmpty(),
+                    bookingDate = booking?.text("booking_date").orEmpty().take(10),
+                    checkInDate = booking?.text("check_in_date").orEmpty().take(10),
+                    checkOutDate = booking?.text("check_out_date").orEmpty().take(10),
+                    nights = booking?.int("nights") ?: 0,
+                    bookerName = booking?.text("booker_name").orEmpty(),
+                    bookerMobile = booking?.text("booker_mobile").orEmpty(),
+                    branchName = branch?.text("name").orEmpty(),
+                    branchAddress = branch?.text("address").orEmpty(),
+                    branchPhone = branch?.text("phone").orEmpty(),
+                    terms = payload.text("terms").orEmpty(),
+                    cards = payload.get("cards")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject?.toRegistrationCard() }
+                        .orEmpty(),
+                )
+            )
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    private fun JsonObject.toRegistrationCard(): HotelRegistrationCard {
+        val guest = obj("guest")
+        return HotelRegistrationCard(
+            room = text("room").orEmpty(),
+            rate = get("rate")?.takeUnless { it.isJsonNull }?.asDouble,
+            guestName = guest?.text("name").orEmpty(),
+            guestMobile = guest?.text("mobile").orEmpty(),
+            guestNationalId = guest?.text("national_id").orEmpty(),
+            guestAddress = guest?.text("address").orEmpty(),
+            guestGender = guest?.text("gender").orEmpty(),
+            guestAge = guest?.get("age")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+            isChild = guest?.get("is_child")?.takeUnless { it.isJsonNull }?.asBoolean ?: false,
+            isPrimary = guest?.get("is_primary")?.takeUnless { it.isJsonNull }?.asBoolean ?: false,
+        )
     }
 
     /**

@@ -43,7 +43,8 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 // val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
 //val baseUrl = "https://kps.cashbookbd.com/api/"
 // val baseUrl = "https://kbr.cashbookbd.com/api/"
- val baseUrl = "https://my.cashbookbd.com/api/"
+ // val baseUrl = "https://my.cashbookbd.com/api/"
+ val baseUrl = "http://localhost:5173/api/"
 
 
 
@@ -67,7 +68,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
  * `src/main/res`: a resource declared there as well would collide, and anything
  * tenant-specific left there would ship to every tenant.
  */
-val tenantKey: String = Regex("""^https?://([^./]+)""")
+val tenantKey: String = Regex("""^https?://([^./:]+)""")
     .find(baseUrl)?.groupValues?.get(1).orEmpty()
 
 // Keyed by tenant so switching tenants can't leave the previous one's artwork

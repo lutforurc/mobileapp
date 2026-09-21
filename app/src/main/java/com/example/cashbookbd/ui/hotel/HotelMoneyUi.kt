@@ -208,6 +208,7 @@ internal fun hotelStatusLabel(status: String): String = when (status) {
     "checked_out" -> "Checked out"
     "cancelled" -> "Cancelled"
     "expired" -> "Hold expired"
+    "no_show" -> "No-show"
     else -> status.replace('_', ' ').ifBlank { "—" }
 }
 
@@ -218,6 +219,7 @@ internal fun hotelStatusColor(status: String): Color = when (status) {
     "confirmed" -> MaterialTheme.colorScheme.primary
     "checked_in" -> MaterialTheme.appColors.success
     "checked_out" -> MaterialTheme.appColors.info
+    "no_show" -> MaterialTheme.appColors.warning
     else -> MaterialTheme.appColors.textMuted
 }
 

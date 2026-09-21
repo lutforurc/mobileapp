@@ -239,13 +239,17 @@ private fun factRows(rows: List<Pair<String, String>>): String = buildString {
 private fun stayFacts(paper: HotelPaper, forReceipt: Boolean): String {
     val guest = paper.fact("guest_name").ifBlank { paper.fact("booker_name") }
     val mobile = paper.fact("guest_mobile").ifBlank { paper.fact("booker_mobile") }
+    val billedTo = paper.fact("billed_to")
+    val owedBy = paper.fact("bill_owed_by")
     val who = listOf(
         (if (forReceipt) "From" else "Guest") to guest,
         "Mobile" to mobile,
         "NID / Passport" to paper.fact("guest_nid"),
         "Address" to paper.fact("guest_address"),
         "Booked by" to paper.fact("booker_name").takeIf { it.isNotBlank() && it != guest }.orEmpty(),
-        "Billed to" to paper.fact("billed_to"),
+        "Billed to" to billedTo,
+        // Only shown when the party paying differs from the name printed on the bill.
+        "On account of" to owedBy.takeIf { it.isNotBlank() && it != billedTo }.orEmpty(),
     )
     val adults = paper.fact("stated_adults").toIntOrNull() ?: 0
     val children = paper.fact("stated_children").toIntOrNull() ?: 0
@@ -310,6 +314,7 @@ internal fun hotelBillHtml(paper: HotelPaper): String {
         val room = p["room_with_type"].orEmpty().ifBlank { p["room"].orEmpty() }
         val sitting = p["sitting"].orEmpty()
         val sub = listOf(room, sitting, when_).filter { it.isNotBlank() }.joinToString(" · ")
+        val lineDetail = p["line_detail"].orEmpty()
         val qty = p["quantity"]?.toDoubleOrNull() ?: 0.0
         val qtyText = if (qty == Math.rint(qty)) qty.toLong().toString() else qty.toString()
         val scRate = rateOf(p["service_charge_rate"])
@@ -318,6 +323,7 @@ internal fun hotelBillHtml(paper: HotelPaper): String {
         sb.append("<td class=\"c\">").append(index + 1).append("</td>")
         sb.append("<td>").append(esc(asRead(description)))
         if (sub.isNotBlank()) sb.append("<div class=\"small\">").append(esc(sub)).append("</div>")
+        if (lineDetail.isNotBlank()) sb.append("<div class=\"small\">").append(esc(lineDetail)).append("</div>")
         sb.append("</td>")
         sb.append("<td class=\"n\">").append(esc(qtyText)).append("</td>")
         sb.append("<td class=\"n\">").append(money(p["unit_rate"])).append("</td>")

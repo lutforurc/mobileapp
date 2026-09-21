@@ -80,6 +80,7 @@ private val STATUSES = listOf(
     "checked_in" to "In House",
     "checked_out" to "Checked Out",
     "cancelled" to "Cancelled",
+    "no_show" to "No-show",
 )
 
 data class HotelBookingsUiState(
@@ -374,6 +375,7 @@ fun HotelBookingsScreen(
                             onBill = { row -> navController.navigate(HotelMenu.folio(row.id)) },
                             onCheckOut = { row -> navController.navigate(HotelMenu.checkOut(row.id)) },
                             onCancel = { row -> navController.navigate(HotelMenu.cancel(row.id)) },
+                            onNoShow = { row -> navController.navigate(HotelMenu.noShow(row.id)) },
                         ),
                         data = state.rows,
                         noDataMessage = "No booking found",
@@ -432,6 +434,7 @@ private fun bookingColumns(
     onBill: (HotelBookingRow) -> Unit,
     onCheckOut: (HotelBookingRow) -> Unit,
     onCancel: (HotelBookingRow) -> Unit,
+    onNoShow: (HotelBookingRow) -> Unit,
 ): List<ReportColumn<HotelBookingRow>> {
     val muted = MaterialTheme.appColors.textMuted
     val danger = MaterialTheme.appColors.danger
@@ -578,7 +581,7 @@ private fun bookingColumns(
     return columns + ReportColumn<HotelBookingRow>(
         "ACTION", ReportColWidth.Fixed(230.dp),
     ) { r, _ ->
-        val closed = r.status == "cancelled" || r.status == "expired"
+        val closed = r.status == "cancelled" || r.status == "expired" || r.status == "no_show"
         if (closed) {
             cellText("—", align = TextAlign.Center)
         } else {
@@ -606,6 +609,13 @@ private fun bookingColumns(
                     }
                     if (canCancel && r.status != "checked_out") {
                         LinkButton(text = "Cancel", onClick = { onCancel(r) }, color = danger)
+                    }
+                    // Offered only where the server would accept it: confirmed,
+                    // not a walk-in, nobody recorded, the arrival night over.
+                    if (canCancel && r.status == "confirmed" && r.bookingType != "walk_in" &&
+                        r.guestsCount == 0 && r.checkInDate.take(10) < SimpleDate.today().toApi()
+                    ) {
+                        LinkButton(text = "No-show", onClick = { onNoShow(r) }, color = warning)
                     }
                 }
             }

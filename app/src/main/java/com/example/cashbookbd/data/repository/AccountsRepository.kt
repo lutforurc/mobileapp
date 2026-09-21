@@ -211,6 +211,12 @@ data class YearClosingView(
     val history: List<YearClosingRow>,
     val capitalHeads: List<AccountHead>,
     val note: String,
+    /** "1 July – 30 June", from the company's own start month. */
+    val financialYearLabel: String,
+    /** The period this plan covers — 12 on an ordinary year, else short/long. */
+    val months: Int,
+    /** The last closed year end; vouchers on or before it are frozen (§42). */
+    val lockedUntil: String?,
 )
 
 // ---------------------------------------------------------------------------
@@ -640,6 +646,9 @@ class AccountsRepository(
                 history = p.array("history").mapObjects { it.toClosingRow() },
                 capitalHeads = p.array("capital_heads").mapObjects { it.toHead() },
                 note = p.text("note"),
+                financialYearLabel = p.obj("financial_year")?.text("label").orEmpty(),
+                months = p.obj("financial_year")?.int("months") ?: 12,
+                lockedUntil = p.text("locked_until").takeIf { it.isNotBlank() },
             )
         }
     }

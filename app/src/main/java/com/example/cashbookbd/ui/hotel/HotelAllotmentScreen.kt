@@ -39,6 +39,7 @@ import com.example.cashbookbd.data.repository.HotelAllotment
 import com.example.cashbookbd.data.repository.HotelAllotmentRoom
 import com.example.cashbookbd.data.repository.HotelGuestEntry
 import com.example.cashbookbd.data.repository.HotelRepository
+import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -273,6 +274,16 @@ fun HotelAllotmentScreen(
                                     } else {
                                         MaterialTheme.appColors.success
                                     },
+                                )
+                            }
+                        }
+
+                        if (allotment.arrived > 0) {
+                            item {
+                                SecondaryButton(
+                                    text = "Print registration cards",
+                                    onClick = { navController.navigate(HotelMenu.registrationCard(allotment.bookingId)) },
+                                    compact = true,
                                 )
                             }
                         }
