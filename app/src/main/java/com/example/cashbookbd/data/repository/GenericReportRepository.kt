@@ -199,7 +199,10 @@ class GenericReportRepository(
         val order = config.columnOrder.map { it.lowercase(Locale.US) }
         val built = when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
-            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload)
+                .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
+                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+                .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
             ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
@@ -347,6 +350,32 @@ class GenericReportRepository(
         }
         walk(payload)
         return rows
+    }
+
+    /**
+     * Bands a NESTED_GROUPS report by [groupKey] (Closing Stock's "category",
+     * web 717ef8c9): a row with nothing under [groupKey] takes "brand" as the
+     * band instead, and "Others" failing that — named, never silently
+     * dropped into a blank band. Sorted, not a real section header: the
+     * column stays visible so the group reads without a second
+     * table-rendering mode this app's report engine does not otherwise have.
+     */
+    private fun applyGroupFallback(rows: List<JsonElement>, groupKey: String): List<JsonElement> = rows.map { row ->
+        if (!row.isJsonObject) return@map row
+        val obj = row.asJsonObject
+        val group = obj.entrySet().firstOrNull { it.key.equals(groupKey, ignoreCase = true) }
+            ?.value?.let { rawText(it) }?.trim().orEmpty()
+        val fallback = group.ifBlank {
+            obj.entrySet().firstOrNull { it.key.equals("brand", ignoreCase = true) }
+                ?.value?.let { rawText(it) }?.trim().orEmpty()
+        }.ifBlank { "Others" }
+        obj.addProperty(groupKey, fallback)
+        obj
+    }
+
+    private fun List<ReportRow>.sortedBandedBy(groupKey: String): List<ReportRow> {
+        val key = groupKey.lowercase(Locale.US)
+        return sortedBy { row -> row.cells.firstOrNull { it.key == key }?.value?.lowercase(Locale.US).orEmpty() }
     }
 
     /**

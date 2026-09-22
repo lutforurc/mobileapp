@@ -304,6 +304,13 @@ data class ReportConfig(
      * e.g. the Loan Ledger's "Vr No & Date". Empty = no merging.
      */
     val stackedColumns: List<ReportStackedColumn> = emptyList(),
+    /**
+     * Bands the rows by this column, falling back to "Others" where it is
+     * blank (Closing Stock's category grouping — web 717ef8c9). Sorted, not
+     * a real section header: the column stays visible so the group reads
+     * without a second table-rendering mode. Null = no banding.
+     */
+    val groupByColumn: String? = null,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -421,12 +428,18 @@ private val HRM_ATTENDANCE_LABELS = mapOf(
     "approval_status" to "Approval",
 )
 
-/** The web ClosingStockReport's visible six columns — the rest stay internal. */
+/**
+ * The web ClosingStockReport's visible columns. `category` stays visible —
+ * banded by it (717ef8c9) — but `brand` is still internal-only: it is read
+ * as the fallback group name where a product has no category, never shown
+ * as its own column.
+ */
 private val CLOSING_STOCK_HIDDEN = listOf(
-    "id", "vr_no", "category", "brand", "prodct_detls_id", "purchase_pct",
+    "id", "vr_no", "brand", "prodct_detls_id", "purchase_pct",
 )
 
 private val CLOSING_STOCK_LABELS = mapOf(
+    "category" to "Category",
     "product_name" to "Product Details",
     "stock" to "Stock Qty",
     "rate" to "Rate (Tk.)",
@@ -1133,6 +1146,7 @@ object ReportMenu {
             columnLabels = CLOSING_STOCK_LABELS,
             totalColumns = listOf("total_stock"),
             totalRowLabel = "Grand Total",
+            groupByColumn = "category",
         ),
         ReportConfig(
             key = "stockDetails",
@@ -1154,6 +1168,7 @@ object ReportMenu {
             columnLabels = CLOSING_STOCK_LABELS,
             totalColumns = listOf("total_stock"),
             totalRowLabel = "Grand Total",
+            groupByColumn = "category",
         ),
         ReportConfig(
             key = "productStock",
