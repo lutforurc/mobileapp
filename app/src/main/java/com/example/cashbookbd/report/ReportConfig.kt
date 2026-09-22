@@ -516,6 +516,8 @@ object ReportMenu {
         // The three branch stock-movement reports (web sidebar item gates).
         "branch.transfer.create",
         "branch.received.create",
+        // Voucher Monthly Register (web e1e87336).
+        "voucher.register",
     )
 
     val all: List<ReportConfig> = listOf(
@@ -691,6 +693,19 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             // The bespoke ExpenseReportScreen: Trial Balance Group's layout
             // narrowed to expense heads, with tap-to-open detail rows.
+            native = true,
+        ),
+        ReportConfig(
+            key = "voucherRegister",
+            title = "Voucher Register",
+            routeName = "ReportVoucherRegister",
+            webPath = "/reports/voucher-register",
+            anyOf = listOf("voucher.register"),
+            endpointKey = "voucherRegister",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            // Tally-style: one row per month, expanding to the vouchers
+            // behind it. The bespoke VoucherRegisterScreen.
             native = true,
         ),
 

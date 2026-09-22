@@ -253,6 +253,9 @@ object Routes {
     /** Expense Report — Trial Balance Group narrowed to expense heads (native). */
     const val EXPENSE_REPORT = "reports/expense-report"
 
+    /** Voucher Monthly Register — Tally-style counts per month, drilling into vouchers (native). */
+    const val VOUCHER_REGISTER = "reports/voucher-register"
+
     /** The Analytics section's one screen: the two-period item comparison. */
     const val ANALYTICS_COMPARISON = "analytics/comparison"
 
@@ -827,6 +830,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.EXPENSE_REPORT) {
             PermissionGate(anyOf = listOf("expense.report")) {
                 ExpenseReportScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.VOUCHER_REGISTER) {
+            PermissionGate(anyOf = listOf("voucher.register")) {
+                com.example.cashbookbd.ui.reports.VoucherRegisterScreen(navController = navController, onLogout = backToLogin)
             }
         }
 
