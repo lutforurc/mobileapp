@@ -210,8 +210,16 @@ class BranchRepository(
                 val json = response.jsonBody()
                 val success = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
                 if (success == false) {
+                    // Most refusals carry a top-level `message`; the subscription
+                    // quota guards (branch/transaction limits) nest theirs at
+                    // `error.message` instead — checked here so "Branch quota
+                    // reached (3/3)" reaches the user instead of a generic line.
                     val message = json.get("message")?.takeUnless { it.isJsonNull }?.asString
-                    Resource.Error(message?.takeIf { it.isNotBlank() } ?: "The server rejected the request.")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: json.get("error")?.takeIf { it.isJsonObject }?.asJsonObject
+                            ?.get("message")?.takeUnless { it.isJsonNull }?.asString
+                            ?.takeIf { it.isNotBlank() }
+                    Resource.Error(message ?: "The server rejected the request.")
                 } else if (!response.isSuccessful && response.code() != 201) {
                     Resource.Error("Server error (${response.code()}). Please try again later.")
                 } else {

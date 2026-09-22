@@ -87,6 +87,8 @@ data class AuditTrailUiState(
     val userId: Long? = null,
     val action: String = "",
     val voucherNo: String = "",
+    /** '' Everything, or 'voucher' / 'customer' / 'product'. */
+    val source: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val message: String? = null,
@@ -143,6 +145,7 @@ class AuditTrailViewModel(
     fun onUser(id: Long?) = _uiState.update { it.copy(userId = id) }
     fun onAction(value: String) = _uiState.update { it.copy(action = value) }
     fun onVoucherNo(value: String) = _uiState.update { it.copy(voucherNo = value) }
+    fun onSource(value: String) = _uiState.update { it.copy(source = value) }
 
     fun reset() {
         _uiState.update {
@@ -152,6 +155,7 @@ class AuditTrailViewModel(
                 userId = null,
                 action = "",
                 voucherNo = "",
+                source = "",
             )
         }
         load()
@@ -168,6 +172,7 @@ class AuditTrailViewModel(
                 action = state.action,
                 voucherNo = state.voucherNo,
                 branchId = state.selectedBranch?.id,
+                source = state.source,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -271,6 +276,13 @@ fun AuditTrailScreen(
                     placeholder = "Everybody",
                 )
                 Spacer(Modifier.height(10.dp))
+                AppSelectDropdown(
+                    label = "Source",
+                    options = SOURCE_OPTIONS,
+                    selected = SOURCE_OPTIONS.firstOrNull { it.id == state.source } ?: SOURCE_OPTIONS.first(),
+                    onSelected = { viewModel.onSource(it.id) },
+                )
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppTextField(
                         value = state.action,
@@ -356,6 +368,14 @@ fun AuditTrailScreen(
 // Table
 // ---------------------------------------------------------------------------
 
+/** The web's `source` filter values, verbatim. */
+private val SOURCE_OPTIONS = listOf(
+    SelectorOption("", "Everything"),
+    SelectorOption("voucher", "Voucher"),
+    SelectorOption("customer", "Customer"),
+    SelectorOption("product", "Product"),
+)
+
 private val auditColumns: List<ReportColumn<AuditEvent>> = listOf(
     ReportColumn("WHEN", ReportColWidth.Fixed(140.dp)) { e, _ ->
         cellText(e.at.ifBlank { "-" }, maxLines = 2)
@@ -366,26 +386,31 @@ private val auditColumns: List<ReportColumn<AuditEvent>> = listOf(
     ReportColumn("WHAT", ReportColWidth.Fixed(120.dp)) { e, _ ->
         cellText(e.action.ifBlank { "-" }, maxLines = 2)
     },
-    ReportColumn("VOUCHER", ReportColWidth.Fixed(140.dp)) { e, _ ->
-        ReportTableCell.Slot { VoucherCell(e) }
+    ReportColumn("RECORD", ReportColWidth.Fixed(140.dp)) { e, _ ->
+        ReportTableCell.Slot { RecordCell(e) }
     },
     ReportColumn("WHAT CHANGED", ReportColWidth.Fixed(280.dp)) { e, _ ->
         ReportTableCell.Slot { ChangesCell(e) }
     },
 )
 
+/**
+ * A voucher row shows its number and date, exactly as before; a customer or
+ * product row has neither — just the party/product name the server sent as
+ * `record`.
+ */
 @Composable
-private fun VoucherCell(event: AuditEvent) {
+private fun RecordCell(event: AuditEvent) {
     Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
         Text(
-            text = event.vrNo.ifBlank { "-" },
+            text = (if (event.isVoucherEvent) event.vrNo else event.record).ifBlank { "-" },
             style = MaterialTheme.typography.bodySmall,
             fontWeight = AppFontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        if (event.vrDate.isNotBlank()) {
+        if (event.isVoucherEvent && event.vrDate.isNotBlank()) {
             Text(
                 text = SimpleDate.fromApi(event.vrDate)?.toDisplay() ?: event.vrDate,
                 style = MaterialTheme.typography.labelSmall,

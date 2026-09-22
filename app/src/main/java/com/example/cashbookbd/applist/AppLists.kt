@@ -207,6 +207,14 @@ data class AppListSpec(
      * filter matched, so a page turn does not move them.
      */
     val summaryTiles: List<ListSummaryTile> = emptyList(),
+    /**
+     * One extra dropdown in the toolbar, sent as `{filterKey: value}` alongside
+     * `search` — the Login Log's Result filter (Everything/Success/Failed).
+     * The first option is the "no filter" value (sent as "", or simply omitted).
+     */
+    val filterKey: String? = null,
+    val filterLabel: String = "Filter",
+    val filterOptions: List<com.example.cashbookbd.ui.reports.model.SelectorOption> = emptyList(),
 )
 
 /**
@@ -353,7 +361,15 @@ object AppLists {
             method = ListMethod.GET,
             columns = listOf(
                 AppListColumn("serial", "Sl"),
+                AppListColumn(
+                    "result", "Result",
+                    valueMap = mapOf("success" to "Success", "failed" to "Refused"),
+                ),
                 AppListColumn("user_name", "User"),
+                // Only a refused attempt carries this — the raw text typed when
+                // no user could be resolved from it at all.
+                AppListColumn("login_input", "Typed Input"),
+                AppListColumn("reason", "Reason"),
                 AppListColumn("company", "Company"),
                 AppListColumn("branch", "Branch"),
                 AppListColumn("in_time", "Logged In"),
@@ -366,6 +382,13 @@ object AppLists {
                 AppListColumn("computer_name", "Device"),
             ),
             anyOf = listOf("user.login.log"),
+            filterKey = "result",
+            filterLabel = "Result",
+            filterOptions = listOf(
+                com.example.cashbookbd.ui.reports.model.SelectorOption("", "Everything"),
+                com.example.cashbookbd.ui.reports.model.SelectorOption("success", "Success"),
+                com.example.cashbookbd.ui.reports.model.SelectorOption("failed", "Refused"),
+            ),
             paginated = true,
             perPage = 20,
         ),

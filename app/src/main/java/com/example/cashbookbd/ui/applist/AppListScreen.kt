@@ -152,10 +152,11 @@ fun AppListScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // No title heading here — the app bar already shows the menu name.
-            if (state.isPaginated || state.addAction != null) {
+            if (state.isPaginated || state.addAction != null || state.filterKey != null) {
                 ListToolbar(
                     state = state,
                     onPerPageChange = viewModel::onPerPageChange,
+                    onFilterChange = viewModel::onFilterChange,
                     onAdd = { navController.navigate(it) },
                 )
             }
@@ -393,9 +394,11 @@ private fun DialogLabel(text: String) {
 private fun ListToolbar(
     state: AppListUiState,
     onPerPageChange: (Int) -> Unit,
+    onFilterChange: (String) -> Unit,
     onAdd: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var filterExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -404,30 +407,54 @@ private fun ListToolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (state.isPaginated) {
-            Box {
-                SecondaryButton(
-                    text = state.perPage.toString(),
-                    onClick = { expanded = true },
-                    enabled = !state.isLoading && !state.isPageLoading,
-                    trailingIcon = Icons.Filled.ArrowDropDown,
-                    trailingIconDescription = "Rows per page",
-                    compact = true,
-                )
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    PER_PAGE_OPTIONS.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option.toString()) },
-                            onClick = {
-                                expanded = false
-                                onPerPageChange(option)
-                            },
-                        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (state.isPaginated) {
+                Box {
+                    SecondaryButton(
+                        text = state.perPage.toString(),
+                        onClick = { expanded = true },
+                        enabled = !state.isLoading && !state.isPageLoading,
+                        trailingIcon = Icons.Filled.ArrowDropDown,
+                        trailingIconDescription = "Rows per page",
+                        compact = true,
+                    )
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        PER_PAGE_OPTIONS.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.toString()) },
+                                onClick = {
+                                    expanded = false
+                                    onPerPageChange(option)
+                                },
+                            )
+                        }
                     }
                 }
             }
-        } else {
-            Spacer(Modifier.width(1.dp))
+            if (state.filterKey != null) {
+                Box {
+                    SecondaryButton(
+                        text = state.filterOptions.firstOrNull { it.id == state.filterValue }?.label
+                            ?: state.filterLabel,
+                        onClick = { filterExpanded = true },
+                        enabled = !state.isLoading && !state.isPageLoading,
+                        trailingIcon = Icons.Filled.ArrowDropDown,
+                        trailingIconDescription = state.filterLabel,
+                        compact = true,
+                    )
+                    DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
+                        state.filterOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.label) },
+                                onClick = {
+                                    filterExpanded = false
+                                    onFilterChange(option.id)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         state.addAction?.let { add ->

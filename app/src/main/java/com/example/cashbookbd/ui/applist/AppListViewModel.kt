@@ -79,6 +79,9 @@ class AppListViewModel(
             historyAction = spec?.historyAction?.takeIf { allowed(it.anyOf) },
             openingEnabled = openingEnabled,
             canDeleteVoucher = canDeleteVoucher,
+            filterKey = spec?.filterKey,
+            filterLabel = spec?.filterLabel.orEmpty(),
+            filterOptions = spec?.filterOptions.orEmpty(),
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
@@ -95,7 +98,13 @@ class AppListViewModel(
      * screen — used to reconcile rows after a status toggle.
      */
     fun load(page: Int = _uiState.value.currentPage, silent: Boolean = false) {
-        val currentSpec = spec ?: return
+        val baseSpec = spec ?: return
+        // The one extra toolbar filter (Login Log's Result), when the spec
+        // declares one — merged in like search would be, had this engine one.
+        val currentSpec = baseSpec.filterKey?.let { key ->
+            val value = _uiState.value.filterValue
+            if (value.isEmpty()) baseSpec else baseSpec.copy(params = baseSpec.params + (key to value))
+        } ?: baseSpec
         // With rows already on screen this is a page turn: the table stays put
         // under a thin progress line instead of vanishing behind the spinner.
         // (A retry after an error goes back through the full spinner — there
@@ -148,6 +157,13 @@ class AppListViewModel(
     fun onPerPageChange(perPage: Int) {
         if (perPage == _uiState.value.perPage) return
         _uiState.update { it.copy(perPage = perPage) }
+        load(page = 1)
+    }
+
+    /** Changes the toolbar's extra filter (the Login Log's Result) and reloads from page 1. */
+    fun onFilterChange(value: String) {
+        if (value == _uiState.value.filterValue) return
+        _uiState.update { it.copy(filterValue = value) }
         load(page = 1)
     }
 

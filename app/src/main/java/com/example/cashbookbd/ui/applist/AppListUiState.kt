@@ -7,6 +7,7 @@ import com.example.cashbookbd.applist.ListEditAction
 import com.example.cashbookbd.applist.ListHistoryAction
 import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.data.repository.ChangeLogView
+import com.example.cashbookbd.ui.reports.model.SelectorOption
 
 /**
  * Page sizes offered by the list toolbar. The web also offers "All", which is
@@ -83,6 +84,11 @@ data class AppListUiState(
     val openingDeletePending: AppListRow? = null,
     /** True while a confirmed opening delete is in flight. */
     val openingDeleting: Boolean = false,
+    /** The toolbar's one extra filter dropdown (the Login Log's Result), when the spec declares one. */
+    val filterKey: String? = null,
+    val filterLabel: String = "",
+    val filterOptions: List<SelectorOption> = emptyList(),
+    val filterValue: String = "",
 ) {
     val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading && !isPageLoading
     val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading && !isPageLoading

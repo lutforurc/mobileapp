@@ -316,8 +316,8 @@ data class AuditChange(
 data class AuditEvent(
     val id: Long,
     /**
-     * trail — a recorded change, with its fields; voucher — a row found on the
-     * voucher itself, which knows only who and when.
+     * trail/voucher — a voucher's recorded change or a row found on the
+     * voucher itself; customer/product — a change to that master record.
      */
     val source: String,
     val at: String,
@@ -326,9 +326,14 @@ data class AuditEvent(
     val vrNo: String,
     val vrDate: String,
     val mainTrxId: Long?,
+    /** The changed record's own label — vr_no for a voucher, the party/product name otherwise. */
+    val record: String,
     val changes: List<AuditChange>,
 ) {
+    /** Found directly on the voucher, undiffed (a deletion predating the trail). */
     val isFromVoucher: Boolean get() = source == "voucher"
+    /** Voucher category — either shape — vs. a customer/product row. */
+    val isVoucherEvent: Boolean get() = source == "voucher" || source == "trail"
 }
 
 data class AuditUser(val id: Long, val name: String)
@@ -822,6 +827,8 @@ class AccountsRepository(
         action: String,
         voucherNo: String,
         branchId: Long?,
+        /** '' Everything, or 'voucher' / 'customer' / 'product'. */
+        source: String = "",
     ): Resource<AuditTrailView> {
         val params = buildMap {
             put("from", from)
@@ -830,6 +837,7 @@ class AccountsRepository(
             action.trim().takeIf { it.isNotEmpty() }?.let { put("action", it) }
             voucherNo.trim().takeIf { it.isNotEmpty() }?.let { put("voucher_no", it) }
             branchId?.let { put("branch_id", it.toString()) }
+            source.takeIf { it.isNotEmpty() }?.let { put("source", it) }
         }
         return read("audit-trail", params) { p -> p.toAuditView(from, to) }
     }
@@ -1053,6 +1061,7 @@ private fun JsonObject.auditViewOf(from: String, to: String): AuditTrailView {
             vrNo = o.text("vr_no"),
             vrDate = o.date("vr_date"),
             mainTrxId = o.long("main_trx_id"),
+            record = o.text("record"),
             changes = o.array("changes").mapObjects { c ->
                 AuditChange(
                     field = c.text("field"),
