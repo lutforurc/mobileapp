@@ -715,14 +715,20 @@ object ReportMenu {
                     ReportChoice("Bank Loan", "2"),
                 ),
             ),
-            // The web shows only Bank Name + the two balances; the raw
-            // debit/credit movement pair and the id stay internal.
-            hiddenColumns = listOf("coa4_id", "debit", "credit"),
+            // Web 2f6bf3e0..7134d028: Opening/Movement/Closing, not just a
+            // closing balance. `closing` is the same figure dr_bal/cr_bal
+            // split in two (the server keeps both for compatibility, per
+            // its own comment that "nothing reads them now") — shown once,
+            // signed, rather than as a redundant second pair of columns.
+            hiddenColumns = listOf("coa4_id", "debit", "credit", "dr_bal", "cr_bal", "movement"),
             columnLabels = mapOf(
-                "dr_bal" to "Debit Balance",
-                "cr_bal" to "Credit Balance",
+                "bank_name" to "Bank",
+                "opening" to "Opening",
+                "movement_debit" to "Received",
+                "movement_credit" to "Payment",
+                "closing" to "Closing",
             ),
-            totalColumns = listOf("dr_bal", "cr_bal"),
+            totalColumns = listOf("opening", "movement_debit", "movement_credit", "closing"),
         ),
         ReportConfig(
             key = "connectedMember",
