@@ -4,7 +4,9 @@ import com.example.cashbookbd.applist.AppListColumn
 import com.example.cashbookbd.applist.ListAddAction
 import com.example.cashbookbd.applist.ListDeleteAction
 import com.example.cashbookbd.applist.ListEditAction
+import com.example.cashbookbd.applist.ListHistoryAction
 import com.example.cashbookbd.data.repository.AppListRow
+import com.example.cashbookbd.data.repository.ChangeLogView
 
 /**
  * Page sizes offered by the list toolbar. The web also offers "All", which is
@@ -44,6 +46,13 @@ data class AppListUiState(
     val editAction: ListEditAction? = null,
     /** The per-row delete bin (with confirm), when this list allows deletes. */
     val deleteAction: ListDeleteAction? = null,
+    /** The per-row change-log icon, when this list declares one. */
+    val historyAction: ListHistoryAction? = null,
+    /** The row whose change log dialog is open; null when closed. */
+    val historyRow: AppListRow? = null,
+    val isHistoryLoading: Boolean = false,
+    val historyError: String? = null,
+    val history: ChangeLogView? = null,
     /** The row awaiting delete confirmation; null when no dialog is open. */
     val pendingDelete: AppListRow? = null,
     /** True while a confirmed delete is in flight. */

@@ -31,6 +31,8 @@ data class AppListRow(
     val editId: String? = null,
     /** The id the delete endpoint takes, when the spec declares a delete. */
     val deleteId: String? = null,
+    /** The id the change-log endpoint takes, when the spec declares one. */
+    val historyId: String? = null,
     /** The opening-stock entry's raw fields, when the spec declares it. */
     val opening: OpeningStockRow? = null,
 )
@@ -280,6 +282,7 @@ class AppListRepository(
         val toggle = spec.statusToggle
         val edit = spec.editAction
         val delete = spec.deleteAction
+        val history = spec.historyAction
         val summary = summaryValues(payload, spec)
         val rows = array.mapNotNull { el ->
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
@@ -304,6 +307,7 @@ class AppListRepository(
                 statusOn = toggle?.let { isOn(dotGet(obj, it.statusKey)) } ?: false,
                 editId = edit?.let { dotGet(obj, it.idKey)?.asString },
                 deleteId = delete?.let { dotGet(obj, it.idKey)?.asString },
+                historyId = history?.let { dotGet(obj, it.idKey)?.asString },
                 opening = if (spec.openingStock) obj.toOpeningStockRow() else null,
             )
         }

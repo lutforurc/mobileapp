@@ -24,6 +24,7 @@ class AppListViewModel(
     listKey: String,
     private val repository: AppListRepository,
     private val productRepository: ProductRepository,
+    private val changeLogRepository: com.example.cashbookbd.data.repository.ChangeLogRepository,
     private val settings: Settings?,
     /** voucher.delete — what the opening-stock Delete answers to, like the API. */
     private val canDeleteVoucher: Boolean = false,
@@ -75,6 +76,7 @@ class AppListViewModel(
             addAction = spec?.addAction?.takeIf { allowed(it.anyOf) },
             editAction = spec?.editAction?.takeIf { allowed(it.anyOf) },
             deleteAction = spec?.deleteAction?.takeIf { allowed(it.anyOf) },
+            historyAction = spec?.historyAction?.takeIf { allowed(it.anyOf) },
             openingEnabled = openingEnabled,
             canDeleteVoucher = canDeleteVoucher,
         )
@@ -377,6 +379,33 @@ class AppListViewModel(
 
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
+    fun showHistory(row: AppListRow) {
+        val action = _uiState.value.historyAction ?: return
+        val id = row.historyId ?: return
+        _uiState.update { it.copy(historyRow = row, isHistoryLoading = true, historyError = null, history = null) }
+        viewModelScope.launch {
+            when (
+                val result = changeLogRepository.fetchHistory(
+                    path = "${action.endpointBase}/$id",
+                    subjectKey = action.subjectKey,
+                    subtitleKey = action.subtitleKey,
+                )
+            ) {
+                is Resource.Success -> _uiState.update { it.copy(isHistoryLoading = false, history = result.data) }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isHistoryLoading = false,
+                        historyError = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun dismissHistory() = _uiState.update { it.copy(historyRow = null, history = null, historyError = null) }
+
     companion object {
         fun provideFactory(context: Context, listKey: String) = viewModelFactory {
             initializer {
@@ -386,6 +415,7 @@ class AppListViewModel(
                     listKey = listKey,
                     repository = ServiceLocator.provideAppListRepository(context.applicationContext),
                     productRepository = ServiceLocator.provideProductRepository(context.applicationContext),
+                    changeLogRepository = ServiceLocator.provideChangeLogRepository(context.applicationContext),
                     settings = sessionState.settings,
                     canDeleteVoucher = com.example.cashbookbd.session.Permissions
                         .hasAny(sessionState.permissions, listOf("voucher.delete")),

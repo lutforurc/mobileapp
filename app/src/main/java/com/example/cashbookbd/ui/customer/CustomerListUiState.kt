@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.customer
 
+import com.example.cashbookbd.data.repository.ChangeLogView
 import com.example.cashbookbd.data.repository.CustomerRow
 
 const val CUSTOMERS_PER_PAGE = 10
@@ -34,6 +35,12 @@ data class CustomerListUiState(
     /** One-shot snackbar text (save outcome / info). */
     val actionMessage: String? = null,
     val sessionExpired: Boolean = false,
+
+    /** The row whose change log dialog is open, or null. */
+    val historyRow: CustomerRow? = null,
+    val isHistoryLoading: Boolean = false,
+    val historyError: String? = null,
+    val history: ChangeLogView? = null,
 ) {
     val canPrev: Boolean get() = currentPage > 1
     val canNext: Boolean get() = currentPage < lastPage

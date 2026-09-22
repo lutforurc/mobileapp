@@ -141,6 +141,22 @@ data class ListDeleteAction(
 )
 
 /**
+ * A per-row "what happened to this record" — a clock icon opening
+ * [ChangeLogDialog][com.example.cashbookbd.ui.components.ChangeLogDialog]
+ * on `GET {endpointBase}/{row [idKey]}`. [subjectKey] names the response's
+ * one nested subject object ("customer", "product", …); [subtitleKey] is
+ * the field shown under its name (mobile, code, …).
+ */
+data class ListHistoryAction(
+    val endpointBase: String,
+    val idKey: String,
+    val subjectKey: String,
+    val subtitleKey: String = "",
+    /** Permissions gating the icon (any one) — empty = ungated. */
+    val anyOf: List<String> = emptyList(),
+)
+
+/**
  * A list screen: fetch [endpoint] (with [params]) and render the returned rows as
  * a table of [columns]. The row array is located defensively (top-level array,
  * `data.data`, or a paginator's `data.data.data`). Read-only unless it declares a
@@ -173,6 +189,8 @@ data class AppListSpec(
     val editAction: ListEditAction? = null,
     /** When set, each row gets a delete bin (with confirm) in the Action column. */
     val deleteAction: ListDeleteAction? = null,
+    /** When set, each row gets a clock icon opening its change log in the Action column. */
+    val historyAction: ListHistoryAction? = null,
     /** Pagination key overrides — the check-register endpoint reads `perPage`. */
     val pageParam: String = "page",
     val perPageParam: String = "per_page",
@@ -599,6 +617,12 @@ object AppLists {
                 endpointBase = "product/delete",
                 idKey = "product_id",
                 bodyKey = "product_id",
+            ),
+            historyAction = ListHistoryAction(
+                endpointBase = "product/history",
+                idKey = "product_id",
+                subjectKey = "product",
+                subtitleKey = "code",
             ),
             openingStock = true,
         ),

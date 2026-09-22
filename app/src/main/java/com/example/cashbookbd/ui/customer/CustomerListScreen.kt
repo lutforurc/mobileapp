@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -206,6 +207,7 @@ fun CustomerListScreen(
                                 }
                             },
                             onDeleteOpening = viewModel::askDeleteOpening,
+                            onHistory = viewModel::showHistory,
                         ),
                         data = state.rows,
                         noDataMessage = "No customers found.",
@@ -227,6 +229,16 @@ fun CustomerListScreen(
     state.openingDeleteRow?.let { row ->
         DeleteOpeningDialog(state = state, row = row, viewModel = viewModel)
     }
+
+    state.historyRow?.let { row ->
+        com.example.cashbookbd.ui.components.ChangeLogDialog(
+            title = "History — ${row.name}",
+            isLoading = state.isHistoryLoading,
+            error = state.historyError,
+            view = state.history,
+            onDismiss = viewModel::dismissHistory,
+        )
+    }
 }
 
 @Composable
@@ -241,6 +253,7 @@ private fun customerColumns(
     onEditCustomer: (CustomerRow) -> Unit,
     onOpenLedger: (CustomerRow) -> Unit,
     onDeleteOpening: (CustomerRow) -> Unit,
+    onHistory: (CustomerRow) -> Unit,
 ): List<ReportColumn<CustomerRow>> {
     val onScreen = MaterialTheme.colorScheme.onBackground
     val offset = (currentPage - 1) * CUSTOMERS_PER_PAGE
@@ -301,7 +314,7 @@ private fun customerColumns(
                 color = onScreen,
             )
         },
-        ReportColumn("Action", ReportColWidth.Fixed(120.dp), TextAlign.Center) { row, _ ->
+        ReportColumn("Action", ReportColWidth.Fixed(168.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -324,6 +337,13 @@ private fun customerColumns(
                         Icon(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = "Edit opening/ledger of ${row.name}",
+                            tint = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    IconButton(onClick = { onHistory(row) }, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "History of ${row.name}",
                             tint = MaterialTheme.colorScheme.onBackground,
                         )
                     }

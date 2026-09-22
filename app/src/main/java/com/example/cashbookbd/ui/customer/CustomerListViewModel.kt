@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 /** Backs the Customers list: search, pagination, and the per-row opening/ledger edit. */
 class CustomerListViewModel(
     private val repository: CustomerRepository,
+    private val changeLogRepository: com.example.cashbookbd.data.repository.ChangeLogRepository,
     /**
      * The branch's "Opening ongoing" flag (`is_opening == 1`). Off, the web
      * list drops its Opening column entirely — so the edit sends no opening
@@ -189,11 +190,31 @@ class CustomerListViewModel(
     fun onActionMessageShown() = _uiState.update { it.copy(actionMessage = null) }
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
+    fun showHistory(row: CustomerRow) {
+        _uiState.update { it.copy(historyRow = row, isHistoryLoading = true, historyError = null, history = null) }
+        viewModelScope.launch {
+            when (val result = changeLogRepository.fetchCustomerHistory(row.id)) {
+                is Resource.Success -> _uiState.update { it.copy(isHistoryLoading = false, history = result.data) }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isHistoryLoading = false,
+                        historyError = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun dismissHistory() = _uiState.update { it.copy(historyRow = null, history = null, historyError = null) }
+
     companion object {
         fun provideFactory(context: Context) = viewModelFactory {
             initializer {
                 CustomerListViewModel(
                     repository = ServiceLocator.provideCustomerRepository(context.applicationContext),
+                    changeLogRepository = ServiceLocator.provideChangeLogRepository(context.applicationContext),
                     openingEnabled = ServiceLocator.provideSessionManager(context.applicationContext)
                         .state.value.settings?.openingOngoing == true,
                 )

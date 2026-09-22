@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -172,6 +173,7 @@ fun AppListScreen(
                     },
                     onDelete = viewModel::requestDelete,
                     onOpeningEdit = viewModel::startOpeningEdit,
+                    onHistory = viewModel::showHistory,
                 )
                 // A page turn keeps the table on screen; the only sign the next
                 // page is on its way is this spinner floating over it on a
@@ -207,6 +209,16 @@ fun AppListScreen(
 
     if (state.openingDeletePending != null) {
         OpeningDeleteDialog(state = state, viewModel = viewModel)
+    }
+
+    state.historyRow?.let { row ->
+        com.example.cashbookbd.ui.components.ChangeLogDialog(
+            title = "History" + (row.cells.firstOrNull { it.isNotBlank() && it != "-" }?.let { " — $it" } ?: ""),
+            isLoading = state.isHistoryLoading,
+            error = state.historyError,
+            view = state.history,
+            onDismiss = viewModel::dismissHistory,
+        )
     }
 
     if (state.pendingDelete != null) {
@@ -462,6 +474,7 @@ private fun ListBody(
     onEdit: (AppListRow) -> Unit,
     onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
+    onHistory: (AppListRow) -> Unit,
 ) {
     when {
         state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
@@ -485,12 +498,12 @@ private fun ListBody(
         else -> {
             val columns = remember(
                 state.columns, state.hasStatusToggle, state.editAction, state.deleteAction,
-                state.togglingIds, state.openingEnabled,
+                state.historyAction, state.togglingIds, state.openingEnabled,
                 // The serial column bakes in the page offset, so a page turn
                 // (or page-size change) must rebuild the columns.
                 state.currentPage, state.perPage,
             ) {
-                buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit)
+                buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit, onHistory)
             }
             Column(modifier = Modifier.fillMaxSize()) {
                 if (state.summary.isNotEmpty()) {
@@ -546,6 +559,7 @@ private fun SummaryStrip(summary: List<com.example.cashbookbd.data.repository.Ap
 private val COL_SL = 48.dp
 private val COL_ACTION = 88.dp
 private val COL_ACTION_WITH_EDIT = 132.dp
+private val COL_ACTION_WIDE = 176.dp
 
 private fun buildColumns(
     state: AppListUiState,
@@ -553,6 +567,7 @@ private fun buildColumns(
     onEdit: (AppListRow) -> Unit,
     onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
+    onHistory: (AppListRow) -> Unit,
 ): List<ReportColumn<AppListRow>> = buildList {
     // Serials continue across pages, as on the web: page 2 of 10 starts at 11.
     // Unpaginated lists sit on page 1, so their offset is zero.
@@ -578,11 +593,17 @@ private fun buildColumns(
     }
     val hasEdit = state.editAction != null
     val hasDelete = state.deleteAction != null
-    if (state.hasStatusToggle || hasEdit || hasDelete || state.openingEnabled) {
-        // Two icon buttons (or a button plus the toggle) need the wide column.
-        val actionCount = listOf(hasEdit, hasDelete, state.hasStatusToggle, state.openingEnabled)
+    val hasHistory = state.historyAction != null
+    if (state.hasStatusToggle || hasEdit || hasDelete || hasHistory || state.openingEnabled) {
+        // Two icon buttons (or a button plus the toggle) need the wide column;
+        // three or more (Edit + History + Delete) need it wider still.
+        val actionCount = listOf(hasEdit, hasDelete, hasHistory, state.hasStatusToggle, state.openingEnabled)
             .count { it }
-        val width = if (actionCount > 1) COL_ACTION_WITH_EDIT else COL_ACTION
+        val width = when {
+            actionCount > 2 -> COL_ACTION_WIDE
+            actionCount > 1 -> COL_ACTION_WITH_EDIT
+            else -> COL_ACTION
+        }
         add(
             ReportColumn("Action", ReportColWidth.Fixed(width), TextAlign.Center) { row, _ ->
                 ReportTableCell.Slot {
@@ -616,6 +637,19 @@ private fun buildColumns(
                                 Icon(
                                     imageVector = Icons.Filled.Edit,
                                     contentDescription = "Set opening stock",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (hasHistory) {
+                            IconButton(
+                                onClick = { onHistory(row) },
+                                enabled = row.historyId != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = "History",
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
