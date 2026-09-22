@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.hotel.HotelMenu
+import com.example.cashbookbd.session.Permissions
 import com.example.cashbookbd.data.repository.HotelAvailability
 import com.example.cashbookbd.data.repository.HotelParty
 import com.example.cashbookbd.data.repository.HotelReturningGuest
@@ -84,6 +85,12 @@ private val BOOKING_STATUSES = listOf(
     SelectorOption("confirmed", "Confirmed"),
 )
 
+private val STAY_KINDS = listOf(
+    SelectorOption("paid", "Paid — the ordinary stay"),
+    SelectorOption("complimentary", "Complimentary — a guest given the room"),
+    SelectorOption("house_use", "House use — the property's own people"),
+)
+
 data class HotelNewBookingUiState(
     val checkIn: SimpleDate = SimpleDate.today(),
     val checkOut: SimpleDate = SimpleDate.today().plusDays(1),
@@ -103,6 +110,10 @@ data class HotelNewBookingUiState(
     val bookingType: String = "individual",
     val status: String = "hold",
     val notes: String = "",
+
+    /** paid / complimentary / house_use — behind hotel.booking.complimentary. */
+    val stayKind: String = "paid",
+    val stayKindReason: String = "",
 
     /** Corporate only: the company the bill goes to. */
     val party: HotelParty? = null,
@@ -126,7 +137,8 @@ data class HotelNewBookingUiState(
         get() = hasPicked && bookerName.isNotBlank() && !isSaving &&
             // Refused server-side anyway; said here so the button explains
             // itself rather than the save coming back with a sentence.
-            (!isCorporate || party != null)
+            (!isCorporate || party != null) &&
+            (stayKind == "paid" || stayKindReason.isNotBlank())
 }
 
 class HotelNewBookingViewModel(
@@ -290,6 +302,8 @@ class HotelNewBookingViewModel(
     fun onBookingType(option: SelectorOption) = _uiState.update { it.copy(bookingType = option.id) }
     fun onStatus(option: SelectorOption) = _uiState.update { it.copy(status = option.id) }
     fun onNotes(v: String) = _uiState.update { it.copy(notes = v) }
+    fun onStayKind(kind: String) = _uiState.update { it.copy(stayKind = kind) }
+    fun onStayKindReason(v: String) = _uiState.update { it.copy(stayKindReason = v.take(255)) }
 
     fun save() {
         val state = _uiState.value
@@ -309,6 +323,8 @@ class HotelNewBookingViewModel(
                 statedChildren = state.children,
                 notes = state.notes,
                 billedToPartyId = state.party?.id.takeIf { state.isCorporate },
+                stayKind = state.stayKind,
+                stayKindReason = state.stayKindReason,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -364,6 +380,11 @@ fun HotelNewBookingScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+    val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+    // A free room is a discount by another name — behind its own permission,
+    // read-only for a clerk who does not hold it.
+    val canComplimentary = Permissions.hasAny(sessionState.permissions, listOf("hotel.booking.complimentary"))
 
     LaunchedEffect(state.sessionExpired) {
         if (state.sessionExpired) {
@@ -622,6 +643,28 @@ fun HotelNewBookingScreen(
                             onSelected = viewModel::onStatus,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+                    if (canComplimentary && state.bookingType != "walk_in") {
+                        item {
+                            AppSelectDropdown(
+                                label = "Stay",
+                                options = STAY_KINDS,
+                                selected = STAY_KINDS.firstOrNull { it.id == state.stayKind },
+                                onSelected = { option -> viewModel.onStayKind(option.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        if (state.stayKind != "paid") {
+                            item {
+                                AppTextField(
+                                    value = state.stayKindReason,
+                                    onValueChange = viewModel::onStayKindReason,
+                                    label = "Why",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    caption = "Who it is for, or on whose word. A free room is a discount, and a discount needs a reason.",
+                                )
+                            }
+                        }
                     }
                     item {
                         AppTextField(

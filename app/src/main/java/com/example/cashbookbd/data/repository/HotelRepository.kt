@@ -421,6 +421,8 @@ class HotelRepository(
         statedChildren: String,
         notes: String,
         billedToPartyId: Long? = null,
+        stayKind: String = "paid",
+        stayKindReason: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
         try {
             val body = JsonObject().apply {
@@ -439,6 +441,11 @@ class HotelRepository(
                 // a company and the money comes later, so with no party there
                 // is nobody for the ageing report to chase.
                 billedToPartyId?.let { addProperty("billed_to_party_id", it) }
+                // Absent means paid, which is what every caller before this meant.
+                if (stayKind != "paid") {
+                    addProperty("stay_kind", stayKind)
+                    addProperty("stay_kind_reason", stayKindReason.trim())
+                }
             }
             postForMessage("hotel-setup/bookings/store", body, "Booking saved.")
         } catch (e: IOException) {

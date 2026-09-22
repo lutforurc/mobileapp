@@ -595,6 +595,16 @@ private fun FolioBody(
             }
         }
 
+        if (booking.stayKind != "paid") {
+            item {
+                HotelBanner(
+                    text = "This stay is " + (if (booking.stayKind == "house_use") "house use" else "complimentary") +
+                        " — the room rent is not charged.",
+                    color = MaterialTheme.appColors.info,
+                )
+            }
+        }
+
         // The chart complaint first: nothing below it can move money until it is fixed.
         if (!chartReady) {
             item {

@@ -37,6 +37,8 @@ data class HotelFolioBooking(
     val notes: String,
     /** The name typed for the printed bill; blank falls back to whoever it is billed to. */
     val billName: String,
+    /** paid / complimentary / house_use. The room rent is never billed on the other two. */
+    val stayKind: String,
 ) {
     val isWalkIn: Boolean get() = bookingType == "walk_in"
 }
@@ -1026,6 +1028,7 @@ class HotelFolioRepository(
             discountReason = text("discount_reason"),
             notes = text("notes"),
             billName = text("bill_name"),
+            stayKind = text("stay_kind").ifBlank { "paid" },
         )
     }
 
