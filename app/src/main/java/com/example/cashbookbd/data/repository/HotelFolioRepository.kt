@@ -214,6 +214,59 @@ data class HotelCancellation(
     val tills: List<HotelTill>,
 )
 
+/** One room this stay holds, as the move dialog reads it. */
+data class HotelMoveRoomOption(
+    val roomId: Long,
+    val displayName: String,
+    val letAs: String,
+    val nightsAhead: Int,
+    val billedAhead: Int,
+    val rate: Double,
+    val guests: Int,
+    val alreadyLeft: Boolean,
+    /** Whole-room, holding a night ahead, not already gone. */
+    val movable: Boolean,
+)
+
+/** A room free to move into, for every remaining night. */
+data class HotelFreeRoom(
+    val id: Long,
+    val displayName: String,
+    val rent: Double,
+    val roomTypeId: Long?,
+    val housekeeping: String,
+)
+
+/** What a move could do, read before the dialog asks (`bookings/move/{id}`). */
+data class HotelMoveOptions(
+    val fromDate: String,
+    val lastNight: String,
+    val rooms: List<HotelMoveRoomOption>,
+    val freeRooms: List<HotelFreeRoom>,
+)
+
+/** The move worked out — a dry run's preview, or what a real move just did. */
+data class HotelMovePlan(
+    val fromRoomId: Long,
+    val fromRoomName: String,
+    val toRoomId: Long,
+    val toRoomName: String,
+    val toRoomHousekeeping: String,
+    val fromDate: String,
+    val lastNight: String,
+    val nightsMoving: Int,
+    val billedMoving: Int,
+    val guestsMoving: Int,
+    val oldRate: Double,
+    val newRate: Double,
+    val difference: Double,
+    val keepRate: Boolean,
+    val charging: Double,
+    /** Non-null: why a real move (not a dry run) would be refused. */
+    val refusal: String?,
+    val toRoomDirty: Boolean,
+)
+
 /** A hall sitting the booking holds — echoed back unchanged on an edit. */
 data class HotelSitting(val resourceId: Long, val slotId: Long, val date: String, val hall: String, val sitting: String)
 
@@ -614,6 +667,112 @@ class HotelFolioRepository(
             is Answer.Refused -> a.error
             is Answer.Ok -> Resource.Success(a.message ?: "Marked as a no-show")
         }
+    }
+
+    // ------------------------------------------------------------------
+    //  Room move — a guest goes to another room mid-stay
+    // ------------------------------------------------------------------
+
+    /** The rooms this stay holds, and what stands free to move into (`bookings/move/{id}`). */
+    suspend fun fetchMoveOptions(bookingId: Long, fromDate: String?): Resource<HotelMoveOptions> = guarded {
+        val params = fromDate?.takeIf { it.isNotBlank() }?.let { mapOf("from_date" to it) } ?: emptyMap()
+        val response = api.get("hotel-setup/bookings/move/$bookingId", params)
+        when (val a = answer(response, "You do not have permission to view this booking.")) {
+            is Answer.Refused -> a.error
+            is Answer.Ok -> {
+                val p = a.payload.asObject() ?: return@guarded Resource.Error("The move options could not be read.")
+                Resource.Success(
+                    HotelMoveOptions(
+                        fromDate = p.text("from_date"),
+                        lastNight = p.text("last_night"),
+                        rooms = p.arr("rooms").mapNotNull { it.asObject()?.toMoveRoomOption() },
+                        freeRooms = p.arr("free_rooms").mapNotNull { it.asObject()?.toFreeRoom() },
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Move a guest to another room, mid-stay (`bookings/move/{id}`). [dryRun]
+     * reads back the same figures and writes nothing — what the dialog shows
+     * before it asks the desk to confirm.
+     */
+    suspend fun moveRoom(
+        bookingId: Long,
+        fromRoomId: Long,
+        toRoomId: Long,
+        fromDate: String?,
+        reason: String,
+        keepRate: Boolean,
+        dryRun: Boolean,
+    ): Resource<HotelMovePlan> = guarded {
+        val body = JsonObject().apply {
+            addProperty("from_room_id", fromRoomId)
+            addProperty("to_room_id", toRoomId)
+            fromDate?.takeIf { it.isNotBlank() }?.let { addProperty("from_date", it) }
+            reason.trim().takeIf { it.isNotEmpty() }?.let { addProperty("reason", it) }
+            addProperty("keep_rate", keepRate)
+            addProperty("dry_run", dryRun)
+        }
+        val response = api.postObjectRaw("hotel-setup/bookings/move/$bookingId", body)
+        when (val a = answer(response, "You do not have permission to move a room.")) {
+            is Answer.Refused -> a.error
+            is Answer.Ok -> {
+                val p = a.payload.asObject() ?: return@guarded Resource.Error("The move could not be read.")
+                Resource.Success(p.toMovePlan(refusal = if (dryRun && p.flag("refused")) a.message else null))
+            }
+        }
+    }
+
+    private fun JsonObject.toMoveRoomOption(): HotelMoveRoomOption? {
+        val roomId = long("room_id") ?: return null
+        return HotelMoveRoomOption(
+            roomId = roomId,
+            displayName = text("display_name"),
+            letAs = text("let_as"),
+            nightsAhead = int("nights_ahead") ?: 0,
+            billedAhead = int("billed_ahead") ?: 0,
+            rate = dbl("rate") ?: 0.0,
+            guests = int("guests") ?: 0,
+            alreadyLeft = flag("already_left"),
+            movable = flag("movable"),
+        )
+    }
+
+    private fun JsonObject.toFreeRoom(): HotelFreeRoom? {
+        val id = long("id") ?: return null
+        return HotelFreeRoom(
+            id = id,
+            displayName = text("display_name"),
+            rent = dbl("rent") ?: 0.0,
+            roomTypeId = long("room_type_id"),
+            housekeeping = text("housekeeping"),
+        )
+    }
+
+    private fun JsonObject.toMovePlan(refusal: String?): HotelMovePlan {
+        val fromRoom = obj("from_room")
+        val toRoom = obj("to_room")
+        return HotelMovePlan(
+            fromRoomId = fromRoom?.long("id") ?: 0L,
+            fromRoomName = fromRoom?.text("display_name").orEmpty(),
+            toRoomId = toRoom?.long("id") ?: 0L,
+            toRoomName = toRoom?.text("display_name").orEmpty(),
+            toRoomHousekeeping = toRoom?.text("housekeeping").orEmpty(),
+            fromDate = text("from_date"),
+            lastNight = text("last_night"),
+            nightsMoving = int("nights_moving") ?: 0,
+            billedMoving = int("billed_moving") ?: 0,
+            guestsMoving = int("guests_moving") ?: 0,
+            oldRate = dbl("old_rate") ?: 0.0,
+            newRate = dbl("new_rate") ?: 0.0,
+            difference = dbl("difference") ?: 0.0,
+            keepRate = flag("keep_rate"),
+            charging = dbl("charging") ?: 0.0,
+            refusal = refusal,
+            toRoomDirty = flag("to_room_dirty"),
+        )
     }
 
     // ------------------------------------------------------------------

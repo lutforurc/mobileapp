@@ -530,6 +530,7 @@ fun HotelFolioScreen(
                         onPrintBill = { navController.navigate(HotelMenu.billPaper(bookingId)) },
                         onPrintReceipt = { paymentId -> navController.navigate(HotelMenu.billPaper(bookingId, paymentId)) },
                         onCheckOut = { navController.navigate(HotelMenu.checkOut(bookingId)) },
+                        onMoveRoom = { navController.navigate(HotelMenu.moveRoom(bookingId)) },
                     )
                 }
             }
@@ -553,6 +554,7 @@ private fun FolioBody(
     onPrintBill: () -> Unit,
     onPrintReceipt: (Long) -> Unit,
     onCheckOut: () -> Unit,
+    onMoveRoom: () -> Unit,
 ) {
     val booking = folio.booking
     val totals = folio.totals
@@ -690,6 +692,16 @@ private fun FolioBody(
                     SecondaryButton(
                         text = if (booking.billName.isBlank()) "Name on the bill…" else "Name: ${booking.billName}",
                         onClick = { onOpen(FolioDialog.BILL_NAME) },
+                        enabled = !isWorking,
+                        compact = true,
+                    )
+                }
+                if (!booking.isWalkIn && booking.status != "checked_out" &&
+                    booking.status != "cancelled" && booking.status != "expired" && booking.status != "no_show"
+                ) {
+                    SecondaryButton(
+                        text = "Move room",
+                        onClick = onMoveRoom,
                         enabled = !isWorking,
                         compact = true,
                     )

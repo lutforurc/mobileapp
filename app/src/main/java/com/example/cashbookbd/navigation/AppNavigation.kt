@@ -1453,6 +1453,14 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     )
                 }
             }
+            composable(route = hotel.ROUTE_MOVE_ROOM, arguments = listOf(bookingArg)) { entry ->
+                val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
+                PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelMoveRoomScreen(
+                        navController = navController, onLogout = backToLogin, bookingId = bookingId,
+                    )
+                }
+            }
             composable(route = hotel.ROUTE_EDIT, arguments = listOf(bookingArg)) { entry ->
                 val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
                 PermissionGate(anyOf = listOf("hotel.booking.view")) {
