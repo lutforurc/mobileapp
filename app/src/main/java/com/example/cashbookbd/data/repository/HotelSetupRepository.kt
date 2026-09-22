@@ -46,6 +46,67 @@ data class HotelDdlOption(
     val defaultSeatRent: String? = null,
 )
 
+/** One line of what a room type is made up with — a soap, a towel, per room or per guest. */
+data class HotelAmenityKitItem(
+    val id: Long,
+    val productId: Long,
+    val productName: String,
+    val unitName: String,
+    val quantity: Double,
+    /** room / guest — counted once per room, or once per person in it. */
+    val basis: String,
+    val notes: String,
+)
+
+/** The standard one room type is issued against — §4.3. Issues nothing itself. */
+data class HotelAmenityKit(
+    val id: Long,
+    val roomTypeId: Long,
+    val roomTypeName: String,
+    val name: String,
+    val notes: String,
+    val status: Boolean,
+    val items: List<HotelAmenityKitItem>,
+)
+
+/** A room type, and whether it has a kit yet. */
+data class HotelAmenityRoomType(val id: Long, val name: String, val capacity: Int, val hasKit: Boolean)
+
+data class HotelAmenityKitsView(
+    val kits: List<HotelAmenityKit>,
+    val roomTypes: List<HotelAmenityRoomType>,
+    val note: String,
+)
+
+/** One product still owed against the kits, for the range asked. */
+data class HotelAmenityDueRow(
+    val productId: Long,
+    val productName: String,
+    val unitName: String,
+    val basis: String,
+    val expected: Double,
+    val issued: Double,
+    val due: Double,
+)
+
+/** A product already covered by what has gone out — named, not hidden. */
+data class HotelAmenityDueSettled(
+    val productId: Long,
+    val productName: String,
+    val unitName: String,
+    val expected: Double,
+    val issued: Double,
+)
+
+data class HotelAmenityDue(
+    val from: String,
+    val to: String,
+    val roomNights: Int,
+    val rows: List<HotelAmenityDueRow>,
+    val settled: List<HotelAmenityDueSettled>,
+    val note: String,
+)
+
 /** One row of the rooms list (`hotel-setup/resources`). Seats are not listed — they are reached through their room. */
 data class HotelResourceRow(
     val id: Long,
@@ -298,6 +359,146 @@ class HotelSetupRepository(
 
     suspend fun fetchBuildingDdl(branchId: Long? = null): Resource<List<HotelDdlOption>> =
         fetchDdl("hotel-setup/buildings/ddl", buildMap { branchId?.let { put("branch_id", it.toString()) } })
+
+    // ---- Amenity kits — §4.3 ------------------------------------------
+
+    /** The property's kits, and the room types still without one. */
+    suspend fun fetchAmenityKits(): Resource<HotelAmenityKitsView> = guard {
+        when (val read = read(api.get("hotel-setup/amenity-kits", emptyMap()), SETUP_DENIED)) {
+            is Read.Failed -> read.error
+            is Read.Ok -> {
+                val payload = read.payload?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@guard Resource.Error("The amenity kits could not be read.")
+                Resource.Success(
+                    HotelAmenityKitsView(
+                        kits = payload.get("rows").rows().map { it.toAmenityKit() },
+                        roomTypes = payload.get("room_types").rows().mapNotNull { o ->
+                            val id = o.long("id") ?: return@mapNotNull null
+                            HotelAmenityRoomType(
+                                id = id,
+                                name = o.text("name"),
+                                capacity = o.int("capacity") ?: 0,
+                                hasKit = o.flag("has_kit"),
+                            )
+                        },
+                        note = read.payload.takeIf { it.isJsonObject }?.asJsonObject?.text("note").orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
+    /** Writes a kit, list and all — the item list REPLACES what was there. */
+    suspend fun saveAmenityKit(
+        roomTypeId: Long,
+        name: String,
+        notes: String,
+        status: Boolean,
+        items: List<HotelAmenityKitItem>,
+    ): Resource<HotelAmenityKit> = guard {
+        val body = JsonObject().apply {
+            addProperty("room_type_id", roomTypeId)
+            addProperty("name", name.trim())
+            notes.trim().takeIf { it.isNotEmpty() }?.let { addProperty("notes", it) }
+            addProperty("status", status)
+            add(
+                "items",
+                JsonArray().apply {
+                    items.forEach { item ->
+                        add(
+                            JsonObject().apply {
+                                addProperty("product_id", item.productId)
+                                addProperty("quantity", item.quantity)
+                                addProperty("basis", item.basis)
+                                item.notes.trim().takeIf { it.isNotEmpty() }?.let { addProperty("notes", it) }
+                            }
+                        )
+                    }
+                },
+            )
+        }
+        when (val read = read(api.postObjectRaw("hotel-setup/amenity-kits/store", body), SETUP_DENIED)) {
+            is Read.Failed -> read.error
+            is Read.Ok -> {
+                val payload = read.payload?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@guard Resource.Error("The kit could not be read back.")
+                Resource.Success(payload.toAmenityKit())
+            }
+        }
+    }
+
+    suspend fun deleteAmenityKit(id: Long): Resource<String> =
+        postForMessage("hotel-setup/amenity-kits/delete/$id", JsonObject(), "Kit removed")
+
+    /**
+     * What the rooms are still owed for [from]..[to] — the numbers behind
+     * "Load from amenity kits" on the issue form. Issues nothing itself.
+     */
+    suspend fun fetchAmenityDue(from: String, to: String, buildingId: Long?): Resource<HotelAmenityDue> = guard {
+        val params = buildMap {
+            put("from", from)
+            put("to", to)
+            buildingId?.let { put("building_id", it.toString()) }
+        }
+        when (val read = read(api.get("hotel-setup/amenity-kits/due", params), "You do not have permission to see what is due.")) {
+            is Read.Failed -> read.error
+            is Read.Ok -> {
+                val payload = read.payload?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@guard Resource.Error("Could not read what is due.")
+                Resource.Success(
+                    HotelAmenityDue(
+                        from = payload.text("from"),
+                        to = payload.text("to"),
+                        roomNights = payload.obj("coverage")?.int("room_nights") ?: 0,
+                        rows = payload.get("rows").rows().mapNotNull { o ->
+                            val productId = o.long("product_id") ?: return@mapNotNull null
+                            HotelAmenityDueRow(
+                                productId = productId,
+                                productName = o.text("product_name"),
+                                unitName = o.text("unit_name"),
+                                basis = o.text("basis"),
+                                expected = o.text("expected").toDoubleOrNull() ?: 0.0,
+                                issued = o.text("issued").toDoubleOrNull() ?: 0.0,
+                                due = o.text("due").toDoubleOrNull() ?: 0.0,
+                            )
+                        },
+                        settled = payload.get("settled").rows().mapNotNull { o ->
+                            val productId = o.long("product_id") ?: return@mapNotNull null
+                            HotelAmenityDueSettled(
+                                productId = productId,
+                                productName = o.text("product_name"),
+                                unitName = o.text("unit_name"),
+                                expected = o.text("expected").toDoubleOrNull() ?: 0.0,
+                                issued = o.text("issued").toDoubleOrNull() ?: 0.0,
+                            )
+                        },
+                        note = payload.text("note"),
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JsonObject.toAmenityKit(): HotelAmenityKit = HotelAmenityKit(
+        id = long("id") ?: 0L,
+        roomTypeId = long("room_type_id") ?: 0L,
+        roomTypeName = text("room_type_name"),
+        name = text("name"),
+        notes = text("notes"),
+        status = flag("status") || text("status") == "1",
+        items = get("items").rows().mapNotNull { o ->
+            val id = o.long("id") ?: return@mapNotNull null
+            HotelAmenityKitItem(
+                id = id,
+                productId = o.long("product_id") ?: 0L,
+                productName = o.text("product_name"),
+                unitName = o.text("unit_name"),
+                quantity = o.text("quantity").toDoubleOrNull() ?: 0.0,
+                basis = o.text("basis"),
+                notes = o.text("notes"),
+            )
+        },
+    )
 
     /** The floors of ONE building — a floor from another block must never be offered. */
     suspend fun fetchFloorDdl(buildingId: Long): Resource<List<HotelDdlOption>> =

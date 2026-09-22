@@ -113,6 +113,12 @@ private val TABS = listOf(
         listOf("hotel.charge.type.view"),
         route = HotelMenu.ROUTE_TAX_RATES,
     ),
+    SetupTab(
+        "Amenity Kits",
+        "What a room of each kind is made up with — the standard an issue is measured against. Issues nothing itself.",
+        listOf("hotel.resource.view"),
+        route = HotelMenu.ROUTE_AMENITY_KITS,
+    ),
 )
 
 /**

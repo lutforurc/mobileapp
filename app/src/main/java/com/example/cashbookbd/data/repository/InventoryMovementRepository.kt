@@ -413,7 +413,11 @@ class InventoryMovementRepository(
         endpoint: String,
         issueDate: String,
         fromWarehouseId: Long?,
-        projectId: Long,
+        projectId: Long? = null,
+        /** A hotel names a building instead of a project — §6.6. */
+        hotelBuildingId: Long? = null,
+        /** The event the issue fed, if any — §6.7. Optional even for a hotel. */
+        hotelBookingId: Long? = null,
         receivedBy: String,
         note: String,
         lines: List<MaterialIssueLine>,
@@ -423,7 +427,9 @@ class InventoryMovementRepository(
                 addProperty("issue_date", issueDate)
                 fromWarehouseId?.let { addProperty("from_warehouse_id", it) }
                     ?: add("from_warehouse_id", JsonNull.INSTANCE)
-                addProperty("project_id", projectId)
+                projectId?.let { addProperty("project_id", it) }
+                hotelBuildingId?.let { addProperty("hotel_building_id", it) }
+                hotelBookingId?.let { addProperty("hotel_booking_id", it) }
                 addNullableString("received_by", receivedBy)
                 addNullableString("note", note)
                 add("items", JsonArray().apply {

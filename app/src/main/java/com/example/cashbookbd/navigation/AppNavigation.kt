@@ -1366,6 +1366,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     com.example.cashbookbd.ui.hotel.HotelRoomsScreen(navController = navController, onLogout = backToLogin)
                 }
             }
+            composable(hotel.ROUTE_AMENITY_KITS) {
+                PermissionGate(anyOf = listOf("hotel.resource.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelAmenityKitsScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
+            composable(hotel.ROUTE_AMENITY_ISSUE) {
+                PermissionGate(anyOf = listOf("material.issue.create", "hotel.resource.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelAmenityIssueScreen(navController = navController, onLogout = backToLogin)
+                }
+            }
             composable(
                 route = hotel.ROUTE_ROOM_FORM,
                 arguments = listOf(

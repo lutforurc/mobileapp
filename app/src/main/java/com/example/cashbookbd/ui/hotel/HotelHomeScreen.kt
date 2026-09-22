@@ -92,6 +92,7 @@ fun HotelHomeScreen(
                             HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
                             HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
                             HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
+                            HotelMenu.AMENITY_ISSUE_KEY -> navController.navigate(HotelMenu.ROUTE_AMENITY_ISSUE)
                             else -> Unit
                         }
                     },

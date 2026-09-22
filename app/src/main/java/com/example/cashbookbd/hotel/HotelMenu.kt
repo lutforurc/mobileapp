@@ -31,6 +31,7 @@ object HotelMenu {
     const val HOUSEKEEPING_KEY = "hotelHousekeeping"
     const val REPORTS_KEY = "hotelReports"
     const val SETUP_KEY = "hotelSetup"
+    const val AMENITY_ISSUE_KEY = "hotelAmenityIssue"
 
     /** The setup screen's tabs, each on its own permission. */
     private val SETUP_ANY = listOf(
@@ -60,6 +61,9 @@ object HotelMenu {
         // Opened every morning by somebody who does nothing else in here.
         HotelItem(HOUSEKEEPING_KEY, "Housekeeping", listOf("hotel.housekeeping.view")),
         HotelItem(REPORTS_KEY, "Reports", listOf("hotel.report.view")),
+        // Either permission opens it — the storekeeper's, or the one that
+        // sets the kits themselves. See AmenityKitController::due().
+        HotelItem(AMENITY_ISSUE_KEY, "Amenity Issue", listOf("material.issue.create", "hotel.resource.view")),
         HotelItem(SETUP_KEY, "Rooms & Seats Setup", SETUP_ANY),
     )
 
@@ -89,6 +93,8 @@ object HotelMenu {
     // are the screens that engine cannot draw — a form whose fields depend on
     // each other, a drawing, a grid — and the navigation graph wires them by
     // these names.
+    const val ROUTE_AMENITY_KITS = "hotel/setup/amenity-kits"
+    const val ROUTE_AMENITY_ISSUE = "hotel/amenity-issue"
     const val ROUTE_ROOMS = "hotel/setup/rooms"
     const val ROUTE_ROOM_ID_ARG = "id"
     /** Optional id: absent means "a new room". */
