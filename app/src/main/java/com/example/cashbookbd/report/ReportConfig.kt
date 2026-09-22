@@ -560,6 +560,19 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             native = true,
         ),
+        ReportConfig(
+            key = "cashBankBook",
+            title = "Cash & Bank Book",
+            routeName = "ReportCashBankBook",
+            webPath = "/reports/cash-book-two-column",
+            // Web 8724f001: the same money as Cashbook, arranged with a bank
+            // column beside the cash one — deliberately the same permission.
+            anyOf = listOf("cashbook.view"),
+            endpointKey = "cashBankBook",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
 
         // The two product-tracking memo reports — bespoke screens: summary
         // cards, running balances and the unmapped-transactions notice don't

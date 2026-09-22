@@ -61,6 +61,7 @@ import com.example.cashbookbd.data.repository.TradeLedgerRepository
 import com.example.cashbookbd.data.repository.GroupReportRepository
 import com.example.cashbookbd.data.repository.ConnectedMemberRepository
 import com.example.cashbookbd.data.repository.MenuPreferencesRepository
+import com.example.cashbookbd.data.repository.CashBankBookRepository
 import com.example.cashbookbd.data.repository.ExpenseReportRepository
 import com.example.cashbookbd.data.repository.VoucherRegisterRepository
 import com.example.cashbookbd.data.repository.DashboardPreferencesRepository
@@ -163,6 +164,7 @@ object ServiceLocator {
     private var menuPreferencesRepository: MenuPreferencesRepository? = null
     private var expenseReportRepository: ExpenseReportRepository? = null
     private var voucherRegisterRepository: VoucherRegisterRepository? = null
+    private var cashBankBookRepository: CashBankBookRepository? = null
     private var dashboardPreferencesRepository: DashboardPreferencesRepository? = null
 
     @Volatile
@@ -673,6 +675,13 @@ object ServiceLocator {
             voucherRegisterRepository ?: VoucherRegisterRepository(
                 api = provideReportApiService(context),
             ).also { voucherRegisterRepository = it }
+        }
+
+    fun provideCashBankBookRepository(context: Context): CashBankBookRepository =
+        cashBankBookRepository ?: synchronized(this) {
+            cashBankBookRepository ?: CashBankBookRepository(
+                api = provideReportApiService(context),
+            ).also { cashBankBookRepository = it }
         }
 
     fun provideMenuPreferencesRepository(context: Context): MenuPreferencesRepository =

@@ -145,6 +145,7 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "connectedMember" -> Routes.CONNECTED_MEMBER
         "expenseReport" -> Routes.EXPENSE_REPORT
         "voucherRegister" -> Routes.VOUCHER_REGISTER
+        "cashBankBook" -> Routes.CASH_BANK_BOOK
         else -> Routes.reportView(report.key)
     }
     navigate(route)

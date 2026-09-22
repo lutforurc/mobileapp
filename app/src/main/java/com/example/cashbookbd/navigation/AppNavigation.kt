@@ -256,6 +256,9 @@ object Routes {
     /** Voucher Monthly Register — Tally-style counts per month, drilling into vouchers (native). */
     const val VOUCHER_REGISTER = "reports/voucher-register"
 
+    /** Cash & Bank Book — the paper double-column cash book (native). */
+    const val CASH_BANK_BOOK = "reports/cash-book-two-column"
+
     /** The Analytics section's one screen: the two-period item comparison. */
     const val ANALYTICS_COMPARISON = "analytics/comparison"
 
@@ -836,6 +839,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         composable(Routes.VOUCHER_REGISTER) {
             PermissionGate(anyOf = listOf("voucher.register")) {
                 com.example.cashbookbd.ui.reports.VoucherRegisterScreen(navController = navController, onLogout = backToLogin)
+            }
+        }
+
+        composable(Routes.CASH_BANK_BOOK) {
+            PermissionGate(anyOf = listOf("cashbook.view")) {
+                com.example.cashbookbd.ui.reports.CashBankBookScreen(navController = navController, onLogout = backToLogin)
             }
         }
 
