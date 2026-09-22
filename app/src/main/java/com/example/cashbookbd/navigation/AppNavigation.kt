@@ -1461,6 +1461,22 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     )
                 }
             }
+            composable(
+                route = hotel.ROUTE_GUEST_PROFILE,
+                arguments = listOf(
+                    navArgument("nid") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("mobile") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                val nationalId = entry.arguments?.getString("nid").orEmpty()
+                val mobile = entry.arguments?.getString("mobile").orEmpty()
+                PermissionGate(anyOf = listOf("hotel.booking.view")) {
+                    com.example.cashbookbd.ui.hotel.HotelGuestProfileScreen(
+                        navController = navController, onLogout = backToLogin,
+                        nationalId = nationalId, mobile = mobile,
+                    )
+                }
+            }
             composable(route = hotel.ROUTE_EDIT, arguments = listOf(bookingArg)) { entry ->
                 val bookingId = entry.arguments?.getLong(hotel.BOOKING_ID_ARG) ?: 0L
                 PermissionGate(anyOf = listOf("hotel.booking.view")) {

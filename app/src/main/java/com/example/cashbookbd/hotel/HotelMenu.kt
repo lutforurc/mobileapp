@@ -119,6 +119,7 @@ object HotelMenu {
     const val ROUTE_NO_SHOW = "hotel/bookings/{bookingId}/no-show"
     const val ROUTE_REGISTRATION_CARD = "hotel/bookings/{bookingId}/registration-card"
     const val ROUTE_MOVE_ROOM = "hotel/bookings/{bookingId}/move"
+    const val ROUTE_GUEST_PROFILE = "hotel/guest-profile?nid={nid}&mobile={mobile}"
     const val ROUTE_EDIT = "hotel/bookings/{bookingId}/edit"
     const val ROUTE_WALK_IN = "hotel/bookings/walk-in"
 
@@ -133,5 +134,11 @@ object HotelMenu {
     fun noShow(bookingId: Long): String = "hotel/bookings/$bookingId/no-show"
     fun registrationCard(bookingId: Long): String = "hotel/bookings/$bookingId/registration-card"
     fun moveRoom(bookingId: Long): String = "hotel/bookings/$bookingId/move"
+
+    /** Either key alone is enough; both travel when both are known. */
+    fun guestProfile(nationalId: String, mobile: String): String {
+        val encode = { v: String -> java.net.URLEncoder.encode(v, "UTF-8") }
+        return "hotel/guest-profile?nid=${encode(nationalId)}&mobile=${encode(mobile)}"
+    }
     fun edit(bookingId: Long): String = "hotel/bookings/$bookingId/edit"
 }

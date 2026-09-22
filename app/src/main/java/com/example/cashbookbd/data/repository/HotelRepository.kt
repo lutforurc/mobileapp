@@ -175,6 +175,69 @@ data class HotelReturningGuest(
     /** Offered so the form can follow, never applied by the server. */
     val bookingType: String,
     val billedToPartyId: Long?,
+    /** Booked and never came, on this number. */
+    val noShows: Int,
+    /** Left owing, on a stay never carried to a party. */
+    val owed: Double,
+)
+
+/** One stay (or telephoned no-show) on a guest's history. */
+data class HotelGuestStay(
+    val id: Long,
+    val bookingNo: String,
+    val checkInDate: String,
+    val checkOutDate: String,
+    val nights: Int,
+    val status: String,
+    val stayKind: String,
+    val bookingType: String,
+    val rooms: List<String>,
+    /** Named in a room, or only the voice on the telephone. */
+    val wasGuest: Boolean,
+    val billed: Double,
+    val paid: Double,
+    val due: Double,
+    val carried: Boolean,
+    val retained: Double,
+)
+
+/** A sentence about the person, not about one stay — "wants an east-facing room". */
+data class HotelGuestNote(
+    val id: Long,
+    val keyKind: String,
+    val guestKey: String,
+    val note: String,
+    val by: String,
+    val createdAt: String,
+)
+
+data class HotelGuestTotals(
+    val stays: Int,
+    val noShows: Int,
+    val cancelled: Int,
+    val upcoming: Int,
+    val billed: Double,
+    val paid: Double,
+    val due: Double,
+    val lastStay: String,
+    val firstStay: String,
+)
+
+/** Every stay a guest has had here, keyed by NID or mobile (`bookings/guest/history`). */
+data class HotelGuestProfile(
+    val found: Boolean,
+    val keyNationalId: String,
+    val keyMobile: String,
+    val guestName: String,
+    val guestMobile: String,
+    val guestNationalId: String,
+    val guestAddress: String,
+    val guestGender: String,
+    val guestAge: String,
+    val mobiles: List<String>,
+    val totals: HotelGuestTotals,
+    val stays: List<HotelGuestStay>,
+    val notes: List<HotelGuestNote>,
 )
 
 /** A page of [HotelBookingRow]s with the paginator meta the footer needs. */
@@ -416,6 +479,8 @@ class HotelRepository(
                         lastStay = payload?.text("last_stay").orEmpty().take(10),
                         bookingType = payload?.text("booking_type").orEmpty(),
                         billedToPartyId = payload?.long("billed_to_party_id"),
+                        noShows = payload?.int("no_shows") ?: 0,
+                        owed = payload?.dbl("owed") ?: 0.0,
                     )
                 )
             } catch (e: IOException) {
@@ -559,6 +624,164 @@ class HotelRepository(
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }
+    }
+
+    /**
+     * Everything about one guest, keyed by NID or mobile — either or both
+     * (`bookings/guest/history`). Answers the totals, every stay newest
+     * first, and the notes about the person.
+     */
+    suspend fun fetchGuestHistory(nationalId: String, mobile: String): Resource<HotelGuestProfile> = withContext(ioDispatcher) {
+        try {
+            val params = buildMap {
+                nationalId.trim().takeIf { it.isNotEmpty() }?.let { put("national_id", it) }
+                mobile.trim().takeIf { it.isNotEmpty() }?.let { put("mobile", it) }
+            }
+            val response = api.get("hotel-setup/bookings/guest/history", params)
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            if (response.code() == 403) {
+                return@withContext Resource.Error("You do not have permission to see a guest's history.")
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            if (body.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Error(
+                    body.get("message")?.takeUnless { it.isJsonNull }?.asString ?: "Could not read that guest's history.",
+                )
+            }
+            val payload = body.obj("data")?.obj("data") ?: body.obj("data")
+                ?: return@withContext Resource.Error("The guest history could not be read.")
+            val key = payload.obj("key")
+            val guest = payload.obj("guest")
+            val totals = payload.obj("totals")
+            Resource.Success(
+                HotelGuestProfile(
+                    found = payload.flag("found"),
+                    keyNationalId = key?.text("national_id").orEmpty(),
+                    keyMobile = key?.text("mobile").orEmpty(),
+                    guestName = guest?.text("name").orEmpty(),
+                    guestMobile = guest?.text("mobile").orEmpty(),
+                    guestNationalId = guest?.text("national_id").orEmpty(),
+                    guestAddress = guest?.text("address").orEmpty(),
+                    guestGender = guest?.text("gender").orEmpty(),
+                    guestAge = guest?.get("age")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
+                    mobiles = guest?.get("mobiles")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { it.takeUnless { e -> e.isJsonNull }?.asString }.orEmpty(),
+                    totals = HotelGuestTotals(
+                        stays = totals?.int("stays") ?: 0,
+                        noShows = totals?.int("no_shows") ?: 0,
+                        cancelled = totals?.int("cancelled") ?: 0,
+                        upcoming = totals?.int("upcoming") ?: 0,
+                        billed = totals?.dbl("billed") ?: 0.0,
+                        paid = totals?.dbl("paid") ?: 0.0,
+                        due = totals?.dbl("due") ?: 0.0,
+                        lastStay = totals?.text("last_stay").orEmpty().take(10),
+                        firstStay = totals?.text("first_stay").orEmpty().take(10),
+                    ),
+                    stays = payload.get("stays")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject?.toGuestStay() }.orEmpty(),
+                    notes = payload.get("notes")?.takeIf { it.isJsonArray }?.asJsonArray
+                        ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject?.toGuestNote() }.orEmpty(),
+                )
+            )
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** One sentence about a guest (`bookings/guest/notes/store`). [keyKind] is "national_id" or "mobile". */
+    suspend fun addGuestNote(keyKind: String, guestKey: String, note: String): Resource<HotelGuestNote> = withContext(ioDispatcher) {
+        try {
+            val body = JsonObject().apply {
+                addProperty("key_kind", keyKind)
+                addProperty("guest_key", guestKey)
+                addProperty("note", note.trim())
+            }
+            val response = api.postObjectRaw("hotel-setup/bookings/guest/notes/store", body)
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val respBody = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            if (respBody.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Error(
+                    respBody.get("message")?.takeUnless { it.isJsonNull }?.asString ?: "The note was refused.",
+                )
+            }
+            val payload = respBody.obj("data")?.obj("data") ?: respBody.obj("data")
+                ?: return@withContext Resource.Error("The note could not be read back.")
+            Resource.Success(payload.toGuestNote() ?: return@withContext Resource.Error("The note could not be read back."))
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** Takes a note off — a wrong note is removed and a right one written, never edited. */
+    suspend fun deleteGuestNote(id: Long): Resource<Unit> = withContext(ioDispatcher) {
+        try {
+            val response = api.postObjectRaw("hotel-setup/bookings/guest/notes/delete/$id", JsonObject())
+            if (response.code() == 401) {
+                return@withContext Resource.Error(
+                    "Your session has expired. Please log in again.", isUnauthorized = true,
+                )
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            if (body.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                return@withContext Resource.Error(
+                    body.get("message")?.takeUnless { it.isJsonNull }?.asString ?: "The note could not be removed.",
+                )
+            }
+            Resource.Success(Unit)
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    private fun JsonObject.toGuestStay(): HotelGuestStay? {
+        val id = long("id") ?: return null
+        return HotelGuestStay(
+            id = id,
+            bookingNo = text("booking_no"),
+            checkInDate = text("check_in_date").take(10),
+            checkOutDate = text("check_out_date").take(10),
+            nights = int("nights") ?: 0,
+            status = text("status"),
+            stayKind = text("stay_kind").ifBlank { "paid" },
+            bookingType = text("booking_type"),
+            rooms = get("rooms")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.mapNotNull { it.takeUnless { e -> e.isJsonNull }?.asString }.orEmpty(),
+            wasGuest = flag("was_guest"),
+            billed = dbl("billed") ?: 0.0,
+            paid = dbl("paid") ?: 0.0,
+            due = dbl("due") ?: 0.0,
+            carried = flag("carried"),
+            retained = dbl("retained") ?: 0.0,
+        )
+    }
+
+    private fun JsonObject.toGuestNote(): HotelGuestNote? {
+        val id = long("id") ?: return null
+        return HotelGuestNote(
+            id = id,
+            keyKind = text("key_kind"),
+            guestKey = text("guest_key"),
+            note = text("note"),
+            by = text("by"),
+            createdAt = text("created_at"),
+        )
     }
 
     private fun JsonObject.toRegistrationCard(): HotelRegistrationCard {
@@ -748,4 +971,7 @@ class HotelRepository(
         get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString?.toDoubleOrNull()?.toLong()
 
     private fun JsonObject.int(key: String): Int? = long(key)?.toInt()
+
+    private fun JsonObject.dbl(key: String): Double? =
+        get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }?.asString?.toDoubleOrNull()
 }

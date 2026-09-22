@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.data.repository.HotelAvailability
 import com.example.cashbookbd.data.repository.HotelParty
 import com.example.cashbookbd.data.repository.HotelReturningGuest
@@ -505,20 +506,41 @@ fun HotelNewBookingScreen(
                     }
                     state.returning?.let { guest ->
                         item {
-                            // Said, not applied. A clerk who sees "3 stays,
-                            // last 12/07/2026" knows who is on the telephone.
-                            Text(
-                                text = buildString {
-                                    append("Been here before — ")
-                                    append(guest.stays)
-                                    append(if (guest.stays == 1) " stay" else " stays")
-                                    if (guest.lastStay.isNotBlank()) {
-                                        append(", last ").append(guest.lastStay)
-                                    }
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.appColors.success,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Said, not applied. A clerk who sees "3 stays,
+                                // last 12/07/2026, 1 no-show" knows who is on
+                                // the telephone, and what to ask for up front.
+                                Text(
+                                    text = buildString {
+                                        append("Been here before — ")
+                                        append(guest.stays)
+                                        append(if (guest.stays == 1) " stay" else " stays")
+                                        if (guest.lastStay.isNotBlank()) {
+                                            append(", last ").append(guest.lastStay)
+                                        }
+                                        if (guest.noShows > 0) {
+                                            append(", ").append(guest.noShows)
+                                            append(if (guest.noShows == 1) " no-show" else " no-shows")
+                                        }
+                                        if (guest.owed > 0) {
+                                            append(", owes ").append(hotelMoney(guest.owed))
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (guest.noShows > 0 || guest.owed > 0) {
+                                        MaterialTheme.appColors.warning
+                                    } else {
+                                        MaterialTheme.appColors.success
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                                LinkButton(
+                                    text = "History",
+                                    onClick = {
+                                        navController.navigate(HotelMenu.guestProfile("", guest.mobile))
+                                    },
+                                )
+                            }
                         }
                     }
                     item {

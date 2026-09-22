@@ -377,6 +377,7 @@ fun HotelBookingsScreen(
                             onCancel = { row -> navController.navigate(HotelMenu.cancel(row.id)) },
                             onNoShow = { row -> navController.navigate(HotelMenu.noShow(row.id)) },
                             onMove = { row -> navController.navigate(HotelMenu.moveRoom(row.id)) },
+                            onHistory = { row -> navController.navigate(HotelMenu.guestProfile("", row.bookerMobile)) },
                         ),
                         data = state.rows,
                         noDataMessage = "No booking found",
@@ -437,6 +438,7 @@ private fun bookingColumns(
     onCancel: (HotelBookingRow) -> Unit,
     onNoShow: (HotelBookingRow) -> Unit,
     onMove: (HotelBookingRow) -> Unit,
+    onHistory: (HotelBookingRow) -> Unit,
 ): List<ReportColumn<HotelBookingRow>> {
     val muted = MaterialTheme.appColors.textMuted
     val danger = MaterialTheme.appColors.danger
@@ -621,6 +623,9 @@ private fun bookingColumns(
                     }
                     if (open && r.bookingType != "walk_in") {
                         LinkButton(text = "Move", onClick = { onMove(r) })
+                    }
+                    if (r.bookerMobile.isNotBlank()) {
+                        LinkButton(text = "History", onClick = { onHistory(r) })
                     }
                 }
             }
