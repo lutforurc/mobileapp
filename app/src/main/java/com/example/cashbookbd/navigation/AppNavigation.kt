@@ -145,6 +145,21 @@ import com.example.cashbookbd.ui.realestate.SalesSummaryScreen
 import com.example.cashbookbd.ui.realestate.SoldUnitsScreen
 import com.example.cashbookbd.ui.realestate.UnitPaymentScreen
 import com.example.cashbookbd.ui.realestate.UnitSaleScreen
+import com.example.cashbookbd.ui.products.MasterFormConfig
+
+/** Product Group and Pack Size share MasterFormScreen — only these strings differ. */
+private val PRODUCT_GROUP_FORM_CONFIG = MasterFormConfig(
+    title = "Product Group",
+    storeEndpoint = "product-group/api-store",
+    nameField = "group_name",
+    ddlEndpoint = "product-group/product-group-ddl",
+)
+private val PACK_SIZE_FORM_CONFIG = MasterFormConfig(
+    title = "Pack Size",
+    storeEndpoint = "pack-size/api-store",
+    nameField = "pack_size_name",
+    ddlEndpoint = "pack-size/pack-size-ddl",
+)
 
 object Routes {
     const val LOGIN = "login"
@@ -529,6 +544,15 @@ object Routes {
     /** Edit Product form, opened from the Product List's row pencil. */
     const val PRODUCT_EDIT = "products/product/edit"
     const val PRODUCT_ID_ARG = "productId"
+
+    /** Product Group add/edit — the branch's "Need Product Group?" master list. */
+    const val PRODUCT_GROUP_ADD = "products/group/add"
+    const val PRODUCT_GROUP_EDIT = "products/group/edit"
+
+    /** Pack Size add/edit — the branch's "Need Package?" master list. */
+    const val PACK_SIZE_ADD = "products/packsize/add"
+    const val PACK_SIZE_EDIT = "products/packsize/edit"
+    const val MASTER_ID_ARG = "id"
 
     // Account section (the top-bar avatar menu)
     const val MY_DEVICES = "account/my-devices"
@@ -2031,6 +2055,48 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 AddProductScreen(
                     navController = navController,
                     onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PRODUCT_GROUP_ADD) {
+            PermissionGate(anyOf = listOf("product_group.update")) {
+                com.example.cashbookbd.ui.products.MasterFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    config = PRODUCT_GROUP_FORM_CONFIG,
+                    id = null,
+                )
+            }
+        }
+        composable("${Routes.PRODUCT_GROUP_EDIT}/{${Routes.MASTER_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("product_group.update")) {
+                com.example.cashbookbd.ui.products.MasterFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    config = PRODUCT_GROUP_FORM_CONFIG,
+                    id = entry.arguments?.getString(Routes.MASTER_ID_ARG),
+                )
+            }
+        }
+
+        composable(Routes.PACK_SIZE_ADD) {
+            PermissionGate(anyOf = listOf("package.size.update")) {
+                com.example.cashbookbd.ui.products.MasterFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    config = PACK_SIZE_FORM_CONFIG,
+                    id = null,
+                )
+            }
+        }
+        composable("${Routes.PACK_SIZE_EDIT}/{${Routes.MASTER_ID_ARG}}") { entry ->
+            PermissionGate(anyOf = listOf("package.size.update")) {
+                com.example.cashbookbd.ui.products.MasterFormScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    config = PACK_SIZE_FORM_CONFIG,
+                    id = entry.arguments?.getString(Routes.MASTER_ID_ARG),
                 )
             }
         }

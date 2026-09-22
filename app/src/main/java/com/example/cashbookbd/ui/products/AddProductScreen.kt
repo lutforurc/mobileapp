@@ -121,6 +121,16 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             placeholder = "Select brand",
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showProductGroup) {
+            AppSelectDropdown(
+                label = "Product Group (optional)",
+                options = state.productGroups,
+                selected = state.productGroup,
+                onSelected = viewModel::onProductGroup,
+                placeholder = "Select product group",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppSelectDropdown(
             label = "Category",
             options = state.categories,
@@ -129,6 +139,15 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             placeholder = "Select category",
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showCode) {
+            AppTextField(
+                value = state.code,
+                onValueChange = viewModel::onCode,
+                label = "Enter product code",
+                caption = "Product Code (optional)",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = state.name,
             onValueChange = viewModel::onName,
@@ -159,6 +178,16 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             placeholder = "Select unit",
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showPackSize) {
+            AppSelectDropdown(
+                label = "Pack Size (optional)",
+                options = state.packSizes,
+                selected = state.packSize,
+                onSelected = viewModel::onPackSize,
+                placeholder = "Select pack size",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = state.purchasePrice,
             onValueChange = viewModel::onPurchasePrice,

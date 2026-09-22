@@ -20,6 +20,8 @@ object ProductsMenu {
     val all: List<ProductItem> = listOf(
         ProductItem("brandList", "Brand List", listOf("brand.list")),
         ProductItem("categoryList", "Category List", listOf("category.view")),
+        ProductItem("productGroupList", "Product Group List", listOf("product_group.view")),
+        ProductItem("packSizeList", "Pack Size List", listOf("package.size.view")),
         ProductItem("productList", "Product List", listOf("products.view")),
         // The stock alert reports, each on its own web-sidebar permission. The
         // endpoints are scoped to the signed-in user's branch server-side.

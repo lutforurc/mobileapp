@@ -19,6 +19,17 @@ data class AddProductUiState(
     val description: String = "",
     val purchasePrice: String = "",
     val salesPrice: String = "",
+    // Branch's "Need Code?" — a company-unique product code.
+    val showCode: Boolean = false,
+    val code: String = "",
+    // Branch's "Need Product Group?" — a second grouping level above Category.
+    val showProductGroup: Boolean = false,
+    val productGroups: List<SelectorOption> = emptyList(),
+    val productGroup: SelectorOption? = null,
+    // Branch's "Need Package?" — the product's pack size.
+    val showPackSize: Boolean = false,
+    val packSizes: List<SelectorOption> = emptyList(),
+    val packSize: SelectorOption? = null,
     // Opening stock, gated on the branch's is_opening flag.
     val showOpening: Boolean = false,
     val openingSerialNo: String = "",

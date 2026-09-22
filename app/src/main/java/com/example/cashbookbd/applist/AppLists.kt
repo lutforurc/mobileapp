@@ -627,6 +627,42 @@ object AppLists {
             openingStock = true,
         ),
         AppListSpec(
+            key = "productGroupList",
+            title = "Product Group List",
+            endpoint = "product-group/product-group-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Product Group"),
+                AppListColumn("description", "Description"),
+                AppListColumn("products", "Products", numeric = true),
+            ),
+            anyOf = listOf("product_group.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Product Group", route = Routes.PRODUCT_GROUP_ADD),
+            editAction = ListEditAction(route = Routes.PRODUCT_GROUP_EDIT, idKey = "id", anyOf = listOf("product_group.update")),
+            // The server refuses a group still holding products, with the reason.
+            deleteAction = ListDeleteAction(endpointBase = "product-group/delete", anyOf = listOf("product_group.delete")),
+        ),
+        AppListSpec(
+            key = "packSizeList",
+            title = "Pack Size List",
+            endpoint = "pack-size/pack-size-list",
+            method = ListMethod.GET,
+            params = mapOf("search" to ""),
+            columns = listOf(
+                AppListColumn("name", "Pack Size"),
+                AppListColumn("description", "Description"),
+                AppListColumn("products", "Products", numeric = true),
+            ),
+            anyOf = listOf("package.size.view"),
+            paginated = true,
+            addAction = ListAddAction(label = "New Pack Size", route = Routes.PACK_SIZE_ADD),
+            editAction = ListEditAction(route = Routes.PACK_SIZE_EDIT, idKey = "id", anyOf = listOf("package.size.update")),
+            // The server refuses a pack size still holding products, with the reason.
+            deleteAction = ListDeleteAction(endpointBase = "pack-size/delete", anyOf = listOf("package.size.delete")),
+        ),
+        AppListSpec(
             key = "productUnit",
             title = "Product Unit",
             endpoint = "product/unit/list",

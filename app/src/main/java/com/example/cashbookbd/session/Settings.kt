@@ -139,6 +139,12 @@ data class Settings(
      * than appearing and vanishing with the picked account's tracked list.
      */
     val productTracking: Boolean = false,
+    /** Branch meta "Need Code?": the product form shows a company-unique Product Code box. */
+    val needCode: Boolean = false,
+    /** Branch meta "Need Product Group?": the product form shows a Group dropdown above Category. */
+    val needProductGroup: Boolean = false,
+    /** Branch meta "Need Package?": the product form shows a Pack Size dropdown. */
+    val needPackage: Boolean = false,
 )
 
 /**

@@ -23,7 +23,12 @@ class AddProductViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        AddProductUiState(showOpening = settings?.openingOngoing == true)
+        AddProductUiState(
+            showOpening = settings?.openingOngoing == true,
+            showCode = settings?.needCode == true,
+            showProductGroup = settings?.needProductGroup == true,
+            showPackSize = settings?.needPackage == true,
+        )
     )
     val uiState: StateFlow<AddProductUiState> = _uiState.asStateFlow()
 
@@ -58,6 +63,24 @@ class AddProductViewModel(
                 Resource.Loading -> Unit
             }
         }
+        // Loaded only when the branch turns the setting on — same lazy-load the
+        // web applies before dispatching getProductGroupDdl/getPackSizeDdl.
+        if (_uiState.value.showProductGroup) {
+            viewModelScope.launch {
+                val result = repository.loadProductGroups()
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(productGroups = result.data) }
+                }
+            }
+        }
+        if (_uiState.value.showPackSize) {
+            viewModelScope.launch {
+                val result = repository.loadPackSizes()
+                if (result is Resource.Success) {
+                    _uiState.update { it.copy(packSizes = result.data) }
+                }
+            }
+        }
     }
 
     fun onCategory(option: SelectorOption) = _uiState.update { it.copy(category = option) }
@@ -68,6 +91,9 @@ class AddProductViewModel(
     fun onDescription(value: String) = _uiState.update { it.copy(description = value) }
     fun onPurchasePrice(value: String) = _uiState.update { it.copy(purchasePrice = value) }
     fun onSalesPrice(value: String) = _uiState.update { it.copy(salesPrice = value) }
+    fun onCode(value: String) = _uiState.update { it.copy(code = value) }
+    fun onProductGroup(option: SelectorOption) = _uiState.update { it.copy(productGroup = option) }
+    fun onPackSize(option: SelectorOption) = _uiState.update { it.copy(packSize = option) }
 
     /**
      * Serials carry the quantity with them, so it is not asked for twice: the
@@ -112,6 +138,9 @@ class AddProductViewModel(
                     openingQty = if (state.showOpening) state.openingQty else "",
                     openingRate = if (state.showOpening) state.openingRate else "",
                     openingSerialNo = if (state.showOpening) state.openingSerialNo else "",
+                    code = if (state.showCode) state.code else "",
+                    groupId = if (state.showProductGroup) state.productGroup?.id.orEmpty() else "",
+                    packSizeId = if (state.showPackSize) state.packSize?.id.orEmpty() else "",
                 )
             )
             when (result) {

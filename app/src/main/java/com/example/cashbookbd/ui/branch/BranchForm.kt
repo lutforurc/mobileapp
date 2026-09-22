@@ -357,6 +357,18 @@ object BranchForm {
                     "product_tracking", "Product Tracking?",
                     description = "Cash Received and Payment ask which product the money was for, and the Product Statement reports on it. Off, those forms stay exactly as they were.",
                 ),
+                BranchField.Toggle(
+                    "need_code", "Need Code?",
+                    description = "Adds a Product Code box to the Add / Edit Product form — a code of your own, unique within the company.",
+                ),
+                BranchField.Toggle(
+                    "need_product_group", "Need Product Group?",
+                    description = "Adds a Product Group dropdown above Category on the Add / Edit Product form, for a second grouping level.",
+                ),
+                BranchField.Toggle(
+                    "need_package", "Need Package?",
+                    description = "Adds a Pack Size dropdown to the Add / Edit Product form.",
+                ),
             ),
         ),
         BranchStep(

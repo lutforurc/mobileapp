@@ -66,6 +66,12 @@ data class ProductEditData(
     /** "0" not applicable, "1" warranty, "2" guarantee, "3" custom. */
     val warrantyType: String,
     val warrantyDays: String,
+    /** Branch's "Need Code?" — the business's own product code; blank means none. */
+    val code: String = "",
+    /** Branch's "Need Product Group?" — group id; blank means none. */
+    val groupId: String = "",
+    /** Branch's "Need Package?" — pack size id; blank means none. */
+    val packSizeId: String = "",
 )
 
 /** The fields the Edit Product form posts back (`product/update`). */
@@ -83,6 +89,10 @@ data class ProductUpdate(
     /** Sent only when the branch's warranty_controll is on, like the web. */
     val warrantyType: String? = null,
     val warrantyDays: String? = null,
+    /** Sent only when the branch's need_code/need_product_group/need_package are on. */
+    val code: String? = null,
+    val groupId: String? = null,
+    val packSizeId: String? = null,
 )
 
 /** The fields the Add Product form collects (web's "New Product"). */
@@ -112,6 +122,12 @@ data class NewProduct(
     val openingRate: String = "",
     /** One IMEI/serial per line — the server splits on newlines and commas. */
     val openingSerialNo: String = "",
+    /** Sent only when the branch's need_code is on — blank means none. */
+    val code: String = "",
+    /** Sent only when the branch's need_product_group is on — blank means none. */
+    val groupId: String = "",
+    /** Sent only when the branch's need_package is on — blank means none. */
+    val packSizeId: String = "",
 )
 
 /**
@@ -266,6 +282,78 @@ class ProductRepository(
         }
     }
 
+    /**
+     * Product Group and Pack Size share this exact shape (id, name, description,
+     * upsert-by-id) — one pair of methods serves both master lists' add/edit form.
+     * There is no GET-by-id edit endpoint; the DDL (an unpaginated full list) already
+     * carries name+description, so it doubles as the edit form's prefill source.
+     */
+    suspend fun fetchMasterEntry(ddlEndpoint: String, id: String): Resource<Pair<String, String>> =
+        withContext(ioDispatcher) {
+            try {
+                val response = api.get(ddlEndpoint, emptyMap())
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+                }
+                val json = response.jsonBody()
+                if (json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false) {
+                    return@withContext Resource.Error(json.message() ?: "Not found")
+                }
+                val rows = json?.getAsJsonObject("data")?.get("data")
+                    ?.takeIf { it.isJsonArray }?.asJsonArray
+                val row = rows?.firstOrNull {
+                    it.takeIf { e -> e.isJsonObject }?.asJsonObject
+                        ?.get("id")?.takeUnless { e -> e.isJsonNull }?.asString == id
+                }?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@withContext Resource.Error("Not found")
+                val name = row.get("name")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+                val description = row.get("description")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+                Resource.Success(name to description)
+            } catch (e: IOException) {
+                Resource.Error(NO_NETWORK)
+            } catch (e: HttpException) {
+                Resource.Error("Server error (${e.code()}). Please try again later.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /** Upserts a Product Group / Pack Size row (`id` present = update). */
+    suspend fun saveMasterEntry(
+        storeEndpoint: String,
+        nameField: String,
+        id: String?,
+        name: String,
+        description: String,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = buildMap {
+            put(nameField, name.trim())
+            put("description", description.trim())
+            id?.let { put("id", it) }
+        }
+        try {
+            val response = api.post(storeEndpoint, body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(
+                    json?.message() ?: "Server error (${response.code()}). Please try again later."
+                )
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Saved successfully")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     /** Creates a product (`product/store`). Brand and description are optional. */
     suspend fun storeProduct(product: NewProduct): Resource<String> = withContext(ioDispatcher) {
         val body = buildMap {
@@ -284,6 +372,9 @@ class ProductRepository(
             product.openingRate.trim().takeIf { it.isNotEmpty() }?.let { put("opening_rate", it) }
             product.openingSerialNo.trim().takeIf { it.isNotEmpty() }
                 ?.let { put("opening_serial_no", it) }
+            product.code.trim().takeIf { it.isNotEmpty() }?.let { put("code", it) }
+            product.groupId.takeIf { it.isNotBlank() }?.let { put("group_id", it) }
+            product.packSizeId.takeIf { it.isNotBlank() }?.let { put("pack_size_id", it) }
         }
         try {
             val response = api.post("product/store", body)
@@ -307,6 +398,32 @@ class ProductRepository(
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }
+    }
+
+    /** Product Group dropdown (`product-group/product-group-ddl`). Best-effort — optional field. */
+    suspend fun loadProductGroups(): Resource<List<SelectorOption>> = withContext(ioDispatcher) {
+        runCatching {
+            val response = api.get("product-group/product-group-ddl", emptyMap())
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val options = response.jsonBody()?.getAsJsonObject("data")?.get("data")
+                ?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()
+            Resource.Success(options)
+        }.getOrDefault(Resource.Success(emptyList()))
+    }
+
+    /** Pack Size dropdown (`pack-size/pack-size-ddl`). Best-effort — optional field. */
+    suspend fun loadPackSizes(): Resource<List<SelectorOption>> = withContext(ioDispatcher) {
+        runCatching {
+            val response = api.get("pack-size/pack-size-ddl", emptyMap())
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val options = response.jsonBody()?.getAsJsonObject("data")?.get("data")
+                ?.takeIf { it.isJsonArray }?.asJsonArray?.toOptions().orEmpty()
+            Resource.Success(options)
+        }.getOrDefault(Resource.Success(emptyList()))
     }
 
     /**
@@ -405,6 +522,9 @@ class ProductRepository(
                         manufactureId = str("manufacture_id"),
                         warrantyType = warrantyType,
                         warrantyDays = warrantyDays,
+                        code = str("code"),
+                        groupId = str("group_id"),
+                        packSizeId = str("pack_size_id"),
                     )
                 )
             } catch (e: IOException) {
@@ -436,6 +556,9 @@ class ProductRepository(
             put("manufacture_id", update.manufactureId.ifBlank { "0" })
             update.warrantyType?.let { put("warranty_type", it) }
             update.warrantyDays?.let { put("warranty_days", it.trim()) }
+            update.code?.trim()?.let { put("code", it) }
+            update.groupId?.let { put("group_id", it) }
+            update.packSizeId?.let { put("pack_size_id", it) }
         }
         try {
             val response = api.post("product/update", body)

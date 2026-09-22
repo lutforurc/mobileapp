@@ -200,6 +200,12 @@ data class SettingsBranchDto(
      * 0b17783f); the web's cash screens read the same flag.
      */
     @SerializedName("product_tracking") val productTracking: String? = null,
+    /** Branch meta: the product form shows the Product Code box (own, company-unique code). */
+    @SerializedName("need_code") val needCode: String? = null,
+    /** Branch meta: the product form shows the Product Group dropdown, above Category. */
+    @SerializedName("need_product_group") val needProductGroup: String? = null,
+    /** Branch meta: the product form shows the Pack Size dropdown. */
+    @SerializedName("need_package") val needPackage: String? = null,
 )
 
 /**

@@ -138,6 +138,9 @@ class SettingsRepository(
                         // A native date field only holds yyyy-MM-dd; cut like the web.
                         ?.take(10),
                     productTracking = payload?.branch?.productTracking?.trim() == "1",
+                    needCode = payload?.branch?.needCode?.trim() == "1",
+                    needProductGroup = payload?.branch?.needProductGroup?.trim() == "1",
+                    needPackage = payload?.branch?.needPackage?.trim() == "1",
                 )
             )
         } catch (e: IOException) {

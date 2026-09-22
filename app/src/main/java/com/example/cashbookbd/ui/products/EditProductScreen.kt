@@ -68,13 +68,22 @@ data class EditProductUiState(
     val brands: List<SelectorOption> = emptyList(),
     /** The branch's warranty_controll: shows the warranty fields, like the web. */
     val showWarranty: Boolean = false,
+    /** Branch's "Need Code?" / "Need Product Group?" / "Need Package?". */
+    val showCode: Boolean = false,
+    val showProductGroup: Boolean = false,
+    val showPackSize: Boolean = false,
+    val productGroups: List<SelectorOption> = emptyList(),
+    val packSizes: List<SelectorOption> = emptyList(),
 
     val category: SelectorOption? = null,
     val productType: SelectorOption? = null,
     val unit: SelectorOption? = null,
     val brand: SelectorOption? = null,
+    val productGroup: SelectorOption? = null,
+    val packSize: SelectorOption? = null,
     val name: String = "",
     val description: String = "",
+    val code: String = "",
     val purchasePrice: String = "",
     val salesPrice: String = "",
     val orderLevel: String = "",
@@ -98,9 +107,19 @@ class EditProductViewModel(
     private val productId: String,
     private val repository: ProductRepository,
     showWarranty: Boolean,
+    showCode: Boolean,
+    showProductGroup: Boolean,
+    showPackSize: Boolean,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(EditProductUiState(showWarranty = showWarranty))
+    private val _uiState = MutableStateFlow(
+        EditProductUiState(
+            showWarranty = showWarranty,
+            showCode = showCode,
+            showProductGroup = showProductGroup,
+            showPackSize = showPackSize,
+        )
+    )
     val uiState: StateFlow<EditProductUiState> = _uiState.asStateFlow()
 
     /** Echoed back on update — the server writes manufacture_id unconditionally. */
@@ -140,6 +159,18 @@ class EditProductViewModel(
             val data = (detail as Resource.Success).data
             manufactureId = data.manufactureId
 
+            // Loaded only when the branch turns the setting on, same as Add Product.
+            val groups = if (_uiState.value.showProductGroup) {
+                (repository.loadProductGroups() as? Resource.Success)?.data.orEmpty()
+            } else {
+                emptyList()
+            }
+            val packSizes = if (_uiState.value.showPackSize) {
+                (repository.loadPackSizes() as? Resource.Success)?.data.orEmpty()
+            } else {
+                emptyList()
+            }
+
             fun List<SelectorOption>.byId(id: String): SelectorOption? =
                 firstOrNull { it.id == id }
 
@@ -150,6 +181,8 @@ class EditProductViewModel(
                     productTypes = opts.productTypes,
                     units = opts.units,
                     brands = opts.brands,
+                    productGroups = groups,
+                    packSizes = packSizes,
                     category = opts.categories.byId(data.categoryId),
                     // The web falls back to the first option when the stored id
                     // is not in the list.
@@ -157,8 +190,11 @@ class EditProductViewModel(
                         ?: opts.productTypes.firstOrNull(),
                     unit = opts.units.byId(data.unitId) ?: opts.units.firstOrNull(),
                     brand = opts.brands.byId(data.manufactureId),
+                    productGroup = groups.byId(data.groupId),
+                    packSize = packSizes.byId(data.packSizeId),
                     name = data.name,
                     description = data.description,
+                    code = data.code,
                     purchasePrice = data.purchasePrice,
                     salesPrice = data.salesPrice,
                     orderLevel = data.orderLevel,
@@ -180,6 +216,9 @@ class EditProductViewModel(
 
     fun onName(value: String) = _uiState.update { it.copy(name = value) }
     fun onDescription(value: String) = _uiState.update { it.copy(description = value) }
+    fun onCode(value: String) = _uiState.update { it.copy(code = value) }
+    fun onProductGroup(value: SelectorOption) = _uiState.update { it.copy(productGroup = value) }
+    fun onPackSize(value: SelectorOption) = _uiState.update { it.copy(packSize = value) }
     fun onPurchasePrice(value: String) = _uiState.update { it.copy(purchasePrice = value) }
     fun onSalesPrice(value: String) = _uiState.update { it.copy(salesPrice = value) }
     fun onOrderLevel(value: String) = _uiState.update { it.copy(orderLevel = value) }
@@ -210,6 +249,9 @@ class EditProductViewModel(
                     manufactureId = manufactureId,
                     warrantyType = if (state.showWarranty) state.warrantyType.id else null,
                     warrantyDays = if (state.showWarranty) state.warrantyDays else null,
+                    code = if (state.showCode) state.code else null,
+                    groupId = if (state.showProductGroup) state.productGroup?.id.orEmpty() else null,
+                    packSizeId = if (state.showPackSize) state.packSize?.id.orEmpty() else null,
                 )
             )
             when (result) {
@@ -235,11 +277,14 @@ class EditProductViewModel(
         fun provideFactory(context: Context, productId: String) = viewModelFactory {
             initializer {
                 val appContext = context.applicationContext
+                val settings = ServiceLocator.provideSessionManager(appContext).state.value.settings
                 EditProductViewModel(
                     productId = productId,
                     repository = ServiceLocator.provideProductRepository(appContext),
-                    showWarranty = ServiceLocator.provideSessionManager(appContext)
-                        .state.value.settings?.warrantyControll == true,
+                    showWarranty = settings?.warrantyControll == true,
+                    showCode = settings?.needCode == true,
+                    showProductGroup = settings?.needProductGroup == true,
+                    showPackSize = settings?.needPackage == true,
                 )
             }
         }
@@ -325,6 +370,16 @@ private fun EditForm(state: EditProductUiState, viewModel: EditProductViewModel)
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (state.showProductGroup) {
+            AppSelectDropdown(
+                label = "Product Group (optional)",
+                options = state.productGroups,
+                selected = state.productGroup,
+                onSelected = viewModel::onProductGroup,
+                placeholder = "Select product group",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppSelectDropdown(
             label = "Category",
             options = state.categories,
@@ -341,6 +396,15 @@ private fun EditForm(state: EditProductUiState, viewModel: EditProductViewModel)
             placeholder = "Select product type",
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showCode) {
+            AppTextField(
+                value = state.code,
+                onValueChange = viewModel::onCode,
+                label = "Enter product code",
+                caption = "Product Code (optional)",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = state.name,
             onValueChange = viewModel::onName,
@@ -402,6 +466,16 @@ private fun EditForm(state: EditProductUiState, viewModel: EditProductViewModel)
             placeholder = "Select unit",
             modifier = Modifier.fillMaxWidth(),
         )
+        if (state.showPackSize) {
+            AppSelectDropdown(
+                label = "Pack Size (optional)",
+                options = state.packSizes,
+                selected = state.packSize,
+                onSelected = viewModel::onPackSize,
+                placeholder = "Select pack size",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = state.orderLevel,
             onValueChange = viewModel::onOrderLevel,
