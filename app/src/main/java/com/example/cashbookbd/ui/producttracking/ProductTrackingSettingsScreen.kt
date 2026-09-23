@@ -468,12 +468,10 @@ fun ProductTrackingSettingsScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Delete", onClick = viewModel::confirmDelete, color = MaterialTheme.colorScheme.error)
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelDelete) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::cancelDelete)
             },
         )
     }

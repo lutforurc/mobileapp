@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.producttracking
 
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -524,7 +525,7 @@ private fun MemoNotice(notice: String, unmapped: TrackingUnmapped) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(amber.asTint(), RoundedCornerShape(6.dp))
+            .background(amber.asTint(), AppShape)
             .padding(10.dp),
     ) {
         if (notice.isNotBlank()) {

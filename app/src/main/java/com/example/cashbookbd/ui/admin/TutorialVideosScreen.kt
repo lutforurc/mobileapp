@@ -489,14 +489,15 @@ fun TutorialVideosScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                LinkButton(
+                    text = if (state.isSaving) "Saving…" else "Save",
                     onClick = viewModel::submitDialog,
                     enabled = !state.isSaving &&
                         state.dialogKey.isNotBlank() && state.dialogTitle.isNotBlank(),
-                ) { Text(if (state.isSaving) "Saving…" else "Save") }
+                )
             },
             dismissButton = {
-                TextButton(onClick = viewModel::closeDialog, enabled = !state.isSaving) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::closeDialog, enabled = !state.isSaving)
             },
         )
     }
@@ -512,12 +513,10 @@ fun TutorialVideosScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Remove", onClick = viewModel::confirmDelete, color = MaterialTheme.colorScheme.error)
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelDelete) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::cancelDelete)
             },
         )
     }

@@ -566,10 +566,10 @@ fun TradeLedgerScreen(
             title = { Text("Approve voucher?") },
             text = { Text("Approve ${row.challanNo}? An approved voucher can no longer be edited.") },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = viewModel::confirmApprove) { Text("Approve") }
+                com.example.cashbookbd.ui.components.LinkButton(text = "Approve", onClick = viewModel::confirmApprove)
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = viewModel::cancelAction) { Text("Cancel") }
+                com.example.cashbookbd.ui.components.LinkButton(text = "Cancel", onClick = viewModel::cancelAction)
             },
         )
     }
@@ -579,12 +579,14 @@ fun TradeLedgerScreen(
             title = { Text("Remove approval?") },
             text = { Text("Withdraw the approval on ${row.challanNo}? The voucher becomes editable again.") },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = viewModel::confirmRemoveApproval) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
-                }
+                com.example.cashbookbd.ui.components.LinkButton(
+                    text = "Remove",
+                    onClick = viewModel::confirmRemoveApproval,
+                    color = MaterialTheme.colorScheme.error,
+                )
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = viewModel::cancelAction) { Text("Cancel") }
+                com.example.cashbookbd.ui.components.LinkButton(text = "Cancel", onClick = viewModel::cancelAction)
             },
         )
     }
@@ -660,17 +662,14 @@ private fun ChallanDetailsDialog(
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(
+            com.example.cashbookbd.ui.components.LinkButton(
+                text = if (saving) "Saving…" else "Save & Print",
                 onClick = { onConfirm(name, mobile, account, fare) },
                 enabled = !saving,
-            ) {
-                Text(if (saving) "Saving…" else "Save & Print")
-            }
+            )
         },
         dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onCancel, enabled = !saving) {
-                Text("Cancel")
-            }
+            com.example.cashbookbd.ui.components.LinkButton(text = "Cancel", onClick = onCancel, enabled = !saving)
         },
     )
 }

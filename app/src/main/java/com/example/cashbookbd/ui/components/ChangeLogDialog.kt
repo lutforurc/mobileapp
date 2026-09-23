@@ -80,7 +80,7 @@ fun ChangeLogDialog(
                     }
                     Text(
                         text = view.note,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.appColors.textMuted,
                     )
                 }

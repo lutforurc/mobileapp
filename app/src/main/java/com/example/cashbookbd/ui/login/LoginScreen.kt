@@ -4,7 +4,7 @@ import com.example.cashbookbd.ui.theme.faint
 import com.example.cashbookbd.ui.theme.asTint
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.ui.theme.AppShape
-import com.example.cashbookbd.ui.components.appTextFieldColors
+import com.example.cashbookbd.ui.components.AppTextField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,7 +27,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -127,32 +126,27 @@ fun LoginScreen(
             Spacer(Modifier.height(40.dp))
 
             // Identifier: email / phone / username
-            OutlinedTextField(
-            colors = appTextFieldColors(),
+            AppTextField(
                 value = uiState.identifier,
                 onValueChange = viewModel::onIdentifierChange,
-                label = { Text("Email, phone or username") },
-                singleLine = true,
+                label = "Enter email, phone or username",
+                caption = "Email, phone or username",
                 enabled = !uiState.isLoading,
-                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next,
-                ),
+                leadingIcon = Icons.Filled.Person,
+                imeAction = ImeAction.Next,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(16.dp))
 
             // Password
-            OutlinedTextField(
-            colors = appTextFieldColors(),
+            AppTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
-                label = { Text("Password") },
-                singleLine = true,
+                label = "Enter password",
+                caption = "Password",
                 enabled = !uiState.isLoading,
-                leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
+                leadingIcon = Icons.Filled.Lock,
                 trailingIcon = {
                     LinkButton(
                         text = if (uiState.isPasswordVisible) "Hide" else "Show",
@@ -164,10 +158,8 @@ fun LoginScreen(
                 } else {
                     PasswordVisualTransformation()
                 },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done,
                 keyboardActions = KeyboardActions(
                     onDone = {
                         keyboardController?.hide()

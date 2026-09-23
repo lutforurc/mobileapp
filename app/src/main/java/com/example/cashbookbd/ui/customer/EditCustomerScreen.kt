@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.customer
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -503,7 +504,7 @@ private fun EditCustomerForm(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = ScreenGutter, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (settings?.needCustomerArea == true) {

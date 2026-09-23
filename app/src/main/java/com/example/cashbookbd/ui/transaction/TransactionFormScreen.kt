@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.layout.Arrangement
@@ -117,7 +118,7 @@ fun TransactionFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = ScreenGutter, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             state.fields.forEach { field ->

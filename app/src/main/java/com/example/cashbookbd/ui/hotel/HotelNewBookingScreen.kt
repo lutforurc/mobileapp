@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.hotel
 
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -788,7 +789,7 @@ private fun SeatChip(seat: HotelSeat, picked: Boolean, onTap: () -> Unit) {
     }
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(AppShape)
             .background(background)
             .then(if (seat.isFree) Modifier.clickable(onClick = onTap) else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp),

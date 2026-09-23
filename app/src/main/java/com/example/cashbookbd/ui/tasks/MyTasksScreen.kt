@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.tasks
 
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.faint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
@@ -677,7 +681,7 @@ private fun TodoCard(
     val paper = noteColor(todo.color)
 
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = AppShape,
         color = paper,
         shadowElevation = 3.dp,
         modifier = Modifier.fillMaxWidth(),
@@ -692,7 +696,7 @@ private fun TodoCard(
                     .height(4.dp)
                     .background(
                         if (todo.isAssigned) MaterialTheme.colorScheme.primary
-                        else NoteInk.copy(alpha = 0.15f),
+                        else NoteInk.asTint(),
                     ),
             )
             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -701,7 +705,7 @@ private fun TodoCard(
                         text = todo.title,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = AppFontWeight.SemiBold,
-                        color = if (isDone) NoteInk.copy(alpha = 0.55f) else NoteInk,
+                        color = if (isDone) NoteInk.faint() else NoteInk,
                         textDecoration = if (isDone) TextDecoration.LineThrough else null,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -721,7 +725,7 @@ private fun TodoCard(
                     Text(
                         text = todo.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = NoteInk.copy(alpha = 0.75f),
+                        color = NoteInk.muted(),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -734,7 +738,7 @@ private fun TodoCard(
                 if (person != null) {
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = CircleShape, color = NoteInk.copy(alpha = 0.18f)) {
+                        Surface(shape = CircleShape, color = NoteInk.asTint()) {
                             Text(
                                 text = initials(person.name),
                                 style = MaterialTheme.typography.labelSmall,
@@ -746,7 +750,7 @@ private fun TodoCard(
                         Text(
                             text = "$prefix ${person.name}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = NoteInk.copy(alpha = 0.85f),
+                            color = NoteInk.muted(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -828,13 +832,13 @@ private fun TodoCard(
 @Composable
 private fun NoteChip(text: String, loud: Boolean, loudColor: Color) {
     Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = if (loud) loudColor else NoteInk.copy(alpha = 0.10f),
+        shape = AppShape,
+        color = if (loud) loudColor else NoteInk.asTint(),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = if (loud) Color.White else NoteInk,
+            color = if (loud) MaterialTheme.appColors.textOnAccent else NoteInk,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -852,7 +856,7 @@ private fun NoteAction(
         Icon(
             imageVector = icon,
             contentDescription = description,
-            tint = if (enabled) tint else tint.copy(alpha = 0.4f),
+            tint = if (enabled) tint else tint.faint(),
             modifier = Modifier.size(18.dp),
         )
     }
@@ -869,8 +873,11 @@ private fun TaskDateField(
     PickerField(
         label = label,
         value = value?.toDisplay().orEmpty(),
-        placeholder = "dd/mm/yyyy",
+        // Compact drops the floating label to line up with the Search
+        // button beside it, so the empty-state hint carries the label instead.
+        placeholder = label,
         trailingIcon = Icons.Filled.DateRange,
+        compact = true,
         modifier = modifier,
         onClick = {
             val seed = value ?: today()
@@ -999,7 +1006,7 @@ private fun TodoFormDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     NOTE_COLORS.forEach { swatch ->
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
+                            shape = AppShape,
                             color = noteColor(swatch),
                             border = if (form.color == swatch) {
                                 androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)

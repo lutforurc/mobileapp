@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.asDivider
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -513,7 +514,7 @@ private fun PaymentLedgerDialog(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { com.example.cashbookbd.ui.components.LinkButton(text = "Close", onClick = onDismiss) },
         title = {
             Column {
                 Text("Payment Ledger", style = MaterialTheme.typography.titleMedium)
@@ -547,7 +548,7 @@ private fun PaymentLedgerDialog(
                 else -> LazyColumn(Modifier.heightIn(max = 420.dp)) {
                     items(ledger.rows) { row ->
                         PaymentLedgerRow(row)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.asDivider())
                     }
                     item {
                         // CONFIRMED only, a CONFIRMED REFUND taken off — the

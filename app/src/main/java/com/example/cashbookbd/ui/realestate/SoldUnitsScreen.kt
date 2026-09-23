@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.theme.asTint
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
@@ -666,7 +668,7 @@ fun SoldUnitsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // ---- Filters ----------------------------------------------------
@@ -869,9 +871,7 @@ fun SoldUnitsScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmWithdraw) {
-                    Text("Withdraw", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Withdraw", onClick = viewModel::confirmWithdraw, color = MaterialTheme.colorScheme.error)
             },
             dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelWithdraw) },
         )
@@ -913,16 +913,12 @@ fun SoldUnitsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmCancel, enabled = reasonOk) {
-                    Text(
-                        text = "Cancel Sale",
-                        color = if (reasonOk) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
+                LinkButton(
+                    text = "Cancel Sale",
+                    onClick = viewModel::confirmCancel,
+                    enabled = reasonOk,
+                    color = MaterialTheme.colorScheme.error,
+                )
             },
             dismissButton = { LinkButton(text = "Keep Sale", onClick = viewModel::dismissCancel) },
         )
@@ -1567,7 +1563,7 @@ private fun PaperChipsRow(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .border(width = 1.dp, color = gridLine, shape = RoundedCornerShape(4.dp))
+                    .border(width = 1.dp, color = gridLine, shape = AppShape)
                     .padding(horizontal = 4.dp, vertical = 1.dp),
             ) {
                 Text(

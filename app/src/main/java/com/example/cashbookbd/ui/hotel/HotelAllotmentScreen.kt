@@ -452,13 +452,14 @@ fun HotelAllotmentScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                LinkButton(
+                    text = if (state.isSaving) "Saving…" else "Check in",
                     onClick = viewModel::saveRoom,
                     enabled = !state.isSaving && state.draft.any { it.name.isNotBlank() },
-                ) { Text(if (state.isSaving) "Saving…" else "Check in") }
+                )
             },
             dismissButton = {
-                TextButton(onClick = viewModel::closeRoom, enabled = !state.isSaving) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::closeRoom, enabled = !state.isSaving)
             },
         )
     }

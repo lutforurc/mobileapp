@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.vrsettings
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import android.app.DatePickerDialog
@@ -94,7 +95,7 @@ fun VrSettingsFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = ScreenGutter, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (state.isDateChange) {

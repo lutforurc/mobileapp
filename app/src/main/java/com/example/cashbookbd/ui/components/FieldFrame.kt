@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,16 @@ import com.example.cashbookbd.ui.theme.AppShape
 
 /** Height of a form field's box, excluding the floating label's overhang. */
 val FormFieldHeight = 52.dp
+
+/**
+ * A field squeezed beside compact toolbar chrome (buttons at
+ * [com.example.cashbookbd.ui.components.CompactButtonHeight] size) — the My
+ * Tasks From/To search row beside its compact "Search" button, so all three
+ * line up. There is no room for the floating label at this height, so
+ * [FieldFrame] drops it entirely when [FieldFrame.compact] is set; callers
+ * fold the label into the placeholder instead (e.g. "From" / "To").
+ */
+val CompactFieldHeight = 32.dp
 
 /**
  * One corner shape for every form control, aliased to the app-wide [AppShape]
@@ -63,6 +74,10 @@ private val LabelPillPadding = 5.dp
  *   this; editable ones leave it null so the text field owns the taps.
  * @param multiline when true the box grows with its content ([FormFieldHeight]
  *   stays the minimum) and the body is top-aligned — for textarea-style fields.
+ * @param compact when true the box shrinks to [CompactFieldHeight] to line up
+ *   beside compact toolbar buttons, and the floating label is dropped — there
+ *   is no room for its overhang at that height. [label] is ignored; fold it
+ *   into the placeholder instead.
  * @param trailingIcon drawn at the end of the row (chevron, calendar, spinner…).
  * @param content the field's body, laid out in the remaining width.
  */
@@ -72,10 +87,11 @@ fun FieldFrame(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     multiline: Boolean = false,
+    compact: Boolean = false,
     trailingIcon: (@Composable () -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val hasLabel = label.isNotBlank()
+    val hasLabel = label.isNotBlank() && !compact
     val density = LocalDensity.current
     // Measured so the box can be pushed down by exactly half the label height,
     // whatever the font scale.
@@ -88,8 +104,11 @@ fun FieldFrame(
                 .fillMaxWidth()
                 .padding(top = if (hasLabel) labelOverhang else 0.dp)
                 .then(
-                    if (multiline) Modifier.heightIn(min = FormFieldHeight)
-                    else Modifier.height(FormFieldHeight)
+                    when {
+                        multiline -> Modifier.heightIn(min = FormFieldHeight)
+                        compact -> Modifier.height(CompactFieldHeight)
+                        else -> Modifier.height(FormFieldHeight)
+                    }
                 )
                 .clip(FormFieldShape)
                 // Solid surface, not a translucent tint: the screen behind is
@@ -103,7 +122,7 @@ fun FieldFrame(
                     shape = FormFieldShape,
                 )
                 .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
-                .padding(horizontal = 14.dp)
+                .padding(horizontal = if (compact) 10.dp else 14.dp)
                 .then(if (multiline) Modifier.padding(vertical = 12.dp) else Modifier),
             verticalAlignment = if (multiline) Alignment.Top else Alignment.CenterVertically,
         ) {
@@ -164,6 +183,7 @@ fun RowScope.FieldTextInput(
     enabled: Boolean = true,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     BasicTextField(
@@ -172,6 +192,7 @@ fun RowScope.FieldTextInput(
         enabled = enabled,
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
         visualTransformation = visualTransformation,
         textStyle = fieldValueTextStyle(),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),

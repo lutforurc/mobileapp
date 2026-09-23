@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.inventory
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -119,7 +120,7 @@ fun InventoryMovementScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FieldButton(

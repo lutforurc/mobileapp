@@ -435,7 +435,9 @@ private fun MonthBody(month: HotelCalendarMonth, dimmed: Boolean) {
 private fun MonthCell(day: HotelCalendarDay, isToday: Boolean, modifier: Modifier = Modifier) {
     val bucket = heatBucket(day.occupancy)
     val ink = heatInk(bucket)
-    val small = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp)
+    // Below labelSmall on purpose: 10sp is the most that fits "100%" beside the
+    // day number in a seventh of a phone's width.
+    val small = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp)
     Column(
         modifier = modifier
             .height(92.dp)

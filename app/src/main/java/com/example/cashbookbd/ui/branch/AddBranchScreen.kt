@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.branch
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.components.AppStepBar
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.accents
@@ -129,7 +130,7 @@ fun AddBranchScreen(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = ScreenGutter, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
@@ -308,12 +309,10 @@ fun AddBranchScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::clearOpening) {
-                    Text("Clear Opening", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Clear Opening", onClick = viewModel::clearOpening, color = MaterialTheme.colorScheme.error)
             },
             dismissButton = {
-                TextButton(onClick = viewModel::onClearOpeningDismissed) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::onClearOpeningDismissed)
             },
         )
     }
@@ -335,12 +334,10 @@ fun AddBranchScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::clearTransactions) {
-                    Text("Clear Transactions", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Clear Transactions", onClick = viewModel::clearTransactions, color = MaterialTheme.colorScheme.error)
             },
             dismissButton = {
-                TextButton(onClick = viewModel::onClearTransactionsDismissed) { Text("Cancel") }
+                LinkButton(text = "Cancel", onClick = viewModel::onClearTransactionsDismissed)
             },
         )
     }
@@ -371,7 +368,7 @@ private fun StepActions(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = ScreenGutter, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (state.isLastStep && !state.canSave && !state.isSaving) {

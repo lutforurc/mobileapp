@@ -341,11 +341,9 @@ fun InAppMessagesAdminScreen(
             title = { Text("Delete \"${row.title}\"?") },
             text = { Text("The campaign and its delivery history are removed together.") },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Delete", onClick = viewModel::confirmDelete, color = MaterialTheme.colorScheme.error)
             },
-            dismissButton = { TextButton(onClick = viewModel::cancelDelete) { Text("Cancel") } },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelDelete) },
         )
     }
 }

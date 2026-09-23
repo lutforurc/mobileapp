@@ -1,10 +1,17 @@
 package com.example.cashbookbd.ui.components
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 
 /**
  * The app's standard editable field: a [FieldFrame] (the same 44dp box every
@@ -28,17 +35,29 @@ fun AppTextField(
     enabled: Boolean = true,
     multiline: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    leadingIcon: ImageVector? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     FieldFrame(label = caption, modifier = modifier, multiline = multiline, trailingIcon = trailingIcon) {
+        leadingIcon?.let {
+            Icon(
+                imageVector = it,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 10.dp),
+            )
+        }
         FieldTextInput(
             value = value,
             onValueChange = onValueChange,
             placeholder = label,
             enabled = enabled,
             singleLine = !multiline,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+            keyboardActions = keyboardActions,
             visualTransformation = visualTransformation,
         )
     }

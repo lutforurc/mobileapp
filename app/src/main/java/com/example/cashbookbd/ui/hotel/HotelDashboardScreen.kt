@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.hotel
 
+import com.example.cashbookbd.ui.theme.muted
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -400,7 +401,7 @@ private fun NightByNight(nights: List<HotelPerformanceDay>, rooms: Int) {
         title = "Night by night",
         footer = "Occupancy each night, against the $rooms rooms this property has today.",
     ) {
-        val fill = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+        val fill = MaterialTheme.colorScheme.primary.muted()
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier
@@ -432,10 +433,14 @@ private fun NightByNight(nights: List<HotelPerformanceDay>, rooms: Int) {
                     val labelled = index == 0 || index == nights.lastIndex || (day.toIntOrNull() ?: 0) % 5 == 0
                     Text(
                         text = if (labelled) day else "",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.appColors.textMuted,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
+                        // Wider than its ~10dp column; the unlabelled neighbours
+                        // either side are empty, so let it spill over them.
+                        softWrap = false,
+                        overflow = TextOverflow.Visible,
                         modifier = Modifier.weight(1f),
                     )
                 }

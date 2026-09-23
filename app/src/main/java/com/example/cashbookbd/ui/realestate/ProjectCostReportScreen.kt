@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -180,7 +182,7 @@ fun ProjectCostReportScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.appColors.warningTint, RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.appColors.warningTint, AppShape)
                             .padding(12.dp),
                     ) {
                         Text(
@@ -254,7 +256,7 @@ private fun SectionTab(
     val ink = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
-            .background(background, RoundedCornerShape(20.dp))
+            .background(background, PillShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -272,7 +274,7 @@ private fun SectionTab(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onError,
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.error, RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.error, PillShape)
                     .padding(horizontal = 6.dp, vertical = 1.dp),
             )
         }

@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.hotel
 
+import com.example.cashbookbd.ui.theme.PillShape
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -233,8 +235,8 @@ internal fun HotelPill(text: String, color: Color, modifier: Modifier = Modifier
         fontWeight = AppFontWeight.SemiBold,
         maxLines = 1,
         modifier = modifier
-            .background(color.asTint(), RoundedCornerShape(999.dp))
-            .border(1.dp, color.asDivider(), RoundedCornerShape(999.dp))
+            .background(color.asTint(), PillShape)
+            .border(1.dp, color.asDivider(), PillShape)
             .padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
@@ -314,8 +316,8 @@ internal fun HotelBanner(text: String, color: Color, modifier: Modifier = Modifi
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(color.asTint(), RoundedCornerShape(8.dp))
-            .border(1.dp, color.asDivider(), RoundedCornerShape(8.dp))
+            .background(color.asTint(), AppShape)
+            .border(1.dp, color.asDivider(), AppShape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(text = text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground)

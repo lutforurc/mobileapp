@@ -373,9 +373,10 @@ private fun CustomizeDialog(
                         ) {
                             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
                         }
-                        androidx.compose.material3.TextButton(onClick = { onToggle(id) }) {
-                            Text(if (hidden) "Show" else "Hide")
-                        }
+                        com.example.cashbookbd.ui.components.LinkButton(
+                            text = if (hidden) "Show" else "Hide",
+                            onClick = { onToggle(id) },
+                        )
                     }
                 }
                 Spacer(Modifier.height(4.dp))
@@ -387,7 +388,7 @@ private fun CustomizeDialog(
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done") }
+            com.example.cashbookbd.ui.components.LinkButton(text = "Done", onClick = onDismiss)
         },
     )
 }

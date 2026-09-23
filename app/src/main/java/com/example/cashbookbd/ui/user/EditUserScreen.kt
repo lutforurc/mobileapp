@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.user
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -136,7 +137,7 @@ private fun EditUserForm(state: EditUserUiState, viewModel: EditUserViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = ScreenGutter, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AppTextField(

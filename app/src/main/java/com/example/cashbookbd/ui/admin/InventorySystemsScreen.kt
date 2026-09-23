@@ -432,11 +432,9 @@ fun InventorySystemsScreen(
             title = { Text("Delete \"${row.name}\"?") },
             text = { Text("A system any branch still uses, and the four core systems, are refused by the server.") },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+                LinkButton(text = "Delete", onClick = viewModel::confirmDelete, color = MaterialTheme.colorScheme.error)
             },
-            dismissButton = { TextButton(onClick = viewModel::cancelDelete) { Text("Cancel") } },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelDelete) },
         )
     }
 }

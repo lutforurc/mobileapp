@@ -1,5 +1,9 @@
 package com.example.cashbookbd.ui.hotel
 
+import com.example.cashbookbd.ui.theme.asGridLine
+import com.example.cashbookbd.ui.theme.asTint
+import com.example.cashbookbd.ui.theme.muted
+import com.example.cashbookbd.ui.theme.AppShape
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -571,13 +575,13 @@ private fun FloorRow(
  */
 @Composable
 private fun RoomTile(room: LayoutRoom, look: TileLook, onSelect: (LayoutRoom) -> Unit) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = AppShape
     val ink = MaterialTheme.appColors.text
     Column(
         modifier = Modifier
             .width(88.dp)
             .clip(shape)
-            .background(look.colour.copy(alpha = 0.18f))
+            .background(look.colour.asTint())
             .border(1.dp, look.colour, shape)
             .clickable { onSelect(room) }
             .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -585,7 +589,7 @@ private fun RoomTile(room: LayoutRoom, look: TileLook, onSelect: (LayoutRoom) ->
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             Text(room.code, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(look.badge.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = ink.copy(alpha = 0.7f))
+            Text(look.badge.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = ink.muted())
         }
         val active = room.activeBeds
         val switchedOff = (room.beds - active).coerceAtLeast(0)
@@ -597,18 +601,18 @@ private fun RoomTile(room: LayoutRoom, look: TileLook, onSelect: (LayoutRoom) ->
                 Text(
                     (if (room.capacity > 0) "${room.capacity} seats" else "no seating") +
                         (if (sittings.isNotEmpty()) " · ${sittings.size} ${if (sittings.size == 1) "sitting" else "sittings"}" else " · no sittings"),
-                    style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.75f), maxLines = 2,
+                    style = MaterialTheme.typography.labelSmall, color = ink.muted(), maxLines = 2,
                 )
             }
-            active > MAX_PIPS -> Text("$active beds", style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.75f))
+            active > MAX_PIPS -> Text("$active beds", style = MaterialTheme.typography.labelSmall, color = ink.muted())
             else -> Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 repeat(active) {
-                    Box(Modifier.size(width = 3.dp, height = 8.dp).background(ink.copy(alpha = 0.7f), RoundedCornerShape(1.dp)))
+                    Box(Modifier.size(width = 3.dp, height = 8.dp).background(ink.muted(), RoundedCornerShape(1.dp)))
                 }
                 // Kept rows, drawn hollow: a room cut from four beds to two
                 // still has four, and the grid should not disagree with its form.
                 repeat(minOf(switchedOff, MAX_PIPS - active)) {
-                    Box(Modifier.size(width = 3.dp, height = 8.dp).border(1.dp, ink.copy(alpha = 0.3f), RoundedCornerShape(1.dp)))
+                    Box(Modifier.size(width = 3.dp, height = 8.dp).border(1.dp, ink.asGridLine(), RoundedCornerShape(1.dp)))
                 }
                 if (active == 0 && switchedOff == 0) Box(Modifier.height(8.dp))
             }
@@ -621,9 +625,9 @@ private fun Badge(look: TileLook) {
     Box(
         modifier = Modifier
             .size(width = 24.dp, height = 16.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(look.colour.copy(alpha = 0.18f))
-            .border(1.dp, look.colour, RoundedCornerShape(3.dp)),
+            .clip(AppShape)
+            .background(look.colour.asTint())
+            .border(1.dp, look.colour, AppShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(look.badge.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.appColors.textOnScreen, maxLines = 1)

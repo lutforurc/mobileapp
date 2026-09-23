@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.faint
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -331,7 +332,7 @@ fun DueInstallmentsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = ScreenGutter, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 AppSelectDropdown(

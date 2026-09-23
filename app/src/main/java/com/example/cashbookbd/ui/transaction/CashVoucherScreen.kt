@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.transaction
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
 import androidx.compose.foundation.clickable
@@ -697,7 +698,7 @@ fun CashVoucherScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // The web's voucher search: load an existing voucher for editing.

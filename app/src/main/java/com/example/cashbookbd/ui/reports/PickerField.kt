@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 import com.example.cashbookbd.ui.components.FieldFrame
 import com.example.cashbookbd.ui.components.fieldValueTextStyle
 
@@ -27,17 +29,21 @@ internal fun PickerField(
     trailingIcon: ImageVector,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    /** Shrinks to line up beside compact toolbar buttons — see [FieldFrame]. */
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
     FieldFrame(
         label = label,
         modifier = modifier,
         onClick = onClick,
+        compact = compact,
         trailingIcon = {
             Icon(
                 imageVector = trailingIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = if (compact) Modifier.size(15.dp) else Modifier,
             )
         },
     ) {

@@ -2,7 +2,7 @@ package com.example.cashbookbd.ui.register
 
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import com.example.cashbookbd.ui.theme.AppShape
-import com.example.cashbookbd.ui.components.appTextFieldColors
+import com.example.cashbookbd.ui.components.AppTextField
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -382,15 +381,14 @@ private fun Field(
     keyboardType: KeyboardType = KeyboardType.Text,
     placeholder: String? = null,
 ) {
-    OutlinedTextField(
-            colors = appTextFieldColors(),
+    AppTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
-        placeholder = placeholder?.let { { Text(it) } },
-        singleLine = true,
+        label = placeholder ?: "Enter ${label.lowercase()}",
+        caption = label,
         enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
+        keyboardType = keyboardType,
+        imeAction = ImeAction.Next,
         modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(12.dp))
@@ -407,21 +405,27 @@ private fun PasswordField(
     error: String? = null,
     imeAction: ImeAction = ImeAction.Next,
 ) {
-    OutlinedTextField(
-            colors = appTextFieldColors(),
+    AppTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = true,
+        label = "Enter password",
+        caption = label,
         enabled = enabled,
-        isError = error != null,
-        supportingText = error?.let { { Text(it) } },
         // "Show"/"Hide" text, the same password toggle the login screen uses, so
         // the affordance is identical across the app.
         trailingIcon = { LinkButton(text = if (visible) "Hide" else "Show", onClick = onToggle) },
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = imeAction),
+        keyboardType = KeyboardType.Password,
+        imeAction = imeAction,
         modifier = Modifier.fillMaxWidth(),
     )
+    error?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+        )
+    }
     Spacer(Modifier.height(12.dp))
 }

@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.sms
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.PillShape
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
@@ -272,7 +273,7 @@ private fun TemplateForm(state: SmsTemplateFormUiState, viewModel: SmsTemplateFo
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = ScreenGutter, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AppTextField(

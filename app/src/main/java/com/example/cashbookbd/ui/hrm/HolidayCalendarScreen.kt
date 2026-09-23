@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import android.content.Context
@@ -370,7 +372,7 @@ fun HolidayCalendarScreen(
         modifier = modifier,
     ) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = ScreenGutter, vertical = 8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     HrmMonthField(
                         label = "Month / Year",
@@ -636,8 +638,8 @@ private fun LegendChip(color: androidx.compose.ui.graphics.Color, label: String)
         Box(
             modifier = Modifier
                 .size(12.dp)
-                .background(color, RoundedCornerShape(3.dp))
-                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(3.dp)),
+                .background(color, AppShape)
+                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, AppShape),
         )
         Spacer(Modifier.width(4.dp))
         Text(

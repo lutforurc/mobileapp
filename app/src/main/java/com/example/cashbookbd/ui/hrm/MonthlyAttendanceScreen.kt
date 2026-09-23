@@ -1,5 +1,7 @@
 package com.example.cashbookbd.ui.hrm
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
+import com.example.cashbookbd.ui.theme.AppShape
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.brand
@@ -293,7 +295,7 @@ fun MonthlyAttendanceScreen(
         modifier = modifier,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = ScreenGutter, vertical = 8.dp)) {
                 HrmBranchDropdown(
                     branches = state.branches,
                     selected = state.selectedBranch,
@@ -566,7 +568,7 @@ private fun MatrixTab(state: MonthlyAttendanceUiState) {
                                             .border(
                                                 width = 1.dp,
                                                 color = MaterialTheme.colorScheme.primary,
-                                                shape = RoundedCornerShape(4.dp),
+                                                shape = AppShape,
                                             )
                                             .padding(horizontal = 4.dp)
                                     } else {

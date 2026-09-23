@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.hotel
 
+import com.example.cashbookbd.ui.theme.AppShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -443,7 +444,7 @@ private fun HallCard(hall: HallRow, chosen: Set<String>, onToggle: (HallRow, Hal
 
 @Composable
 private fun SittingCell(cell: HallSitting, isChosen: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = AppShape
     val edge = when {
         isChosen -> MaterialTheme.colorScheme.primary
         cell.isFree -> MaterialTheme.appColors.border

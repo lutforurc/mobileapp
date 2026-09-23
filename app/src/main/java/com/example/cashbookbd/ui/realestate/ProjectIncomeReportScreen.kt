@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.PillShape
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -230,7 +231,7 @@ private fun IncomeSectionTab(
     val ink = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
-            .background(background, RoundedCornerShape(20.dp))
+            .background(background, PillShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

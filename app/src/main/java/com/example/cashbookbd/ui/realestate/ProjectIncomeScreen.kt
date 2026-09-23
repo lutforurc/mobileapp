@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.realestate
 
+import com.example.cashbookbd.ui.theme.AppShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -146,7 +147,7 @@ fun ProjectIncomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.appColors.warningTint, RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.appColors.warningTint, AppShape)
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     ) {
                         Text(

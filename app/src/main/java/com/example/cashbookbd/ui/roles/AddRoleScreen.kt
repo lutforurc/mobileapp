@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.roles
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import android.content.Context
@@ -125,7 +126,7 @@ fun AddRoleScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = ScreenGutter, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(

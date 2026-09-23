@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.reports
 
+import com.example.cashbookbd.ui.theme.ScreenGutter
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
@@ -132,7 +133,7 @@ private fun FilterCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = ScreenGutter, vertical = 16.dp),
     ) {
         BranchDropdown(
             branches = state.branches,
