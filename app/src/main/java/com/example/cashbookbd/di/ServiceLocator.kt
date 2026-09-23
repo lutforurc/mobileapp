@@ -244,6 +244,9 @@ object ServiceLocator {
     private var productRepository: ProductRepository? = null
 
     @Volatile
+    private var legacyRecordRepository: com.example.cashbookbd.data.repository.LegacyRecordRepository? = null
+
+    @Volatile
     private var subscriptionRepository: SubscriptionRepository? = null
 
     private var deviceRepository: DeviceRepository? = null
@@ -804,6 +807,13 @@ object ServiceLocator {
             productRepository ?: ProductRepository(
                 api = provideReportApiService(context),
             ).also { productRepository = it }
+        }
+
+    fun provideLegacyRecordRepository(context: Context): com.example.cashbookbd.data.repository.LegacyRecordRepository =
+        legacyRecordRepository ?: synchronized(this) {
+            legacyRecordRepository ?: com.example.cashbookbd.data.repository.LegacyRecordRepository(
+                api = provideReportApiService(context),
+            ).also { legacyRecordRepository = it }
         }
 
     fun provideSubscriptionRepository(context: Context): SubscriptionRepository =

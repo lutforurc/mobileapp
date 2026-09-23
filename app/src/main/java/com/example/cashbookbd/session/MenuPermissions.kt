@@ -136,6 +136,8 @@ object MenuPermissions {
         "analytics" to listOf("analytics.comparison"),
         "reseller" to listOf("reseller.dashboard.view"),
         "subscription_history" to listOf("subscription.view", "subscription.history"),
+        // "Old Software" — the read-only RAAJRANI ERP archives (web menuPermissions.ts:175).
+        "legacy" to listOf("legacy.record.view", "legacy.old.record.view"),
     )
 
     /** True when the user holds any child permission of [menuKey]. */

@@ -370,6 +370,36 @@ object Routes {
     /** Base for a list's pencil — the list appends "/{id}" itself. */
     fun reCrudEditBase(key: String): String = "realestate/crud/$key/edit"
 
+    // "Old Software" — the read-only archived-ERP screens (Legacy Records).
+    const val LEGACY_HOME = "legacy/home"
+    const val LEGACY_SEARCH = "legacy/search"
+    const val LEGACY_PARTY = "legacy/party"
+    const val LEGACY_INVOICE = "legacy/invoice"
+    const val LEGACY_ARCHIVE_ARG = "archive"
+    const val LEGACY_PARTY_TYPE_ARG = "partyType"
+    const val LEGACY_SOURCE_ARG = "source"
+    const val LEGACY_ID_ARG = "legacyId"
+    const val LEGACY_INVOICE_ID_ARG = "invoiceId"
+
+    fun legacySearch(archive: com.example.cashbookbd.data.repository.LegacyArchive): String =
+        "$LEGACY_SEARCH/${archive.endpointPrefix}"
+
+    fun legacyParty(
+        archive: com.example.cashbookbd.data.repository.LegacyArchive,
+        partyType: String,
+        source: String,
+        legacyId: String,
+    ): String = "$LEGACY_PARTY/${archive.endpointPrefix}/${android.net.Uri.encode(partyType)}/" +
+        "${android.net.Uri.encode(source)}/${android.net.Uri.encode(legacyId)}"
+
+    fun legacyInvoice(archive: com.example.cashbookbd.data.repository.LegacyArchive, id: Long): String =
+        "$LEGACY_INVOICE/${archive.endpointPrefix}/$id"
+
+    /** Resolves the route's `{archive}` segment back to a [LegacyArchive], defaulting to the newer one. */
+    fun legacyArchiveOf(prefix: String?): com.example.cashbookbd.data.repository.LegacyArchive =
+        com.example.cashbookbd.data.repository.LegacyArchives.all.firstOrNull { it.endpointPrefix == prefix }
+            ?: com.example.cashbookbd.data.repository.LegacyArchives.CURRENT
+
     // VR Settings section
     const val VR_SETTINGS = "vr-settings/home"
 
@@ -2098,6 +2128,50 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     config = PACK_SIZE_FORM_CONFIG,
                     id = entry.arguments?.getString(Routes.MASTER_ID_ARG),
                 )
+            }
+        }
+
+        composable(Routes.LEGACY_HOME) {
+            com.example.cashbookbd.ui.legacy.LegacyHomeScreen(navController = navController, onLogout = backToLogin)
+        }
+        composable("${Routes.LEGACY_SEARCH}/{${Routes.LEGACY_ARCHIVE_ARG}}") { entry ->
+            val archive = Routes.legacyArchiveOf(entry.arguments?.getString(Routes.LEGACY_ARCHIVE_ARG))
+            PermissionGate(anyOf = listOf(archive.permission)) {
+                com.example.cashbookbd.ui.legacy.LegacyRecordSearchScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    archive = archive,
+                )
+            }
+        }
+        composable(
+            "${Routes.LEGACY_PARTY}/{${Routes.LEGACY_ARCHIVE_ARG}}/{${Routes.LEGACY_PARTY_TYPE_ARG}}/" +
+                "{${Routes.LEGACY_SOURCE_ARG}}/{${Routes.LEGACY_ID_ARG}}"
+        ) { entry ->
+            val archive = Routes.legacyArchiveOf(entry.arguments?.getString(Routes.LEGACY_ARCHIVE_ARG))
+            PermissionGate(anyOf = listOf(archive.permission)) {
+                com.example.cashbookbd.ui.legacy.LegacyPartyLedgerScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                    archive = archive,
+                    partyType = entry.arguments?.getString(Routes.LEGACY_PARTY_TYPE_ARG).orEmpty(),
+                    source = entry.arguments?.getString(Routes.LEGACY_SOURCE_ARG).orEmpty(),
+                    legacyId = entry.arguments?.getString(Routes.LEGACY_ID_ARG).orEmpty(),
+                )
+            }
+        }
+        composable("${Routes.LEGACY_INVOICE}/{${Routes.LEGACY_ARCHIVE_ARG}}/{${Routes.LEGACY_INVOICE_ID_ARG}}") { entry ->
+            val archive = Routes.legacyArchiveOf(entry.arguments?.getString(Routes.LEGACY_ARCHIVE_ARG))
+            val id = entry.arguments?.getString(Routes.LEGACY_INVOICE_ID_ARG)?.toLongOrNull()
+            PermissionGate(anyOf = listOf(archive.permission)) {
+                if (id != null) {
+                    com.example.cashbookbd.ui.legacy.LegacyInvoiceScreen(
+                        navController = navController,
+                        onLogout = backToLogin,
+                        archive = archive,
+                        id = id,
+                    )
+                }
             }
         }
 

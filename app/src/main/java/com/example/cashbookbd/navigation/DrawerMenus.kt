@@ -36,6 +36,7 @@ object DrawerMenus {
         DrawerMenuDef("customer-supplier", "Customers"),
         DrawerMenuDef("al-charts", "Analytics"),
         DrawerMenuDef("subscription", "Subscription"),
+        DrawerMenuDef("legacy", "Old Software"),
     )
 
     fun titleOf(id: String): String? = all.firstOrNull { it.id == id }?.title

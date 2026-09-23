@@ -159,6 +159,8 @@ fun AuthenticatedShell(
     val canProducts = ProductsMenu.hasParentAccess(sessionState.permissions)
     // "Subscription" shows for any authenticated user (My Plan is universal).
     val canSubscription = SubscriptionMenu.hasParentAccess(sessionState.permissions)
+    // "Old Software" — the read-only archived-ERP screens (legacy.record.view / legacy.old.record.view).
+    val canLegacy = com.example.cashbookbd.session.MenuPermissions.hasMenu(sessionState.permissions, "legacy")
     // "Reseller Dashboard" shows only for reseller accounts (reseller.dashboard.view),
     // mirroring the web's top-level Reseller Dashboard sidebar link.
     val canReseller = com.example.cashbookbd.session.MenuPermissions
@@ -234,6 +236,7 @@ fun AuthenticatedShell(
                 canCustomers = canCustomers,
                 canProducts = canProducts,
                 canSubscription = canSubscription,
+                canLegacy = canLegacy,
                 canReseller = canReseller,
                 canAnalytics = canAnalytics,
                 canBranchTransfer = canBranchTransfer,
@@ -369,6 +372,7 @@ private fun AppDrawerContent(
     canCustomers: Boolean,
     canProducts: Boolean,
     canSubscription: Boolean,
+    canLegacy: Boolean,
     canReseller: Boolean,
     canAnalytics: Boolean,
     canBranchTransfer: Boolean,
@@ -428,6 +432,8 @@ private fun AppDrawerContent(
                 // entries (web 7895207): master data, set up once and opened
                 // rarely — the menus near the top are the ones reached daily.
                 if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
+                // "Old Software" — an archived old ERP's own read-only records; nothing here posts to the books.
+                if (canLegacy) add(DrawerEntry("legacy", "Old Software", Icons.Filled.Info, currentRoute == Routes.LEGACY_HOME, Routes.LEGACY_HOME))
                 if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN, Routes.ADMIN))
                 if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
                 if (canHrm) add(DrawerEntry("hrm", "HRM", Icons.Filled.Face, currentRoute == Routes.HRM, Routes.HRM))
