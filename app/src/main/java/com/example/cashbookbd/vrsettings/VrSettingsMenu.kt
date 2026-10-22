@@ -26,6 +26,8 @@ object VrSettingsMenu {
         VrSettingsItem("recycleBin", "Recycle Bin", listOf("voucher.recycle"), supported = true),
         VrSettingsItem("history", "History", listOf("voucher.history"), supported = true),
         VrSettingsItem("logChanges", "Log Changes", listOf("log.changes"), supported = true),
+        // The vouchers behind a Balance Sheet Difference (web a8178c41).
+        VrSettingsItem("reportMismatch", "Report Mismatch", listOf("mitmatch.report"), supported = true),
     )
 
     private val byKey: Map<String, VrSettingsItem> = all.associateBy { it.key }

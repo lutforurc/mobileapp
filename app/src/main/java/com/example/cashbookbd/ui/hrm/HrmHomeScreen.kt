@@ -83,6 +83,12 @@ fun HrmHomeScreen(
                         // A key present in a shared registry opens that engine's
                         // screen; everything else is a hand-built HRM form.
                         val route = when {
+                            // The web builds these on the client — the absent
+                            // rows, the cards — so they have a screen of their own.
+                            item.key == "hrmAttendanceReport" -> com.example.cashbookbd.navigation.ParityRoutes.ATTENDANCE_DAILY
+                            item.key == "hrmAttendanceAlerts" -> com.example.cashbookbd.navigation.ParityRoutes.attendanceException(
+                                com.example.cashbookbd.ui.hrm.AttendanceReportType.ABSENT,
+                            )
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             ReportMenu.byKey(item.key) != null -> Routes.reportView(item.key)
                             else -> Routes.hrmView(item.key)

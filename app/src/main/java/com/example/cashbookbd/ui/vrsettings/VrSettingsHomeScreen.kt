@@ -82,6 +82,7 @@ fun VrSettingsHomeScreen(
                         val route = when {
                             // Voucher History has its own screen (card feed).
                             item.key == "history" -> Routes.VOUCHER_HISTORY
+                            item.key == "reportMismatch" -> com.example.cashbookbd.navigation.ParityRoutes.REPORT_MISMATCH
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> Routes.vrSettingsView(item.key)
                         }

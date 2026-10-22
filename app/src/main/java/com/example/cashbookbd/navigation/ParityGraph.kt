@@ -50,6 +50,19 @@ object ParityRoutes {
     const val COMPANY_SCHEME_RECEIVABLE = "company-scheme/receivable"
     const val COMPANY_SCHEME_RECEIPTS = "company-scheme/receipts"
 
+    // ---- HRM attendance (built on the client like the web) ----
+    const val ATTENDANCE_DAILY = "hrms/attendance/report"
+
+    fun attendanceException(type: com.example.cashbookbd.ui.hrm.AttendanceReportType): String =
+        "hrms/attendance/exception/${type.name}"
+
+    // ---- Account (the user menu) ----
+    const val SWITCH_BRANCH = "account/switch-branch"
+    const val CHANGE_PASSWORD = "account/change-password"
+
+    // ---- VR Settings ----
+    const val REPORT_MISMATCH = "vr-settings/report-mismatch"
+
     internal val deliveryPattern get() = DELIVERY_PATTERN
     internal val deliveryReportPattern get() = DELIVERY_REPORT_PATTERN
 }
@@ -116,6 +129,35 @@ fun NavGraphBuilder.parityGraph(
     composable(ParityRoutes.DELIVERY_DASHBOARD) {
         PermissionGate(anyOf = listOf("delivery.view")) {
             com.example.cashbookbd.ui.delivery.DeliveryDashboardScreen(navController, backToLogin)
+        }
+    }
+
+    // ---- Account: personal, no permission stands in front of either ----
+    composable(ParityRoutes.SWITCH_BRANCH) {
+        com.example.cashbookbd.ui.account.SwitchBranchScreen(navController, backToLogin)
+    }
+    composable(ParityRoutes.CHANGE_PASSWORD) {
+        com.example.cashbookbd.ui.account.ChangePasswordScreen(navController, backToLogin)
+    }
+
+    // ---- VR Settings ----
+    composable(ParityRoutes.REPORT_MISMATCH) {
+        PermissionGate(anyOf = listOf("mitmatch.report")) {
+            com.example.cashbookbd.ui.vrsettings.ReportMismatchScreen(navController, backToLogin)
+        }
+    }
+
+    // ---- HRM attendance ----
+    com.example.cashbookbd.ui.hrm.AttendanceReportType.entries.forEach { type ->
+        val route = if (type == com.example.cashbookbd.ui.hrm.AttendanceReportType.DAILY) {
+            ParityRoutes.ATTENDANCE_DAILY
+        } else {
+            ParityRoutes.attendanceException(type)
+        }
+        composable(route) {
+            PermissionGate(anyOf = listOf("attendance.view", "employee.view")) {
+                com.example.cashbookbd.ui.hrm.AttendanceReportScreen(navController, backToLogin, type)
+            }
         }
     }
 

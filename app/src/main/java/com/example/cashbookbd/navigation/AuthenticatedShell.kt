@@ -309,6 +309,8 @@ fun AuthenticatedShell(
                             onProfile = { navigateTo(Routes.PROFILE) },
                             onMyTasks = { navigateTo(Routes.MY_TASKS) },
                             myTasksNewCount = myTasksNewCount,
+                            onSwitchBranch = { navigateTo(ParityRoutes.SWITCH_BRANCH) },
+                            onChangePassword = { navigateTo(ParityRoutes.CHANGE_PASSWORD) },
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {
                                 { navigateTo(Routes.SUBSCRIPTION) }

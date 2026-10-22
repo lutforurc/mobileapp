@@ -325,6 +325,9 @@ object ServiceLocator {
             dashboardCache ?: DashboardCache(context.applicationContext).also { dashboardCache = it }
         }
 
+    /** Forgets the cached dashboard — its figures belong to the branch just left. */
+    fun clearDashboardCache(context: Context) = provideDashboardCache(context).clear()
+
     /** Shared, app-wide identity for this install against the plan device limit. */
     fun provideDeviceIdManager(context: Context): DeviceIdManager =
         deviceIdManager ?: synchronized(this) {

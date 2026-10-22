@@ -17,6 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -313,6 +315,10 @@ fun accountMenuItems(
     onMyTasks: (() -> Unit)? = null,
     /** Tasks newly handed to this user — the web sidebar's badge count. */
     myTasksNewCount: Int = 0,
+    /** Move this login to another branch (web 53a2ba80). */
+    onSwitchBranch: (() -> Unit)? = null,
+    /** The user's own password. */
+    onChangePassword: (() -> Unit)? = null,
 ): List<AccountMenuItem> = buildList {
     add(AccountMenuItem("Dashboard", Icons.Filled.Home, onDashboard))
     onProfile?.let { add(AccountMenuItem("Profile", Icons.Filled.AccountCircle, it)) }
@@ -320,6 +326,8 @@ fun accountMenuItems(
     onMyTasks?.let {
         add(AccountMenuItem("My Tasks", Icons.Filled.Check, it, badgeCount = myTasksNewCount))
     }
+    onSwitchBranch?.let { add(AccountMenuItem("Switch Branch", Icons.Filled.Share, it)) }
+    onChangePassword?.let { add(AccountMenuItem("Change Password", Icons.Filled.Lock, it)) }
     add(AccountMenuItem("My Devices", Icons.Filled.Phone, onMyDevices))
     onSubscription?.let { add(AccountMenuItem("Subscription", Icons.Filled.Star, it)) }
 }
