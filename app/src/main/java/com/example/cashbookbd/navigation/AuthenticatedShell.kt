@@ -161,6 +161,11 @@ fun AuthenticatedShell(
     val canSubscription = SubscriptionMenu.hasParentAccess(sessionState.permissions)
     // "Old Software" — the read-only archived-ERP screens (legacy.record.view / legacy.old.record.view).
     val canLegacy = com.example.cashbookbd.session.MenuPermissions.hasMenu(sessionState.permissions, "legacy")
+    // The Delivery System dashboard: delivery.view on a deliver-to-deduct branch.
+    val canDeliveryDashboard = sessionState.settings?.deductStockOnDelivery == true &&
+        com.example.cashbookbd.session.Permissions.has(sessionState.permissions, "delivery.view")
+    // "Company Scheme" — the IMEI-wise receivable lists (web 3b830761).
+    val canCompanyScheme = com.example.cashbookbd.session.MenuPermissions.hasMenu(sessionState.permissions, "company_scheme")
     // "Reseller Dashboard" shows only for reseller accounts (reseller.dashboard.view),
     // mirroring the web's top-level Reseller Dashboard sidebar link.
     val canReseller = com.example.cashbookbd.session.MenuPermissions
@@ -237,6 +242,8 @@ fun AuthenticatedShell(
                 canProducts = canProducts,
                 canSubscription = canSubscription,
                 canLegacy = canLegacy,
+            canDeliveryDashboard = canDeliveryDashboard,
+            canCompanyScheme = canCompanyScheme,
                 canReseller = canReseller,
                 canAnalytics = canAnalytics,
                 canBranchTransfer = canBranchTransfer,
@@ -373,6 +380,8 @@ private fun AppDrawerContent(
     canProducts: Boolean,
     canSubscription: Boolean,
     canLegacy: Boolean,
+    canDeliveryDashboard: Boolean = false,
+    canCompanyScheme: Boolean = false,
     canReseller: Boolean,
     canAnalytics: Boolean,
     canBranchTransfer: Boolean,
@@ -401,6 +410,14 @@ private fun AppDrawerContent(
             // which the web sidebar shares.
             val permitted = buildList {
                 add(DrawerEntry("dashboard", "Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME, Routes.HOME))
+                // The web's Dashboard group carries the Delivery System beside
+                // the main page, on a branch that deducts stock on delivery.
+                if (canDeliveryDashboard) add(
+                    DrawerEntry(
+                        "delivery_dashboard", "Delivery Dashboard", Icons.Filled.Share,
+                        currentRoute == ParityRoutes.DELIVERY_DASHBOARD, ParityRoutes.DELIVERY_DASHBOARD,
+                    )
+                )
                 if (canReseller) add(DrawerEntry("reseller", "Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD, Routes.RESELLER_DASHBOARD))
                 if (canTransactions) add(DrawerEntry("transaction", "Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS, Routes.TRANSACTIONS))
                 if (canInvoices) add(DrawerEntry("invoice", "Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES, Routes.INVOICES))
@@ -417,6 +434,8 @@ private fun AppDrawerContent(
                 )
                 // The web's Product Tracking group sits right after Reports.
                 if (canProductTracking) add(DrawerEntry("product_tracking", "Product Tracking", Icons.Filled.Settings, currentRoute == Routes.PRODUCT_TRACKING, Routes.PRODUCT_TRACKING))
+                // Then the Company Scheme receivable lists, as on the web.
+                if (canCompanyScheme) add(DrawerEntry("company_scheme", "Company Scheme", Icons.Filled.Star, currentRoute == ParityRoutes.COMPANY_SCHEME, ParityRoutes.COMPANY_SCHEME))
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 // Beside Real Estate: the other property module, and the web

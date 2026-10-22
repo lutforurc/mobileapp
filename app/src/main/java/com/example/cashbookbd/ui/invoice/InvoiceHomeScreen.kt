@@ -52,6 +52,7 @@ fun InvoiceHomeScreen(
     val items = InvoiceMenu.visible(
         sessionState.permissions,
         businessTypeId = sessionState.settings?.businessTypeId,
+        deductStockOnDelivery = sessionState.settings?.deductStockOnDelivery == true,
     )
 
     AuthenticatedShell(
@@ -84,6 +85,7 @@ fun InvoiceHomeScreen(
                         val route = when (item.key) {
                             InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
                             InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
+                            InvoiceMenu.DELIVERY_KEY -> com.example.cashbookbd.navigation.ParityRoutes.delivery(null)
                             else -> Routes.invoiceView(item.key)
                         }
                         navController.navigate(route)

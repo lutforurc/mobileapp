@@ -61,6 +61,14 @@ data class SettingsPayload(
      * moving around a page the app does not have.
      */
     @SerializedName("tutorial_videos_mobile") val tutorialVideos: Map<String, String>? = null,
+    /** The signed-in user's company — only what the screens read. */
+    @SerializedName("company") val company: SettingsCompanyDto? = null,
+)
+
+/** `settings.data.company`: the financial year's first month (spec §41). */
+data class SettingsCompanyDto(
+    /** 1–12; 7 (July, Bangladesh's year) when the company never chose. */
+    @SerializedName("fy_start_month") val fyStartMonth: String? = null,
 )
 
 /** The signed-in user, from `settings/get-settings`. Only the fields the app reads. */
@@ -206,7 +214,13 @@ data class SettingsBranchDto(
     @SerializedName("need_product_group") val needProductGroup: String? = null,
     /** Branch meta: the product form shows the Pack Size dropdown. */
     @SerializedName("need_package") val needPackage: String? = null,
-)
+    /**
+     * Branch → Invoice Setup → "Show Product Information in Ledger Details"
+     * (web 37342813). Unset reads as on: only an explicit "0" hides the lines.
+     */
+    @SerializedName("ledger_show_product_details") val ledgerShowProductDetails: String? = null,
+    /** Branch meta: stock leaves on a delivery, not on the invoice (web 760144c6). */
+    @SerializedName("deduct_stock_on_delivery") val deductStockOnDelivery: String? = null,)
 
 /**
  * A permission as sent by the backend. It may arrive as an object

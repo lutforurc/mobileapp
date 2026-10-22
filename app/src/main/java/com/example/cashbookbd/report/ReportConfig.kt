@@ -518,6 +518,9 @@ object ReportMenu {
         "branch.received.create",
         // Voucher Monthly Register (web e1e87336).
         "voucher.register",
+        // Referer and the Delivery Report (web 92c860ac / 63ea8f1c).
+        "sales.referrer",
+        "delivery.view",
     )
 
     val all: List<ReportConfig> = listOf(
@@ -719,6 +722,31 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             // Tally-style: one row per month, expanding to the vouchers
             // behind it. The bespoke VoucherRegisterScreen.
+            native = true,
+        ),
+        // The day's receipts and payments on one page (web 1d7af0f7), under
+        // the cash book it is a second reading of.
+        ReportConfig(
+            key = "dailyAccountBook",
+            title = "Daily Account Book",
+            routeName = "ReportDailyAccountBook",
+            webPath = "/reports/daily-account-book",
+            anyOf = listOf("cashbook.view"),
+            endpointKey = "dailyAccountBook",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
+        // The web's "Referer": the bills somebody brought, per referrer.
+        ReportConfig(
+            key = "salesReferrer",
+            title = "Referer",
+            routeName = "ReportSalesReferrer",
+            webPath = "/reports/sales-referrer",
+            anyOf = listOf("sales.referrer"),
+            endpointKey = "salesReferrer",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
             native = true,
         ),
 
@@ -1036,6 +1064,54 @@ object ReportMenu {
             ledgerRequired = false,
             extraParams = mapOf("delay" to "1"),
             // Rendered by the bespoke TradeLedgerScreen — see purchaseLedger.
+            native = true,
+        ),
+        // The two returns, under the ledger they are read against and gated by
+        // its permission (web a8178c41) — TradeLedgerScreen's return kinds.
+        ReportConfig(
+            key = "purchaseReturnLedger",
+            title = "Purchase Return",
+            routeName = "ReportPurchaseReturnLedger",
+            webPath = "/reports/purchase-return-ledger",
+            anyOf = listOf("purchase.ledger"),
+            endpointKey = "purchaseReturnLedger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "salesReturnLedger",
+            title = "Sales Return",
+            routeName = "ReportSalesReturnLedger",
+            webPath = "/reports/sales-return-ledger",
+            anyOf = listOf("sales.ledger"),
+            endpointKey = "salesReturnLedger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
+            native = true,
+        ),
+        ReportConfig(
+            key = "deliveryReport",
+            title = "Delivery Report",
+            routeName = "ReportDelivery",
+            webPath = "/reports/delivery",
+            anyOf = listOf("delivery.view"),
+            endpointKey = "deliveryReport",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+        ),
+        // Every line of every sales invoice, Customer → Invoice → product
+        // (web b3d99a2e / dab86fb2).
+        ReportConfig(
+            key = "customerSales",
+            title = "Customer Sales",
+            routeName = "ReportCustomerSales",
+            webPath = "/reports/customer-sales",
+            anyOf = listOf("sales.ledger"),
+            endpointKey = "customerSales",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
             native = true,
         ),
         ReportConfig(

@@ -23,6 +23,13 @@ object BranchTransferMenu {
     const val BRANCH_RECEIVE_KEY = "branchReceive"
     const val MATERIAL_ISSUE_KEY = "materialIssue"
     const val TRANSFER_LIST_KEY = "transferList"
+    const val RECEIVE_LIST_KEY = "receiveList"
+    const val PRODUCT_OUT_KEY = "productOut"
+    const val PRODUCT_OUT_REASONS_KEY = "productOutReasons"
+    const val PRODUCT_OUT_REGISTER_KEY = "productOutRegister"
+    const val PRODUCT_IN_KEY = "productIn"
+    const val PRODUCT_IN_REASONS_KEY = "productInReasons"
+    const val PRODUCT_IN_REGISTER_KEY = "productInRegister"
 
     val all: List<BranchTransferItem> = listOf(
         BranchTransferItem(
@@ -37,9 +44,20 @@ object BranchTransferMenu {
             MATERIAL_ISSUE_KEY, "Material Issue",
             listOf("material.issue.create", "inventory.issue.create", "purchase.create"),
         ),
+        // Product Out / Product In (web 2026-09-24 … 10-21), in the web's order
+        // and under its labels, each on its own permission.
+        BranchTransferItem(PRODUCT_OUT_KEY, "Product Out", listOf("product.out.create")),
+        BranchTransferItem(PRODUCT_OUT_REASONS_KEY, "Out Reasons", listOf("product.out.reason.manage")),
+        BranchTransferItem(PRODUCT_OUT_REGISTER_KEY, "Write-off Register", listOf("product.out.report.view")),
+        BranchTransferItem(PRODUCT_IN_KEY, "Product In", listOf("product.in.create")),
+        BranchTransferItem(PRODUCT_IN_REASONS_KEY, "In Reasons", listOf("product.in.reason.manage")),
+        BranchTransferItem(PRODUCT_IN_REGISTER_KEY, "Stock In Register", listOf("product.in.report.view")),
+        // The register split in two on the web: "which challans went" and
+        // "which came in" are each a page of their own.
+        BranchTransferItem(TRANSFER_LIST_KEY, "Transfer List", listOf("branch.issue.create")),
         BranchTransferItem(
-            TRANSFER_LIST_KEY, "Branch Transfer List",
-            listOf("branch.transfer.create", "branch.received.create"),
+            RECEIVE_LIST_KEY, "Receive List",
+            listOf("branch.received.create", "inventory.received.create", "product.received.create"),
         ),
         // The three reports ride the generic report engine by their config keys.
         // "Issue Report" / "Receive Report", as the web renamed them (08-18):
@@ -71,7 +89,12 @@ object BranchTransferMenu {
      */
     private val PARENT_PERMISSIONS = listOf(
         "branch.transfer.create", "inventory.transfer.create", "product.transfer.create",
+        "branch.issue.create",
         "branch.received.create", "inventory.received.create", "product.received.create",
+        // Product Out / Product In hang off this group: any one of their
+        // screens is enough to open the group they live in.
+        "product.out.create", "product.out.report.view", "product.out.approve", "product.out.reason.manage",
+        "product.in.create", "product.in.report.view", "product.in.approve", "product.in.reason.manage",
     )
 
     fun hasParentAccess(permissions: List<Permission>?): Boolean =

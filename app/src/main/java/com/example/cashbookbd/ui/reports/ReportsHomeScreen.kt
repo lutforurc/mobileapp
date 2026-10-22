@@ -141,6 +141,12 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "productTrackingSummary" -> Routes.PRODUCT_TRACKING_SUMMARY
         "purchaseLedger" -> Routes.tradeLedger("purchase")
         "salesLedger" -> Routes.tradeLedger("sales")
+        "purchaseReturnLedger" -> Routes.tradeLedger("purchase-return")
+        "salesReturnLedger" -> Routes.tradeLedger("sales-return")
+        "deliveryReport" -> com.example.cashbookbd.navigation.ParityRoutes.DELIVERY_REPORT
+        "customerSales" -> com.example.cashbookbd.navigation.ParityRoutes.CUSTOMER_SALES
+        "dailyAccountBook" -> com.example.cashbookbd.navigation.ParityRoutes.DAILY_ACCOUNT_BOOK
+        "salesReferrer" -> com.example.cashbookbd.navigation.ParityRoutes.SALES_REFERRER
         "groupReport" -> Routes.GROUP_REPORT
         "connectedMember" -> Routes.CONNECTED_MEMBER
         "expenseReport" -> Routes.EXPENSE_REPORT

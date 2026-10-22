@@ -138,11 +138,21 @@ data class TradeLedgerUiState(
     val showActionColumn: Boolean get() = canApprove || canRemoveApproval || canChallan
 
     val title: String
-        get() = if (kind == TradeLedgerKind.PURCHASE) "Purchase Ledger" else "Sales Ledger"
+        get() = when (kind) {
+            TradeLedgerKind.PURCHASE -> "Purchase Ledger"
+            TradeLedgerKind.SALES -> "Sales Ledger"
+            TradeLedgerKind.PURCHASE_RETURN -> "Purchase Return"
+            TradeLedgerKind.SALES_RETURN -> "Sales Return"
+        }
 
     /** The web's one wording difference in the money columns. */
     val paymentHeader: String
-        get() = if (kind == TradeLedgerKind.PURCHASE) "PAYMENT" else "RECEIVED"
+        get() = when (kind) {
+            TradeLedgerKind.PURCHASE -> "PAYMENT"
+            TradeLedgerKind.SALES -> "RECEIVED"
+            TradeLedgerKind.PURCHASE_RETURN -> "PAID BACK"
+            TradeLedgerKind.SALES_RETURN -> "REFUNDED"
+        }
 }
 
 class TradeLedgerViewModel(
@@ -157,10 +167,12 @@ class TradeLedgerViewModel(
     private val _uiState = MutableStateFlow(
         TradeLedgerUiState(
             kind = kind,
-            canApprove = com.example.cashbookbd.session.Permissions.has(
+            // The returns offer no approve pair: the return screen owns those
+            // (ReturnLedger.tsx keeps print, challan and approve off).
+            canApprove = !kind.isReturn && com.example.cashbookbd.session.Permissions.has(
                 settings?.permissions, "cashbook.approved",
             ),
-            canRemoveApproval = com.example.cashbookbd.session.Permissions.has(
+            canRemoveApproval = !kind.isReturn && com.example.cashbookbd.session.Permissions.has(
                 settings?.permissions, "remove.approval",
             ),
             // The challan lives on the Sales Ledger, behind ledger.details —
@@ -685,6 +697,9 @@ private fun TradeLedgerTable(
     onChallan: (TradeLedgerRow) -> Unit,
 ) {
     val rules = rememberHighlightRules()
+    // Branch → Invoice Setup → "Show Product Information in Ledger Details";
+    // off, the lines go and Total carries the voucher's own sum (web 37342813).
+    val showLines = settings?.ledgerShowProductDetails != false
     val showVoucher = settings?.showVoucherImage == true
     val isLocalEnv = settings?.isLocalEnv == true
     val green = MaterialTheme.appColors.success
@@ -700,6 +715,10 @@ private fun TradeLedgerTable(
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                     Text(r.challanNo, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(r.challanDate, style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 1)
+                    // A return names the bill it is against, when it says.
+                    if (r.refInvoiceNo.isNotBlank()) {
+                        Text(r.refInvoiceNo, style = MaterialTheme.typography.labelSmall, color = muted, maxLines = 1)
+                    }
                 }
             }
         })
@@ -715,7 +734,7 @@ private fun TradeLedgerTable(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    r.lines.forEach { line ->
+                    if (showLines) r.lines.forEach { line ->
                         Text(
                             text = line.productLabel.ifBlank { "-" },
                             style = MaterialTheme.typography.bodySmall,
@@ -737,7 +756,7 @@ private fun TradeLedgerTable(
                 }
             }
         })
-        add(ReportColumn<TradeLedgerRow>("VEHICLE & ORDER", ReportColWidth.Fixed(COL_VEHICLE)) { r, _ ->
+        add(ReportColumn<TradeLedgerRow>(if (state.kind.isReturn) "VEHICLE" else "VEHICLE & ORDER", ReportColWidth.Fixed(COL_VEHICLE)) { r, _ ->
             if (r.vehicleNo.isBlank() && r.orderNumber.isBlank() && r.deliveryLocation.isBlank()) {
                 ReportTableCell.Empty
             } else {
@@ -757,18 +776,18 @@ private fun TradeLedgerTable(
             }
         })
         add(ReportColumn<TradeLedgerRow>("QUANTITY", ReportColWidth.Fixed(COL_QTY), TextAlign.End) { r, _ ->
-            stackedCell(r) { line ->
+            if (!showLines) cellText("-") else stackedCell(r) { line ->
                 lineText("${money(line.quantity)} ${line.unitName}".trim())
             }
         })
         add(ReportColumn<TradeLedgerRow>("RATE", ReportColWidth.Fixed(COL_RATE), TextAlign.End) { r, _ ->
-            stackedCell(r) { line ->
+            if (!showLines) cellText("-") else stackedCell(r) { line ->
                 // A rate-and-total pair both at zero reads red, as on the web.
                 lineText(money(line.rate), color = if (line.rate == 0.0 && line.total == 0.0) red else null)
             }
         })
         add(ReportColumn<TradeLedgerRow>("TOTAL", ReportColWidth.Fixed(COL_TOTAL), TextAlign.End) { r, _ ->
-            stackedCell(r) { line ->
+            if (!showLines) cellText(money(r.lines.sumOf { it.total })) else stackedCell(r) { line ->
                 lineText(money(line.total), color = if (line.rate == 0.0 && line.total == 0.0) red else null)
             }
         })
@@ -828,7 +847,7 @@ private fun TradeLedgerTable(
 
     val totals = report.totals
     val footer = buildList {
-        add(ReportFooterCell(cellText("Total", bold = true), colSpan = 4))
+        add(ReportFooterCell(cellText(if (state.kind.isReturn) "Grand Total" else "Total", bold = true), colSpan = 4))
         add(ReportFooterCell(cellText(money(totals.quantity), bold = true, align = TextAlign.End)))
         add(ReportFooterCell(ReportTableCell.Empty))
         add(ReportFooterCell(cellText(money(totals.total), bold = true, align = TextAlign.End)))
@@ -843,7 +862,8 @@ private fun TradeLedgerTable(
         columns = columns,
         data = report.rows,
         footerRows = if (report.rows.isEmpty()) emptyList() else listOf(footer),
-        noDataMessage = "No data found",
+        // A return with nothing in the range is a fact, not a failure.
+        noDataMessage = if (state.kind.isReturn) "এই সময়ের মধ্যে কোনো রিটার্ন পাওয়া যায়নি।" else "No data found",
     )
 }
 

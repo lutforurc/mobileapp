@@ -30,6 +30,7 @@ import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.inventory.BranchTransferItem
 import com.example.cashbookbd.inventory.BranchTransferMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
+import com.example.cashbookbd.navigation.ParityRoutes
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.theme.appColors
 
@@ -81,7 +82,14 @@ fun BranchTransferHomeScreen(
                             BranchTransferMenu.BRANCH_RECEIVE_KEY,
                             BranchTransferMenu.MATERIAL_ISSUE_KEY,
                             -> Routes.inventoryView(item.key)
-                            BranchTransferMenu.TRANSFER_LIST_KEY -> Routes.TRANSFER_LIST
+                            BranchTransferMenu.TRANSFER_LIST_KEY -> ParityRoutes.TRANSFER_LIST
+                            BranchTransferMenu.RECEIVE_LIST_KEY -> ParityRoutes.RECEIVE_LIST
+                            BranchTransferMenu.PRODUCT_OUT_KEY -> ParityRoutes.PRODUCT_OUT
+                            BranchTransferMenu.PRODUCT_OUT_REASONS_KEY -> ParityRoutes.PRODUCT_OUT_REASONS
+                            BranchTransferMenu.PRODUCT_OUT_REGISTER_KEY -> ParityRoutes.PRODUCT_OUT_REGISTER
+                            BranchTransferMenu.PRODUCT_IN_KEY -> ParityRoutes.PRODUCT_IN
+                            BranchTransferMenu.PRODUCT_IN_REASONS_KEY -> ParityRoutes.PRODUCT_IN_REASONS
+                            BranchTransferMenu.PRODUCT_IN_REGISTER_KEY -> ParityRoutes.PRODUCT_IN_REGISTER
                             // The three reports ride the generic engine.
                             else -> Routes.reportView(item.key)
                         }

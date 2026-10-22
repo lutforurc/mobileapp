@@ -144,6 +144,12 @@ fun <T> ReportTable(
      * Balance Sheet stack several tables); it then wraps its content height.
      */
     scrollable: Boolean = true,
+    /**
+     * A row drawn as one full-width band instead of cells — the web's heading
+     * rows that span the table (`<td colSpan={n}>`): a customer, an invoice, a
+     * section title. Return null for an ordinary row.
+     */
+    bandRow: ((row: T, index: Int) -> (@Composable () -> Unit)?)? = null,
 ) {
     val fixed = columns.all { it.width is ReportColWidth.Fixed }
     val hScroll = rememberScrollState()
@@ -223,6 +229,16 @@ fun <T> ReportTable(
                     // Tinted rows (summary/total bands) rule in their own on-colour
                     // so the lines stay visible; plain rows keep the white body rule.
                     val lineColor = gridLineColorFor(bg)
+                    val band = bandRow?.invoke(row, index)
+                    if (band != null) {
+                        Box(
+                            modifier = dividerModifier
+                                .then(rowWidth(fixed))
+                                .background(bg ?: MaterialTheme.colorScheme.surfaceVariant),
+                        ) { band() }
+                        HorizontalDivider(modifier = dividerModifier, color = lineColor)
+                        return@forEachIndexed
+                    }
                     var rowMod = rowWidth(fixed)
                     if (bg != null) rowMod = rowMod.background(bg)
                     Row(modifier = rowMod.height(IntrinsicSize.Min)) {

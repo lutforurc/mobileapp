@@ -356,6 +356,16 @@ object ServiceLocator {
                 .also { ledgerApiService = it }
         }
 
+    @Volatile
+    private var webApi: com.example.cashbookbd.data.remote.WebApi? = null
+
+    /** The shared call wrapper the 2026-10 parity screens speak through. */
+    fun provideWebApi(context: Context): com.example.cashbookbd.data.remote.WebApi =
+        webApi ?: synchronized(this) {
+            webApi ?: com.example.cashbookbd.data.remote.WebApi(provideReportApiService(context))
+                .also { webApi = it }
+        }
+
     fun provideReportApiService(context: Context): ReportApiService =
         reportApiService ?: synchronized(this) {
             reportApiService ?: provideRetrofit(context).create(ReportApiService::class.java)

@@ -18,12 +18,15 @@ object DrawerMenus {
 
     val all: List<DrawerMenuDef> = listOf(
         DrawerMenuDef("dashboard", "Dashboard"),
+        // Mobile's flat drawer gives the web Dashboard group's second page a row.
+        DrawerMenuDef("delivery_dashboard", "Delivery Dashboard"),
         DrawerMenuDef("reseller", "Reseller Dashboard"),
         DrawerMenuDef("transaction", "Transaction"),
         DrawerMenuDef("invoice", "Invoice"),
         DrawerMenuDef("branch-transfer", "Branch Transfer"),
         DrawerMenuDef("reports", "Reports"),
         DrawerMenuDef("product_tracking", "Product Tracking"),
+        DrawerMenuDef("company_scheme", "Company Scheme"),
         DrawerMenuDef("requisition", "Requisition"),
         DrawerMenuDef("real-estate", "Real Estate"),
         DrawerMenuDef("hotel", "Hotel"),

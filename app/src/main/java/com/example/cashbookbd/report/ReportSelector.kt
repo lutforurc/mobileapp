@@ -19,6 +19,8 @@ enum class ReportSelectorSource(val searchable: Boolean) {
     EMPLOYEE(searchable = true),
     /** Active warehouses (`active/warehouse`), for the Trading invoice line. */
     WAREHOUSE(searchable = false),
+    /** Product groups (`product-group/product-group-ddl`), the level above Category. */
+    PRODUCT_GROUP(searchable = false),
 }
 
 /**

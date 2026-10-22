@@ -141,7 +141,12 @@ class SettingsRepository(
                     needCode = payload?.branch?.needCode?.trim() == "1",
                     needProductGroup = payload?.branch?.needProductGroup?.trim() == "1",
                     needPackage = payload?.branch?.needPackage?.trim() == "1",
-                )
+                    ledgerShowProductDetails = payload?.branch?.ledgerShowProductDetails?.trim() != "0",
+                    fyStartMonth = payload?.company?.fyStartMonth?.trim()?.toDoubleOrNull()?.toInt()
+                        ?.takeIf { it in 1..12 } ?: 7,
+                    // A branch column, numeric; the web reads Number(x) === 1.
+                    deductStockOnDelivery = payload?.branch?.deductStockOnDelivery?.trim()
+                        ?.toDoubleOrNull() == 1.0,                )
             )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")

@@ -682,6 +682,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
 
+        // The forms and reports of the 2026-10 web parity pass.
+        parityGraph(navController = navController, backToLogin = backToLogin)
+
         composable(Routes.HOME) {
             // The reworked dark palette, trialled on the Dashboard only.
             DarkV2Trial {
@@ -841,14 +844,19 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             route = Routes.TRADE_LEDGER_PATTERN,
             arguments = listOf(navArgument(Routes.TRADE_LEDGER_KIND_ARG) { type = NavType.StringType }),
         ) { backStackEntry ->
-            val kind = if (backStackEntry.arguments?.getString(Routes.TRADE_LEDGER_KIND_ARG) == "sales") {
-                TradeLedgerKind.SALES
-            } else {
-                TradeLedgerKind.PURCHASE
+            val kind = when (backStackEntry.arguments?.getString(Routes.TRADE_LEDGER_KIND_ARG)) {
+                "sales" -> TradeLedgerKind.SALES
+                "purchase-return" -> TradeLedgerKind.PURCHASE_RETURN
+                "sales-return" -> TradeLedgerKind.SALES_RETURN
+                else -> TradeLedgerKind.PURCHASE
             }
-            PermissionGate(
-                anyOf = listOf(if (kind == TradeLedgerKind.SALES) "sales.ledger" else "purchase.ledger"),
-            ) {
+            // The returns answer to their ledger's own permission, as on the web.
+            val gate = if (kind == TradeLedgerKind.SALES || kind == TradeLedgerKind.SALES_RETURN) {
+                "sales.ledger"
+            } else {
+                "purchase.ledger"
+            }
+            PermissionGate(anyOf = listOf(gate)) {
                 TradeLedgerScreen(
                     navController = navController,
                     onLogout = backToLogin,

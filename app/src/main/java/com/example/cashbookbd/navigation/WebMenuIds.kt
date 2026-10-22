@@ -43,6 +43,12 @@ object WebMenuIds {
         "categoryWiseInOut" to "reports/cat-wise/in-out",
         "purchaseLedger" to "reports/purchase-ledger",
         "salesLedger" to "reports/sales-ledger",
+        "purchaseReturnLedger" to "reports/purchase-return-ledger",
+        "salesReturnLedger" to "reports/sales-return-ledger",
+        "deliveryReport" to "reports/delivery",
+        "customerSales" to "report_customer_sales",
+        "dailyAccountBook" to "reports/daily-account-book",
+        "salesReferrer" to "reports/sales-referrer",
         "groupReport" to "reports/group-report",
         "mitchMatch" to "reports/mitch-match",
     )

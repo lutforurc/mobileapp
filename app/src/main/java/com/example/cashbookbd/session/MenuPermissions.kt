@@ -27,7 +27,8 @@ object MenuPermissions {
             "product.transfer.create",
             "product.received.create",
         ),
-        "invoice" to listOf("purchase.create", "sales.create", "labour.invoice.create"),
+        // delivery.view: the Delivery screen sits in this menu (web 760144c6).
+        "invoice" to listOf("purchase.create", "sales.create", "labour.invoice.create", "delivery.view"),
         // The Labour Items master-data group (web menuPermissions.ts, b1cfc84).
         "labour_items" to listOf("labour.category.view", "labour.item.view"),
         // The fixed-asset register (web menuPermissions.ts:168) — permission
@@ -50,7 +51,17 @@ object MenuPermissions {
             "group.report",
             "mitch.match",
             "productwise.profit",
+            // Reached only through this menu, so each opens the parent too.
+            "ledger.customer",
+            "ledger.details",
+            "expense.report",
+            "sales.referrer",
+            "delivery.view",
         ),
+        // Company scheme: the receivable lists. The sale itself is Invoice → Sales.
+        "company_scheme" to listOf("company.scheme.view"),
+        // Product Tracking opens on any of its screens' own permissions.
+        "product_tracking" to listOf("product.tracking.settings.view", "product.tracking.report.view"),
         "requisition" to listOf(
             "requisition.view",
             "requisition.create",
@@ -98,6 +109,9 @@ object MenuPermissions {
             "voucher.recycle",
             "voucher.history",
             "log.changes",
+            // Report Mismatch answers to the mismatch permission the backend
+            // already creates (web a8178c41).
+            "mitmatch.report",
         ),
         "hrm" to listOf(
             "employee.view",
@@ -131,6 +145,9 @@ object MenuPermissions {
             // Bank Opening lives in this menu but answers to a permission of its
             // own, so whoever holds only that one still gets the menu it sits in.
             "bank.opening.view",
+            // Same for the customer opening import, one level down.
+            "party.opening.view",
+            "party.opening.edit",
         ),
         "chart_of_accounts" to listOf("coa.l1.view", "coa.l2.view", "coa.l3.view", "coa.l4.view"),
         "analytics" to listOf("analytics.comparison"),
@@ -138,6 +155,7 @@ object MenuPermissions {
         "subscription_history" to listOf("subscription.view", "subscription.history"),
         // "Old Software" — the read-only RAAJRANI ERP archives (web menuPermissions.ts:175).
         "legacy" to listOf("legacy.record.view", "legacy.old.record.view"),
+        "customer_dashboard" to listOf("customer.dashboard"),
     )
 
     /** True when the user holds any child permission of [menuKey]. */

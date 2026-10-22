@@ -95,6 +95,12 @@ class SelectorRepository(
             idKey = "id", labelKey = "name", sublabelKey = null,
             searchParam = null,
         )
+        ReportSelectorSource.PRODUCT_GROUP -> SourceSpec(
+            path = "product-group/product-group-ddl",
+            objectKey = null,
+            idKey = "id", labelKey = "name", sublabelKey = null,
+            searchParam = null,
+        )
     }
 
     /**

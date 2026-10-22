@@ -145,7 +145,12 @@ data class Settings(
     val needProductGroup: Boolean = false,
     /** Branch meta "Need Package?": the product form shows a Pack Size dropdown. */
     val needPackage: Boolean = false,
-)
+    /** The company's financial year opens in this month (1–12, July by default). */
+    val fyStartMonth: Int = 7,
+    /** Ledgers draw each voucher's product lines; off shows the row totals only. */
+    val ledgerShowProductDetails: Boolean = true,
+    /** The branch deducts stock on delivery — the Delivery screens' gate. */
+    val deductStockOnDelivery: Boolean = false,)
 
 /**
  * One mode's worth of a user's own colours, as "#RRGGBB" strings straight off

@@ -39,9 +39,11 @@ fun StockShortageDialog(
     action: String,
     onCancel: () -> Unit,
     onContinue: () -> Unit,
+    /** What the branch refuses, in the -ing form ("delivering", web 023a6681). */
+    blockedAction: String = "selling",
 ) {
     val closing = if (warning.blocked) {
-        "This branch does not allow selling below stock."
+        "This branch does not allow $blockedAction below stock."
     } else {
         "You can $action anyway."
     }

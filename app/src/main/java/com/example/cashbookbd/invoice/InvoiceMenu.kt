@@ -19,6 +19,8 @@ data class InvoiceItem(
     val allOf: List<String> = emptyList(),
     /** Shown only to branches of this business type (web sidebar condition). */
     val businessTypeId: Int? = null,
+    /** Shown only where the branch deducts stock on delivery (web 760144c6). */
+    val needsDeliveryStock: Boolean = false,
 )
 
 /** The Invoice menu registry and its permission rules. */
@@ -29,6 +31,9 @@ object InvoiceMenu {
 
     /** Routes to the Labour Invoice screen (see InvoiceHomeScreen). */
     const val LABOUR_INVOICE_KEY = "labourInvoice"
+
+    /** Routes to the Delivery screen (ui/delivery). */
+    const val DELIVERY_KEY = "delivery"
 
     val all: List<InvoiceItem> = listOf(
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
@@ -50,6 +55,9 @@ object InvoiceMenu {
         InvoiceItem("purchaseReturn", "Purchase Return", listOf("purchase.return.view"), supported = true),
         InvoiceItem("salesReturn", "Sales Return", listOf("sales.return"), supported = true),
         InvoiceItem("labourInvoice", "Labour Invoice", listOf("labour.invoice.create"), supported = true),
+        // Tiles and Sanitary: the voucher that takes the stock out when the
+        // goods are sent rather than billed — only on a branch that works so.
+        InvoiceItem(DELIVERY_KEY, "Delivery", listOf("delivery.view"), supported = true, needsDeliveryStock = true),
         // The movement forms and transfer reports moved to their own "Branch
         // Transfer" drawer section (inventory/BranchTransferMenu), as the web
         // moved them out of Invoice on 2026-08-02.
@@ -64,10 +72,15 @@ object InvoiceMenu {
         MenuPermissions.hasMenu(permissions, "invoice")
 
     /** Invoice entries the user is allowed to open, in registry order. */
-    fun visible(permissions: List<Permission>?, businessTypeId: Int? = null): List<InvoiceItem> =
+    fun visible(
+        permissions: List<Permission>?,
+        businessTypeId: Int? = null,
+        deductStockOnDelivery: Boolean = false,
+    ): List<InvoiceItem> =
         all.filter { item ->
             Permissions.hasAny(permissions, item.anyOf) &&
                 item.allOf.all { Permissions.has(permissions, it) } &&
-                (item.businessTypeId == null || item.businessTypeId == businessTypeId)
+                (item.businessTypeId == null || item.businessTypeId == businessTypeId) &&
+                (!item.needsDeliveryStock || deductStockOnDelivery)
         }
 }

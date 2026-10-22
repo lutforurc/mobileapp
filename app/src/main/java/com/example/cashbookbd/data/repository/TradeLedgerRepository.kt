@@ -11,8 +11,21 @@ import retrofit2.HttpException
 import java.io.IOException
 import kotlin.math.floor
 
-/** Which trade ledger — the two screens share everything but the arithmetic. */
-enum class TradeLedgerKind { PURCHASE, SALES }
+/**
+ * Which trade ledger — the screens share everything but the arithmetic.
+ *
+ * The two returns (web a8178c41, ReturnLedger.tsx) are the ledgers' own shape
+ * on purpose: same columns, same filters, same foot. A return's money sits on
+ * the opposite side to the invoice's — a purchase return takes cash back in
+ * (17 debit) and reverses its discount against head 40 debit; a sales return
+ * pays cash out (17 credit) against head 23 credit — and the balance is the
+ * invoice's own formula on those sides: total − discount − cash.
+ */
+enum class TradeLedgerKind {
+    PURCHASE, SALES, PURCHASE_RETURN, SALES_RETURN;
+
+    val isReturn: Boolean get() = this == PURCHASE_RETURN || this == SALES_RETURN
+}
 
 /** One product line of a voucher (index-aligned across the stacked cells). */
 data class TradeLedgerLine(
@@ -59,6 +72,8 @@ data class TradeLedgerRow(
     val accName: String = "",
     /** What the lorry is being paid. Text: "" (nothing agreed) is not "0". */
     val truckFare: String = "",
+    /** Returns only: the bill the return is against, when it says. */
+    val refInvoiceNo: String = "",
 )
 
 /** The bold summary strip under the table (the web calculators' figures). */
@@ -106,6 +121,8 @@ class TradeLedgerRepository(
             val endpoint = when (kind) {
                 TradeLedgerKind.PURCHASE -> "reports/purchase/ledger"
                 TradeLedgerKind.SALES -> "reports/sales/ledger"
+                TradeLedgerKind.PURCHASE_RETURN -> "reports/purchase/return-ledger"
+                TradeLedgerKind.SALES_RETURN -> "reports/sales/return-ledger"
             }
             val params = buildMap {
                 put("branch_id", branchId)
@@ -312,6 +329,7 @@ class TradeLedgerRepository(
     // ---- Row parsing -------------------------------------------------------
 
     private fun JsonObject.toRow(kind: TradeLedgerKind, groupByCategory: Boolean): TradeLedgerRow? {
+        if (kind.isReturn) return toReturnRow(kind, groupByCategory)
         val master = obj(if (kind == TradeLedgerKind.PURCHASE) "purchase_master" else "sales_master")
         val order = master?.obj(if (kind == TradeLedgerKind.PURCHASE) "purchase_order" else "sales_order")
         val rateKey = if (kind == TradeLedgerKind.PURCHASE) "purchase_price" else "sales_price"
@@ -323,13 +341,7 @@ class TradeLedgerRepository(
                 val qty = d.dbl("quantity")
                 val rate = d.dbl(rateKey)
                 TradeLedgerLine(
-                    productLabel = buildString {
-                        if (groupByCategory) {
-                            product?.obj("category")?.text("name")?.takeIf { it.isNotBlank() }
-                                ?.let { append(it).append(' ') }
-                        }
-                        append(product?.text("name").orEmpty())
-                    }.trim(),
+                    productLabel = ledgerProductLabel(product, groupByCategory),
                     unitName = product?.obj("unit")?.text("name").orEmpty(),
                     quantity = qty,
                     rate = rate,
@@ -411,6 +423,104 @@ class TradeLedgerRepository(
             accName = master?.text("acc_name").orEmpty(),
             truckFare = master?.text("truck_fare").orEmpty(),
         )
+    }
+
+    /**
+     * A Purchase Return / Sales Return row (returnLedgerTotals.ts): the lines
+     * from the return's own master, the discount and cash READ OFF THE VOUCHER'S
+     * LEGS rather than the master row (the two have disagreed before), and the
+     * balance total − discount − cash.
+     */
+    private fun JsonObject.toReturnRow(kind: TradeLedgerKind, groupByCategory: Boolean): TradeLedgerRow {
+        val purchase = kind == TradeLedgerKind.PURCHASE_RETURN
+        val master = obj(if (purchase) "purchase_return_master" else "sales_return_master")
+        val lines = master?.get("details")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { el ->
+                val d = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                val product = d.obj("product")
+                val qty = d.dbl("quantity")
+                val rate = d.dbl("return_price")
+                TradeLedgerLine(
+                    productLabel = ledgerProductLabel(product, groupByCategory),
+                    unitName = product?.obj("unit")?.text("name").orEmpty(),
+                    quantity = qty,
+                    rate = rate,
+                    total = qty * rate,
+                )
+            }
+            .orEmpty()
+
+        val accDetails: List<JsonObject> = accLegs()
+        fun legSum(coa: Long, side: String) =
+            accDetails.filter { it.long("coa4_id") == coa }.sumOf { it.dbl(side) }
+
+        val discount = if (purchase) legSum(COA_PURCHASE_DISCOUNT, "debit") else legSum(COA_SALES_DISCOUNT, "credit")
+        val cash = if (purchase) legSum(COA_CASH, "debit") else legSum(COA_CASH, "credit")
+        val total = lines.sumOf { it.total }
+
+        return TradeLedgerRow(
+            slNumber = long("sl_number")?.toInt() ?: 0,
+            challanNo = text("challan_no"),
+            challanDate = text("challan_date"),
+            partyName = partyNameOf(accDetails),
+            note = master?.text("notes").orEmpty(),
+            // Off the bill the return is against: the return screen never asks
+            // for a vehicle, so blank is the honest answer and a common one.
+            vehicleNo = formatVehicleNo(text("vehicle_no")),
+            orderNumber = "",
+            deliveryLocation = "",
+            lines = lines,
+            discount = discount,
+            payment = cash,
+            balance = total - discount - cash,
+            branchId = text("branch_id"),
+            voucherImage = text("voucher_image"),
+            remarks = text("remarks"),
+            voucherId = long("mtmid") ?: long("smtm_id") ?: long("mtm_id") ?: 0L,
+            isApproved = long("is_approved") == 1L,
+            refInvoiceNo = text("ref_invoice_no"),
+        )
+    }
+
+    /** Every posting line of the voucher, whichever journal it was written in. */
+    private fun JsonObject.accLegs(): List<JsonObject> {
+        val masters = get("acc_transaction_master")
+        val list = when {
+            masters == null || masters.isJsonNull -> emptyList()
+            masters.isJsonArray -> masters.asJsonArray.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject }
+            masters.isJsonObject -> listOf(masters.asJsonObject)
+            else -> emptyList()
+        }
+        return list.flatMap { m ->
+            m.get("acc_transaction_details")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject }
+                .orEmpty()
+        }
+    }
+
+    /** getRelevantCoaName: the first head that is neither stock nor cash, else cash. */
+    private fun partyNameOf(legs: List<JsonObject>): String =
+        legs.firstOrNull { it.long("coa4_id") !in setOf(COA_STOCK, COA_CASH) }?.obj("coa_l4")?.text("name")
+            ?: legs.firstOrNull { it.long("coa4_id") == COA_CASH }?.obj("coa_l4")?.text("name")
+            ?: ""
+
+    /**
+     * ledgerProductLabel.ts: when the branch leads each line with its category,
+     * the prefix is only drawn if the product's own name does not already say
+     * it ("Carrying (Cement)" under "Carrying" is not printed twice), and the
+     * product's code sits between them.
+     */
+    private fun ledgerProductLabel(product: JsonObject?, showCategory: Boolean): String {
+        val name = product?.text("name")?.trim().orEmpty()
+        val category = product?.obj("category")?.text("name")?.trim().orEmpty()
+        val code = product?.text("code")?.trim().orEmpty()
+        if (!showCategory || category.isEmpty()) return name
+        val carried = name.lowercase().contains(category.lowercase())
+        return buildString {
+            if (!carried) append(category).append(' ')
+            if (code.isNotEmpty()) append(code).append(" - ")
+            append(name)
+        }.trim()
     }
 
     /** The web calculators: first-matching-account sums, per row. */

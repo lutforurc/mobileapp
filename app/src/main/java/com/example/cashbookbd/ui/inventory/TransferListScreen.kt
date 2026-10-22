@@ -82,9 +82,10 @@ data class TransferListUiState(
 
 class TransferListViewModel(
     private val repository: InventoryMovementRepository,
+    initialTab: Int = 0,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(TransferListUiState())
+    private val _uiState = MutableStateFlow(TransferListUiState(tab = initialTab))
     val uiState: StateFlow<TransferListUiState> = _uiState.asStateFlow()
 
     init {
@@ -151,12 +152,13 @@ class TransferListViewModel(
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
-        fun provideFactory(context: Context) = viewModelFactory {
+        fun provideFactory(context: Context, initialTab: Int = 0) = viewModelFactory {
             initializer {
                 TransferListViewModel(
                     repository = ServiceLocator.provideInventoryMovementRepository(
                         context.applicationContext,
                     ),
+                    initialTab = initialTab,
                 )
             }
         }
@@ -176,8 +178,15 @@ fun TransferListScreen(
     navController: NavHostController,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The web split the register into Transfer List and Receive List, each a
+     * page of its own (react 2026-10). 0 / 1 pins this screen to one of them
+     * and hides the tabs; null keeps the two-tab register.
+     */
+    fixedTab: Int? = null,
     viewModel: TransferListViewModel = viewModel(
-        factory = TransferListViewModel.provideFactory(LocalContext.current)
+        key = "transfer-list-${fixedTab ?: "both"}",
+        factory = TransferListViewModel.provideFactory(LocalContext.current, fixedTab ?: 0),
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -190,14 +199,18 @@ fun TransferListScreen(
     }
 
     AuthenticatedShell(
-        title = "Branch Transfer List",
-        currentRoute = Routes.INVOICES,
+        title = when (fixedTab) {
+            0 -> "Transfer List"
+            1 -> "Receive List"
+            else -> "Branch Transfer List"
+        },
+        currentRoute = Routes.BRANCH_TRANSFER,
         navController = navController,
         onLogout = onLogout,
         modifier = modifier,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TabRow(selectedTabIndex = state.tab) {
+            if (fixedTab == null) TabRow(selectedTabIndex = state.tab) {
                 Tab(
                     selected = state.tab == 0,
                     onClick = { viewModel.onTabSelected(0) },
