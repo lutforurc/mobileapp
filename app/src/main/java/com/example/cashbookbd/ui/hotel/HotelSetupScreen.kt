@@ -90,7 +90,7 @@ private val TABS = listOf(
         route = HotelMenu.ROUTE_ROOMS,
     ),
     SetupTab(
-        "Sittings",
+        "Shift",
         "The parts of a day a hall is let for: a seminar takes the morning, a wedding the evening.",
         listOf("hotel.resource.view"),
         listKey = "hotelSlots",

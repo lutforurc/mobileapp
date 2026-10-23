@@ -132,6 +132,8 @@ class WebApi(
         /** The server's own words: `message`, else the first validation error. */
         fun messageOf(body: JsonObject): String {
             body.jStr("message").takeIf { it.isNotBlank() }?.let { return it }
+            // Some controllers answer `{error: {message}}`.
+            body.jObj("error")?.jStr("message")?.takeIf { it.isNotBlank() }?.let { return it }
             body.jStr("error").takeIf { it.isNotBlank() && it.toIntOrNull() == null }?.let { return it }
             val errors = body.get("errors") ?: body.jObj("data")?.get("errors")
             errors.jAsObj()?.entrySet()?.firstOrNull()?.value?.let { first ->

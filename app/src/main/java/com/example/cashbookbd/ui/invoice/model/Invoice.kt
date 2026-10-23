@@ -29,7 +29,12 @@ data class InvoiceProduct(
     val purchasePrice: Double?,
     /** Sale price — pre-fills the Combined Invoice's sales rate (null when unknown). */
     val salesPrice: Double? = null,
-)
+    /** The product's own code; blank when it has none. */
+    val code: String = "",
+) {
+    /** "CODE - NAME" when the product has a code, the bare name otherwise (web b8dff41c). */
+    val rowLabel: String get() = if (code.isNotBlank()) "$code - $name" else name
+}
 
 /** One added line of the Combined (purchase + sales) invoice. */
 data class CombinedLine(

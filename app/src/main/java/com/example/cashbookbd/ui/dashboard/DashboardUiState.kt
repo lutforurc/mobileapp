@@ -13,6 +13,8 @@ data class DashboardUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val dashboard: Dashboard? = null,
+    /** The page heading: the branch's business type ("Trade Business", …). */
+    val heading: String? = null,
     /**
      * The KPI/ageing/low-stock payload — loaded beside the dashboard, null
      * until it arrives (or on failure); its cards simply don't render then.

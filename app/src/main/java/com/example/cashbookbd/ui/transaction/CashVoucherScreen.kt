@@ -212,6 +212,16 @@ data class CashVoucherUiState(
     /** The loaded voucher's hashed id — every row must carry it on update. */
     val editingMtmId: String = "",
 
+    /**
+     * Tiles and Sanitary's Cash Received (web 91635f9b): the party's Previous
+     * Balance (pre-filling Amount), a Discount written off at collection and
+     * the shop's own Manual Voucher Number.
+     */
+    val isTiles: Boolean = false,
+    val previousBalance: Double = 0.0,
+    val discount: String = "",
+    val manualVoucherNo: String = "",
+
     val isSubmitting: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
@@ -236,6 +246,7 @@ class CashVoucherViewModel(
     private val reportRepository: ReportRepository,
     private val sessionManager: SessionManager,
     private val sessionRepository: com.example.cashbookbd.data.repository.SessionRepository? = null,
+    private val webApi: com.example.cashbookbd.data.remote.WebApi? = null,
 ) : ViewModel() {
 
     private var variant: CashVoucherVariant =
@@ -292,8 +303,42 @@ class CashVoucherViewModel(
                     it.copy(alwaysShowProductField = sessionManager.state.value.settings?.productTracking == true)
                 }
             }
+            // After Head Office and before the inventory-system map, as the
+            // web's CashReceivedIndex asks: a tiles branch runs Trading's id 4
+            // but gets the General screen with its own three figures.
+            val api = webApi
+            if (spec.key == CashVoucherForms.received.key && variant != CashVoucherVariant.HEAD_OFFICE && api != null) {
+                if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
+                    variant = CashVoucherVariant.GENERAL
+                    _uiState.update { it.copy(variant = CashVoucherVariant.GENERAL, isTiles = true, showSearch = searchVisible(CashVoucherVariant.GENERAL)) }
+                }
+            }
         }
     }
+
+    /**
+     * Tiles: the party's due as at the branch's day, WITH its sign (a party in
+     * advance stands negative and is shown so). It pre-fills Amount only when
+     * something is owing; the desk types what was actually handed over.
+     */
+    private fun loadPreviousBalance(accountId: String) {
+        val api = webApi ?: return
+        viewModelScope.launch {
+            val r = api.get("trading/cash/received/previous-balance", mapOf("account" to accountId, "allow_negative" to "1"))
+            val balance = (r as? Resource.Success)?.data?.let { body ->
+                body.get("data")?.takeIf { it.isJsonObject }?.asJsonObject?.let { d ->
+                    (d.get("data")?.takeIf { it.isJsonObject }?.asJsonObject ?: d).get("balance")
+                }?.takeIf { it.isJsonPrimitive }?.asString?.toDoubleOrNull()
+            } ?: 0.0
+            _uiState.update {
+                if (it.account?.id != accountId) it
+                else it.copy(previousBalance = balance, amount = if (balance > 0) balance.toPlainAmount() else "")
+            }
+        }
+    }
+
+    fun onDiscountChange(value: String) = _uiState.update { it.copy(discount = value.decimalOnly()) }
+    fun onManualVoucherNoChange(value: String) = _uiState.update { it.copy(manualVoucherNo = value) }
 
     /** "received"/"payment" — what product-tracking/products calls this form. */
     private val trackingContext: String =
@@ -354,6 +399,7 @@ class CashVoucherViewModel(
         _uiState.update { it.copy(account = account) }
         // Tracking is party-wise: the product list follows the account.
         loadTrackedProducts(coa4Id = account.id)
+        if (_uiState.value.isTiles) loadPreviousBalance(account.id)
     }
 
     fun onTrackedProductSelected(option: SelectorOption) =
@@ -573,6 +619,14 @@ class CashVoucherViewModel(
                     endpoint = if (state.isEditMode) spec.rowsUpdateEndpoint else spec.rowsEndpoint,
                     lines = state.lines,
                     trading = state.variant == CashVoucherVariant.TRADING,
+                    firstRowExtras = if (state.isTiles) {
+                        mapOf(
+                            "discount" to (state.discount.toDoubleOrNull() ?: 0.0).toPlainAmount(),
+                            "manual_voucher_no" to state.manualVoucherNo,
+                        )
+                    } else {
+                        emptyMap()
+                    },
                 )
             }
             when (result) {
@@ -594,6 +648,9 @@ class CashVoucherViewModel(
                         remarks = "",
                         amount = "",
                         remarkSuggestions = emptyList(),
+                        previousBalance = 0.0,
+                        discount = "",
+                        manualVoucherNo = "",
                         // An update ends the edit session too.
                         isEditMode = false,
                         editingMtmId = "",
@@ -634,6 +691,7 @@ class CashVoucherViewModel(
                     reportRepository = ServiceLocator.provideReportRepository(appContext),
                     sessionManager = ServiceLocator.provideSessionManager(appContext),
                     sessionRepository = ServiceLocator.provideSessionRepository(appContext),
+                    webApi = ServiceLocator.provideWebApi(appContext),
                 )
             }
         }
@@ -758,6 +816,15 @@ fun CashVoucherScreen(
                 label = "Select Account",
             )
 
+            // `!= 0`, not `> 0`: a party in advance stands negative and must
+            // still be seen — no line at all reads as owing nothing.
+            if (state.isTiles && state.previousBalance != 0.0) {
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Previous Balance", fontWeight = AppFontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(com.example.cashbookbd.core.AmountFormat.format(state.previousBalance), fontWeight = AppFontWeight.SemiBold)
+                }
+            }
+
             // Product tracking: where the branch runs tracking at all, the box
             // stays put for every party — "No Product" where this party has
             // nothing tracked (web 16d8de07). On a branch that has not heard
@@ -797,6 +864,34 @@ fun CashVoucherScreen(
                 keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            if (state.isTiles) {
+                AppTextField(
+                    value = state.discount,
+                    onValueChange = viewModel::onDiscountChange,
+                    label = "Discount (Tk.)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // The arithmetic the desk does in its head.
+                if (state.previousBalance != 0.0) {
+                    val amt = state.amount.toDoubleOrNull() ?: 0.0
+                    val disc = state.discount.toDoubleOrNull() ?: 0.0
+                    fun fmt(v: Double) = com.example.cashbookbd.core.AmountFormat.format(v)
+                    Text(
+                        "Current Balance = Previous Balance − Amount (Tk.) − Discount (Tk.)\n" +
+                            "${fmt(state.previousBalance)} − ${fmt(amt)} − ${fmt(disc)} = ${fmt(state.previousBalance - amt - disc)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                AppTextField(
+                    value = state.manualVoucherNo,
+                    onValueChange = viewModel::onManualVoucherNoChange,
+                    label = "Manual Voucher Number",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SecondaryButton(

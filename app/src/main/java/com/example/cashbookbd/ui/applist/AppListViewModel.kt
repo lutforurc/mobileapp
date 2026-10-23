@@ -30,6 +30,8 @@ class AppListViewModel(
     private val canDeleteVoucher: Boolean = false,
     /** The session's permissions, for the per-action gates a spec may declare. */
     private val permissions: List<com.example.cashbookbd.session.Permission>? = null,
+    /** Fills the spec's selector filters (brand / category / group …). */
+    private val selectorRepository: com.example.cashbookbd.data.repository.SelectorRepository? = null,
 ) : ViewModel() {
 
     /** An action with an empty anyOf is ungated; otherwise any one suffices. */
@@ -41,8 +43,17 @@ class AppListViewModel(
      * declares it and the branch is still "Opening ongoing" — the web's
      * `branch.is_opening == 1` gate for the Product List's inline columns.
      */
+    /**
+     * Product List with the branch's "Editable Measurement on Product List?"
+     * (web f6f7ff4f): Measurement and Package Size stand right after Unit and
+     * the rest of the row stands down — prices, the Action column and the
+     * opening entry. Each row's measurement opens in a dialog here.
+     */
+    private val measureEnabled =
+        AppLists.byKey(listKey)?.openingStock == true && settings?.productListInlineEdit == true
+
     private val openingEnabled =
-        AppLists.byKey(listKey)?.openingStock == true && settings?.openingOngoing == true
+        AppLists.byKey(listKey)?.openingStock == true && settings?.openingOngoing == true && !measureEnabled
 
     /**
      * The spec as this branch sees it. With the opening entry active the columns
@@ -50,6 +61,24 @@ class AppListViewModel(
      * take the room) and the current Opening qty shows after Unit.
      */
     private val spec = AppLists.byKey(listKey)?.let { base ->
+        if (measureEnabled) {
+            return@let base.copy(
+                columns = buildList {
+                    base.columns.forEach { col ->
+                        if (col.key == "purchase" || col.key == "sales") return@forEach
+                        add(col)
+                        if (col.key == "unit") {
+                            add(AppListColumn("measurement", "Measurement"))
+                            add(AppListColumn("package_size", "Package Size"))
+                        }
+                    }
+                },
+                editAction = null,
+                deleteAction = null,
+                deepDeleteAction = null,
+                historyAction = null,
+            )
+        }
         if (!openingEnabled) base
         else base.copy(
             columns = buildList {
@@ -77,17 +106,127 @@ class AppListViewModel(
             editAction = spec?.editAction?.takeIf { allowed(it.anyOf) },
             deleteAction = spec?.deleteAction?.takeIf { allowed(it.anyOf) },
             historyAction = spec?.historyAction?.takeIf { allowed(it.anyOf) },
+            deepDeleteAction = spec?.deepDeleteAction?.takeIf { deep ->
+                allowed(deep.action.anyOf) && when (deep.gate) {
+                    com.example.cashbookbd.applist.DeepDeleteGate.DELETE_WITH_OPENING_INVOICE ->
+                        settings?.deleteWithOpeningInvoice == true
+                }
+            },
+            deepDeleteCutoff = settings?.deleteWithOpeningInvoiceDate.orEmpty(),
+            measureEnabled = measureEnabled,
             openingEnabled = openingEnabled,
             canDeleteVoucher = canDeleteVoucher,
             filterKey = spec?.filterKey,
             filterLabel = spec?.filterLabel.orEmpty(),
             filterOptions = spec?.filterOptions.orEmpty(),
+            searchable = spec?.searchable == true,
+            selectorFilters = spec?.selectorFilters.orEmpty(),
+            selectorOptions = spec?.selectorFilters.orEmpty().associate {
+                it.paramKey to listOf(com.example.cashbookbd.ui.reports.model.SelectorOption("", it.allLabel))
+            },
         )
     )
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
 
     init {
         if (spec != null) load(1)
+        spec?.selectorFilters.orEmpty().forEach { filter ->
+            viewModelScope.launch {
+                val r = selectorRepository?.fetch(filter.source) as? Resource.Success ?: return@launch
+                _uiState.update {
+                    it.copy(
+                        selectorOptions = it.selectorOptions + (
+                            filter.paramKey to listOf(com.example.cashbookbd.ui.reports.model.SelectorOption("", filter.allLabel)) + r.data
+                            ),
+                    )
+                }
+            }
+        }
+        if (measureEnabled) {
+            viewModelScope.launch {
+                // The same authorized unit list the product form's Unit uses.
+                (productRepository.loadProductFormOptions() as? Resource.Success)?.let { r ->
+                    _uiState.update { it.copy(units = r.data.units, rows = withUnitNames(it.rows, r.data.units)) }
+                }
+            }
+        }
+    }
+
+    /** "0.667 kg": the measurement cells read with their unit's name. */
+    private fun withUnitNames(
+        rows: List<AppListRow>,
+        units: List<com.example.cashbookbd.ui.reports.model.SelectorOption> = _uiState.value.units,
+    ): List<AppListRow> {
+        if (!measureEnabled) return rows
+        val cols = spec?.columns.orEmpty()
+        val mi = cols.indexOfFirst { it.key == "measurement" }
+        val pi = cols.indexOfFirst { it.key == "package_size" }
+        fun unit(id: String) = units.firstOrNull { it.id == id }?.label.orEmpty()
+        fun text(value: String, unitId: String) =
+            if (value.isBlank()) "-" else listOf(value, unit(unitId)).filter { it.isNotBlank() }.joinToString(" ")
+        return rows.map { row ->
+            val o = row.opening ?: return@map row
+            row.copy(
+                cells = row.cells.mapIndexed { i, c ->
+                    when (i) {
+                        mi -> text(o.measurement, o.measurementUnitId)
+                        pi -> text(o.packageSize, o.packageUnitId)
+                        else -> c
+                    }
+                },
+            )
+        }
+    }
+
+    fun startMeasureEdit(row: AppListRow) {
+        val o = row.opening ?: return
+        _uiState.update {
+            it.copy(
+                measureEdit = row,
+                measureFields = com.example.cashbookbd.ui.products.MeasurementFields(
+                    measurement = o.measurement,
+                    measurementUnitId = o.measurementUnitId.takeIf { u -> u != "0" }.orEmpty(),
+                    packageSize = o.packageSize,
+                    packageUnitId = o.packageUnitId.takeIf { u -> u != "0" }.orEmpty(),
+                ),
+            )
+        }
+    }
+
+    fun onMeasureFields(f: com.example.cashbookbd.ui.products.MeasurementFields) =
+        _uiState.update { it.copy(measureFields = f) }
+
+    fun cancelMeasureEdit() = _uiState.update { it.copy(measureEdit = null) }
+
+    /** Validated against the same rules the product forms keep, then saved. */
+    fun saveMeasure() {
+        val state = _uiState.value
+        val o = state.measureEdit?.opening ?: return
+        val f = state.measureFields
+        f.error?.let { msg ->
+            _uiState.update { it.copy(actionMessage = msg) }
+            return
+        }
+        _uiState.update { it.copy(isSavingMeasure = true) }
+        viewModelScope.launch {
+            val result = productRepository.saveInlineMeasurement(
+                productId = o.productId,
+                measurement = f.measurementForApi(),
+                measurementUnitId = f.measurementUnitId,
+                packageSize = f.packageSizeForApi(),
+                packageUnitId = f.packageUnitId,
+            )
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(isSavingMeasure = false, measureEdit = null, actionMessage = result.data) }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(isSavingMeasure = false, actionMessage = result.message, sessionExpired = it.sessionExpired || result.isUnauthorized)
+                }
+                Resource.Loading -> Unit
+            }
+        }
     }
 
     /** Refreshes the current page without the spinner — the on-resume reload. */
@@ -101,10 +240,17 @@ class AppListViewModel(
         val baseSpec = spec ?: return
         // The one extra toolbar filter (Login Log's Result), when the spec
         // declares one — merged in like search would be, had this engine one.
-        val currentSpec = baseSpec.filterKey?.let { key ->
+        val filtered = baseSpec.filterKey?.let { key ->
             val value = _uiState.value.filterValue
             if (value.isEmpty()) baseSpec else baseSpec.copy(params = baseSpec.params + (key to value))
         } ?: baseSpec
+        // The search and the selector filters ride as params too; a blank
+        // selector is sent empty, which the server reads as "all".
+        val currentSpec = filtered.copy(
+            params = filtered.params +
+                (if (filtered.searchable) mapOf("search" to _uiState.value.appliedSearch) else emptyMap()) +
+                filtered.selectorFilters.associate { it.paramKey to (_uiState.value.selectorValues[it.paramKey] ?: "") },
+        )
         // With rows already on screen this is a page turn: the table stays put
         // under a thin progress line instead of vanishing behind the spinner.
         // (A retry after an error goes back through the full spinner — there
@@ -122,7 +268,7 @@ class AppListViewModel(
                     it.copy(
                         isLoading = false,
                         isPageLoading = false,
-                        rows = result.data.rows,
+                        rows = withUnitNames(result.data.rows),
                         summary = result.data.summary,
                         currentPage = result.data.currentPage,
                         lastPage = result.data.lastPage,
@@ -161,6 +307,20 @@ class AppListViewModel(
     }
 
     /** Changes the toolbar's extra filter (the Login Log's Result) and reloads from page 1. */
+    fun onSearchText(value: String) = _uiState.update { it.copy(searchText = value) }
+
+    /** Applied on the search key only — typing alone does not reload (web 681144ed). */
+    fun applySearch() {
+        _uiState.update { it.copy(appliedSearch = it.searchText.trim()) }
+        load(page = 1)
+    }
+
+    fun onSelectorFilter(paramKey: String, id: String) {
+        if (_uiState.value.selectorValues[paramKey].orEmpty() == id) return
+        _uiState.update { it.copy(selectorValues = it.selectorValues + (paramKey to id)) }
+        load(page = 1)
+    }
+
     fun onFilterChange(value: String) {
         if (value == _uiState.value.filterValue) return
         _uiState.update { it.copy(filterValue = value) }
@@ -246,6 +406,42 @@ class AppListViewModel(
                         isDeleting = false,
                         pendingDelete = null,
                         actionMessage = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
+    // ---- The deeper delete (Product List: product + its opening invoice) ----
+
+    fun requestDeepDelete(row: AppListRow) {
+        if (row.deleteId == null) return
+        _uiState.update { it.copy(pendingDeepDelete = row) }
+    }
+
+    fun cancelDeepDelete() = _uiState.update { it.copy(pendingDeepDelete = null) }
+
+    fun confirmDeepDelete() {
+        val currentSpec = spec ?: return
+        val deep = _uiState.value.deepDeleteAction ?: return
+        val id = _uiState.value.pendingDeepDelete?.deleteId ?: return
+        if (_uiState.value.isDeleting) return
+        _uiState.update { it.copy(isDeleting = true) }
+        viewModelScope.launch {
+            when (val result = repository.delete(currentSpec.copy(deleteAction = deep.action), id)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(isDeleting = false, pendingDeepDelete = null, actionMessage = "Product deleted successfully.")
+                    }
+                    load(_uiState.value.currentPage, silent = true)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        isDeleting = false,
+                        pendingDeepDelete = null,
+                        actionMessage = result.message.ifBlank { "Product and its opening invoice could not be deleted." },
                         sessionExpired = it.sessionExpired || result.isUnauthorized,
                     )
                 }
@@ -436,6 +632,7 @@ class AppListViewModel(
                     canDeleteVoucher = com.example.cashbookbd.session.Permissions
                         .hasAny(sessionState.permissions, listOf("voucher.delete")),
                     permissions = sessionState.permissions,
+                    selectorRepository = ServiceLocator.provideSelectorRepository(context.applicationContext),
                 )
             }
         }

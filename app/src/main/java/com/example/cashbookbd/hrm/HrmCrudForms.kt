@@ -460,7 +460,7 @@ object HrmCrudForms {
         ),
         HrmCrudSpec(
             key = "hotelSlots",
-            title = "Sitting",
+            title = "Shift",
             anyOf = listOf("hotel.resource.view"),
             listPath = "hotel-setup/slots",
             storePath = "hotel-setup/slots/store",
@@ -469,7 +469,7 @@ object HrmCrudForms {
             editFetch = CrudEditFetch.ENDPOINT,
             editPath = "hotel-setup/slots/edit",
             fields = listOf(
-                CrudField("name", "Sitting", CrudFieldKind.TEXT, required = true),
+                CrudField("name", "Shift", CrudFieldKind.TEXT, required = true),
                 // Lower-cased by the server; two of one name are two rows a
                 // clerk cannot tell apart on a dropdown.
                 CrudField("code", "Code", CrudFieldKind.TEXT, required = true),

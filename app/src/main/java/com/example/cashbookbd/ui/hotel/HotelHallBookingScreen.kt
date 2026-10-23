@@ -330,7 +330,7 @@ fun HotelHallBookingScreen(
                     }
                     state.availability == null -> item {
                         Text(
-                            state.error ?: "Nothing to show. Set a hall up on Hotel Setup, and the sittings it is let for.",
+                            state.error ?: "Nothing to show. Set a hall up on Hotel Setup, and the shifts it is let for.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.appColors.textOnScreenMuted,
                             textAlign = TextAlign.Center,
@@ -425,7 +425,7 @@ private fun HallCard(hall: HallRow, chosen: Set<String>, onToggle: (HallRow, Hal
                 listOfNotNull(
                     hall.building.takeIf { it.isNotBlank() },
                     hall.capacity.takeIf { it > 0 }?.let { "$it seats" },
-                    hall.rent?.let { "${AmountFormat.format(it)} a sitting" } ?: "no rate set",
+                    hall.rent?.let { "${AmountFormat.format(it)} a shift" } ?: "no rate set",
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall, color = muted,
             )

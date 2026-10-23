@@ -32,6 +32,7 @@ class TransactionFormViewModel(
     private val transactionRepository: TransactionRepository,
     private val ledgerRepository: LedgerRepository,
     private val selectorRepository: SelectorRepository,
+    private val webApi: com.example.cashbookbd.data.remote.WebApi? = null,
 ) : ViewModel() {
 
     private val spec = TransactionForms.byKey(txnKey)
@@ -50,6 +51,7 @@ class TransactionFormViewModel(
             fields = spec?.fields.orEmpty(),
             remarksLabel = spec?.remarksLabel ?: "Remarks",
             amountLabel = spec?.amountLabel ?: "Amount (Tk.)",
+            showManualVoucherNo = spec?.manualVoucherNo == true,
             isBankBatch = trackedContext != null,
             batchTotalLabel = if (trackedContext == "received") "Received Total" else "Payment Total",
         )
@@ -60,7 +62,43 @@ class TransactionFormViewModel(
         if (spec?.fields?.any { it.picker == TxnPicker.BANK } == true) loadBankAccounts()
         // With no party picked yet, the every-party products come back.
         if (trackedContext != null) loadTrackedProducts(coa4Id = null)
+        // A Tiles and Sanitary branch gets its own Bank Received (the web's
+        // BankReceivedIndex reads the current branch's flag).
+        val api = webApi
+        if (trackedContext == "received" && api != null) {
+            viewModelScope.launch {
+                if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
+                    _uiState.update { it.copy(isTiles = true) }
+                }
+            }
+        }
     }
+
+    /** Tiles: the party's balance with its sign; pre-fills Amount only when owing. */
+    private fun loadPreviousBalance(accountId: String) {
+        val api = webApi ?: return
+        viewModelScope.launch {
+            val r = api.get("trading/cash/received/previous-balance", mapOf("account" to accountId, "allow_negative" to "1"))
+            val balance = (r as? Resource.Success)?.data?.let { body ->
+                body.get("data")?.takeIf { it.isJsonObject }?.asJsonObject?.let { d ->
+                    (d.get("data")?.takeIf { it.isJsonObject }?.asJsonObject ?: d).get("balance")
+                }?.takeIf { it.isJsonPrimitive }?.asString?.toDoubleOrNull()
+            } ?: 0.0
+            _uiState.update {
+                if (it.selections["account"]?.id != accountId) it
+                else it.copy(
+                    previousBalance = balance,
+                    amount = if (balance > 0) (if (balance % 1.0 == 0.0) balance.toLong().toString() else balance.toString()) else "",
+                )
+            }
+        }
+    }
+
+    fun onDiscountChange(value: String) = _uiState.update {
+        it.copy(discount = value.filterIndexed { i, c -> c.isDigit() || (c == '.' && !value.take(i).contains('.')) })
+    }
+
+    fun onInstrumentNoChange(value: String) = _uiState.update { it.copy(instrumentNo = value) }
 
     /**
      * The party-scoped tracked products, like the web's useTrackedProducts:
@@ -174,6 +212,7 @@ class TransactionFormViewModel(
             _uiState.update { it.copy(trackedProduct = null) }
             loadTrackedProducts(coa4Id = selection.id)
         }
+        if (key == "account" && _uiState.value.isTiles) loadPreviousBalance(selection.id)
     }
 
     fun onAmountChange(value: String) {
@@ -184,6 +223,10 @@ class TransactionFormViewModel(
 
     fun onRemarksChange(value: String) {
         _uiState.update { it.copy(remarks = value) }
+    }
+
+    fun onManualVoucherNoChange(value: String) {
+        _uiState.update { it.copy(manualVoucherNo = value) }
     }
 
     suspend fun searchLedgers(query: String): Resource<List<LedgerDropdownItem>> =
@@ -204,6 +247,8 @@ class TransactionFormViewModel(
                     spec = currentSpec,
                     bank = state.selections.getValue("bank"),
                     lines = state.lines,
+                    tilesDiscount = if (state.isTiles) state.discount.toDoubleOrNull() ?: 0.0 else null,
+                    tilesInstrumentNo = if (state.isTiles) state.instrumentNo else null,
                 )
             } else {
                 transactionRepository.submit(
@@ -212,6 +257,7 @@ class TransactionFormViewModel(
                     amount = state.amount.toDoubleOrNull() ?: 0.0,
                     remarks = state.remarks.trim(),
                     trackedProductId = state.trackedProduct?.id.orEmpty(),
+                    manualVoucherNo = state.manualVoucherNo.trim(),
                 )
             }
             when (result) {
@@ -229,6 +275,10 @@ class TransactionFormViewModel(
                         },
                         amount = "",
                         remarks = "",
+                        manualVoucherNo = "",
+                        previousBalance = 0.0,
+                        discount = "",
+                        instrumentNo = "",
                         trackedProduct = null,
                         lines = emptyList(),
                     )
@@ -263,6 +313,7 @@ class TransactionFormViewModel(
                     transactionRepository = ServiceLocator.provideTransactionRepository(appContext),
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
                     selectorRepository = ServiceLocator.provideSelectorRepository(appContext),
+                    webApi = ServiceLocator.provideWebApi(appContext),
                 )
             }
         }

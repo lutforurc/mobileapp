@@ -10,10 +10,11 @@ data class AddBrandUiState(
     val savedMessage: String? = null,
     val sessionExpired: Boolean = false,
 ) {
-    /** The web requires name, address and contact; email is optional. */
+    /** A filled email the mailer cannot read; blank is fine (web 6573a2c6). */
+    val emailInvalid: Boolean
+        get() = email.isNotBlank() && !Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email.trim())
+
+    /** The name is the only thing the web asks for; a filled email is still checked. */
     val canSave: Boolean
-        get() = !isSaving &&
-            name.isNotBlank() &&
-            address.isNotBlank() &&
-            contacts.isNotBlank()
+        get() = !isSaving && name.isNotBlank() && !emailInvalid
 }

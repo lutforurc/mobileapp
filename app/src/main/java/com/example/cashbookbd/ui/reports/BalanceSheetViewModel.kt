@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.jNum
+import com.example.cashbookbd.core.jPayload
+import com.example.cashbookbd.data.remote.WebApi
 import com.example.cashbookbd.data.repository.BalanceSheetRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.ReportRepository
@@ -26,6 +29,7 @@ class BalanceSheetViewModel(
     private val reportRepository: ReportRepository,
     private val dashboardRepository: DashboardRepository,
     private val balanceSheetRepository: BalanceSheetRepository,
+    private val webApi: WebApi? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BalanceSheetUiState())
@@ -106,6 +110,9 @@ class BalanceSheetViewModel(
                 reportError = null,
                 appliedBranchName = null,
                 appliedRange = null,
+                appliedAsOn = null,
+                stockOut = null,
+                stockIn = null,
             )
         }
     }
@@ -124,14 +131,30 @@ class BalanceSheetViewModel(
                 endDate = state.endDate.toApi(),
             )
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(
-                        isReportLoading = false,
-                        report = result.data,
-                        reportError = null,
-                        appliedBranchName = branch.name,
-                        appliedRange = "${state.startDate.toDisplay()} — ${state.endDate.toDisplay()}",
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isReportLoading = false,
+                            report = result.data,
+                            reportError = null,
+                            appliedBranchName = branch.name,
+                            appliedRange = "${state.startDate.toDisplay()} — ${state.endDate.toDisplay()}",
+                            appliedAsOn = state.endDate.toDisplay(),
+                            stockOut = null,
+                            stockIn = null,
+                        )
+                    }
+                    // The stock-movement note's figures, from the same read-only
+                    // endpoint the Trial Balance uses. A failed read leaves them
+                    // null, so the note is left out rather than shown as nil.
+                    val params = mapOf(
+                        "branch_id" to branch.id.toString(),
+                        "start_date" to state.startDate.toApi(),
+                        "end_date" to state.endDate.toApi(),
                     )
+                    (webApi?.get("reports/trialbalance-level3-write-off", params) as? Resource.Success)?.data?.jPayload()?.let { o ->
+                        _uiState.update { it.copy(stockOut = o.jNum("product_out"), stockIn = o.jNum("product_in")) }
+                    }
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -159,6 +182,7 @@ class BalanceSheetViewModel(
                     reportRepository = ServiceLocator.provideReportRepository(appContext),
                     dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
                     balanceSheetRepository = ServiceLocator.provideBalanceSheetRepository(appContext),
+                    webApi = ServiceLocator.provideWebApi(appContext),
                 )
             }
         }

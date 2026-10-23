@@ -311,6 +311,11 @@ data class ReportConfig(
      * without a second table-rendering mode. Null = no banding.
      */
     val groupByColumn: String? = null,
+    /**
+     * Closing Stock / Stock Details: one "{band} Total Tk." row under each
+     * [groupByColumn] band carrying its quantity, weighted rate and value.
+     */
+    val stockGroupSummary: Boolean = false,
 ) {
     /** True when the generic filter → result flow can run this report today. */
     val isGenericSupported: Boolean
@@ -1254,9 +1259,11 @@ object ReportMenu {
             responseShape = ReportResponseShape.NESTED_GROUPS,
             hiddenColumns = CLOSING_STOCK_HIDDEN,
             columnLabels = CLOSING_STOCK_LABELS,
-            totalColumns = listOf("total_stock"),
+            // Grand Total carries Stock Qty too (web d3c2631c).
+            totalColumns = listOf("stock", "total_stock"),
             totalRowLabel = "Grand Total",
             groupByColumn = "category",
+            stockGroupSummary = true,
         ),
         ReportConfig(
             key = "stockDetails",
@@ -1276,9 +1283,10 @@ object ReportMenu {
             responseShape = ReportResponseShape.NESTED_GROUPS,
             hiddenColumns = CLOSING_STOCK_HIDDEN,
             columnLabels = CLOSING_STOCK_LABELS,
-            totalColumns = listOf("total_stock"),
+            totalColumns = listOf("stock", "total_stock"),
             totalRowLabel = "Grand Total",
             groupByColumn = "category",
+            stockGroupSummary = true,
         ),
         ReportConfig(
             key = "productStock",

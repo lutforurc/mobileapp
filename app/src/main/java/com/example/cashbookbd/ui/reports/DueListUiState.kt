@@ -25,6 +25,8 @@ data class DueListUiState(
      * this decides whether the five columns are drawn.
      */
     val showAgeing: Boolean = true,
+    /** Client Type, sent as party_type_id on Apply — blank is every party. */
+    val partyType: com.example.cashbookbd.ui.reports.model.SelectorOption = com.example.cashbookbd.ui.customer.ALL_CLIENT_TYPES,
 
     val sessionExpired: Boolean = false,
 ) {

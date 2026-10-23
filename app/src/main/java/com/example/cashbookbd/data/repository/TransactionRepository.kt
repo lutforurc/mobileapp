@@ -73,6 +73,7 @@ class TransactionRepository(
         amount: Double,
         remarks: String,
         trackedProductId: String = "",
+        manualVoucherNo: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
         val tempId = System.currentTimeMillis()
         try {
@@ -110,7 +111,9 @@ class TransactionRepository(
 
                 TxnKind.EMPLOYEE_LOAN -> api.postObject(
                     spec.endpoint,
-                    lineRow(tempId, selections.getValue("account"), remarks, amount),
+                    lineRow(tempId, selections.getValue("account"), remarks, amount).apply {
+                        addProperty("manual_voucher_no", manualVoucherNo)
+                    },
                 )
             }
 
@@ -146,11 +149,22 @@ class TransactionRepository(
         endpoint: String,
         lines: List<CashVoucherLine>,
         trading: Boolean,
+        /**
+         * Voucher-level figures the server reads off the FIRST row only
+         * (`$raw_data[0]`) — Tiles Cash Received's discount and manual voucher no.
+         */
+        firstRowExtras: Map<String, String> = emptyMap(),
     ): Resource<String> = postForMessage {
         api.postArray(
             endpoint,
             JsonArray().apply {
-                lines.forEachIndexed { index, line -> add(cashVoucherRow(line, index, trading)) }
+                lines.forEachIndexed { index, line ->
+                    add(
+                        cashVoucherRow(line, index, trading).apply {
+                            if (index == 0) firstRowExtras.forEach { (k, v) -> addProperty(k, v) }
+                        },
+                    )
+                }
             },
         )
     }
@@ -219,6 +233,12 @@ class TransactionRepository(
         spec: TxnFormSpec,
         bank: TxnSelection,
         lines: List<CashVoucherLine>,
+        /**
+         * Tiles Bank Received: discount and instrument number, voucher-level
+         * and sent on every save, blanks included (an absent key means "leave").
+         */
+        tilesDiscount: Double? = null,
+        tilesInstrumentNo: String? = null,
     ): Resource<String> = postForMessage {
         val received = spec.kind == TxnKind.BANK_RECEIVED
         val tempId = System.currentTimeMillis()
@@ -226,6 +246,8 @@ class TransactionRepository(
             spec.endpoint,
             JsonObject().apply {
                 addProperty("mtmId", "")
+                tilesDiscount?.let { addProperty("discount", it) }
+                tilesInstrumentNo?.let { addProperty("manual_voucher_no", it) }
                 addProperty(if (received) "bankReceivedAccount" else "bankPaymentAccount", bank.id)
                 addProperty(if (received) "bankReceivedAccountName" else "bankPaymentAccountName", bank.name)
                 add("transactions", JsonArray().apply {

@@ -203,6 +203,10 @@ class GenericReportRepository(
                 .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
                 .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
                 .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
+                .let { rows ->
+                    val key = config.groupByColumn
+                    if (config.stockGroupSummary && key != null) rows.withStockGroupSummaries(key) else rows
+                }
             ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
@@ -376,6 +380,54 @@ class GenericReportRepository(
     private fun List<ReportRow>.sortedBandedBy(groupKey: String): List<ReportRow> {
         val key = groupKey.lowercase(Locale.US)
         return sortedBy { row -> row.cells.firstOrNull { it.key == key }?.value?.lowercase(Locale.US).orEmpty() }
+    }
+
+    /**
+     * Stock Details' one "{group} Total Tk." row under each band (web a39e12b0):
+     * the band's quantity, its quantity-weighted rate (value ÷ quantity, summed
+     * before dividing) and its value. The rows are marked [ReportRow.isSummary]
+     * so the Grand Total never counts them a second time.
+     */
+    private fun List<ReportRow>.withStockGroupSummaries(groupKey: String): List<ReportRow> {
+        val key = groupKey.lowercase(Locale.US)
+        fun ReportRow.cell(k: String) = cells.firstOrNull { it.key == k }
+        fun ReportRow.num(k: String) =
+            cell(k)?.value?.trim()?.substringBefore(' ')?.replace(",", "")?.toDoubleOrNull()
+        val out = mutableListOf<ReportRow>()
+        var i = 0
+        while (i < size) {
+            val band = this[i].cell(key)?.value.orEmpty()
+            var qty = 0.0
+            var value = 0.0
+            while (i < size && this[i].cell(key)?.value.orEmpty() == band) {
+                val row = this[i]
+                out += row
+                // A row missing either figure is left out whole.
+                val q = row.num("stock")
+                val v = row.num("total_stock")
+                if (q != null && v != null) {
+                    qty += q
+                    value += v
+                }
+                i++
+            }
+            val template = out.last()
+            out += ReportRow(
+                cells = template.cells.map { c ->
+                    c.copy(
+                        value = when (c.key) {
+                            key -> "$band Total Tk."
+                            "stock" -> AmountFormat.format(qty)
+                            "rate" -> AmountFormat.format(if (qty > 0) value / qty else 0.0)
+                            "total_stock" -> AmountFormat.format(value)
+                            else -> ""
+                        },
+                    )
+                },
+                isSummary = true,
+            )
+        }
+        return out
     }
 
     /**

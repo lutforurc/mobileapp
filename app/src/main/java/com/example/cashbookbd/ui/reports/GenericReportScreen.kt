@@ -804,7 +804,7 @@ private fun buildGenericColumns(
 ): List<ReportColumn<List<String>>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
-            cellText((index + 1).toString(), align = TextAlign.Center)
+            cellText(table.serials.getOrNull(index) ?: (index + 1).toString(), align = TextAlign.Center)
         },
     )
     table.columns.forEachIndexed { ci, label ->
@@ -819,6 +819,7 @@ private fun buildGenericColumns(
                 cellText(
                     row.getOrNull(ci).orEmpty(),
                     align = align,
+                    bold = table.summaryRows.getOrNull(index) == true,
                     maxLines = 2,
                     highlight = if (ci == table.highlightCol) rowHighlights.getOrNull(index) else null,
                 )
@@ -884,6 +885,10 @@ private data class TableModel(
     /** Per-column footer totals ("" = blank cell); null = no footer row. */
     val footer: List<String>? = null,
     val footerLabel: String = "Total",
+    /** Per row, whether it is a band's own total line (bold, unnumbered). */
+    val summaryRows: List<Boolean> = emptyList(),
+    /** Per row, the Sl text; restarts after each band summary. */
+    val serials: List<String> = emptyList(),
 )
 
 /**
@@ -928,7 +933,10 @@ private fun buildTable(
             if (keyByLabel[label] !in totalColumns) {
                 ""
             } else {
-                val sum = matrix.sumOf { parseCellNumber(it[columns.indexOf(label)]) }
+                val col = columns.indexOf(label)
+                // A band's summary line already totals the rows above it.
+                val sum = matrix.indices.filterNot { rows[it].isSummary }
+                    .sumOf { parseCellNumber(matrix[it][col]) }
                 if (sum == 0.0) "-" else AmountFormat.format(sum)
             }
         }.takeIf { it.any { v -> v.isNotEmpty() } }
@@ -944,6 +952,12 @@ private fun buildTable(
         attachments = rows.map { it.voucherAttachments },
         footer = footer,
         footerLabel = totalRowLabel,
+        summaryRows = rows.map { it.isSummary },
+        serials = run {
+            // Numbered within each band; the summary line takes no number.
+            var n = 0
+            rows.map { if (it.isSummary) { n = 0; "" } else (++n).toString() }
+        },
     )
 }
 

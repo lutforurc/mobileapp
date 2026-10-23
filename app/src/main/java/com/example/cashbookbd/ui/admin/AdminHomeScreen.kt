@@ -56,7 +56,7 @@ fun AdminHomeScreen(
     androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
 
     val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
-        "admin", AdminMenu.visible(sessionState.permissions), subPrefs,
+        "admin", AdminMenu.visible(sessionState.permissions, sessionState.settings?.isPlatformAdmin == true), subPrefs,
     ) { it.key }
 
     AuthenticatedShell(
@@ -108,6 +108,11 @@ fun AdminHomeScreen(
                             item.key == "adminNotifications" -> Routes.ADMIN_NOTIFICATIONS
                             item.key == "addPermission" -> Routes.ADD_PERMISSION
                             item.key == "addGroupReport" -> Routes.GROUP_REPORT_SETUP
+                            item.key == "approvalCenter" -> com.example.cashbookbd.navigation.ParityRoutes.APPROVAL_CENTER
+                            item.key == "websiteTemplates" -> com.example.cashbookbd.navigation.ParityRoutes.WEBSITE_TEMPLATES
+                            item.key == "resellers" -> com.example.cashbookbd.navigation.ParityRoutes.RESELLER_ADMIN
+                            item.key == "voucherUpload" -> com.example.cashbookbd.navigation.ParityRoutes.VOUCHER_UPLOAD
+                            item.key == "bulkUpload" -> com.example.cashbookbd.navigation.ParityRoutes.BULK_UPLOAD
                             AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                             else -> Routes.adminView(item.key)
                         }

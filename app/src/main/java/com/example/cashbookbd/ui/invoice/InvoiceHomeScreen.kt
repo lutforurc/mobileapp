@@ -20,8 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +51,14 @@ fun InvoiceHomeScreen(
     val context = LocalContext.current
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
+
+    // A Tiles and Sanitary branch has its own Sales/Purchase screens; the flag
+    // comes from `user/current-branch` (the web's SalesIndex reads the same).
+    val branchApi = remember { ServiceLocator.provideWebApi(context.applicationContext) }
+    var isTiles by remember { mutableStateOf(CurrentBranchCache.value?.isTilesAndSanitary == true) }
+    LaunchedEffect(sessionState.settings?.branchId) {
+        isTiles = CurrentBranchCache.load(branchApi, force = true)?.isTilesAndSanitary == true
+    }
 
     val items = InvoiceMenu.visible(
         sessionState.permissions,
@@ -86,6 +97,12 @@ fun InvoiceHomeScreen(
                             InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
                             InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
                             InvoiceMenu.DELIVERY_KEY -> com.example.cashbookbd.navigation.ParityRoutes.delivery(null)
+                            "purchaseImport" -> com.example.cashbookbd.navigation.ParityRoutes.PURCHASE_IMPORT
+                            "salesImport" -> com.example.cashbookbd.navigation.ParityRoutes.SALES_IMPORT
+                            "sales" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES else Routes.invoiceView(item.key)
+                            "purchase" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE else Routes.invoiceView(item.key)
+                            "salesReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES_RETURN else Routes.invoiceView(item.key)
+                            "purchaseReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE_RETURN else Routes.invoiceView(item.key)
                             else -> Routes.invoiceView(item.key)
                         }
                         navController.navigate(route)

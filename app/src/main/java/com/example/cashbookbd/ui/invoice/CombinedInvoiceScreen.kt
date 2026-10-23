@@ -658,7 +658,7 @@ private fun CombinedLinesList(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(line.product.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                        Text(line.product.rowLabel, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                         Text(
                             text = "Qty ${AmountFormat.format(line.qty)}${line.product.unit.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""}",
                             style = MaterialTheme.typography.bodySmall,

@@ -160,6 +160,38 @@ fun AppListScreen(
                     onAdd = { navController.navigate(it) },
                 )
             }
+            if (state.searchable || state.selectorFilters.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (state.searchable) {
+                        // Applied on the keyboard's search key, as the web's Enter.
+                        com.example.cashbookbd.ui.components.AppTextField(
+                            value = state.searchText,
+                            onValueChange = viewModel::onSearchText,
+                            label = "Search",
+                            modifier = Modifier.fillMaxWidth(),
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { viewModel.applySearch() }),
+                        )
+                    }
+                    state.selectorFilters.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            pair.forEach { f ->
+                                val options = state.selectorOptions[f.paramKey].orEmpty()
+                                com.example.cashbookbd.ui.components.AppSelectDropdown(
+                                    label = f.label,
+                                    options = options,
+                                    selected = options.firstOrNull { it.id == state.selectorValues[f.paramKey].orEmpty() },
+                                    onSelected = { viewModel.onSelectorFilter(f.paramKey, it.id) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             Box(modifier = Modifier.weight(1f)) {
                 ListBody(
                     state = state,
@@ -175,6 +207,8 @@ fun AppListScreen(
                     onDelete = viewModel::requestDelete,
                     onOpeningEdit = viewModel::startOpeningEdit,
                     onHistory = viewModel::showHistory,
+                    onDeepDelete = viewModel::requestDeepDelete,
+                    onMeasureEdit = viewModel::startMeasureEdit,
                 )
                 // A page turn keeps the table on screen; the only sign the next
                 // page is on its way is this spinner floating over it on a
@@ -219,6 +253,69 @@ fun AppListScreen(
             error = state.historyError,
             view = state.history,
             onDismiss = viewModel::dismissHistory,
+        )
+    }
+
+    state.measureEdit?.let { row ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelMeasureEdit,
+            title = { Text(row.opening?.name?.ifBlank { null } ?: "Measurement") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.example.cashbookbd.ui.products.MeasurementFieldsBlock(
+                        state.measureFields, state.units, viewModel::onMeasureFields,
+                    )
+                    state.measureFields.error?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Save",
+                    onClick = viewModel::saveMeasure,
+                    enabled = !state.isSavingMeasure && state.measureFields.error == null,
+                    isLoading = state.isSavingMeasure,
+                    compact = true,
+                )
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelMeasureEdit) },
+        )
+    }
+
+    state.pendingDeepDelete?.let { row ->
+        val deep = state.deepDeleteAction
+        val cutoff = com.example.cashbookbd.ui.reports.model.SimpleDate.fromApi(state.deepDeleteCutoff)?.toDisplay()
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDeepDelete,
+            title = { Text(deep?.confirmTitle ?: "Delete") },
+            text = {
+                Column {
+                    Text(
+                        "Delete ${row.cells.firstOrNull { it.isNotBlank() && it != "-" } ?: "this product"} " +
+                            "and the one old opening invoice that brought it in?",
+                    )
+                    Text(
+                        "Only where the product has never been sold, sits in at most one opening invoice " +
+                            "with no other product on it, and that invoice is dated before " +
+                            "${cutoff ?: "the branch's cutoff date"}. The invoice's stock and ledger voucher go " +
+                            "with it. This cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.appColors.textOnScreenMuted,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Delete",
+                    onClick = viewModel::confirmDeepDelete,
+                    enabled = !state.isDeleting,
+                    isLoading = state.isDeleting,
+                    compact = true,
+                )
+            },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::cancelDeepDelete) },
         )
     }
 
@@ -502,6 +599,8 @@ private fun ListBody(
     onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
     onHistory: (AppListRow) -> Unit,
+    onDeepDelete: (AppListRow) -> Unit = {},
+    onMeasureEdit: (AppListRow) -> Unit = {},
 ) {
     when {
         state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
@@ -525,12 +624,12 @@ private fun ListBody(
         else -> {
             val columns = remember(
                 state.columns, state.hasStatusToggle, state.editAction, state.deleteAction,
-                state.historyAction, state.togglingIds, state.openingEnabled,
+                state.historyAction, state.togglingIds, state.openingEnabled, state.deepDeleteAction, state.measureEnabled,
                 // The serial column bakes in the page offset, so a page turn
                 // (or page-size change) must rebuild the columns.
                 state.currentPage, state.perPage,
             ) {
-                buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit, onHistory)
+                buildColumns(state, onToggleStatus, onEdit, onDelete, onOpeningEdit, onHistory, onDeepDelete, onMeasureEdit)
             }
             Column(modifier = Modifier.fillMaxSize()) {
                 if (state.summary.isNotEmpty()) {
@@ -595,6 +694,8 @@ private fun buildColumns(
     onDelete: (AppListRow) -> Unit,
     onOpeningEdit: (AppListRow) -> Unit,
     onHistory: (AppListRow) -> Unit,
+    onDeepDelete: (AppListRow) -> Unit = {},
+    onMeasureEdit: (AppListRow) -> Unit = {},
 ): List<ReportColumn<AppListRow>> = buildList {
     // Serials continue across pages, as on the web: page 2 of 10 starts at 11.
     // Unpaginated lists sit on page 1, so their offset is zero.
@@ -621,10 +722,11 @@ private fun buildColumns(
     val hasEdit = state.editAction != null
     val hasDelete = state.deleteAction != null
     val hasHistory = state.historyAction != null
-    if (state.hasStatusToggle || hasEdit || hasDelete || hasHistory || state.openingEnabled) {
+    val hasDeepDelete = state.deepDeleteAction != null
+    if (state.hasStatusToggle || hasEdit || hasDelete || hasHistory || state.openingEnabled || state.measureEnabled) {
         // Two icon buttons (or a button plus the toggle) need the wide column;
         // three or more (Edit + History + Delete) need it wider still.
-        val actionCount = listOf(hasEdit, hasDelete, hasHistory, state.hasStatusToggle, state.openingEnabled)
+        val actionCount = listOf(hasEdit, hasDelete, hasHistory, state.hasStatusToggle, state.openingEnabled, hasDeepDelete, state.measureEnabled)
             .count { it }
         val width = when {
             actionCount > 2 -> COL_ACTION_WIDE
@@ -649,6 +751,21 @@ private fun buildColumns(
                                 Icon(
                                     imageVector = Icons.Filled.Edit,
                                     contentDescription = "Edit",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        if (state.measureEnabled) {
+                            // The measurement and packaging, in place of the
+                            // web's four inline boxes.
+                            IconButton(
+                                onClick = { onMeasureEdit(row) },
+                                enabled = row.opening != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Edit measurement",
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -691,6 +808,23 @@ private fun buildColumns(
                                     imageVector = Icons.Filled.Delete,
                                     contentDescription = "Delete",
                                     tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                        if (hasDeepDelete) {
+                            // The deeper delete: the product and its one old
+                            // opening invoice. The server refuses unless every
+                            // one of its conditions holds.
+                            IconButton(
+                                onClick = { onDeepDelete(row) },
+                                enabled = row.deleteId != null,
+                                modifier = Modifier.size(EditButtonSize),
+                            ) {
+                                // The web's second bin, a darker red than the first.
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = state.deepDeleteAction?.title,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
                                 )
                             }
                         }

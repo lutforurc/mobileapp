@@ -246,6 +246,9 @@ private fun Results(state: BalanceSheetUiState, onRetry: () -> Unit) {
             report = state.report,
             branchName = state.appliedBranchName,
             range = state.appliedRange,
+            asOn = state.appliedAsOn,
+            stockOut = state.stockOut,
+            stockIn = state.stockIn,
         )
     }
 }
@@ -285,7 +288,7 @@ private data class SheetLine(
  * and after all three sides, Total Liabilities & Equity. Serials run straight
  * through every side, as on the paper.
  */
-private fun buildLines(report: BalanceSheetReport): List<SheetLine> {
+private fun buildLines(report: BalanceSheetReport, noteIndex: Map<String, Int> = emptyMap()): List<SheetLine> {
     val lines = mutableListOf<SheetLine>()
     var serial = 0
     val sideTotals = mutableMapOf<String, BalanceSheetColumns>()
@@ -319,12 +322,13 @@ private fun buildLines(report: BalanceSheetReport): List<SheetLine> {
         lines += SheetLine(LineKind.SECTION, title, sectionTitle = title)
         var sideTotal = BalanceSheetColumns.ZERO
         for (sub in subsections) {
-            if (sub.name.isNotBlank()) lines += SheetLine(LineKind.SUBSECTION, sub.name, sectionTitle = title)
+            val subName = reportSectionLabel(sub.name)
+            if (sub.name.isNotBlank()) lines += SheetLine(LineKind.SUBSECTION, subName, sectionTitle = title)
             for (group in sub.listedGroups) {
                 serial += 1
                 lines += SheetLine(
                     kind = LineKind.ITEM,
-                    label = group.title,
+                    label = reportGroupLabel(group.title, noteIndex),
                     side = side,
                     columns = BalanceSheetColumns(group.opening, group.movement, group.closing),
                     serial = serial,
@@ -343,10 +347,10 @@ private fun buildLines(report: BalanceSheetReport): List<SheetLine> {
                         columns = (sub.depreciation ?: BalanceSheetColumns.ZERO).negated(),
                         sectionTitle = title,
                     )
-                    lines += SheetLine(LineKind.SUBTOTAL, "Net ${sub.name}", side, sub.columns, sectionTitle = title)
+                    lines += SheetLine(LineKind.SUBTOTAL, "Net $subName", side, sub.columns, sectionTitle = title)
                 }
                 sub.name.isNotBlank() ->
-                    lines += SheetLine(LineKind.SUBTOTAL, "Total ${sub.name}", side, sub.columns, sectionTitle = title)
+                    lines += SheetLine(LineKind.SUBTOTAL, "Total $subName", side, sub.columns, sectionTitle = title)
             }
             sideTotal += sub.columns
         }
@@ -368,35 +372,45 @@ private fun ReportContent(
     report: BalanceSheetReport,
     branchName: String?,
     range: String?,
+    asOn: String? = null,
+    stockOut: Double? = null,
+    stockIn: Double? = null,
 ) {
     // The group whose account breakdown is open (with its side's title), if any.
     var selectedGroup by remember { mutableStateOf<Pair<String, BalanceSheetGroup>?>(null) }
-    val lines = remember(report) { buildLines(report) }
+    // The rows' [n] and the notes beneath are numbered from one index.
+    val noteIndex = remember(report, stockOut, stockIn) {
+        balanceSheetNoteIndex(report, (stockOut ?: 0.0) > 0 || (stockIn ?: 0.0) > 0)
+    }
+    val notes = remember(report, asOn, stockOut, stockIn) { buildBalanceSheetNotes(report, asOn, stockOut, stockIn) }
+    val lines = remember(report, noteIndex) { buildLines(report, noteIndex) }
     val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
     val band = MaterialTheme.colorScheme.secondaryContainer
     val columns = remember(summaryInk) {
         sheetColumns(summaryInk) { line -> line.group?.let { selectedGroup = line.sectionTitle to it } }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         val subtitle = listOfNotNull(branchName, range).joinToString("  •  ")
         if (subtitle.isNotBlank()) {
             Text(
-                text = subtitle,
+                // [1], the basis, hangs on the sheet itself, as the web's title does.
+                text = subtitle + noteRef(1),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.appColors.textOnScreenMuted,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
             )
         }
-        Box(modifier = Modifier.weight(1f)) {
-            ReportTable(
-                columns = columns,
-                data = lines,
-                headerGroups = sheetHeaderGroups,
-                rowBackground = { line, _ -> if (line.isBand || line.isSummary) band else null },
-            )
-        }
+        ReportTable(
+            columns = columns,
+            data = lines,
+            headerGroups = sheetHeaderGroups,
+            rowBackground = { line, _ -> if (line.isBand || line.isSummary) band else null },
+            // One outer scroll carries the sheet and the notes beneath it.
+            scrollable = false,
+        )
         DifferenceNote(report)
+        ReportNotesPanel("Notes to the Balance Sheet", notes)
     }
 
     selectedGroup?.let { (sectionTitle, group) ->
@@ -417,8 +431,10 @@ private fun DifferenceNote(report: BalanceSheetReport) {
     val difference = report.summary.firstOrNull { it.label == "Difference" }?.value ?: 0.0
     if (kotlin.math.abs(difference) <= 0.009) return
     Text(
+        // A real difference: a voucher whose debits and credits disagree, or a
+        // head the chart cannot place — both listed on Report Mismatch.
         text = "Difference detected: ${formatSigned(difference)}. " +
-            "Please review opening, movement, or group mapping.",
+            "See VR Settings → Report Mismatch for the vouchers and heads behind it.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.appColors.danger,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

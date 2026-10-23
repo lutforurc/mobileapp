@@ -142,11 +142,17 @@ class SettingsRepository(
                     needProductGroup = payload?.branch?.needProductGroup?.trim() == "1",
                     needPackage = payload?.branch?.needPackage?.trim() == "1",
                     ledgerShowProductDetails = payload?.branch?.ledgerShowProductDetails?.trim() != "0",
+                    isPlatformAdmin = payload?.isPlatformAdmin?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive
+                        ?.let { p -> if (p.isBoolean) p.asBoolean else p.asString.trim().let { it == "1" || it.equals("true", true) } } == true,
                     fyStartMonth = payload?.company?.fyStartMonth?.trim()?.toDoubleOrNull()?.toInt()
                         ?.takeIf { it in 1..12 } ?: 7,
                     // A branch column, numeric; the web reads Number(x) === 1.
                     deductStockOnDelivery = payload?.branch?.deductStockOnDelivery?.trim()
-                        ?.toDoubleOrNull() == 1.0,                )
+                        ?.toDoubleOrNull() == 1.0,
+                    deleteWithOpeningInvoice = payload?.branch?.deleteWithOpeningInvoice.isOnFlag(),
+                    deleteWithOpeningInvoiceDate = payload?.branch?.deleteWithOpeningInvoiceDate?.trim()?.take(10).orEmpty(),
+                    productListInlineEdit = payload?.branch?.productListInlineEdit.isOnFlag(),
+                )
             )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
@@ -160,4 +166,10 @@ class SettingsRepository(
             Resource.Error("Something went wrong. Please try again.")
         }
     }
+}
+
+/** The web's toBooleanFlag: true / "true" / 1 / "1" are on; anything else is off. */
+private fun String?.isOnFlag(): Boolean {
+    val v = this?.trim()?.lowercase() ?: return false
+    return v == "true" || v.toDoubleOrNull() == 1.0
 }

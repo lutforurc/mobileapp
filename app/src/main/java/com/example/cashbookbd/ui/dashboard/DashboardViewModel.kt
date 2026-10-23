@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.jPayload
+import com.example.cashbookbd.core.jStr
 import com.example.cashbookbd.data.remote.dto.ReceiveRequest
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.invoice.CONSTRUCTION_BUSINESS_TYPE_ID
@@ -22,6 +24,7 @@ class DashboardViewModel(
     private val repository: DashboardRepository,
     sessionManager: SessionManager,
     private val prefsRepository: com.example.cashbookbd.data.repository.DashboardPreferencesRepository? = null,
+    private val webApi: com.example.cashbookbd.data.remote.WebApi? = null,
 ) : ViewModel() {
 
     /**
@@ -46,6 +49,28 @@ class DashboardViewModel(
     init {
         prefsRepository?.load(dashboardKey, branchId)
         start()
+        loadHeading()
+    }
+
+    /**
+     * The web's businessTypeName(branch, fallback): the branch's business type
+     * from `user/current-branch`, else its name, else the page's own word.
+     */
+    private fun loadHeading() {
+        val api = webApi ?: return
+        viewModelScope.launch {
+            val branch = (api.get("user/current-branch") as? Resource.Success)?.data?.jPayload()
+            val type = branch?.get("business_type")?.let { el ->
+                when {
+                    el.isJsonPrimitive -> el.asString
+                    el.isJsonObject -> el.asJsonObject.jStr("name")
+                    else -> ""
+                }
+            }.orEmpty()
+            val heading = type.ifBlank { branch?.jStr("name").orEmpty() }
+                .ifBlank { if (isConstruction) "Construction" else "Dashboard" }
+            _uiState.update { it.copy(heading = heading) }
+        }
     }
 
     /** The widget ids this dashboard can arrange (mobile has no chart cards). */
@@ -255,6 +280,7 @@ class DashboardViewModel(
                     repository = ServiceLocator.provideDashboardRepository(app),
                     sessionManager = ServiceLocator.provideSessionManager(app),
                     prefsRepository = ServiceLocator.provideDashboardPreferencesRepository(app),
+                    webApi = ServiceLocator.provideWebApi(app),
                 )
             }
         }

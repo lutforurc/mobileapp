@@ -39,9 +39,9 @@ object InvoiceMenu {
         InvoiceItem("purchase", "Purchase", listOf("purchase.create"), supported = true),
         // Import/return items are gated on their OWN permission in the web sidebar,
         // not on purchase.create/sales.create.
-        InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.import"), supported = false),
+        InvoiceItem("purchaseImport", "Purchase Import", listOf("purchase.import"), supported = true),
         InvoiceItem("sales", "Sales", listOf("sales.create"), supported = true),
-        InvoiceItem("salesImport", "Sales Import", listOf("sales.import"), supported = false),
+        InvoiceItem("salesImport", "Sales Import", listOf("sales.import"), supported = true),
         // The web sidebar shows this to Trading (business type 8) branches whose
         // user holds BOTH purchase.create and sales.create.
         InvoiceItem(

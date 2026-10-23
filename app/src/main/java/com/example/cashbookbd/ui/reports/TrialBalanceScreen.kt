@@ -238,6 +238,7 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
         else -> ReportContent(
             report = state.report,
             range = state.appliedRange,
+            notes = state.notes,
         )
     }
 }
@@ -246,8 +247,10 @@ private fun Results(state: TrialBalanceUiState, onRetry: () -> Unit) {
 private fun ReportContent(
     report: TrialBalanceReport,
     range: String?,
+    notes: List<ReportNoteItem> = emptyList(),
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    val withNotes = notes.isNotEmpty()
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
         // Summary boxes
         Row(
             modifier = Modifier
@@ -278,7 +281,8 @@ private fun ReportContent(
         // Reporting date range (no section title / branch name).
         if (!range.isNullOrBlank()) {
             Text(
-                text = "Reporting date: $range",
+                // [1], the basis, belongs to no row: it hangs on the report itself.
+                text = "Reporting date: $range" + if (withNotes) noteRef(1) else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.appColors.textOnScreenMuted,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -295,7 +299,8 @@ private fun ReportContent(
                 )
             }
         } else {
-            TrialBalanceTable(rows = report.rows)
+            TrialBalanceTable(rows = report.rows, withNotes = withNotes, stockNote = notes.any { it.n == 6 })
+            ReportNotesPanel("Notes to the Trial Balance", notes)
         }
     }
 }
@@ -343,11 +348,11 @@ private val COL_NUM = 104.dp
  * Description, then Dr/Cr pairs whose group name (OPENING/MOVEMENT/CLOSING) sits
  * in the [trialBalanceHeaderGroups] top row.
  */
-private val trialBalanceGroupedColumns = listOf(
+private fun trialBalanceGroupedColumns(descriptionHeader: String) = listOf(
     ReportColumn<TrialBalanceRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, i ->
         cellText((i + 1).toString(), align = TextAlign.Center)
     },
-    ReportColumn<TrialBalanceRow>("DESCRIPTION", ReportColWidth.Fixed(COL_DESC)) { r, _ ->
+    ReportColumn<TrialBalanceRow>(descriptionHeader, ReportColWidth.Fixed(COL_DESC)) { r, _ ->
         cellText(r.description, maxLines = 2)
     },
     ReportColumn<TrialBalanceRow>("DR", ReportColWidth.Fixed(COL_NUM), TextAlign.End) { r, _ ->
@@ -370,19 +375,25 @@ private val trialBalanceGroupedColumns = listOf(
     },
 )
 
-private val trialBalanceHeaderGroups = listOf(
+private fun trialBalanceHeaderGroups(movementHeader: String) = listOf(
     ReportHeaderGroup("", 1),          // # (serial)
     ReportHeaderGroup("", 1),          // Description
     ReportHeaderGroup("OPENING", 2),
-    ReportHeaderGroup("MOVEMENT", 2),
+    ReportHeaderGroup(movementHeader, 2),
     ReportHeaderGroup("CLOSING", 2),
 )
 
+/**
+ * [withNotes] (Trial Balance Group) points the Description at note 3, the
+ * Movement at note 2 and the Grand Total at 4 and 5 — and 6 when the period
+ * moved stock outside the ledger.
+ */
 @Composable
-private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
+private fun TrialBalanceTable(rows: List<TrialBalanceRow>, withNotes: Boolean = false, stockNote: Boolean = false) {
+    val totalLabel = "Grand Total" + if (withNotes) noteRef(4) + noteRef(5) + (if (stockNote) noteRef(6) else "") else ""
     // Grand Total footer: label across #/Description, then each column's sum.
     val grandTotal = listOf(
-        ReportFooterCell(cellText("Grand Total", bold = true), colSpan = 2),
+        ReportFooterCell(cellText(totalLabel, bold = true, maxLines = 2), colSpan = 2),
         totalCell(rows.sumOf { it.openingDebit }),
         totalCell(rows.sumOf { it.openingCredit }),
         totalCell(rows.sumOf { it.movementDebit }),
@@ -391,10 +402,12 @@ private fun TrialBalanceTable(rows: List<TrialBalanceRow>) {
         totalCell(rows.sumOf { it.closingCredit }),
     )
     ReportTable(
-        columns = trialBalanceGroupedColumns,
+        columns = trialBalanceGroupedColumns("DESCRIPTION" + if (withNotes) noteRef(3) else ""),
         data = rows,
-        headerGroups = trialBalanceHeaderGroups,
+        headerGroups = trialBalanceHeaderGroups("MOVEMENT" + if (withNotes) noteRef(2) else ""),
         footerRows = listOf(grandTotal),
+        // The notes panel scrolls with the table under one outer scroll.
+        scrollable = false,
     )
 }
 

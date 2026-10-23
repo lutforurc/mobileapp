@@ -20,6 +20,8 @@ data class TrialBalanceUiState(
     /** The branch/date range the shown [report] was run for (for the subtitle). */
     val appliedBranchName: String? = null,
     val appliedRange: String? = null,
+    /** Trial Balance (Group) only: the numbered notes under the sheet. */
+    val notes: List<ReportNoteItem> = emptyList(),
 
     val sessionExpired: Boolean = false,
 ) {

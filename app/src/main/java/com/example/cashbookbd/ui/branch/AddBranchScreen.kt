@@ -87,6 +87,11 @@ fun AddBranchScreen(
     ),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Owner-only switches (user 1), as the web's AddBranch hides them.
+    val ownerContext = LocalContext.current
+    val isOwner = remember {
+        com.example.cashbookbd.di.ServiceLocator.provideSessionManager(ownerContext).state.value.settings?.userId == 1L
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.sessionExpired) {
@@ -154,6 +159,11 @@ fun AddBranchScreen(
                     }
 
                     state.step.fields.forEach { field ->
+                        val ownerOnly = (field as? BranchField.Toggle)?.ownerOnly == true ||
+                            (field as? BranchField.Text)?.ownerOnly == true
+                        if (ownerOnly && !isOwner) return@forEach
+                        val gate = (field as? BranchField.Text)?.visibleWhen
+                        if (gate != null && !state.flag(gate)) return@forEach
                         when (field) {
                             is BranchField.Text -> Field(
                                 label = field.label,

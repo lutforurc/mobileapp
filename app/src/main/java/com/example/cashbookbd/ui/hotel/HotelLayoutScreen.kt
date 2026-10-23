@@ -655,10 +655,10 @@ private fun RoomPanel(
     val muted = MaterialTheme.appColors.textMuted
     val switchedOff = (room.beds - room.activeBeds).coerceAtLeast(0)
     val facts = buildList {
-        add("Sold" to (if (room.isHall) "Let by the sitting" else saleModeLabel(room.saleMode)))
+        add("Sold" to (if (room.isHall) "Let by the shift" else saleModeLabel(room.saleMode)))
         // A dash, not 0.00: a room sold only by the bed has no whole-room price.
         add(
-            (if (room.isHall) "Per sitting" else "Whole room") to
+            (if (room.isHall) "Per shift" else "Whole room") to
                 (room.rent?.let { "${AmountFormat.format(it)} / ${if (room.isHall) "sitting" else "night"}" } ?: "—")
         )
         room.seatRentMin?.let { min ->
@@ -698,7 +698,7 @@ private fun RoomPanel(
                 if (room.isHall) {
                     val sittings = room.sittings.orEmpty()
                     Text(
-                        if (sittings.isEmpty()) "No sittings set — cannot be let" else "Sittings: ${sittings.joinToString(", ")}",
+                        if (sittings.isEmpty()) "No shifts set — cannot be let" else "Shifts: ${sittings.joinToString(", ")}",
                         style = MaterialTheme.typography.bodySmall, color = muted,
                     )
                 }

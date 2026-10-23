@@ -30,6 +30,12 @@ data class AddProductUiState(
     val showPackSize: Boolean = false,
     val packSizes: List<SelectorOption> = emptyList(),
     val packSize: SelectorOption? = null,
+    // Branch's warranty_controll — the warranty/guarantee type and days.
+    val showWarranty: Boolean = false,
+    val warrantyType: SelectorOption = WARRANTY_TYPES.first(),
+    val warrantyDays: String = "",
+    val measurement: MeasurementFields = MeasurementFields(),
+    val orderLevel: String = "",
     // Opening stock, gated on the branch's is_opening flag.
     val showOpening: Boolean = false,
     val openingSerialNo: String = "",
@@ -41,8 +47,9 @@ data class AddProductUiState(
     val sessionExpired: Boolean = false,
 ) {
     /**
-     * The web requires category, product type, name, unit, and numeric purchase
-     * and sales prices; brand and description are optional.
+     * The web requires category, product type, name, description, unit, and
+     * numeric purchase and sales prices; brand is optional. A measurement pair
+     * must also pass its own rules.
      */
     val canSave: Boolean
         get() = !isSaving &&
@@ -50,8 +57,10 @@ data class AddProductUiState(
             productType != null &&
             unit != null &&
             name.isNotBlank() &&
+            description.isNotBlank() &&
             purchasePrice.toDoubleOrNull() != null &&
-            salesPrice.toDoubleOrNull() != null
+            salesPrice.toDoubleOrNull() != null &&
+            measurement.error == null
 
     /** Whether the quantity is being counted rather than typed. */
     val hasOpeningSerials: Boolean get() = openingSerialNo.isNotBlank()

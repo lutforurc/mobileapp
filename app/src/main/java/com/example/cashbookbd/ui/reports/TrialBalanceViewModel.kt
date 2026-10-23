@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.jNum
+import com.example.cashbookbd.core.jPayload
+import com.example.cashbookbd.data.remote.WebApi
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.data.repository.TrialBalanceRepository
@@ -28,6 +31,7 @@ class TrialBalanceViewModel(
     private val dashboardRepository: DashboardRepository,
     private val trialBalanceRepository: TrialBalanceRepository,
     private val reportPath: String = TrialBalanceRepository.PATH_LEVEL4,
+    private val webApi: WebApi? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrialBalanceUiState())
@@ -110,6 +114,7 @@ class TrialBalanceViewModel(
                 reportError = null,
                 appliedBranchName = null,
                 appliedRange = null,
+                notes = emptyList(),
             )
         }
     }
@@ -129,14 +134,18 @@ class TrialBalanceViewModel(
                 path = reportPath,
             )
             when (result) {
-                is Resource.Success -> _uiState.update {
-                    it.copy(
-                        isReportLoading = false,
-                        report = result.data,
-                        reportError = null,
-                        appliedBranchName = branch.name,
-                        appliedRange = "${state.startDate.toDisplay()} — ${state.endDate.toDisplay()}",
-                    )
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isReportLoading = false,
+                            report = result.data,
+                            reportError = null,
+                            appliedBranchName = branch.name,
+                            appliedRange = "${state.startDate.toDisplay()} — ${state.endDate.toDisplay()}",
+                            notes = emptyList(),
+                        )
+                    }
+                    if (reportPath == TrialBalanceRepository.PATH_LEVEL3) loadNotes(branch, state.startDate, state.endDate)
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -149,6 +158,22 @@ class TrialBalanceViewModel(
 
                 Resource.Loading -> Unit
             }
+        }
+    }
+
+    /**
+     * Trial Balance (Group): note 6's figures — write-offs out and Product In
+     * receipts, both directions — from their own endpoint. A failure only
+     * leaves note 6 out; the report itself has already loaded.
+     */
+    private suspend fun loadNotes(branch: BranchOption, start: SimpleDate, end: SimpleDate) {
+        val params = mapOf("branch_id" to branch.id.toString(), "start_date" to start.toApi(), "end_date" to end.toApi())
+        val figures = (webApi?.get("reports/trialbalance-level3-write-off", params) as? Resource.Success)
+            ?.data?.jPayload()
+        val productOut = figures?.jNum("product_out") ?: 0.0
+        val productIn = figures?.jNum("product_in") ?: 0.0
+        _uiState.update {
+            it.copy(notes = buildTrialBalanceNotes(branch.name, start.toDisplay(), end.toDisplay(), productOut, productIn))
         }
     }
 
@@ -168,6 +193,7 @@ class TrialBalanceViewModel(
                     dashboardRepository = ServiceLocator.provideDashboardRepository(appContext),
                     trialBalanceRepository = ServiceLocator.provideTrialBalanceRepository(appContext),
                     reportPath = reportPath,
+                    webApi = ServiceLocator.provideWebApi(appContext),
                 )
             }
         }

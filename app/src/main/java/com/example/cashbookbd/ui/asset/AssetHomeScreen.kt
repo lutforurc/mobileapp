@@ -83,6 +83,7 @@ fun AssetHomeScreen(
                     onClick = {
                         when (item.key) {
                             AssetMenu.CATEGORIES_KEY -> navController.navigate(AssetMenu.ROUTE_CATEGORIES)
+                            AssetMenu.ITEMS_KEY -> navController.navigate(AssetMenu.ROUTE_ITEMS)
                             AssetMenu.REGISTER_KEY -> navController.navigate(AssetMenu.ROUTE_REGISTER)
                             AssetMenu.CWIP_KEY -> navController.navigate(AssetMenu.ROUTE_CWIP)
                             AssetMenu.DEPRECIATION_KEY -> navController.navigate(AssetMenu.ROUTE_DEPRECIATION)

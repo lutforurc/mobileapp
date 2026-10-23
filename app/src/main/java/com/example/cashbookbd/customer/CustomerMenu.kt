@@ -23,6 +23,8 @@ object CustomerMenu {
 
     val all: List<CustomerItem> = listOf(
         CustomerItem("customers", "Customers", SECTION_PERMISSIONS),
+        // Customer opening balances from an Excel sheet (web 874b9447).
+        CustomerItem("customerOpeningImport", "Opening Import", listOf("party.opening.edit", "cs.edit")),
         CustomerItem("coaL1", "CoA L1", listOf("coa.l1.view")),
         CustomerItem("coaL2", "CoA L2", listOf("coa.l2.view")),
         CustomerItem("coaL3", "CoA L3", listOf("coa.l3.view")),

@@ -11,6 +11,8 @@ data class CustomerListUiState(
     val rows: List<CustomerRow> = emptyList(),
 
     val searchQuery: String = "",
+    /** Client Type — the empty value means every party ("All Types"). */
+    val partyType: com.example.cashbookbd.ui.reports.model.SelectorOption = ALL_CLIENT_TYPES,
     val currentPage: Int = 1,
     val lastPage: Int = 1,
     val total: Int = 0,

@@ -17,12 +17,19 @@ data class ProductItem(
  */
 object ProductsMenu {
 
+    const val OPENING_IMPORT_KEY = "productOpeningImport"
+    const val STOCK_STATEMENT_KEY = "productStockStatement"
+
     val all: List<ProductItem> = listOf(
         ProductItem("brandList", "Brand List", listOf("brand.list")),
         ProductItem("categoryList", "Category List", listOf("category.view")),
         ProductItem("productGroupList", "Product Group List", listOf("product_group.view")),
         ProductItem("packSizeList", "Pack Size List", listOf("package.size.view")),
         ProductItem("productList", "Product List", listOf("products.view")),
+        // The stock statement per product (web 87782eb7), on the menu's own gate.
+        ProductItem(STOCK_STATEMENT_KEY, "Product Statement", listOf("products.view")),
+        // Opening stock from an Excel sheet (web 98cc067c).
+        ProductItem(OPENING_IMPORT_KEY, "Opening Import", listOf("product.opening.edit", "products.edit")),
         // The stock alert reports, each on its own web-sidebar permission. The
         // endpoints are scoped to the signed-in user's branch server-side.
         ProductItem("lowStock", "Low Stock", listOf("low.stock")),

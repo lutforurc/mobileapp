@@ -89,31 +89,31 @@ fun AddBrandScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AppTextField(
-                    value = state.address,
-                    onValueChange = viewModel::onAddress,
-                    label = "Enter address",
-                    caption = "Address",
+                    value = state.email,
+                    onValueChange = viewModel::onEmail,
+                    label = "Enter Email",
+                    caption = "Email (Optional)",
+                    keyboardType = KeyboardType.Email,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AppTextField(
                     value = state.contacts,
                     onValueChange = viewModel::onContacts,
-                    label = "Enter contact",
-                    caption = "Contact",
+                    label = "Enter Contact Number",
+                    caption = "Contact (Optional)",
                     keyboardType = KeyboardType.Phone,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AppTextField(
-                    value = state.email,
-                    onValueChange = viewModel::onEmail,
-                    label = "Enter email",
-                    caption = "Email (optional)",
-                    keyboardType = KeyboardType.Email,
+                    value = state.address,
+                    onValueChange = viewModel::onAddress,
+                    label = "Enter Address",
+                    caption = "Address (Optional)",
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (!state.canSave) {
+                if (!state.canSave && !state.isSaving) {
                     Text(
-                        text = "Brand Name, Address and Contact are required.",
+                        text = if (state.emailInvalid) "Please enter a valid email." else "Please enter brand name.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.appColors.textOnScreenMuted,
                     )

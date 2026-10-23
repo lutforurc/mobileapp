@@ -16,6 +16,10 @@ data class ProfitLossAccountLine(
     val emphasis: Boolean = false,
     /** Component rows are indented under their head (the web's pl-6). */
     val indent: Boolean = false,
+    /** An income head listed inside its group — a step further in, muted (pl-12). */
+    val child: Boolean = false,
+    /** The note this row points at, printed after the label as "[n]". */
+    val note: Int? = null,
 )
 
 /**
@@ -27,6 +31,11 @@ data class ProfitLossAccountLine(
 data class ProfitLossReport(
     val trading: List<ProfitLossAccountLine>,
     val profitLoss: List<ProfitLossAccountLine>,
+    /** The Cost of Goods Sold written out — a reading, added to no total. */
+    val cogs: List<ProfitLossAccountLine> = emptyList(),
+    /** The note the Trading Account heading points at (Basis of preparation). */
+    val basisNote: Int? = null,
+    val notes: List<com.example.cashbookbd.ui.reports.ReportNoteItem> = emptyList(),
 ) {
     val isEmpty: Boolean get() = trading.isEmpty() && profitLoss.isEmpty()
 }

@@ -72,6 +72,11 @@ data class ProductEditData(
     val groupId: String = "",
     /** Branch's "Need Package?" — pack size id; blank means none. */
     val packSizeId: String = "",
+    /** Measurement and packaging; blank where the product has none. */
+    val measurement: String = "",
+    val measurementUnitId: String = "",
+    val packageSize: String = "",
+    val packageUnitId: String = "",
 )
 
 /** The fields the Edit Product form posts back (`product/update`). */
@@ -93,6 +98,11 @@ data class ProductUpdate(
     val code: String? = null,
     val groupId: String? = null,
     val packSizeId: String? = null,
+    /** Always sent, like the web's formData spread; blank is read as NULL. */
+    val measurement: String = "",
+    val measurementUnitId: String = "",
+    val packageSize: String = "",
+    val packageUnitId: String = "",
 )
 
 /** The fields the Add Product form collects (web's "New Product"). */
@@ -128,6 +138,14 @@ data class NewProduct(
     val groupId: String = "",
     /** Sent only when the branch's need_package is on — blank means none. */
     val packSizeId: String = "",
+    val orderLevel: String = "",
+    /** Sent only when the branch's warranty_controll is on, like the web. */
+    val warrantyType: String? = null,
+    val warrantyDays: String? = null,
+    val measurement: String = "",
+    val measurementUnitId: String = "",
+    val packageSize: String = "",
+    val packageUnitId: String = "",
 )
 
 /**
@@ -375,6 +393,13 @@ class ProductRepository(
             product.code.trim().takeIf { it.isNotEmpty() }?.let { put("code", it) }
             product.groupId.takeIf { it.isNotBlank() }?.let { put("group_id", it) }
             product.packSizeId.takeIf { it.isNotBlank() }?.let { put("pack_size_id", it) }
+            put("order_level", product.orderLevel.trim())
+            product.warrantyType?.let { put("warranty_type", it) }
+            product.warrantyDays?.let { put("warranty_days", it.trim()) }
+            put("measurement", product.measurement)
+            put("measurement_unit_id", product.measurementUnitId)
+            put("package_size", product.packageSize)
+            put("package_unit_id", product.packageUnitId)
         }
         try {
             val response = api.post("product/store", body)
@@ -472,6 +497,46 @@ class ProductRepository(
     }
 
     /**
+     * The Product List's measurement save (web f6f7ff4f): the four fields on
+     * the same `product/update-qty-rate` endpoint. A payload with no quantity
+     * never touches an opening voucher.
+     */
+    suspend fun saveInlineMeasurement(
+        productId: String,
+        measurement: String,
+        measurementUnitId: String,
+        packageSize: String,
+        packageUnitId: String,
+    ): Resource<String> = withContext(ioDispatcher) {
+        val body = mapOf(
+            "product_id" to productId,
+            "measurement" to measurement,
+            "measurement_unit_id" to measurementUnitId,
+            "package_size" to packageSize,
+            "package_unit_id" to packageUnitId,
+        )
+        try {
+            val response = api.post("product/update-qty-rate", body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
+            }
+            val json = response.jsonBody()
+            val rejected = json?.get("success")?.takeUnless { it.isJsonNull }?.asBoolean == false ||
+                (!response.isSuccessful && response.code() != 201)
+            if (rejected) {
+                return@withContext Resource.Error(json?.message() ?: "Could not save the measurement.")
+            }
+            Resource.Success(json?.message()?.takeIf { it.isNotBlank() } ?: "Product updated successfully.")
+        } catch (e: IOException) {
+            Resource.Error(NO_NETWORK)
+        } catch (e: HttpException) {
+            Resource.Error("Server error (${e.code()}). Please try again later.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
      * The product for the Edit form (`GET product/product-edit/{id}`, hashed id
      * in the path exactly as the web sends it). The payload sits at data.data.
      */
@@ -525,6 +590,10 @@ class ProductRepository(
                         code = str("code"),
                         groupId = str("group_id"),
                         packSizeId = str("pack_size_id"),
+                        measurement = str("measurement"),
+                        measurementUnitId = str("measurement_unit_id"),
+                        packageSize = str("package_size"),
+                        packageUnitId = str("package_unit_id"),
                     )
                 )
             } catch (e: IOException) {
@@ -559,6 +628,10 @@ class ProductRepository(
             update.code?.trim()?.let { put("code", it) }
             update.groupId?.let { put("group_id", it) }
             update.packSizeId?.let { put("pack_size_id", it) }
+            put("measurement", update.measurement)
+            put("measurement_unit_id", update.measurementUnitId)
+            put("package_size", update.packageSize)
+            put("package_unit_id", update.packageUnitId)
         }
         try {
             val response = api.post("product/update", body)

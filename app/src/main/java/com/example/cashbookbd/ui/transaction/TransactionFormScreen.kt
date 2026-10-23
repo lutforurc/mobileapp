@@ -155,6 +155,43 @@ fun TransactionFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            if (state.isTiles) {
+                // `!= 0`: a party in advance stands negative and is still shown.
+                if (state.previousBalance != 0.0) {
+                    val amt = state.amount.toDoubleOrNull() ?: 0.0
+                    val disc = state.discount.toDoubleOrNull() ?: 0.0
+                    fun fmt(v: Double) = com.example.cashbookbd.core.AmountFormat.format(v)
+                    Text(
+                        "Previous Balance: ${fmt(state.previousBalance)}\n" +
+                            "Current Balance = Previous Balance − Amount (Tk.) − Discount (Tk.)\n" +
+                            "${fmt(state.previousBalance)} − ${fmt(amt)} − ${fmt(disc)} = ${fmt(state.previousBalance - amt - disc)}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                AppTextField(
+                    value = state.discount,
+                    onValueChange = viewModel::onDiscountChange,
+                    label = "Discount (Tk.)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = state.instrumentNo,
+                    onValueChange = viewModel::onInstrumentNoChange,
+                    label = "Cheque / Instrument No",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (state.showManualVoucherNo) {
+                AppTextField(
+                    value = state.manualVoucherNo,
+                    onValueChange = viewModel::onManualVoucherNoChange,
+                    label = "Manual Voucher Number",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             Spacer(Modifier.height(2.dp))
 
             if (state.isBankBatch) {

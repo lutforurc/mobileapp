@@ -48,6 +48,8 @@ data class TxnFormSpec(
     val fields: List<TxnField>,
     val remarksLabel: String = "Remarks",
     val amountLabel: String = "Amount (Tk.)",
+    /** Shows the "Manual Voucher Number" box (the number on the paper voucher). */
+    val manualVoucherNo: Boolean = false,
 )
 
 /**
@@ -98,6 +100,7 @@ object TransactionForms {
             kind = TxnKind.EMPLOYEE_LOAN,
             endpoint = "hrms/loan/disbursement",
             fields = listOf(TxnField("account", "Select Employee", TxnPicker.EMPLOYEE)),
+            manualVoucherNo = true,
         ),
     )
 

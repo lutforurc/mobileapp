@@ -34,10 +34,18 @@ class CustomerListViewModel(
         load(page = 1)
     }
 
+    /** Bumped per request, so a stale answer cannot overwrite a newer one. */
+    private var requestSeq = 0
+
     fun load(page: Int) {
         _uiState.update { it.copy(isLoading = true, error = null) }
+        val seq = ++requestSeq
         viewModelScope.launch {
-            when (val result = repository.loadCustomers(page, CUSTOMERS_PER_PAGE, _uiState.value.searchQuery)) {
+            val result = repository.loadCustomers(
+                page, CUSTOMERS_PER_PAGE, _uiState.value.searchQuery, _uiState.value.partyType.id,
+            )
+            if (seq != requestSeq) return@launch
+            when (result) {
                 is Resource.Success -> _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -61,6 +69,13 @@ class CustomerListViewModel(
 
     fun onSearchQuery(value: String) = _uiState.update { it.copy(searchQuery = value) }
     fun onSearch() = load(page = 1)
+
+    /** A new classification starts on page one, run by the server. */
+    fun onPartyType(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
+        if (option.id == _uiState.value.partyType.id) return
+        _uiState.update { it.copy(partyType = option) }
+        load(page = 1)
+    }
 
     fun nextPage() {
         if (_uiState.value.canNext) load(_uiState.value.currentPage + 1)

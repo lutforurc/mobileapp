@@ -19,6 +19,14 @@ data class BalanceSheetUiState(
     val report: BalanceSheetReport? = null,
     val appliedBranchName: String? = null,
     val appliedRange: String? = null,
+    /** The sheet's "as at" date (dd/MM/yyyy), named in note 1. */
+    val appliedAsOn: String? = null,
+    /**
+     * The period's write-offs and Product In receipts at cost, for the
+     * stock-movement note. Null = not read (yet) — writes no note, never a zero.
+     */
+    val stockOut: Double? = null,
+    val stockIn: Double? = null,
 
     val sessionExpired: Boolean = false,
 ) {

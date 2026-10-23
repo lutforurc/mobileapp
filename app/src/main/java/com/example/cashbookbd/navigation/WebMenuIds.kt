@@ -83,6 +83,7 @@ object WebMenuIds {
         "businessTypes" to "business_types",
         "inventorySystems" to "inventory_systems",
         "tutorialVideos" to "tutorial_videos",
+        "websiteTemplates" to "website_templates",
         "highlightRules" to "highlight_rules",
         "roles" to "roles",
         "addRoles" to "add_role",
@@ -108,6 +109,10 @@ object WebMenuIds {
         "hotelHallBookings" to "hotel_hall_bookings",
         "hotelCalendar" to "hotel_calendar",
         "hotelHousekeeping" to "hotel_housekeeping",
+        "hotelAmenityIssue" to "hotel_amenity_issue",
+        "hotelAssetPurchase" to "hotel_asset_purchase",
+        "hotelPaymentEntry" to "hotel_payment_entry",
+        "hotelReceivedEntry" to "hotel_received_entry",
         "hotelReports" to "hotel_reports",
         "hotelSetup" to "hotel_setup",
     )

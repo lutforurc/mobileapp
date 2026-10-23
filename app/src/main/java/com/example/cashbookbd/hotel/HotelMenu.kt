@@ -32,6 +32,18 @@ object HotelMenu {
     const val REPORTS_KEY = "hotelReports"
     const val SETUP_KEY = "hotelSetup"
     const val AMENITY_ISSUE_KEY = "hotelAmenityIssue"
+    const val ASSET_PURCHASE_KEY = "hotelAssetPurchase"
+    const val PAYMENT_ENTRY_KEY = "hotelPaymentEntry"
+    const val RECEIVED_ENTRY_KEY = "hotelReceivedEntry"
+
+    const val ROUTE_ASSET_PURCHASE = "hotel/assets/purchase"
+    const val ROUTE_PAYMENT_ENTRY = "hotel/payment-entry"
+    const val ROUTE_RECEIVED_ENTRY = "hotel/received-entry"
+
+    /** The web's `hotel` menuPermissions key — the route guard of the money screens. */
+    private val PARENT_PERMISSIONS_LIST = listOf(
+        "hotel.building.view", "hotel.floor.view", "hotel.room.type.view", "hotel.resource.view", "hotel.booking.view",
+    )
 
     /** The setup screen's tabs, each on its own permission. */
     private val SETUP_ANY = listOf(
@@ -60,10 +72,16 @@ object HotelMenu {
         HotelItem(CALENDAR_KEY, "Calendar", listOf("hotel.booking.view")),
         // Opened every morning by somebody who does nothing else in here.
         HotelItem(HOUSEKEEPING_KEY, "Housekeeping", listOf("hotel.housekeeping.view")),
-        HotelItem(REPORTS_KEY, "Reports", listOf("hotel.report.view")),
         // Either permission opens it — the storekeeper's, or the one that
         // sets the kits themselves. See AmenityKitController::due().
-        HotelItem(AMENITY_ISSUE_KEY, "Amenity Issue", listOf("material.issue.create", "hotel.resource.view")),
+        HotelItem(AMENITY_ISSUE_KEY, "Amenity Issue & Stock", listOf("material.issue.create", "hotel.resource.view", "hotel.housekeeping.view")),
+        // The money side (web 48829576 … a41123c5): what the hotel buys to be
+        // furnished with or uses up, and the payments and receipts it writes.
+        // The web gates these on the Hotel group alone.
+        HotelItem(ASSET_PURCHASE_KEY, "Assets Purchase", PARENT_PERMISSIONS_LIST),
+        HotelItem(PAYMENT_ENTRY_KEY, "Payment Entry", PARENT_PERMISSIONS_LIST),
+        HotelItem(RECEIVED_ENTRY_KEY, "Received Entry", PARENT_PERMISSIONS_LIST),
+        HotelItem(REPORTS_KEY, "Reports", listOf("hotel.report.view")),
         HotelItem(SETUP_KEY, "Rooms & Seats Setup", SETUP_ANY),
     )
 

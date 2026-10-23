@@ -27,6 +27,8 @@ data class CustomerRow(
     val coa4Id: String = "",
     /** The journal voucher carrying the opening balance, when one is live. */
     val openingVrNo: String = "",
+    /** The party's ledger, signed (web 0a0d3591): plain owes us, negative we owe. */
+    val balance: Double = 0.0,
 ) {
     /** True once a non-zero opening is stored (used only to pre-fill the edit). */
     val isOpeningSet: Boolean get() = (opening.toDoubleOrNull() ?: 0.0) != 0.0
@@ -285,11 +287,23 @@ class CustomerRepository(
     }
 
     /** A page of the Customers list (`contact/details`, paginated). */
-    suspend fun loadCustomers(page: Int, perPage: Int, search: String): Resource<CustomerPage> = withContext(ioDispatcher) {
+    suspend fun loadCustomers(
+        page: Int,
+        perPage: Int,
+        search: String,
+        /** Client Type, applied server-side before paging (web 48ae21bd); blank = every party. */
+        partyTypeId: String = "",
+    ): Resource<CustomerPage> = withContext(ioDispatcher) {
         try {
             val response = api.post(
                 "contact/details",
-                mapOf("page" to page.toString(), "per_page" to perPage.toString(), "search" to search.trim()),
+                buildMap {
+                    put("page", page.toString())
+                    put("per_page", perPage.toString())
+                    put("search", search.trim())
+                    // Absent rather than empty: the server's own "no filter".
+                    if (partyTypeId.isNotBlank()) put("party_type_id", partyTypeId)
+                },
             )
             if (response.code() == HTTP_UNAUTHORIZED) {
                 return@withContext Resource.Error(SESSION_EXPIRED, isUnauthorized = true)
@@ -714,6 +728,7 @@ class CustomerRepository(
             coa4Id = str("coa4_id").orEmpty(),
             // Joined on status = 1 server-side, so a trashed voucher shows blank.
             openingVrNo = str("opening_vr_no").orEmpty(),
+            balance = str("balance")?.replace(",", "")?.toDoubleOrNull() ?: 0.0,
         )
     }
 

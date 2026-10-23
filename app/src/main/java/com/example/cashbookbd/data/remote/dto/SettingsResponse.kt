@@ -63,6 +63,8 @@ data class SettingsPayload(
     @SerializedName("tutorial_videos_mobile") val tutorialVideos: Map<String, String>? = null,
     /** The signed-in user's company — only what the screens read. */
     @SerializedName("company") val company: SettingsCompanyDto? = null,
+    /** Platform admin (company 1): opens Website Templates. true/1, either. */
+    @SerializedName("is_platform_admin") val isPlatformAdmin: com.google.gson.JsonElement? = null,
 )
 
 /** `settings.data.company`: the financial year's first month (spec §41). */
@@ -220,7 +222,12 @@ data class SettingsBranchDto(
      */
     @SerializedName("ledger_show_product_details") val ledgerShowProductDetails: String? = null,
     /** Branch meta: stock leaves on a delivery, not on the invoice (web 760144c6). */
-    @SerializedName("deduct_stock_on_delivery") val deductStockOnDelivery: String? = null,)
+    @SerializedName("deduct_stock_on_delivery") val deductStockOnDelivery: String? = null,
+    /** Product List's second delete: product + its one old opening invoice (web 4244e4d1). */
+    @SerializedName("delete_with_opening_invoice") val deleteWithOpeningInvoice: String? = null,
+    @SerializedName("delete_with_opening_invoice_date") val deleteWithOpeningInvoiceDate: String? = null,
+    /** "Editable Measurement on Product List?" (web f6f7ff4f). */
+    @SerializedName("product_list_inline_edit") val productListInlineEdit: String? = null,)
 
 /**
  * A permission as sent by the backend. It may arrive as an object

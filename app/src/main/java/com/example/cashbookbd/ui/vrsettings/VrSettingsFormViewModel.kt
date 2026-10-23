@@ -87,7 +87,6 @@ class VrSettingsFormViewModel(
         _uiState.update { it.copy(voucherNo = value, requiresConfirmation = false, message = null) }
 
     fun onBranchSelected(branch: BranchOption) = _uiState.update { it.copy(selectedBranch = branch) }
-    fun onVoucherTypeChange(value: String) = _uiState.update { it.copy(voucherType = value) }
     fun onPresentDate(date: SimpleDate) = _uiState.update { it.copy(presentDate = date) }
     fun onChangeDate(date: SimpleDate) = _uiState.update { it.copy(changeDate = date) }
     fun onStartVoucher(value: String) = _uiState.update { it.copy(startVoucher = value) }
@@ -108,7 +107,6 @@ class VrSettingsFormViewModel(
                 VrKind.DATE_CHANGE -> {
                     val result = repository.changeVoucherDate(
                         branchId = state.selectedBranch!!.id,
-                        voucherType = state.voucherType,
                         presentDate = state.presentDate.toApi(),
                         changeDate = state.changeDate.toApi(),
                         startVoucher = state.startVoucher.trim(),

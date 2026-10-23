@@ -81,6 +81,15 @@ fun LegacyHomeScreen(
                     onClick = { navController.navigate(Routes.legacySearch(archive)) },
                 )
             }
+            // The old shop's own cash and bank accounts — same key as the
+            // record above, read-only like it (web c31d611b).
+            if (Permissions.has(sessionState.permissions, "legacy.record.view")) {
+                item {
+                    com.example.cashbookbd.ui.companyscheme.ParityMenuRow("Old ERP Account") {
+                        navController.navigate(com.example.cashbookbd.navigation.ParityRoutes.LEGACY_ACCOUNTS)
+                    }
+                }
+            }
         }
     }
 }

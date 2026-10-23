@@ -44,7 +44,7 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 //val baseUrl = "https://kps.cashbookbd.com/api/"
 // val baseUrl = "https://kbr.cashbookbd.com/api/"
  // val baseUrl = "https://my.cashbookbd.com/api/"
- val baseUrl = "http://localhost:5173/api/"
+ val baseUrl = "http://cashbook_api.test/api/"
 
 
 

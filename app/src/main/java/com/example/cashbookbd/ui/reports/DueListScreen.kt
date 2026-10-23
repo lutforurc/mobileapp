@@ -98,6 +98,13 @@ fun DueListScreen(
                 onApply = viewModel::apply,
                 onReset = viewModel::reset,
             )
+            com.example.cashbookbd.ui.components.AppSelectDropdown(
+                label = "Client Type",
+                options = listOf(com.example.cashbookbd.ui.customer.ALL_CLIENT_TYPES) + com.example.cashbookbd.ui.customer.CLIENT_TYPES,
+                selected = uiState.partyType,
+                onSelected = viewModel::onPartyType,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
             androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (uiState.report != null && !uiState.isEmptyResult) {
                 AgeingToggle(checked = uiState.showAgeing, onChecked = viewModel::onShowAgeing)

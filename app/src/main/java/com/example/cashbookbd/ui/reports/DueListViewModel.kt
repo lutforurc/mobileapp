@@ -90,6 +90,10 @@ class DueListViewModel(
         _uiState.update { it.copy(endDate = date) }
     }
 
+    fun onPartyType(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
+        _uiState.update { it.copy(partyType = option) }
+    }
+
     fun onShowAgeing(on: Boolean) {
         _uiState.update { it.copy(showAgeing = on) }
     }
@@ -118,6 +122,7 @@ class DueListViewModel(
                 branchId = branch.id,
                 endApi = state.endDate.toApi(),
                 endDisplay = state.endDate.toDisplay(),
+                partyTypeId = state.partyType.id,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {

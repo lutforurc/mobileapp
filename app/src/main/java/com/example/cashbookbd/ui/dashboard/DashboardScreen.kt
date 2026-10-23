@@ -163,6 +163,7 @@ fun DashboardScreen(
                         isConstruction = uiState.isConstruction,
                         rowActions = uiState.rowActions,
                         onReceive = viewModel::onReceive,
+                        heading = uiState.heading,
                     )
             }
 
@@ -213,6 +214,7 @@ private fun DashboardContent(
     isConstruction: Boolean,
     rowActions: Map<Int, RowActionState>,
     onReceive: (ReceivedFromHo) -> Unit,
+    heading: String? = null,
 ) {
     // The user's saved order over the widgets this dashboard has; the web's
     // Compact density tightens the gaps.
@@ -236,6 +238,19 @@ private fun DashboardContent(
         if (isRefreshing) {
             item {
                 LinearRefreshHint()
+            }
+        }
+
+        // Every dashboard is headed with the branch's own business type
+        // (web e49e28c9) — read off the branch, never written into the page.
+        heading?.takeIf { it.isNotBlank() }?.let { title ->
+            item {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = AppFontWeight.Bold,
+                    color = MaterialTheme.appColors.textOnScreen,
+                )
             }
         }
 
@@ -490,7 +505,7 @@ private fun SummaryCard(dashboard: Dashboard, summary: DashboardSummary? = null)
 }
 
 /**
- * The web's "Today at a glance" band: four KPI tiles in a 2×2 grid (the web's
+ * The web's Today band: four KPI tiles in a 2×2 grid (the web's
  * responsive grid collapses to one column on phones; two-by-two keeps the
  * glance on one screen). Deltas compare with the previous day in muted ink —
  * deliberately no green/red. Tile hues are the web's own chart colours.
@@ -513,29 +528,9 @@ private fun KpiRow(summary: DashboardSummary, isConstruction: Boolean = false) {
             KpiTileSpec("Today Vouchers", "vouchers", hues.vouchers, money = false),
         )
     }
+    // No heading row over the tiles: the web took the whole "Today at a
+    // glance · Trx Date" line off every dashboard (ee529513), legend and all.
     Column {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Today at a glance",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = AppFontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "Trx Date: ${isoToDisplay(summary.trxDate)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = "change vs previous day · sparkline last 14 days",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
         tiles.chunked(2).forEachIndexed { rowIndex, pair ->
             if (rowIndex > 0) Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

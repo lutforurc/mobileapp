@@ -16,6 +16,13 @@ data class TransactionFormUiState(
     val selections: Map<String, TxnSelection> = emptyMap(),
     val amount: String = "",
     val remarks: String = "",
+    /** Tiles Bank Received (web 62951346): previous balance, discount, instrument no. */
+    val isTiles: Boolean = false,
+    val previousBalance: Double = 0.0,
+    val discount: String = "",
+    val instrumentNo: String = "",
+    val showManualVoucherNo: Boolean = false,
+    val manualVoucherNo: String = "",
 
     /** Bank-account dropdown options (only when a BANK field is present). */
     val bankAccounts: List<SelectorOption> = emptyList(),

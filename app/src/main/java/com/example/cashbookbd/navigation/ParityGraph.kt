@@ -60,6 +60,30 @@ object ParityRoutes {
     const val SWITCH_BRANCH = "account/switch-branch"
     const val CHANGE_PASSWORD = "account/change-password"
 
+    // ---- Admin ----
+    const val APPROVAL_CENTER = "admin/approval-center"
+    const val APPROVAL_AUDIT = "admin/approval-center/audit"
+    const val VOUCHER_UPLOAD = "admin/image-upload"
+    const val BULK_UPLOAD = "admin/bulk-upload"
+    const val WEBSITE_TEMPLATES = "admin/website-templates"
+    const val RESELLER_ADMIN = "admin/resellers"
+
+    // ---- Old Software ----
+    const val LEGACY_ACCOUNTS = "legacy/accounts"
+
+    // ---- Excel imports ----
+    const val PRODUCT_OPENING_IMPORT = "product/opening-import"
+    const val PRODUCT_STOCK_STATEMENT = "product/product-statement"
+    const val CUSTOMER_OPENING_IMPORT = "customer/opening-import"
+    const val PURCHASE_IMPORT = "invoice/purchase-import"
+    const val SALES_IMPORT = "invoice/sales-import"
+
+    // ---- Tiles and Sanitary's own invoices ----
+    const val TILES_SALES = "invoice/tiles/sales"
+    const val TILES_PURCHASE = "invoice/tiles/purchase"
+    const val TILES_SALES_RETURN = "invoice/tiles/sales-return"
+    const val TILES_PURCHASE_RETURN = "invoice/tiles/purchase-return"
+
     // ---- VR Settings ----
     const val REPORT_MISMATCH = "vr-settings/report-mismatch"
 
@@ -138,6 +162,115 @@ fun NavGraphBuilder.parityGraph(
     }
     composable(ParityRoutes.CHANGE_PASSWORD) {
         com.example.cashbookbd.ui.account.ChangePasswordScreen(navController, backToLogin)
+    }
+
+    // ---- Admin: the Approval Center and its audit ----
+    composable(ParityRoutes.APPROVAL_CENTER) {
+        PermissionGate(anyOf = listOf("voucher.approval", "attendance.view", "approval.center")) {
+            com.example.cashbookbd.ui.admin.ApprovalCenterScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.APPROVAL_AUDIT) {
+        PermissionGate(anyOf = listOf("voucher.approval", "attendance.view")) {
+            com.example.cashbookbd.ui.admin.ApprovalAuditScreen(navController, backToLogin)
+        }
+    }
+
+    composable(ParityRoutes.VOUCHER_UPLOAD) {
+        PermissionGate(anyOf = listOf("voucher.photo.upload")) {
+            com.example.cashbookbd.ui.admin.VoucherUploadScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.WEBSITE_TEMPLATES) {
+        PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+            com.example.cashbookbd.ui.admin.WebsiteTemplatesScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.RESELLER_ADMIN) {
+        PermissionGate(anyOf = listOf("reseller.view", "subscription.view", "all.user.view")) {
+            com.example.cashbookbd.ui.admin.ResellerAdminScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.BULK_UPLOAD) {
+        PermissionGate(anyOf = listOf("bulk.photo.upload")) {
+            com.example.cashbookbd.ui.admin.BulkUploadScreen(navController, backToLogin)
+        }
+    }
+
+    composable(ParityRoutes.TILES_SALES) {
+        PermissionGate(anyOf = listOf("sales.create")) {
+            com.example.cashbookbd.ui.invoice.TilesInvoiceScreen(navController, backToLogin, com.example.cashbookbd.ui.invoice.TilesInvoiceKind.SALES)
+        }
+    }
+    composable(ParityRoutes.TILES_PURCHASE) {
+        PermissionGate(anyOf = listOf("purchase.create")) {
+            com.example.cashbookbd.ui.invoice.TilesInvoiceScreen(navController, backToLogin, com.example.cashbookbd.ui.invoice.TilesInvoiceKind.PURCHASE)
+        }
+    }
+    composable(ParityRoutes.TILES_SALES_RETURN) {
+        PermissionGate(anyOf = listOf("sales.return")) {
+            com.example.cashbookbd.ui.invoice.TilesInvoiceScreen(navController, backToLogin, com.example.cashbookbd.ui.invoice.TilesInvoiceKind.SALES_RETURN)
+        }
+    }
+    composable(ParityRoutes.TILES_PURCHASE_RETURN) {
+        PermissionGate(anyOf = listOf("purchase.return.view")) {
+            com.example.cashbookbd.ui.invoice.TilesInvoiceScreen(navController, backToLogin, com.example.cashbookbd.ui.invoice.TilesInvoiceKind.PURCHASE_RETURN)
+        }
+    }
+    composable(com.example.cashbookbd.asset.AssetMenu.ROUTE_ITEMS) {
+        PermissionGate(anyOf = listOf(com.example.cashbookbd.asset.AssetMenu.PERM_CATEGORY_VIEW)) {
+            com.example.cashbookbd.ui.asset.AssetItemsScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.PRODUCT_STOCK_STATEMENT) {
+        PermissionGate(anyOf = listOf("products.view")) {
+            com.example.cashbookbd.ui.products.ProductStockStatementScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.LEGACY_ACCOUNTS) {
+        PermissionGate(anyOf = listOf("legacy.record.view")) {
+            com.example.cashbookbd.ui.legacy.LegacyAccountsScreen(navController, backToLogin)
+        }
+    }
+
+    // ---- Excel imports ----
+    composable(ParityRoutes.PRODUCT_OPENING_IMPORT) {
+        PermissionGate(anyOf = listOf("product.opening.edit", "products.edit")) {
+            com.example.cashbookbd.ui.imports.OpeningImportScreen(navController, backToLogin, com.example.cashbookbd.ui.imports.OpeningImportKind.PRODUCT)
+        }
+    }
+    composable(ParityRoutes.CUSTOMER_OPENING_IMPORT) {
+        PermissionGate(anyOf = listOf("party.opening.edit", "cs.edit")) {
+            com.example.cashbookbd.ui.imports.OpeningImportScreen(navController, backToLogin, com.example.cashbookbd.ui.imports.OpeningImportKind.CUSTOMER)
+        }
+    }
+    composable(ParityRoutes.PURCHASE_IMPORT) {
+        PermissionGate(anyOf = listOf("purchase.create", "purchase.import")) {
+            com.example.cashbookbd.ui.imports.TradingImportScreen(navController, backToLogin, com.example.cashbookbd.ui.imports.TradingImportKind.PURCHASE)
+        }
+    }
+    composable(ParityRoutes.SALES_IMPORT) {
+        PermissionGate(anyOf = listOf("sales.create", "sales.import")) {
+            com.example.cashbookbd.ui.imports.TradingImportScreen(navController, backToLogin, com.example.cashbookbd.ui.imports.TradingImportKind.SALES)
+        }
+    }
+
+    // ---- Hotel: the money side ----
+    val hotelGate = listOf("hotel.building.view", "hotel.floor.view", "hotel.room.type.view", "hotel.resource.view", "hotel.booking.view")
+    composable(com.example.cashbookbd.hotel.HotelMenu.ROUTE_ASSET_PURCHASE) {
+        PermissionGate(anyOf = hotelGate) {
+            com.example.cashbookbd.ui.hotel.HotelAssetPurchaseScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.hotel.HotelMenu.ROUTE_PAYMENT_ENTRY) {
+        PermissionGate(anyOf = hotelGate) {
+            com.example.cashbookbd.ui.hotel.HotelAccountsEntryScreen(navController, backToLogin, com.example.cashbookbd.ui.hotel.HotelEntryKind.PAYMENT)
+        }
+    }
+    composable(com.example.cashbookbd.hotel.HotelMenu.ROUTE_RECEIVED_ENTRY) {
+        PermissionGate(anyOf = hotelGate) {
+            com.example.cashbookbd.ui.hotel.HotelAccountsEntryScreen(navController, backToLogin, com.example.cashbookbd.ui.hotel.HotelEntryKind.RECEIVED)
+        }
     }
 
     // ---- VR Settings ----

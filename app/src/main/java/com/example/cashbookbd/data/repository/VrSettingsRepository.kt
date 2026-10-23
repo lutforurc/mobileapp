@@ -72,7 +72,6 @@ class VrSettingsRepository(
     /** Shifts a range of vouchers from [presentDate] to [changeDate] (both `yyyy-MM-dd`). */
     suspend fun changeVoucherDate(
         branchId: Long,
-        voucherType: String,
         presentDate: String,
         changeDate: String,
         startVoucher: String,
@@ -80,7 +79,6 @@ class VrSettingsRepository(
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
             addProperty("branch_id", branchId)
-            addProperty("voucher_type", voucherType)
             addProperty("present_date", presentDate)
             addProperty("change_date", changeDate)
             addProperty("start_voucher", startVoucher)

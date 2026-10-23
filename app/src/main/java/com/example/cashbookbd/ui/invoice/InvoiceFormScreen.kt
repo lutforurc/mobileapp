@@ -478,7 +478,7 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(line.product.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                        Text(line.product.rowLabel, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                         Text(
                             text = "${AmountFormat.format(line.qty)} × ${AmountFormat.format(line.price)} = ${AmountFormat.format(line.amount)}",
                             style = MaterialTheme.typography.bodySmall,

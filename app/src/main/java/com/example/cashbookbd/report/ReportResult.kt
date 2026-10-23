@@ -26,6 +26,8 @@ data class ReportRow(
      * column behind the branch's `show_voucher_image` switch.
      */
     val voucherAttachments: List<VoucherAttachment> = emptyList(),
+    /** A band's own total line: bold, unnumbered, never summed into the footer. */
+    val isSummary: Boolean = false,
 )
 
 /**

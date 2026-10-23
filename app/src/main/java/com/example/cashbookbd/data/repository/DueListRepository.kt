@@ -68,21 +68,25 @@ class DueListRepository(
         branchId: Long,
         endApi: String,
         endDisplay: String,
+        /** Client Type, applied by the server before the totals (web 95db3ee3); blank = all. */
+        partyTypeId: String = "",
     ): Resource<DueListReport> = withContext(ioDispatcher) {
-        val first = request(branchId, endApi)
+        val first = request(branchId, endApi, partyTypeId)
         if (first is Resource.Error) return@withContext first
         if (first is Resource.Success && !first.data.isEmpty) return@withContext first
 
-        val second = request(branchId, endDisplay)
+        val second = request(branchId, endDisplay, partyTypeId)
         if (second is Resource.Success && !second.data.isEmpty) return@withContext second
         first
     }
 
-    private suspend fun request(branchId: Long, enddate: String): Resource<DueListReport> {
-        val params = mapOf(
-            "branch_id" to branchId.toString(),
-            "enddate" to enddate,
-        )
+    private suspend fun request(branchId: Long, enddate: String, partyTypeId: String): Resource<DueListReport> {
+        val params = buildMap {
+            put("branch_id", branchId.toString())
+            put("enddate", enddate)
+            // Absent rather than empty: the server's own "no filter".
+            if (partyTypeId.isNotBlank()) put("party_type_id", partyTypeId)
+        }
         return try {
             val response = api.get(PATH, params)
             when (response.code()) {

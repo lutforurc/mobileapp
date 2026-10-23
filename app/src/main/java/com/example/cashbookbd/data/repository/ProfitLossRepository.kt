@@ -25,9 +25,9 @@ import java.util.Locale
  * - The response carries a `trading[]` (Trading Account) and `netprofit[]`
  *   (Profit & Loss Account) array under one of `data.data`, `data`, or root.
  * - Trading heads are located by (coal3_id, coal4_id) and combined into
- *   Net Purchase / Net Sales / Gross Profit-Loss; the P&L account splits
- *   `netprofit` rows into income (credit>0) and expense (debit>0), yielding
- *   Net Profit / Net Loss.
+ *   Net Purchase / Net Sales / Gross Profit-Loss; the P&L account sides each
+ *   `netprofit` group by its level-1 head (3 income, else expense) at its net,
+ *   yielding Net Profit / Net Loss.
  */
 class ProfitLossRepository(
     private val api: ReportApiService,
@@ -70,7 +70,11 @@ class ProfitLossRepository(
                     "Server error (${response.code()}). Please try again later."
                 )
             }
-            parseBody(response.body())
+            parseBody(
+                response.body(),
+                com.example.cashbookbd.ui.reports.model.SimpleDate.fromApi(startDate)?.toDisplay(),
+                com.example.cashbookbd.ui.reports.model.SimpleDate.fromApi(endDate)?.toDisplay(),
+            )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {
@@ -87,7 +91,7 @@ class ProfitLossRepository(
         }
     }
 
-    private fun parseBody(root: JsonElement?): Resource<ProfitLossReport> {
+    private fun parseBody(root: JsonElement?, startDisplay: String?, endDisplay: String?): Resource<ProfitLossReport> {
         if (root == null) return Resource.Error("Invalid response from server.")
         if (BuildConfig.DEBUG) Log.d(LOG_TAG, "profit-loss response: $root")
 
@@ -131,10 +135,55 @@ class ProfitLossRepository(
         val grossLoss = if (debitBase > creditBase) debitBase - creditBase else 0.0
 
         // ---- Profit & Loss Account ------------------------------------------
-        val expenseRows = netProfit.filter { it.debit > 0 }
-        val incomeRows = netProfit.filter { it.credit > 0 }
+        // The chart decides the side, not the balance (web 11e32c9c): the
+        // level-1 head arrives as `id` — 3 Income, anything else Expense —
+        // and each group's figure is its net, so a group with postings on
+        // both sides is counted once, on its own side.
+        // A server that does not send `id` yet keeps the old balance split
+        // rather than filing every income group under expenses.
+        val chartSided = netProfit.any { it.level1 != null }
+        val expenseRows = if (!chartSided) netProfit.filter { it.debit > 0 } else netProfit.filter { it.level1 != 3 }
+            .map { it.copy(debit = it.debit - it.credit) }
+            .filter { it.debit > 0 }
+        val incomeRows = if (!chartSided) netProfit.filter { it.credit > 0 } else netProfit.filter { it.level1 == 3 }
+            .map { it.copy(credit = it.credit - it.debit) }
+            .filter { it.credit > 0 }
         val totalExpense = expenseRows.sumOf { it.debit }
         val totalIncome = incomeRows.sumOf { it.credit }
+
+        // The heads inside each income group (`netprofit_heads`), each at its
+        // net; a head that earned nothing this period is not a row. They are
+        // inside the group's own figure, never added beside it.
+        val headRows = apiData.array("netprofit_heads").mapNotNull { it.asObjectOrNull()?.toNetProfitRow() }
+        val incomeGroups = incomeRows.map { group ->
+            com.example.cashbookbd.ui.reports.PlIncomeGroup(
+                name = group.name,
+                credit = group.credit,
+                children = if (group.coal3 == null) emptyList() else headRows
+                    .filter { it.coal3 == group.coal3 }
+                    .map { it.name to (it.credit - it.debit) }
+                    .filter { it.second > 0 },
+            )
+        }
+
+        // Cost of goods sold, written out (a reading of the trading figures).
+        // Nothing carries acquisition costs into stock, so they are nil.
+        val directAcquisitionCosts = 0.0
+        val cogsTotal = openingStock + netPurchase + directAcquisitionCosts - closingStock
+        val figures = com.example.cashbookbd.ui.reports.ProfitLossFigures(
+            cogsOpening = openingStock,
+            cogsNetPurchase = netPurchase,
+            cogsDirectAcquisitionCosts = directAcquisitionCosts,
+            cogsClosing = closingStock,
+            cogsTotal = cogsTotal,
+            grossProfit = grossProfit,
+            totalIncome = totalIncome,
+            incomes = incomeGroups,
+            purchaseDiscountCredit = purchaseDiscount,
+            productOut = apiData.fieldMap().number("product_out"),
+            productIn = apiData.fieldMap().number("product_in"),
+        )
+        val noteIndex = com.example.cashbookbd.ui.reports.profitLossNoteIndex(figures)
 
         val debitPlBase = grossLoss + totalExpense
         val creditPlBase = grossProfit + totalIncome
@@ -153,8 +202,8 @@ class ProfitLossRepository(
         // The purchase/sales component breakdown (working column) only appears
         // when there is a return/discount to net off, as on the web.
         val tradingLines = buildList {
-            add(ProfitLossAccountLine("Opening Stock", debit = openingStock, credit = 0.0))
-            add(ProfitLossAccountLine("Closing Stock", debit = 0.0, credit = closingStock))
+            add(ProfitLossAccountLine("Opening Stock", debit = openingStock, credit = 0.0, note = noteIndex.stock))
+            add(ProfitLossAccountLine("Closing Stock", debit = 0.0, credit = closingStock, note = noteIndex.stock))
             if (purchaseReturn > 0 || purchaseDiscount > 0) {
                 add(ProfitLossAccountLine("Purchase", working = purchase, indent = true))
                 if (purchaseReturn > 0) {
@@ -202,7 +251,12 @@ class ProfitLossRepository(
             expenseRows.forEach { add(ProfitLossAccountLine("(-) ${it.name}", working = it.debit, indent = true)) }
             add(ProfitLossAccountLine("Total Expense", debit = totalExpense, credit = 0.0, emphasis = true))
             if (incomeRows.isNotEmpty()) {
-                incomeRows.forEach { add(ProfitLossAccountLine(it.name, working = it.credit, indent = true)) }
+                incomeGroups.forEach { group ->
+                    add(ProfitLossAccountLine(group.name, working = group.credit, indent = true, note = noteIndex.income))
+                    group.children.forEach { (name, credit) ->
+                        add(ProfitLossAccountLine(name, working = credit, child = true))
+                    }
+                }
                 add(ProfitLossAccountLine("Total Income", debit = 0.0, credit = totalIncome, emphasis = true))
             }
             if (isNetProfit) {
@@ -213,8 +267,22 @@ class ProfitLossRepository(
             add(ProfitLossAccountLine("Total", debit = netTotalDebit, credit = netTotalCredit, emphasis = true))
         }
 
+        val cogsLines = listOf(
+            ProfitLossAccountLine("Opening Stock", working = openingStock, indent = true),
+            ProfitLossAccountLine("+ Net Purchase", working = netPurchase, indent = true),
+            ProfitLossAccountLine("+ Direct Acquisition Costs", working = directAcquisitionCosts, indent = true, note = noteIndex.acquisition),
+            ProfitLossAccountLine("- Closing Stock", working = closingStock, indent = true, note = noteIndex.stockMovement),
+            ProfitLossAccountLine("= Cost of Goods Sold", working = cogsTotal, emphasis = true, note = noteIndex.cogs),
+        )
+
         return Resource.Success(
-            ProfitLossReport(trading = tradingLines, profitLoss = profitLossLines)
+            ProfitLossReport(
+                trading = tradingLines,
+                profitLoss = profitLossLines,
+                cogs = cogsLines,
+                basisNote = noteIndex.basis,
+                notes = com.example.cashbookbd.ui.reports.buildProfitLossNotes(figures, startDisplay, endDisplay),
+            )
         )
     }
 
@@ -251,6 +319,10 @@ class ProfitLossRepository(
         val name: String,
         val debit: Double,
         val credit: Double,
+        /** The level-1 head the group hangs under: 3 Income, 4 Expense. */
+        val level1: Int?,
+        /** The level-3 group; ties a head (`netprofit_heads`) to its group. */
+        val coal3: Int?,
     )
 
     private fun JsonObject.toTradingRow(): TradingRow {
@@ -266,9 +338,12 @@ class ProfitLossRepository(
     private fun JsonObject.toNetProfitRow(): NetProfitRow {
         val f = fieldMap()
         return NetProfitRow(
-            name = f.string("name", "coal4_name", "coa4_name", "head"),
+            // The chart's "Comission" is corrected where the report prints it.
+            name = f.string("name", "coal4_name", "coa4_name", "head").replace("Comission", "Commission"),
             debit = f.number("debit"),
             credit = f.number("credit"),
+            level1 = f.int("id"),
+            coal3 = f.int("coal3_id", "coa3_id"),
         )
     }
 

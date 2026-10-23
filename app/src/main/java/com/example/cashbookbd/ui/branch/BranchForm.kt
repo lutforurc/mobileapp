@@ -32,6 +32,10 @@ sealed interface BranchField {
         /** A taller textarea (the letter signature block). */
         val multiline: Boolean = false,
         override val description: String? = null,
+        /** Drawn only while this toggle key is on (a setting's own detail). */
+        val visibleWhen: String? = null,
+        /** Only user 1 — the account owner — sees and posts it. */
+        val ownerOnly: Boolean = false,
     ) : BranchField
 
     /** Pick one from [source]. */
@@ -47,6 +51,8 @@ sealed interface BranchField {
         override val key: String,
         override val label: String,
         override val description: String? = null,
+        /** Only user 1 — the account owner — sees it; the API drops it for anyone else. */
+        val ownerOnly: Boolean = false,
     ) : BranchField
 }
 
@@ -368,6 +374,23 @@ object BranchForm {
                 BranchField.Toggle(
                     "need_package", "Need Package?",
                     description = "Adds a Pack Size dropdown to the Add / Edit Product form.",
+                ),
+                // Web f6f7ff4f.
+                BranchField.Toggle(
+                    "product_list_inline_edit", "Editable Measurement on Product List?",
+                    description = "Product List draws Measurement, Measurement Unit, Package Size and Package Type as columns, each saving as soon as its box is left. Off, the list does not show them.",
+                ),
+                // Web 4244e4d1: only user 1 may turn it on.
+                BranchField.Toggle(
+                    "delete_with_opening_invoice", "Delete With Opening Invoice?",
+                    description = "Product List's second delete button removes a product together with the one old opening invoice that brought it in. Off, only the plain delete is shown. Only user 1 can change this.",
+                    ownerOnly = true,
+                ),
+                BranchField.Text(
+                    "delete_with_opening_invoice_date", "Opening Invoice Cutoff Date (YYYY-MM-DD)",
+                    description = "Only an invoice dated before this day can be deleted with its product. Set it before switching the button on.",
+                    visibleWhen = "delete_with_opening_invoice",
+                    ownerOnly = true,
                 ),
             ),
         ),

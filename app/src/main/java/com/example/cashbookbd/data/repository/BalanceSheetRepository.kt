@@ -112,18 +112,15 @@ class BalanceSheetRepository(
 
         val apiData = locateApiData(root) ?: return Resource.Error(noDataMessage(root))
 
-        var sections = SECTION_KEYS.mapNotNull { (key, title) ->
+        val sections = SECTION_KEYS.mapNotNull { (key, title) ->
             val records = apiData.sectionRecords(key)
             if (records.isEmpty()) null else parseSection(title, records)
         }
         if (sections.isEmpty()) return Resource.Error(noDataMessage(root))
 
-        // The web folds the totals' opening difference into the Equity section's
-        // Net Profit/Loss group before computing any figure.
-        val openingDifference = apiData.get("totals")?.asObjectOrNull()
-            ?.get("difference_columns")?.asObjectOrNull()
-            .numberOrNull("opening") ?: 0.0
-        sections = applyEquityAdjustment(sections, openingDifference)
+        // The equity side is shown as the server sends it (web 782db919): a
+        // Difference is the figure the sheet is checked against, so it is
+        // reported, never padded into a Net Profit group.
 
         // Column totals are summed client-side, like the web's sumReportColumns;
         // the headline summary cards read the closing column.
@@ -250,66 +247,6 @@ class BalanceSheetRepository(
             movement = groups.sumOf { it.movement },
             closing = groups.sumOf { it.closing },
         )
-
-    /**
-     * The web's equity adjustment, verbatim: when the totals carry a non-zero
-     * opening difference, fold it into the Equity section's "Net Profit"/"Net
-     * Loss" group (only if that group's own opening is still zero) — adjusting
-     * the group's opening/closing and its first item — or append a synthetic
-     * Net Profit/Net Loss group when none matches.
-     */
-    private fun applyEquityAdjustment(
-        sections: List<BalanceSheetSection>,
-        openingDifference: Double,
-    ): List<BalanceSheetSection> {
-        if (kotlin.math.abs(openingDifference) < EPSILON) return sections
-        return sections.map { section ->
-            if (section.title != "Equity") return@map section
-
-            var matched = false
-            val groups = section.groups.map { group ->
-                val name = group.title.trim().lowercase(Locale.US)
-                val isNetHead = name == "net profit" || name == "net loss"
-                if (matched || !isNetHead || kotlin.math.abs(group.opening) >= EPSILON) {
-                    group
-                } else {
-                    matched = true
-                    val items = group.items.toMutableList()
-                    if (items.isNotEmpty()) {
-                        val first = items[0]
-                        items[0] = first.copy(
-                            opening = first.opening + openingDifference,
-                            closing = first.closing + openingDifference,
-                        )
-                    }
-                    group.copy(
-                        opening = group.opening + openingDifference,
-                        closing = group.closing + openingDifference,
-                        items = items,
-                    )
-                }
-            }
-
-            val adjusted = if (matched) groups else {
-                val name = if (openingDifference >= 0) "Net Profit" else "Net Loss"
-                groups + BalanceSheetGroup(
-                    title = name,
-                    items = listOf(
-                        BalanceSheetItem(
-                            description = name,
-                            opening = openingDifference,
-                            movement = 0.0,
-                            closing = openingDifference,
-                        )
-                    ),
-                    opening = openingDifference,
-                    movement = 0.0,
-                    closing = openingDifference,
-                )
-            }
-            sectionOf(section.title, adjusted)
-        }
-    }
 
     /** Locates the object carrying assets/liabilities/equity, unwrapping envelopes. */
     private fun locateApiData(root: JsonElement): JsonObject? {

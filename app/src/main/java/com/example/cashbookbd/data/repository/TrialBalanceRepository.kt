@@ -82,7 +82,24 @@ class TrialBalanceRepository(
                     "Server error (${response.code()}). Please try again later."
                 )
             }
-            parseBody(response.body())
+            parseBody(response.body()).let { result ->
+                // Level 4 lists the heads that moved (web 18933376): a row is kept
+                // when any of its six figures is non-zero — a head that posted and
+                // netted to nothing stays, an untouched one goes.
+                if (path == PATH_LEVEL4 && result is Resource.Success) {
+                    Resource.Success(
+                        result.data.copy(
+                            rows = result.data.rows.filter {
+                                it.openingDebit != 0.0 || it.openingCredit != 0.0 ||
+                                    it.movementDebit != 0.0 || it.movementCredit != 0.0 ||
+                                    it.closingDebit != 0.0 || it.closingCredit != 0.0
+                            },
+                        ),
+                    )
+                } else {
+                    result
+                }
+            }
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {

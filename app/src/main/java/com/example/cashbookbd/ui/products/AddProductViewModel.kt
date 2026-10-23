@@ -28,6 +28,7 @@ class AddProductViewModel(
             showCode = settings?.needCode == true,
             showProductGroup = settings?.needProductGroup == true,
             showPackSize = settings?.needPackage == true,
+            showWarranty = settings?.warrantyControll == true,
         )
     )
     val uiState: StateFlow<AddProductUiState> = _uiState.asStateFlow()
@@ -94,6 +95,14 @@ class AddProductViewModel(
     fun onCode(value: String) = _uiState.update { it.copy(code = value) }
     fun onProductGroup(option: SelectorOption) = _uiState.update { it.copy(productGroup = option) }
     fun onPackSize(option: SelectorOption) = _uiState.update { it.copy(packSize = option) }
+    fun onMeasurement(value: MeasurementFields) = _uiState.update { it.copy(measurement = value) }
+    fun onOrderLevel(value: String) = _uiState.update { it.copy(orderLevel = value.filter { c -> c.isDigit() }) }
+
+    /** Changing the type clears the days, as the web does. */
+    fun onWarrantyType(value: SelectorOption) =
+        _uiState.update { it.copy(warrantyType = value, warrantyDays = "") }
+
+    fun onWarrantyDays(value: String) = _uiState.update { it.copy(warrantyDays = value) }
 
     /**
      * Serials carry the quantity with them, so it is not asked for twice: the
@@ -141,11 +150,29 @@ class AddProductViewModel(
                     code = if (state.showCode) state.code else "",
                     groupId = if (state.showProductGroup) state.productGroup?.id.orEmpty() else "",
                     packSizeId = if (state.showPackSize) state.packSize?.id.orEmpty() else "",
+                    orderLevel = state.orderLevel,
+                    warrantyType = if (state.showWarranty) state.warrantyType.id else null,
+                    warrantyDays = if (state.showWarranty) state.warrantyDays else null,
+                    measurement = state.measurement.measurementForApi(),
+                    measurementUnitId = state.measurement.measurementUnitId,
+                    packageSize = state.measurement.packageSizeForApi(),
+                    packageUnitId = state.measurement.packageUnitId,
                 )
             )
             when (result) {
+                // Stay on the form (web d8ea4dfe): products are entered in runs
+                // and the next one wants the same category, unit and brand. Only
+                // the five fields that differ product to product are cleared.
                 is Resource.Success -> _uiState.update {
-                    it.copy(isSaving = false, savedMessage = result.data)
+                    it.copy(
+                        isSaving = false,
+                        savedMessage = result.data,
+                        code = "",
+                        name = "",
+                        description = "",
+                        purchasePrice = "",
+                        salesPrice = "",
+                    )
                 }
                 is Resource.Error -> _uiState.update {
                     it.copy(
@@ -159,6 +186,7 @@ class AddProductViewModel(
         }
     }
 
+    fun onSavedShown() = _uiState.update { it.copy(savedMessage = null) }
     fun onErrorShown() = _uiState.update { it.copy(error = null) }
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 

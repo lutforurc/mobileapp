@@ -66,11 +66,13 @@ fun AddProductScreen(
         snackbarHostState.showSnackbar(message)
         viewModel.onErrorShown()
     }
-    // Saved: hand the confirmation to the list, which reloads and shows it.
+    // Saved: stay for the next product (web d8ea4dfe). The list behind is
+    // told too, so it reloads when the user goes back.
     LaunchedEffect(state.savedMessage) {
         val message = state.savedMessage ?: return@LaunchedEffect
         navController.previousBackStackEntry?.savedStateHandle?.set(Routes.CREATED_MESSAGE, message)
-        navController.popBackStack()
+        viewModel.onSavedShown()
+        snackbarHostState.showSnackbar(message)
     }
 
     AuthenticatedShell(
@@ -160,7 +162,7 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             value = state.description,
             onValueChange = viewModel::onDescription,
             label = "Enter description",
-            caption = "Description (optional)",
+            caption = "Product Description",
             modifier = Modifier.fillMaxWidth(),
         )
         AppSelectDropdown(
@@ -203,6 +205,37 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
             label = "Enter sales price",
             caption = "Sales Price",
             keyboardType = KeyboardType.Decimal,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.showWarranty) {
+            AppSelectDropdown(
+                label = "Select Waranty/Guaranty Type",
+                options = WARRANTY_TYPES,
+                selected = state.warrantyType,
+                onSelected = viewModel::onWarrantyType,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            AppTextField(
+                value = state.warrantyDays,
+                onValueChange = viewModel::onWarrantyDays,
+                label = "Enter warranty days",
+                caption = "Warranty Days",
+                // Types 1/2 take a day count; Custom takes free text, like the web.
+                keyboardType = if (state.warrantyType.id in listOf("1", "2")) KeyboardType.Number else KeyboardType.Text,
+                enabled = state.warrantyType.id != "0",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        MeasurementFieldsBlock(state.measurement, state.units, viewModel::onMeasurement)
+        state.measurement.error?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+        AppTextField(
+            value = state.orderLevel,
+            onValueChange = viewModel::onOrderLevel,
+            label = "Enter Order Level",
+            caption = "Order Level",
+            keyboardType = KeyboardType.Number,
             modifier = Modifier.fillMaxWidth(),
         )
         if (state.showOpening) {
@@ -259,9 +292,9 @@ private fun ProductForm(state: AddProductUiState, viewModel: AddProductViewModel
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (!state.canSave) {
+        if (!state.canSave && !state.isSaving) {
             Text(
-                text = "Category, Product Type, Name, Unit and both prices are required.",
+                text = "Category, Product Type, Name, Description, Unit and both prices are required.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.appColors.textOnScreenMuted,
             )

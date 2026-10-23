@@ -83,6 +83,7 @@ fun CustomerHomeScreen(
                         val route = when (item.key) {
                             "customers" -> Routes.CUSTOMERS_LIST
                             "bankOpening" -> Routes.BANK_OPENING
+                            "customerOpeningImport" -> com.example.cashbookbd.navigation.ParityRoutes.CUSTOMER_OPENING_IMPORT
                             else -> Routes.appListView(item.key)
                         }
                         navController.navigate(route)

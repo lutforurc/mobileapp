@@ -501,6 +501,7 @@ class InvoiceRepository(
                 unit = o.str("label_5").orEmpty(),
                 purchasePrice = o.str("label_3")?.replace(",", "")?.toDoubleOrNull(),
                 salesPrice = o.str("label_4")?.replace(",", "")?.toDoubleOrNull(),
+                code = o.str("code").orEmpty(),
             )
         }
     }

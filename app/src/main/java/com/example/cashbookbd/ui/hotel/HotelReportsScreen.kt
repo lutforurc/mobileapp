@@ -778,7 +778,7 @@ private fun PerformanceBody(run: HotelPerformance, dimmed: Boolean) {
             )
         }
         HotelOpsNote(
-            "Rooms only — halls and community centres are let by the sitting, not the night, and " +
+            "Rooms only — halls and community centres are let by the shift, not the night, and " +
                 "counting them would push occupancy past 100%. Confirmed, checked-in and checked-out " +
                 "stays count; holds do not. Rent is the full tariff: a room let at 6,000 with 600 off " +
                 "is a 6,000 room and a 600 discount, so a discount lowers the takings and never the " +

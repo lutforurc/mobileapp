@@ -160,6 +160,15 @@ fun CustomerListScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            // Client Type runs the list again server-side (web 48ae21bd).
+            com.example.cashbookbd.ui.components.AppSelectDropdown(
+                label = "Client Type",
+                options = listOf(ALL_CLIENT_TYPES) + CLIENT_TYPES,
+                selected = state.partyType,
+                onSelected = viewModel::onPartyType,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 AddButton(
                     text = "Add Customer",
@@ -313,6 +322,10 @@ private fun customerColumns(
                 com.example.cashbookbd.core.MobileFormat.format(row.mobile, mobileFormat).ifBlank { "-" },
                 color = onScreen,
             )
+        },
+        // The party's ledger, signed; a nought (or no ledger) reads as a dash.
+        ReportColumn("Balance", ReportColWidth.Fixed(110.dp), TextAlign.End) { row, _ ->
+            cellText(com.example.cashbookbd.core.AmountFormat.formatOrDash(row.balance), align = TextAlign.End, color = onScreen)
         },
         ReportColumn("Action", ReportColWidth.Fixed(168.dp), TextAlign.Center) { row, _ ->
             ReportTableCell.Slot {

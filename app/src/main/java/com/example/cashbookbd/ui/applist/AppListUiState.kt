@@ -56,6 +56,18 @@ data class AppListUiState(
     val history: ChangeLogView? = null,
     /** The row awaiting delete confirmation; null when no dialog is open. */
     val pendingDelete: AppListRow? = null,
+    /** The second, deeper delete, when the branch switch shows it. */
+    val deepDeleteAction: com.example.cashbookbd.applist.ListDeepDeleteAction? = null,
+    /** Its cutoff, for the confirm's wording ("dated before …"). */
+    val deepDeleteCutoff: String = "",
+    val pendingDeepDelete: AppListRow? = null,
+    /** Product List with "Editable Measurement on Product List?" on. */
+    val measureEnabled: Boolean = false,
+    val measureEdit: AppListRow? = null,
+    val measureFields: com.example.cashbookbd.ui.products.MeasurementFields =
+        com.example.cashbookbd.ui.products.MeasurementFields(),
+    val units: List<com.example.cashbookbd.ui.reports.model.SelectorOption> = emptyList(),
+    val isSavingMeasure: Boolean = false,
     /** True while a confirmed delete is in flight. */
     val isDeleting: Boolean = false,
     /** Row ids whose status change is still in flight; their switch is disabled. */
@@ -89,6 +101,14 @@ data class AppListUiState(
     val filterLabel: String = "",
     val filterOptions: List<SelectorOption> = emptyList(),
     val filterValue: String = "",
+    /** The search box: what is typed, and what was last applied. */
+    val searchable: Boolean = false,
+    val searchText: String = "",
+    val appliedSearch: String = "",
+    val selectorFilters: List<com.example.cashbookbd.applist.ListSelectorFilter> = emptyList(),
+    /** Per filter param key, its options (the "all" option first) and the picked id. */
+    val selectorOptions: Map<String, List<SelectorOption>> = emptyMap(),
+    val selectorValues: Map<String, String> = emptyMap(),
 ) {
     val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading && !isPageLoading
     val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading && !isPageLoading

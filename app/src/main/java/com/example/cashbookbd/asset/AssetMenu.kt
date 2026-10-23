@@ -37,6 +37,8 @@ object AssetMenu {
 
     const val CATEGORIES_KEY = "assetCategories"
     const val REGISTER_KEY = "assetRegister"
+    const val ITEMS_KEY = "assetItems"
+    const val ROUTE_ITEMS = "asset/items"
     const val CWIP_KEY = "assetCwip"
     const val DEPRECIATION_KEY = "assetDepreciation"
     const val SCHEDULE_KEY = "assetSchedule"
@@ -97,6 +99,9 @@ object AssetMenu {
 
     val all: List<AssetItem> = listOf(
         AssetItem(CATEGORIES_KEY, "Categories", "Rates and heads", listOf(PERM_CATEGORY_VIEW)),
+        // Between the two (web 36044207): an item belongs to a category and is
+        // what a purchase is picked from.
+        AssetItem(ITEMS_KEY, "Items", "What a purchase is picked from", listOf(PERM_CATEGORY_VIEW)),
         AssetItem(REGISTER_KEY, "Register", "What the company owns", listOf(PERM_REGISTER_VIEW)),
         // A thing being built is not in the register yet and is not depreciated
         // yet — so it sits between the two, exactly where the web puts it.

@@ -271,12 +271,19 @@ private fun ReportContent(
         // balancing Total rows sit inside the tables.
         Spacer(Modifier.height(8.dp))
         if (report.trading.isNotEmpty()) {
-            AccountTable(title = "PROFIT OR LOSS A/C (TRADING A/C)", lines = report.trading)
+            AccountTable(title = "PROFIT OR LOSS A/C (TRADING A/C)" + noteRef(report.basisNote), lines = report.trading)
+            Spacer(Modifier.height(16.dp))
+        }
+        // Cost of goods sold, written out: the two stock figures and the
+        // purchase say what they come to. Added to no total above or below.
+        if (report.cogs.isNotEmpty()) {
+            AccountTable(title = "COST OF GOODS SOLD", lines = report.cogs)
             Spacer(Modifier.height(16.dp))
         }
         if (report.profitLoss.isNotEmpty()) {
             AccountTable(title = "NET PROFIT OR LOSS A/C", lines = report.profitLoss)
         }
+        ReportNotesPanel("Notes to the Profit & Loss Account", report.notes)
     }
 }
 
@@ -286,10 +293,14 @@ private fun ReportContent(
 private val profitLossColumns = listOf(
     ReportColumn<ProfitLossAccountLine>("PARTICULARS", ReportColWidth.Fixed(180.dp)) { line, _ ->
         cellText(
-            line.label,
+            line.label + noteRef(line.note),
             bold = line.emphasis,
             maxLines = 2,
-            startPadding = if (line.indent) 12.dp else 0.dp,
+            startPadding = when {
+                line.child -> 24.dp
+                line.indent -> 12.dp
+                else -> 0.dp
+            },
         )
     },
     ReportColumn<ProfitLossAccountLine>("", ReportColWidth.Fixed(96.dp), TextAlign.End) { line, _ ->

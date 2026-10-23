@@ -14,6 +14,8 @@ data class AdminItem(
     val title: String,
     val anyOf: List<String>,
     val supported: Boolean,
+    /** Shown only to the platform's own administrator (the web's `platformAdmin`). */
+    val platformOnly: Boolean = false,
 )
 
 /** The Admin menu registry and its permission rules. */
@@ -55,7 +57,7 @@ object AdminMenu {
         AdminItem("companyUser", "Company User", listOf("company.user", "user.view"), supported = true),
         AdminItem(
             "resellers", "Resellers",
-            listOf("reseller.view", "subscription.view", "all.user.view"), supported = false,
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
         ),
         // Platform broadcasts; the server additionally restricts to company 1.
         AdminItem(
@@ -82,6 +84,11 @@ object AdminMenu {
             "tutorialVideos", "Tutorial Videos",
             listOf("reseller.view", "subscription.view", "all.user.view"), supported = true,
         ),
+        // The platform's master website templates (server: platform.admin).
+        AdminItem(
+            "websiteTemplates", "Website Templates",
+            listOf("reseller.view", "subscription.view", "all.user.view"), supported = true, platformOnly = true,
+        ),
         AdminItem("smsLogs", "SMS Logs", listOf("sms.logs"), supported = true),
         AdminItem("smsTemplates", "SMS Templates", listOf("sms.templates"), supported = true),
         // Same slot as the web sidebar (just before Roles); gated on highlight.rules.
@@ -95,12 +102,12 @@ object AdminMenu {
         AdminItem("orders", "Orders", listOf("order.view"), supported = true),
         AdminItem("orderWithTransaction", "Order With Transaction", listOf("order.view"), supported = true),
         AdminItem("averagePrice", "Average Price", listOf("order.avg.price"), supported = true),
-        AdminItem("approvalCenter", "Approval Center", listOf("approval.center"), supported = false),
+        AdminItem("approvalCenter", "Approval Center", listOf("approval.center"), supported = true),
         AdminItem("voucherApproval", "Voucher Approval", listOf("voucher.approval"), supported = true),
         AdminItem("approvalRemove", "Approval Remove", listOf("remove.approval"), supported = true),
         AdminItem("changeVoucherType", "Change Voucher Type", listOf("change.vourcher.type"), supported = true),
-        AdminItem("voucherUpload", "Voucher Upload", listOf("voucher.photo.upload"), supported = false),
-        AdminItem("bulkUpload", "Bulk Upload", listOf("bulk.photo.upload"), supported = false),
+        AdminItem("voucherUpload", "Voucher Upload", listOf("voucher.photo.upload"), supported = true),
+        AdminItem("bulkUpload", "Bulk Upload", listOf("bulk.photo.upload"), supported = true),
     )
 
     private val byKey: Map<String, AdminItem> = all.associateBy { it.key }
@@ -112,6 +119,9 @@ object AdminMenu {
         MenuPermissions.hasMenu(permissions, "admin")
 
     /** Admin entries the user is allowed to open, in registry order. */
-    fun visible(permissions: List<Permission>?): List<AdminItem> =
-        all.filter { it.anyOf.isEmpty() || Permissions.hasAny(permissions, it.anyOf) }
+    fun visible(permissions: List<Permission>?, isPlatformAdmin: Boolean = false): List<AdminItem> =
+        all.filter {
+            (it.anyOf.isEmpty() || Permissions.hasAny(permissions, it.anyOf)) &&
+                (!it.platformOnly || isPlatformAdmin)
+        }
 }

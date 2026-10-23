@@ -50,6 +50,11 @@ data class OpeningStockRow(
     val rate: String,
     /** The voucher the opening stock came in on, when one is live. */
     val vrNo: String = "",
+    /** Measurement and packaging, for the list's inline edit (web f6f7ff4f). */
+    val measurement: String = "",
+    val measurementUnitId: String = "",
+    val packageSize: String = "",
+    val packageUnitId: String = "",
 )
 
 /** One figure of the summary strip, already computed and labelled. */
@@ -372,6 +377,10 @@ class AppListRepository(
             rate = dotGet(this, "purchase")?.asString ?: "0",
             // Joined on status = 1 server-side, so a trashed voucher shows blank.
             vrNo = dotGet(this, "opening_vr_no")?.asString.orEmpty(),
+            measurement = dotGet(this, "measurement")?.asString.orEmpty(),
+            measurementUnitId = dotGet(this, "measurement_unit_id")?.asString.orEmpty(),
+            packageSize = dotGet(this, "package_size")?.asString.orEmpty(),
+            packageUnitId = dotGet(this, "package_unit_id")?.asString.orEmpty(),
         )
     }
 

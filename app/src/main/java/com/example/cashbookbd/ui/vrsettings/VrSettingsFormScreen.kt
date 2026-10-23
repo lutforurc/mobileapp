@@ -48,8 +48,6 @@ import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
 
-private val VOUCHER_TYPES = listOf("1" to "Received", "2" to "Payment", "3" to "Journal")
-
 /**
  * A VR-settings action form: delete a voucher (with a force-confirm step), delete
  * a voucher's installments, or shift a range of vouchers to a new date.
@@ -153,18 +151,16 @@ private fun DateChangeFields(state: VrSettingsFormUiState, viewModel: VrSettings
         Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
     }
 
-    VoucherTypeDropdown(selected = state.voucherType, onSelected = viewModel::onVoucherTypeChange)
-
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         DateField(
-            label = "Present Date",
+            label = "Enter From Date",
             value = state.presentDate,
             modifier = Modifier.weight(1f),
             onPicked = viewModel::onPresentDate,
             context = context,
         )
         DateField(
-            label = "Change Date",
+            label = "Enter To Date",
             value = state.changeDate,
             modifier = Modifier.weight(1f),
             onPicked = viewModel::onChangeDate,
@@ -176,15 +172,21 @@ private fun DateChangeFields(state: VrSettingsFormUiState, viewModel: VrSettings
         AppTextField(
             value = state.startVoucher,
             onValueChange = viewModel::onStartVoucher,
-            label = "Start Voucher",
+            label = "e.g. 10-261000001",
+            caption = "Start Voucher Number",
             modifier = Modifier.weight(1f),
         )
         AppTextField(
             value = state.endVoucher,
             onValueChange = viewModel::onEndVoucher,
-            label = "End Voucher",
+            label = "e.g. 10-261000010",
+            caption = "End Voucher Number",
             modifier = Modifier.weight(1f),
         )
+    }
+    // The type, month and year are read out of the numbers (web efd16b0d).
+    state.rangeError?.let {
+        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -209,29 +211,6 @@ private fun BranchDropdown(
                 DropdownMenuItem(
                     text = { Text(branch.name) },
                     onClick = { onSelected(branch); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun VoucherTypeDropdown(selected: String, onSelected: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val label = VOUCHER_TYPES.firstOrNull { it.first == selected }?.second ?: "Received"
-    Box(modifier = Modifier.fillMaxWidth()) {
-        DropdownAnchorField(
-            label = "Voucher Type",
-            valueText = label,
-            onClick = { expanded = true },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            VOUCHER_TYPES.forEach { (value, text) ->
-                DropdownMenuItem(
-                    text = { Text(text) },
-                    onClick = { onSelected(value); expanded = false },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
             }

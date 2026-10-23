@@ -140,6 +140,21 @@ data class ListDeleteAction(
     val anyOf: List<String> = emptyList(),
 )
 
+/** Which branch switch shows a list's second, deeper delete. */
+enum class DeepDeleteGate { DELETE_WITH_OPENING_INVOICE }
+
+/**
+ * A second delete beside the plain one — the Product List's "Delete with
+ * opening invoice" (web b3fa5bf2), shown only while [gate] is on for the
+ * branch. The server refuses unless its own conditions all hold.
+ */
+data class ListDeepDeleteAction(
+    val action: ListDeleteAction,
+    val gate: DeepDeleteGate,
+    val title: String,
+    val confirmTitle: String,
+)
+
 /**
  * A per-row "what happened to this record" — a clock icon opening
  * [ChangeLogDialog][com.example.cashbookbd.ui.components.ChangeLogDialog]
@@ -189,6 +204,8 @@ data class AppListSpec(
     val editAction: ListEditAction? = null,
     /** When set, each row gets a delete bin (with confirm) in the Action column. */
     val deleteAction: ListDeleteAction? = null,
+    /** A second, deeper delete gated on a branch switch (see [ListDeepDeleteAction]). */
+    val deepDeleteAction: ListDeepDeleteAction? = null,
     /** When set, each row gets a clock icon opening its change log in the Action column. */
     val historyAction: ListHistoryAction? = null,
     /** Pagination key overrides — the check-register endpoint reads `perPage`. */
@@ -215,6 +232,18 @@ data class AppListSpec(
     val filterKey: String? = null,
     val filterLabel: String = "Filter",
     val filterOptions: List<com.example.cashbookbd.ui.reports.model.SelectorOption> = emptyList(),
+    /** A search box sent as `search`, applied on the keyboard's search key (web 681144ed). */
+    val searchable: Boolean = false,
+    /** Server-side dropdown filters whose options come from a selector source (web b0e11824). */
+    val selectorFilters: List<ListSelectorFilter> = emptyList(),
+)
+
+/** One server-side dropdown filter: `{paramKey: picked id}`, blank = all. */
+data class ListSelectorFilter(
+    val paramKey: String,
+    val label: String,
+    val source: com.example.cashbookbd.report.ReportSelectorSource,
+    val allLabel: String,
 )
 
 /**
@@ -641,6 +670,17 @@ object AppLists {
                 idKey = "product_id",
                 bodyKey = "product_id",
             ),
+            // The product AND the one old opening invoice that brought it in.
+            deepDeleteAction = ListDeepDeleteAction(
+                action = ListDeleteAction(
+                    endpointBase = "product/delete-with-purchase",
+                    idKey = "product_id",
+                    bodyKey = "product_id",
+                ),
+                gate = DeepDeleteGate.DELETE_WITH_OPENING_INVOICE,
+                title = "Delete with opening invoice",
+                confirmTitle = "Delete Product with Opening Invoice",
+            ),
             historyAction = ListHistoryAction(
                 endpointBase = "product/history",
                 idKey = "product_id",
@@ -648,6 +688,12 @@ object AppLists {
                 subtitleKey = "code",
             ),
             openingStock = true,
+            searchable = true,
+            selectorFilters = listOf(
+                ListSelectorFilter("brand_id", "Brand", com.example.cashbookbd.report.ReportSelectorSource.BRAND, "All Brands"),
+                ListSelectorFilter("category_id", "Category", com.example.cashbookbd.report.ReportSelectorSource.CATEGORY, "All Categories"),
+                ListSelectorFilter("group_id", "Group", com.example.cashbookbd.report.ReportSelectorSource.PRODUCT_GROUP, "All Groups"),
+            ),
         ),
         AppListSpec(
             key = "productGroupList",
@@ -1364,11 +1410,11 @@ object AppLists {
         ),
         AppListSpec(
             key = "hotelSlots",
-            title = "Sittings",
+            title = "Shift",
             endpoint = "hotel-setup/slots",
             method = ListMethod.GET,
             columns = listOf(
-                AppListColumn("name", "Sitting", sublineKey = "code"),
+                AppListColumn("name", "Shift", sublineKey = "code"),
                 // The hours, start over end. A sitting that runs past
                 // midnight says so in the next column rather than by an end
                 // time that reads as earlier than its start.
@@ -1388,7 +1434,7 @@ object AppLists {
             anyOf = listOf("hotel.resource.view"),
             paginated = true,
             addAction = ListAddAction(
-                label = "Add Sitting",
+                label = "Add Shift",
                 route = Routes.hrmCrudAdd("hotelSlots"),
                 anyOf = listOf("hotel.resource.view"),
             ),

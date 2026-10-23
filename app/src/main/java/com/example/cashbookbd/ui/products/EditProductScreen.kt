@@ -51,14 +51,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** The web's warrantyType constant, verbatim. */
-private val WARRANTY_TYPES = listOf(
-    SelectorOption("0", "Not Applicable"),
-    SelectorOption("1", "Warranty"),
-    SelectorOption("2", "Guarantee"),
-    SelectorOption("3", "Custom"),
-)
-
 data class EditProductUiState(
     val isLoading: Boolean = true,
     val loadError: String? = null,
@@ -90,6 +82,7 @@ data class EditProductUiState(
     val orderLevel: String = "",
     val warrantyType: SelectorOption = WARRANTY_TYPES.first(),
     val warrantyDays: String = "",
+    val measurement: MeasurementFields = MeasurementFields(),
 
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -101,7 +94,7 @@ data class EditProductUiState(
         get() = category != null && productType != null && unit != null &&
             name.isNotBlank() && description.isNotBlank() &&
             purchasePrice.toDoubleOrNull() != null && salesPrice.toDoubleOrNull() != null &&
-            !isSaving
+            measurement.error == null && !isSaving
 }
 
 class EditProductViewModel(
@@ -202,6 +195,12 @@ class EditProductViewModel(
                     warrantyType = WARRANTY_TYPES.firstOrNull { w -> w.id == data.warrantyType }
                         ?: WARRANTY_TYPES.first(),
                     warrantyDays = data.warrantyDays,
+                    measurement = MeasurementFields(
+                        measurement = data.measurement,
+                        measurementUnitId = data.measurementUnitId,
+                        packageSize = data.packageSize,
+                        packageUnitId = data.packageUnitId,
+                    ),
                 )
             }
         }
@@ -223,6 +222,7 @@ class EditProductViewModel(
     fun onPurchasePrice(value: String) = _uiState.update { it.copy(purchasePrice = value) }
     fun onSalesPrice(value: String) = _uiState.update { it.copy(salesPrice = value) }
     fun onOrderLevel(value: String) = _uiState.update { it.copy(orderLevel = value) }
+    fun onMeasurement(value: MeasurementFields) = _uiState.update { it.copy(measurement = value) }
 
     /** Changing the type clears the days, as the web does. */
     fun onWarrantyType(value: SelectorOption) =
@@ -253,6 +253,10 @@ class EditProductViewModel(
                     code = if (state.showCode) state.code else null,
                     groupId = if (state.showProductGroup) state.productGroup?.id.orEmpty() else null,
                     packSizeId = if (state.showPackSize) state.packSize?.id.orEmpty() else null,
+                    measurement = state.measurement.measurementForApi(),
+                    measurementUnitId = state.measurement.measurementUnitId,
+                    packageSize = state.measurement.packageSizeForApi(),
+                    packageUnitId = state.measurement.packageUnitId,
                 )
             )
             when (result) {
@@ -476,6 +480,10 @@ private fun EditForm(state: EditProductUiState, viewModel: EditProductViewModel)
                 placeholder = "Select pack size",
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        MeasurementFieldsBlock(state.measurement, state.units, viewModel::onMeasurement)
+        state.measurement.error?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         AppTextField(
             value = state.orderLevel,

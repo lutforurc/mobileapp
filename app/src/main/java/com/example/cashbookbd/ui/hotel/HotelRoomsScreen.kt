@@ -390,7 +390,7 @@ private fun RoomsTable(
             }
         },
         ReportColumn("Sold", ReportColWidth.Fixed(120.dp)) { row, _ ->
-            cellText(if (row.kind == "room") saleModeLabel(row.saleMode) else "By the sitting", maxLines = 2)
+            cellText(if (row.kind == "room") saleModeLabel(row.saleMode) else "By the shift", maxLines = 2)
         },
         ReportColumn("Rent", ReportColWidth.Fixed(90.dp), align = TextAlign.End) { row, _ ->
             // A dash, not 0.00: a room sold only by the bed has no whole-room rent.

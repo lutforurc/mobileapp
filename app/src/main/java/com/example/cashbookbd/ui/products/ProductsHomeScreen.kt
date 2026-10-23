@@ -77,7 +77,17 @@ fun ProductsHomeScreen(
             items(items) { item ->
                 ProductRowItem(
                     item = item,
-                    onClick = { navController.navigate(Routes.appListView(item.key)) },
+                    onClick = {
+                        navController.navigate(
+                            when (item.key) {
+                                com.example.cashbookbd.products.ProductsMenu.OPENING_IMPORT_KEY ->
+                                    com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_OPENING_IMPORT
+                                com.example.cashbookbd.products.ProductsMenu.STOCK_STATEMENT_KEY ->
+                                    com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_STOCK_STATEMENT
+                                else -> Routes.appListView(item.key)
+                            },
+                        )
+                    },
                 )
             }
         }

@@ -22,13 +22,16 @@ class ReportMenuPermissionTest {
      * permission (since the d58f1f6 gate alignment): `cashbook.view` opens the
      * Cashbook alone — Bank Book answers to `bank.book`, the summary to
      * `cash.bank.summery`, the collection reports to `collection.sheet` /
-     * `monthly.report`. No financial statement accepts any of them.
+     * `monthly.report`. No financial statement accepts any of them. Cash & Bank
+     * Book and the Daily Account Book (web 1d7af0f7) are the two siblings the
+     * web sidebar puts behind `cashbook.view` itself — both are the cashbook,
+     * laid out another way.
      */
     @Test
-    fun `cashbook_view unlocks only the cashbook`() {
+    fun `cashbook_view unlocks only the cashbook and its two layouts`() {
         val titles = ReportMenu.visible(perms("cashbook.view")).map { it.title }
 
-        assertEquals(listOf("Cashbook"), titles)
+        assertEquals(listOf("Cashbook", "Cash & Bank Book", "Daily Account Book"), titles)
     }
 
     /** Each sibling report opens on its own gate, exactly as the web sidebar does. */

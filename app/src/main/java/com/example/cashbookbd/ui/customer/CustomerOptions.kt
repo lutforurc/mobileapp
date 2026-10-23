@@ -29,6 +29,9 @@ val CLIENT_TYPES: List<SelectorOption> = listOf(
     SelectorOption("4", "Advance"),
 )
 
+/** The list's own blank entry: here empty means EVERY party, worded that way. */
+val ALL_CLIENT_TYPES = SelectorOption("", "All Types")
+
 /** The web's sexType select — lowercase ids are what the server stores. */
 val SEX_TYPES: List<SelectorOption> = listOf(
     SelectorOption("male", "Male"),
