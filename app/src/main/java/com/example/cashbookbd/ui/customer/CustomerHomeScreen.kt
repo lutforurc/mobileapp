@@ -3,16 +3,11 @@ package com.example.cashbookbd.ui.customer
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -34,6 +29,7 @@ import com.example.cashbookbd.customer.CustomerMenu
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 
 /**
  * The "Customers" parent section. Lists every customer screen the user is
@@ -69,6 +65,7 @@ fun CustomerHomeScreen(
             return@AuthenticatedShell
         }
 
+<<<<<<< HEAD
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
@@ -90,6 +87,27 @@ fun CustomerHomeScreen(
                     },
                 )
             }
+=======
+        SectionMenuList(
+            menuId = "customer-supplier",
+            items = items,
+            keyOf = { it.key },
+            arranged = false,
+        ) { item ->
+            CustomerRowItem(
+                item = item,
+                onClick = {
+                    // The customer list and Bank Opening are bespoke screens;
+                    // the rest use the shared read-only list.
+                    val route = when (item.key) {
+                        "customers" -> Routes.CUSTOMERS_LIST
+                        "bankOpening" -> Routes.BANK_OPENING
+                        else -> Routes.appListView(item.key)
+                    }
+                    navController.navigate(route)
+                },
+            )
+>>>>>>> main
         }
     }
 }

@@ -3,15 +3,11 @@ package com.example.cashbookbd.ui.reports
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -31,6 +27,7 @@ import androidx.navigation.NavHostController
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 import com.example.cashbookbd.report.ReportConfig
 import com.example.cashbookbd.report.ReportMenu
 
@@ -81,16 +78,13 @@ fun ReportsHomeScreen(
             return@AuthenticatedShell
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(reports) { report ->
-                ReportRowItem(report = report, onClick = { navController.openReport(report) })
-            }
+        SectionMenuList(
+            menuId = "reports",
+            items = reports,
+            keyOf = { it.key },
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("reports", subPrefs),
+        ) { report ->
+            ReportRowItem(report = report, onClick = { navController.openReport(report) })
         }
     }
 }

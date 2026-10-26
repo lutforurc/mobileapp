@@ -1,15 +1,11 @@
 package com.example.cashbookbd.ui.inventory
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -32,6 +28,7 @@ import com.example.cashbookbd.inventory.BranchTransferMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.ParityRoutes
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 import com.example.cashbookbd.ui.theme.appColors
 
 /**
@@ -68,6 +65,7 @@ fun BranchTransferHomeScreen(
             return@AuthenticatedShell
         }
 
+<<<<<<< HEAD
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
@@ -97,6 +95,29 @@ fun BranchTransferHomeScreen(
                     },
                 )
             }
+=======
+        SectionMenuList(
+            menuId = "branch-transfer",
+            items = items,
+            keyOf = { it.key },
+            arranged = false,
+        ) { item ->
+            BranchTransferRowItem(
+                item = item,
+                onClick = {
+                    val route = when (item.key) {
+                        BranchTransferMenu.BRANCH_ISSUE_KEY,
+                        BranchTransferMenu.BRANCH_RECEIVE_KEY,
+                        BranchTransferMenu.MATERIAL_ISSUE_KEY,
+                        -> Routes.inventoryView(item.key)
+                        BranchTransferMenu.TRANSFER_LIST_KEY -> Routes.TRANSFER_LIST
+                        // The three reports ride the generic engine.
+                        else -> Routes.reportView(item.key)
+                    }
+                    navController.navigate(route)
+                },
+            )
+>>>>>>> main
         }
     }
 }

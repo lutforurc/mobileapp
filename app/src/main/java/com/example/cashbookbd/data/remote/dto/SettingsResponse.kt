@@ -123,6 +123,12 @@ data class SettingsBranchDto(
     @SerializedName("id") val id: Long? = null,
     @SerializedName("business_type_id") val businessTypeId: Int? = null,
     /**
+     * The branch's trade NAME ("Trading", "Real Estate", …), the web's
+     * `branch.business_type`. Its dashboards head each page with it, falling
+     * back to the branch name when a record predates the field (web e49e28c9).
+     */
+    @SerializedName("business_type") val businessType: String? = null,
+    /**
      * Which inventory system the branch runs (1 general, 2 electronics,
      * 3 construction, 4 trading) — the key the invoice variants switch on.
      * The settings `branch` is the same `Branch::find()` row the web reads via

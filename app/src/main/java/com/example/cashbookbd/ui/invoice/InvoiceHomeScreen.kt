@@ -3,16 +3,12 @@ package com.example.cashbookbd.ui.invoice
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -37,6 +33,7 @@ import com.example.cashbookbd.invoice.InvoiceItem
 import com.example.cashbookbd.invoice.InvoiceMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 
 /**
  * The "Invoice" parent section. Lists every invoice form the current user is
@@ -84,6 +81,7 @@ fun InvoiceHomeScreen(
             return@AuthenticatedShell
         }
 
+<<<<<<< HEAD
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
@@ -109,6 +107,25 @@ fun InvoiceHomeScreen(
                     },
                 )
             }
+=======
+        SectionMenuList(
+            menuId = "invoice",
+            items = items,
+            keyOf = { it.key },
+            arranged = false,
+        ) { item ->
+            InvoiceRowItem(
+                item = item,
+                onClick = {
+                    val route = when (item.key) {
+                        InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
+                        InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
+                        else -> Routes.invoiceView(item.key)
+                    }
+                    navController.navigate(route)
+                },
+            )
+>>>>>>> main
         }
     }
 }

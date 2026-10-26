@@ -141,6 +141,16 @@ object WebMenuIds {
     fun forMenu(menuId: String): Map<String, String> = menus[menuId].orEmpty()
 
     /**
+     * Whether the user's own arrangement has anything to say about this menu —
+     * the web's `arranged(menuId)` verbatim: only a saved ORDER counts, so
+     * hiding one entry leaves the menu on its [MenuGroups] defaults. While this
+     * is false the section shows the web's grouped default; once it is true the
+     * section shows the user's flat order as saved.
+     */
+    fun isArranged(menuId: String, sub: MenuPreferences): Boolean =
+        sub.order.any { it.startsWith("$menuId/") }
+
+    /**
      * Applies the user's saved sidebar-sub arrangement to one menu's items —
      * the web's idsOf/slot verbatim: saved ids place their entries first,
      * unseen entries keep their declared order at the end, hidden entries are

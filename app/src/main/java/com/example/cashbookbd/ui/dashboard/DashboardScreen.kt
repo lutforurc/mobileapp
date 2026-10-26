@@ -63,6 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.R
 import com.example.cashbookbd.core.AmountFormat
+import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.data.repository.DashboardKpi
 import com.example.cashbookbd.data.repository.DashboardSummary
 import com.example.cashbookbd.data.repository.DueAging
@@ -92,6 +93,12 @@ fun DashboardScreen(
     ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // The branch's trade name, which heads the page — the web's
+    // `businessTypeName` (branch.business_type || branch.name), e49e28c9.
+    val context = LocalContext.current
+    val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
+    val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
     // Expired/rejected token -> back to login (consume the one-shot flag once).
     LaunchedEffect(uiState.sessionExpired) {
@@ -156,6 +163,8 @@ fun DashboardScreen(
 
                 uiState.dashboard != null ->
                     DashboardContent(
+                        heading = sessionState.settings?.branchBusinessType
+                            ?: uiState.dashboard!!.branchName,
                         dashboard = uiState.dashboard!!,
                         summary = uiState.summary,
                         prefs = widgetPrefs,
@@ -214,7 +223,12 @@ private fun DashboardContent(
     isConstruction: Boolean,
     rowActions: Map<Int, RowActionState>,
     onReceive: (ReceivedFromHo) -> Unit,
+<<<<<<< HEAD
     heading: String? = null,
+=======
+    /** The branch's trade name, headed at the top of the page (web e49e28c9). */
+    heading: String = "",
+>>>>>>> main
 ) {
     // The user's saved order over the widgets this dashboard has; the web's
     // Compact density tightens the gaps.
@@ -235,6 +249,17 @@ private fun DashboardContent(
         ),
         verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp),
     ) {
+        if (heading.isNotBlank()) {
+            item {
+                Text(
+                    text = heading,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = AppFontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
         if (isRefreshing) {
             item {
                 LinearRefreshHint()
@@ -531,6 +556,24 @@ private fun KpiRow(summary: DashboardSummary, isConstruction: Boolean = false) {
     // No heading row over the tiles: the web took the whole "Today at a
     // glance · Trx Date" line off every dashboard (ee529513), legend and all.
     Column {
+<<<<<<< HEAD
+=======
+        // The page is already headed by the branch's trade name and carries the
+        // transaction date in the summary card, so the old "Trx Date" line that
+        // rode this heading is gone (web ee529513).
+        Text(
+            text = "Today at a glance",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = AppFontWeight.Bold,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        Text(
+            text = "change vs previous day · sparkline last 14 days",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+>>>>>>> main
         tiles.chunked(2).forEachIndexed { rowIndex, pair ->
             if (rowIndex > 0) Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -607,12 +650,6 @@ private fun kpiValue(value: Double, money: Boolean): String {
 private fun dashMoney(value: Double): String {
     val rounded = Math.round(value)
     return if (rounded == 0L) "-" else formatMoney(rounded.toDouble())
-}
-
-/** "2026-08-05" → "05/08/2026". A malformed date passes through unchanged. */
-private fun isoToDisplay(iso: String): String {
-    val parts = iso.split("-")
-    return if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else iso
 }
 
 /** The web's Receivable Ageing card: outstanding, four buckets, advance strip. */

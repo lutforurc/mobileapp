@@ -24,19 +24,25 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -410,6 +416,9 @@ private fun AppDrawerContent(
             // the web sidebar's order under the web's menu ids, then arranged
             // by the user's own saved preferences (the Arrange Menu page),
             // which the web sidebar shares.
+            // Every section gets a distinct icon, mirroring the web sidebar's
+            // one-icon-per-menu set (web af330122). Material-icons-core ships a
+            // small curated set, so the nearest sensible glyph stands in.
             val permitted = buildList {
                 add(DrawerEntry("dashboard", "Dashboard", Icons.Filled.Home, currentRoute == Routes.HOME, Routes.HOME))
                 // The web's Dashboard group carries the Delivery System beside
@@ -423,7 +432,7 @@ private fun AppDrawerContent(
                 if (canReseller) add(DrawerEntry("reseller", "Reseller Dashboard", Icons.Filled.Share, currentRoute == Routes.RESELLER_DASHBOARD, Routes.RESELLER_DASHBOARD))
                 if (canTransactions) add(DrawerEntry("transaction", "Transaction", Icons.Filled.Create, currentRoute == Routes.TRANSACTIONS, Routes.TRANSACTIONS))
                 if (canInvoices) add(DrawerEntry("invoice", "Invoice", Icons.Filled.ShoppingCart, currentRoute == Routes.INVOICES, Routes.INVOICES))
-                if (canBranchTransfer) add(DrawerEntry("branch-transfer", "Branch Transfer", Icons.Filled.Share, currentRoute == Routes.BRANCH_TRANSFER, Routes.BRANCH_TRANSFER))
+                if (canBranchTransfer) add(DrawerEntry("branch-transfer", "Branch Transfer", Icons.AutoMirrored.Filled.Send, currentRoute == Routes.BRANCH_TRANSFER, Routes.BRANCH_TRANSFER))
                 if (canReports) add(
                     DrawerEntry(
                         "reports", "Reports", Icons.AutoMirrored.Filled.List,
@@ -436,33 +445,43 @@ private fun AppDrawerContent(
                 )
                 // The web's Product Tracking group sits right after Reports.
                 if (canProductTracking) add(DrawerEntry("product_tracking", "Product Tracking", Icons.Filled.Settings, currentRoute == Routes.PRODUCT_TRACKING, Routes.PRODUCT_TRACKING))
+<<<<<<< HEAD
                 // Then the Company Scheme receivable lists, as on the web.
                 if (canCompanyScheme) add(DrawerEntry("company_scheme", "Company Scheme", Icons.Filled.Star, currentRoute == ParityRoutes.COMPANY_SCHEME, ParityRoutes.COMPANY_SCHEME))
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
+=======
+                if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.MailOutline, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
+>>>>>>> main
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 // Beside Real Estate: the other property module, and the web
                 // sidebar keeps them together for the same reason.
-                if (canHotel) add(DrawerEntry("hotel", "Hotel", Icons.Filled.Home, currentRoute == Routes.HOTEL, Routes.HOTEL))
+                if (canHotel) add(DrawerEntry("hotel", "Hotel", Icons.Filled.AccountBox, currentRoute == Routes.HOTEL, Routes.HOTEL))
                 // Between Hotel and Products, where the web sidebar puts it.
                 if (canAssets) {
                     val assetHome = com.example.cashbookbd.asset.AssetMenu.ROUTE_HOME
                     add(DrawerEntry("asset", "Assets", Icons.Filled.Build, currentRoute == assetHome, assetHome))
                 }
-                if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.ShoppingCart, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
+                if (canProducts) add(DrawerEntry("products", "Products", Icons.Filled.Star, currentRoute == Routes.PRODUCTS, Routes.PRODUCTS))
                 // Down here with Products rather than up among the daily
                 // entries (web 7895207): master data, set up once and opened
                 // rarely — the menus near the top are the ones reached daily.
+<<<<<<< HEAD
                 if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 // "Old Software" — an archived old ERP's own read-only records; nothing here posts to the books.
                 if (canLegacy) add(DrawerEntry("legacy", "Old Software", Icons.Filled.Info, currentRoute == Routes.LEGACY_HOME, Routes.LEGACY_HOME))
                 if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN, Routes.ADMIN))
                 if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
+=======
+                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.ThumbUp, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
+                if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountCircle, currentRoute == Routes.ADMIN, Routes.ADMIN))
+                if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Edit, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
+>>>>>>> main
                 if (canHrm) add(DrawerEntry("hrm", "HRM", Icons.Filled.Face, currentRoute == Routes.HRM, Routes.HRM))
                 if (canCustomers) add(DrawerEntry("customer-supplier", "Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS, Routes.CUSTOMERS))
                 // One screen, like the web's one-item Analytics group.
                 if (canAnalytics) add(DrawerEntry("al-charts", "Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON, Routes.ANALYTICS_COMPARISON))
                 // Mobile-only tail: the web keeps Subscription in the header menu.
-                if (canSubscription) add(DrawerEntry("subscription", "Subscription", Icons.Filled.Star, currentRoute == Routes.SUBSCRIPTION, Routes.SUBSCRIPTION))
+                if (canSubscription) add(DrawerEntry("subscription", "Subscription", Icons.Filled.Favorite, currentRoute == Routes.SUBSCRIPTION, Routes.SUBSCRIPTION))
             }
 
             val context = LocalContext.current
