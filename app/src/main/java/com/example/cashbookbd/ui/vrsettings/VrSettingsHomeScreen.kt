@@ -3,16 +3,12 @@ package com.example.cashbookbd.ui.vrsettings
 import com.example.cashbookbd.ui.theme.muted
 import com.example.cashbookbd.ui.theme.appColors
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -33,6 +29,7 @@ import com.example.cashbookbd.applist.AppLists
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 import com.example.cashbookbd.vrsettings.VrSettingsItem
 import com.example.cashbookbd.vrsettings.VrSettingsMenu
 
@@ -70,25 +67,24 @@ fun VrSettingsHomeScreen(
             return@AuthenticatedShell
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                VrSettingsRowItem(
-                    item = item,
-                    onClick = {
-                        val route = when {
-                            // Voucher History has its own screen (card feed).
-                            item.key == "history" -> Routes.VOUCHER_HISTORY
-                            AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
-                            else -> Routes.vrSettingsView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
+        SectionMenuList(
+            menuId = "vr_settings",
+            items = items,
+            keyOf = { it.key },
+            arranged = false,
+        ) { item ->
+            VrSettingsRowItem(
+                item = item,
+                onClick = {
+                    val route = when {
+                        // Voucher History has its own screen (card feed).
+                        item.key == "history" -> Routes.VOUCHER_HISTORY
+                        AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
+                        else -> Routes.vrSettingsView(item.key)
+                    }
+                    navController.navigate(route)
+                },
+            )
         }
     }
 }

@@ -28,6 +28,12 @@ data class Settings(
     val userThemeDark: UserThemeMode = UserThemeMode(),
     // (UserThemeMode is declared at the bottom of this file.)
     val businessTypeId: Int? = null,
+    /**
+     * The branch's trade name ("Trading", "Real Estate", …) — the dashboard
+     * heads each page with it, falling back to the branch's own name, exactly
+     * as the web's `businessTypeName` does (web e49e28c9).
+     */
+    val branchBusinessType: String? = null,
     val inventorySystemId: Int? = null,
     /** The signed-in user's branch id — e.g. the Head Office cash received form's default receiving branch. */
     val branchId: Long? = null,

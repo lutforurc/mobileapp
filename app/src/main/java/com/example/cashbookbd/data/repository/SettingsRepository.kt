@@ -56,6 +56,9 @@ class SettingsRepository(
                     permissions = permissions,
                     userId = payload?.user?.id,
                     businessTypeId = payload?.branch?.businessTypeId,
+                    // The branch's trade name, for the dashboard's page heading.
+                    branchBusinessType = payload?.branch?.businessType?.trim()
+                        ?.takeIf { it.isNotEmpty() },
                     inventorySystemId = payload?.branch?.inventorySystemId,
                     branchId = payload?.branch?.id,
                     branchTypesId = payload?.branch?.branchTypesId,

@@ -1,16 +1,12 @@
 package com.example.cashbookbd.ui.hotel
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -32,6 +28,7 @@ import com.example.cashbookbd.hotel.HotelItem
 import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.ui.components.SectionMenuList
 import com.example.cashbookbd.ui.theme.appColors
 
 /**
@@ -75,28 +72,27 @@ fun HotelHomeScreen(
             return@AuthenticatedShell
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                HotelRowItem(
-                    item = item,
-                    onClick = {
-                        when (item.key) {
-                            HotelMenu.DASHBOARD_KEY -> navController.navigate(Routes.HOTEL_DASHBOARD)
-                            HotelMenu.SETUP_KEY -> navController.navigate(Routes.HOTEL_SETUP)
-                            HotelMenu.BOOKINGS_KEY -> navController.navigate(Routes.HOTEL_BOOKINGS)
-                            HotelMenu.HALL_BOOKINGS_KEY -> navController.navigate(HotelMenu.ROUTE_HALL_BOOKING)
-                            HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
-                            HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
-                            HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
-                            else -> Unit
-                        }
-                    },
-                )
-            }
+        SectionMenuList(
+            menuId = "hotel",
+            items = items,
+            keyOf = { it.key },
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("hotel", subPrefs),
+        ) { item ->
+            HotelRowItem(
+                item = item,
+                onClick = {
+                    when (item.key) {
+                        HotelMenu.DASHBOARD_KEY -> navController.navigate(Routes.HOTEL_DASHBOARD)
+                        HotelMenu.SETUP_KEY -> navController.navigate(Routes.HOTEL_SETUP)
+                        HotelMenu.BOOKINGS_KEY -> navController.navigate(Routes.HOTEL_BOOKINGS)
+                        HotelMenu.HALL_BOOKINGS_KEY -> navController.navigate(HotelMenu.ROUTE_HALL_BOOKING)
+                        HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
+                        HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
+                        HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
+                        else -> Unit
+                    }
+                },
+            )
         }
     }
 }
