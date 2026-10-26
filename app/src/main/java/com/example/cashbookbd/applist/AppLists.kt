@@ -68,6 +68,11 @@ data class AppListColumn(
     val sublineKey: String? = null,
     /** A special rendering (date normalisation, day span) — see [CellFormat]. */
     val format: CellFormat? = null,
+    /**
+     * The server's field name to sort this column by, when it is sortable (the
+     * web's `sortKey`). Null = the header is inert.
+     */
+    val sortKey: String? = null,
 )
 
 /**
@@ -236,6 +241,13 @@ data class AppListSpec(
     val searchable: Boolean = false,
     /** Server-side dropdown filters whose options come from a selector source (web b0e11824). */
     val selectorFilters: List<ListSelectorFilter> = emptyList(),
+    /**
+     * Server-side column sorting (web e07fd750): the parameter a chosen column's
+     * [AppListColumn.sortKey] is sent under, and the one its direction ("asc"/
+     * "desc") rides. Null = this list has no sortable headers.
+     */
+    val sortParam: String? = null,
+    val dirParam: String? = null,
 )
 
 /** One server-side dropdown filter: `{paramKey: picked id}`, blank = all. */
@@ -652,15 +664,19 @@ object AppLists {
             method = ListMethod.GET,
             params = mapOf("search" to ""),
             columns = listOf(
-                AppListColumn("name", "Product"),
-                AppListColumn("category", "Category"),
+                AppListColumn("name", "Product", sortKey = "name"),
+                AppListColumn("category", "Category", sortKey = "category"),
                 AppListColumn("brand", "Brand"),
-                AppListColumn("unit", "Unit"),
-                AppListColumn("purchase", "Purchase", numeric = true),
-                AppListColumn("sales", "Sales", numeric = true),
+                AppListColumn("unit", "Unit", sortKey = "unit"),
+                AppListColumn("purchase", "Purchase", numeric = true, sortKey = "purchase"),
+                AppListColumn("sales", "Sales", numeric = true, sortKey = "sales"),
             ),
             anyOf = listOf("products.view"),
             paginated = true,
+            // The order is the API's to apply (the list is paged there), so the
+            // headers ask it to re-sort rather than sort the page in hand.
+            sortParam = "sort",
+            dirParam = "dir",
             addAction = ListAddAction(label = "New Product", route = Routes.PRODUCT_ADD),
             // The web row's pencil and bin: the full Edit Product form, and a
             // delete the server refuses once the product has moved on a voucher.

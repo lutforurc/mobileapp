@@ -445,13 +445,9 @@ private fun AppDrawerContent(
                 )
                 // The web's Product Tracking group sits right after Reports.
                 if (canProductTracking) add(DrawerEntry("product_tracking", "Product Tracking", Icons.Filled.Settings, currentRoute == Routes.PRODUCT_TRACKING, Routes.PRODUCT_TRACKING))
-<<<<<<< HEAD
                 // Then the Company Scheme receivable lists, as on the web.
                 if (canCompanyScheme) add(DrawerEntry("company_scheme", "Company Scheme", Icons.Filled.Star, currentRoute == ParityRoutes.COMPANY_SCHEME, ParityRoutes.COMPANY_SCHEME))
-                if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.Create, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
-=======
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.MailOutline, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
->>>>>>> main
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 // Beside Real Estate: the other property module, and the web
                 // sidebar keeps them together for the same reason.
@@ -465,17 +461,11 @@ private fun AppDrawerContent(
                 // Down here with Products rather than up among the daily
                 // entries (web 7895207): master data, set up once and opened
                 // rarely — the menus near the top are the ones reached daily.
-<<<<<<< HEAD
-                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.Person, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
+                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.ThumbUp, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 // "Old Software" — an archived old ERP's own read-only records; nothing here posts to the books.
                 if (canLegacy) add(DrawerEntry("legacy", "Old Software", Icons.Filled.Info, currentRoute == Routes.LEGACY_HOME, Routes.LEGACY_HOME))
-                if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountBox, currentRoute == Routes.ADMIN, Routes.ADMIN))
-                if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Build, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
-=======
-                if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", Icons.Filled.ThumbUp, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
                 if (canAdmin) add(DrawerEntry("admin", "Admin", Icons.Filled.AccountCircle, currentRoute == Routes.ADMIN, Routes.ADMIN))
                 if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", Icons.Filled.Edit, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
->>>>>>> main
                 if (canHrm) add(DrawerEntry("hrm", "HRM", Icons.Filled.Face, currentRoute == Routes.HRM, Routes.HRM))
                 if (canCustomers) add(DrawerEntry("customer-supplier", "Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS, Routes.CUSTOMERS))
                 // One screen, like the web's one-item Analytics group.

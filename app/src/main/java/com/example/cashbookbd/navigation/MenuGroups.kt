@@ -154,18 +154,22 @@ object MenuGroups {
 
     private val HOTEL = listOf(
         Group("Bookings", listOf("hotelBookings", "hotelHallBookings", "hotelCalendar")),
-        Group("Operations", listOf("hotelHousekeeping")),
+        Group(
+            "Operations",
+            listOf("hotelHousekeeping", "hotelAmenityIssue", "hotelAssetPurchase"),
+        ),
+        Group("Accounts", listOf("hotelReceivedEntry", "hotelPaymentEntry")),
         Group("Reports & Setup", listOf("hotelReports", "hotelSetup")),
     )
 
     private val CUSTOMER = listOf(
-        Group("Parties", listOf("customers")),
+        Group("Parties", listOf("customers", "customerOpeningImport")),
         Group("Chart of Accounts", listOf("coaL1", "coaL2", "coaL3", "coaL4", "bankOpening")),
     )
 
     private val VR_SETTINGS = listOf(
         Group("Corrections", listOf("voucherDateChange", "voucherDelete", "installmentDelete", "recycleBin")),
-        Group("Audit", listOf("history", "logChanges")),
+        Group("Audit", listOf("history", "logChanges", "reportMismatch")),
     )
 
     /** Keyed by the drawer/menu id the section-home screens pass in. */

@@ -40,4 +40,9 @@ data class BranchListPayload(
 data class BranchOptionDto(
     @SerializedName("id") val id: Long? = null,
     @SerializedName("name") val name: String? = null,
+    /**
+     * The branch's "handle each customer by an employee" switch. The Due List
+     * offers its Employee filter only where this is on (web 015380a1).
+     */
+    @SerializedName("need_customer_handle_by_employee") val needCustomerHandleByEmployee: Boolean? = null,
 )

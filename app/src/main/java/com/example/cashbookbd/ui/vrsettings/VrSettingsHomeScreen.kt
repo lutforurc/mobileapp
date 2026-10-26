@@ -47,7 +47,14 @@ fun VrSettingsHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = VrSettingsMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "vr_settings", VrSettingsMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "VR Settings",
@@ -67,33 +74,11 @@ fun VrSettingsHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                VrSettingsRowItem(
-                    item = item,
-                    onClick = {
-                        val route = when {
-                            // Voucher History has its own screen (card feed).
-                            item.key == "history" -> Routes.VOUCHER_HISTORY
-                            item.key == "reportMismatch" -> com.example.cashbookbd.navigation.ParityRoutes.REPORT_MISMATCH
-                            AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
-                            else -> Routes.vrSettingsView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "vr_settings",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("vr_settings", subPrefs),
         ) { item ->
             VrSettingsRowItem(
                 item = item,
@@ -101,13 +86,13 @@ fun VrSettingsHomeScreen(
                     val route = when {
                         // Voucher History has its own screen (card feed).
                         item.key == "history" -> Routes.VOUCHER_HISTORY
+                        item.key == "reportMismatch" -> com.example.cashbookbd.navigation.ParityRoutes.REPORT_MISMATCH
                         AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                         else -> Routes.vrSettingsView(item.key)
                     }
                     navController.navigate(route)
                 },
             )
->>>>>>> main
         }
     }
 }

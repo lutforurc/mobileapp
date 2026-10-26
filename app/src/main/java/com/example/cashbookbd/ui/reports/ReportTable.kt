@@ -4,6 +4,7 @@ import com.example.cashbookbd.ui.theme.asGridLine
 import com.example.cashbookbd.ui.theme.appColors
 import com.example.cashbookbd.ui.theme.AppFontWeight
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,8 +97,16 @@ data class ReportColumn<T>(
     val align: TextAlign = TextAlign.Start,
     /** Header alignment; defaults to the column [align]. */
     val headerAlign: TextAlign = align,
+    /**
+     * The server's field name for this column's sort, when the column is
+     * sortable (the web's `sortKey`). Null = the header is inert.
+     */
+    val sortKey: String? = null,
     val render: (row: T, index: Int) -> ReportTableCell,
 )
+
+/** A chosen server-side sort: a column's [ReportColumn.sortKey] and its direction. */
+data class TableSortChoice(val key: String, val ascending: Boolean)
 
 /** One cell of a footer/total row, optionally spanning [colSpan] columns. */
 data class ReportFooterCell(
@@ -134,6 +143,17 @@ fun <T> ReportTable(
     footerRows: List<List<ReportFooterCell>> = emptyList(),
     /** Optional top-tier grouped header row (spans must sum to [columns].size). */
     headerGroups: List<ReportHeaderGroup>? = null,
+    /**
+     * The current sort, matched against a column's [ReportColumn.sortKey]. Only
+     * drawn — and only meaningful — when [onSortChange] is supplied too.
+     */
+    sort: TableSortChoice? = null,
+    /**
+     * Called when a sortable column's header is tapped, with the next choice
+     * (ascending → descending → null = unsorted). Null leaves every header inert
+     * and keeps the plain table every other report has always had.
+     */
+    onSortChange: ((TableSortChoice?) -> Unit)? = null,
     noDataMessage: String = "No data found",
     /** Per-row background (e.g. summary/opening-balance rows). Null = default. */
     rowBackground: ((row: T, index: Int) -> Color?)? = null,
@@ -187,20 +207,57 @@ fun <T> ReportTable(
             ) {
                 columns.forEachIndexed { i, col ->
                     if (i > 0) GridVDivider(onHeader = true)
-                    Text(
-                        text = col.header,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = AppFontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        textAlign = col.headerAlign,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        // Centre vertically so a one-line header sits level with a
-                        // header that wraps to two lines (e.g. "M. Days").
-                        modifier = colWidth(col.width)
-                            .align(Alignment.CenterVertically)
-                            .padding(horizontal = 8.dp, vertical = 10.dp),
-                    )
+                    // Centre vertically so a one-line header sits level with one
+                    // that wraps to two lines (e.g. "M. Days").
+                    val baseMod = colWidth(col.width)
+                        .align(Alignment.CenterVertically)
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                    val sortable = onSortChange != null && col.sortKey != null
+                    val active = sortable && sort?.key == col.sortKey
+                    if (sortable) {
+                        Row(
+                            modifier = baseMod.clickable {
+                                val key = col.sortKey!!
+                                // asc → desc → unsorted, then round again.
+                                val next = when {
+                                    !active -> TableSortChoice(key, ascending = true)
+                                    sort?.ascending == true -> TableSortChoice(key, ascending = false)
+                                    else -> null
+                                }
+                                onSortChange!!(next)
+                            },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = col.header,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = AppFontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                textAlign = col.headerAlign,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (active) {
+                                Text(
+                                    text = if (sort?.ascending == true) "▲" else "▼",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = col.header,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = AppFontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            textAlign = col.headerAlign,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = baseMod,
+                        )
+                    }
                 }
             }
         }

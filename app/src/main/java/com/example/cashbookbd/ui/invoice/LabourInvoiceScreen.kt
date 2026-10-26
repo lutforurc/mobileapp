@@ -235,6 +235,8 @@ private fun LabourLinesList(
     onEdit: (Int) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
+    // The foot sums the Quantity column beside the money (web 182ed65e).
+    val totalQty = lines.sumOf { it.qtyValue }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             lines.forEachIndexed { index, line ->
@@ -272,7 +274,13 @@ private fun LabourLinesList(
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Total Tk.", fontWeight = AppFontWeight.Bold)
-                Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Qty ${AmountFormat.format(totalQty)}",
+                        fontWeight = AppFontWeight.Bold,
+                    )
+                    Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
+                }
             }
         }
     }

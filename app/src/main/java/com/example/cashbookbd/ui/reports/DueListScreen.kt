@@ -105,6 +105,17 @@ fun DueListScreen(
                 onSelected = viewModel::onPartyType,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
+            // Whose customers — offered only where the selected branch asks for
+            // the field and the classification is not Supplier (web 015380a1).
+            if (uiState.handleByEmployeeOn) {
+                com.example.cashbookbd.ui.components.AppSelectDropdown(
+                    label = "Employee",
+                    options = uiState.employees,
+                    selected = uiState.employee,
+                    onSelected = viewModel::onEmployee,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            }
             androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (uiState.report != null && !uiState.isEmptyResult) {
                 AgeingToggle(checked = uiState.showAgeing, onChecked = viewModel::onShowAgeing)

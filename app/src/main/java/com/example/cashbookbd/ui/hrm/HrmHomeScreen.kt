@@ -48,7 +48,14 @@ fun HrmHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = HrmMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "hrm", HrmMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "HRM",
@@ -68,39 +75,11 @@ fun HrmHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                HrmRowItem(
-                    item = item,
-                    onClick = {
-                        // A key present in a shared registry opens that engine's
-                        // screen; everything else is a hand-built HRM form.
-                        val route = when {
-                            // The web builds these on the client — the absent
-                            // rows, the cards — so they have a screen of their own.
-                            item.key == "hrmAttendanceReport" -> com.example.cashbookbd.navigation.ParityRoutes.ATTENDANCE_DAILY
-                            item.key == "hrmAttendanceAlerts" -> com.example.cashbookbd.navigation.ParityRoutes.attendanceException(
-                                com.example.cashbookbd.ui.hrm.AttendanceReportType.ABSENT,
-                            )
-                            AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
-                            ReportMenu.byKey(item.key) != null -> Routes.reportView(item.key)
-                            else -> Routes.hrmView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "hrm",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("hrm", subPrefs),
         ) { item ->
             HrmRowItem(
                 item = item,
@@ -108,6 +87,12 @@ fun HrmHomeScreen(
                     // A key present in a shared registry opens that engine's
                     // screen; everything else is a hand-built HRM form.
                     val route = when {
+                        // The web builds these on the client — the absent
+                        // rows, the cards — so they have a screen of their own.
+                        item.key == "hrmAttendanceReport" -> com.example.cashbookbd.navigation.ParityRoutes.ATTENDANCE_DAILY
+                        item.key == "hrmAttendanceAlerts" -> com.example.cashbookbd.navigation.ParityRoutes.attendanceException(
+                            com.example.cashbookbd.ui.hrm.AttendanceReportType.ABSENT,
+                        )
                         AppLists.byKey(item.key) != null -> Routes.appListView(item.key)
                         ReportMenu.byKey(item.key) != null -> Routes.reportView(item.key)
                         else -> Routes.hrmView(item.key)
@@ -115,7 +100,6 @@ fun HrmHomeScreen(
                     navController.navigate(route)
                 },
             )
->>>>>>> main
         }
     }
 }

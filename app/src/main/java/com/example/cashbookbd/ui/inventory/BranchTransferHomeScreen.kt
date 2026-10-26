@@ -45,7 +45,14 @@ fun BranchTransferHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = BranchTransferMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "branch-transfer", BranchTransferMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Branch Transfer",
@@ -65,42 +72,11 @@ fun BranchTransferHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                BranchTransferRowItem(
-                    item = item,
-                    onClick = {
-                        val route = when (item.key) {
-                            BranchTransferMenu.BRANCH_ISSUE_KEY,
-                            BranchTransferMenu.BRANCH_RECEIVE_KEY,
-                            BranchTransferMenu.MATERIAL_ISSUE_KEY,
-                            -> Routes.inventoryView(item.key)
-                            BranchTransferMenu.TRANSFER_LIST_KEY -> ParityRoutes.TRANSFER_LIST
-                            BranchTransferMenu.RECEIVE_LIST_KEY -> ParityRoutes.RECEIVE_LIST
-                            BranchTransferMenu.PRODUCT_OUT_KEY -> ParityRoutes.PRODUCT_OUT
-                            BranchTransferMenu.PRODUCT_OUT_REASONS_KEY -> ParityRoutes.PRODUCT_OUT_REASONS
-                            BranchTransferMenu.PRODUCT_OUT_REGISTER_KEY -> ParityRoutes.PRODUCT_OUT_REGISTER
-                            BranchTransferMenu.PRODUCT_IN_KEY -> ParityRoutes.PRODUCT_IN
-                            BranchTransferMenu.PRODUCT_IN_REASONS_KEY -> ParityRoutes.PRODUCT_IN_REASONS
-                            BranchTransferMenu.PRODUCT_IN_REGISTER_KEY -> ParityRoutes.PRODUCT_IN_REGISTER
-                            // The three reports ride the generic engine.
-                            else -> Routes.reportView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "branch-transfer",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("branch-transfer", subPrefs),
         ) { item ->
             BranchTransferRowItem(
                 item = item,
@@ -110,14 +86,20 @@ fun BranchTransferHomeScreen(
                         BranchTransferMenu.BRANCH_RECEIVE_KEY,
                         BranchTransferMenu.MATERIAL_ISSUE_KEY,
                         -> Routes.inventoryView(item.key)
-                        BranchTransferMenu.TRANSFER_LIST_KEY -> Routes.TRANSFER_LIST
+                        BranchTransferMenu.TRANSFER_LIST_KEY -> ParityRoutes.TRANSFER_LIST
+                        BranchTransferMenu.RECEIVE_LIST_KEY -> ParityRoutes.RECEIVE_LIST
+                        BranchTransferMenu.PRODUCT_OUT_KEY -> ParityRoutes.PRODUCT_OUT
+                        BranchTransferMenu.PRODUCT_OUT_REASONS_KEY -> ParityRoutes.PRODUCT_OUT_REASONS
+                        BranchTransferMenu.PRODUCT_OUT_REGISTER_KEY -> ParityRoutes.PRODUCT_OUT_REGISTER
+                        BranchTransferMenu.PRODUCT_IN_KEY -> ParityRoutes.PRODUCT_IN
+                        BranchTransferMenu.PRODUCT_IN_REASONS_KEY -> ParityRoutes.PRODUCT_IN_REASONS
+                        BranchTransferMenu.PRODUCT_IN_REGISTER_KEY -> ParityRoutes.PRODUCT_IN_REGISTER
                         // The three reports ride the generic engine.
                         else -> Routes.reportView(item.key)
                     }
                     navController.navigate(route)
                 },
             )
->>>>>>> main
         }
     }
 }

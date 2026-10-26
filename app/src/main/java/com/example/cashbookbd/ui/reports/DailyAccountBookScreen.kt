@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,7 +58,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class DabEntry(val sl: String, val description: String, val amount: Double)
+data class DabEntry(
+    val sl: String,
+    val description: String,
+    val amount: Double,
+    /** The bank that paid a supplier, shown on its own line; blank otherwise. */
+    val bankName: String = "",
+)
 data class DabSection(val key: String, val title: String, val rows: List<DabEntry>, val total: Double)
 data class DabBalanceRow(val sl: String, val name: String, val accountNumber: String, val details: String, val balance: Double)
 data class DabBalanceTable(val rows: List<DabBalanceRow>, val total: Double)
@@ -181,7 +188,9 @@ class DailyAccountBookViewModel(
             DabSection(
                 key = s.jStr("key"),
                 title = s.jStr("title"),
-                rows = s.jObjs("rows").map { r -> DabEntry(r.jStr("sl"), r.jStr("description"), r.jNum("amount")) },
+                rows = s.jObjs("rows").map { r ->
+                    DabEntry(r.jStr("sl"), r.jStr("description"), r.jNum("amount"), r.jStr("bank_name"))
+                },
                 total = s.jNum("total"),
             )
         }
@@ -328,7 +337,32 @@ private fun SectionBlock(section: DabSection) {
         ReportTable(
             columns = listOf(
                 ReportColumn<DabEntry>("SL", ReportColWidth.Weight(0.12f), TextAlign.Center) { r, _ -> cellText(r.sl) },
-                ReportColumn<DabEntry>("DESCRIPTION", ReportColWidth.Weight(0.58f)) { r, _ -> cellText(r.description, maxLines = 4) },
+                ReportColumn<DabEntry>("DESCRIPTION", ReportColWidth.Weight(0.58f)) { r, _ ->
+                    if (r.bankName.isBlank()) {
+                        cellText(r.description, maxLines = 4)
+                    } else {
+                        // A bank-paid supplier names its bank on its own line.
+                        ReportTableCell.Slot {
+                            Column {
+                                if (r.description.isNotBlank()) {
+                                    Text(
+                                        r.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 4,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Text(
+                                    r.bankName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                },
                 ReportColumn<DabEntry>("AMOUNT", ReportColWidth.Weight(0.30f), TextAlign.End) { r, _ -> cellText(dabMoney(r.amount)) },
             ),
             data = section.rows,

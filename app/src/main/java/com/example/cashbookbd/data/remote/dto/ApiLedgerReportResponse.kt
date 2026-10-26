@@ -73,6 +73,12 @@ data class ApiLedgerRowDto(
     @SerializedName("branch_name") val branchName: String? = null,
     @SerializedName("name") val name: String? = null,
     @SerializedName("remarks") val remarks: String? = null,
+    /**
+     * 'Cash Received' (a 1- voucher) or 'Cash Payment' (2-), decided on the
+     * server; blank for every other kind. Display only — it takes the place of
+     * the account name in the screen's DESCRIPTION column.
+     */
+    @SerializedName("cash_transaction_type") val cashTransactionType: String? = null,
     @SerializedName("debit") val debit: Double? = null,
     @SerializedName("credit") val credit: Double? = null,
     /** Pipe-separated voucher attachment file names, or null. */

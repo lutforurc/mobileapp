@@ -11,6 +11,8 @@ import java.util.Locale
 data class BranchOption(
     val id: Long,
     val name: String,
+    /** The branch's "handle each customer by an employee" switch (web 015380a1). */
+    val needCustomerHandleByEmployee: Boolean = false,
 )
 
 /**
@@ -136,7 +138,11 @@ private fun String?.stripHtml(): String {
 
 fun BranchOptionDto.toBranchOption(): BranchOption? {
     val id = id ?: return null
-    return BranchOption(id = id, name = name?.trim().orEmpty().ifBlank { "Branch $id" })
+    return BranchOption(
+        id = id,
+        name = name?.trim().orEmpty().ifBlank { "Branch $id" },
+        needCustomerHandleByEmployee = needCustomerHandleByEmployee == true,
+    )
 }
 
 fun CashBookRowDto.toCashBookRow(): CashBookRow {

@@ -46,7 +46,14 @@ fun ProductsHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = ProductsMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "products", ProductsMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Products",
@@ -66,40 +73,26 @@ fun ProductsHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                ProductRowItem(
-                    item = item,
-                    onClick = {
-                        navController.navigate(
-                            when (item.key) {
-                                com.example.cashbookbd.products.ProductsMenu.OPENING_IMPORT_KEY ->
-                                    com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_OPENING_IMPORT
-                                com.example.cashbookbd.products.ProductsMenu.STOCK_STATEMENT_KEY ->
-                                    com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_STOCK_STATEMENT
-                                else -> Routes.appListView(item.key)
-                            },
-                        )
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "products",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("products", subPrefs),
         ) { item ->
             ProductRowItem(
                 item = item,
-                onClick = { navController.navigate(Routes.appListView(item.key)) },
+                onClick = {
+                    navController.navigate(
+                        when (item.key) {
+                            ProductsMenu.OPENING_IMPORT_KEY ->
+                                com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_OPENING_IMPORT
+                            ProductsMenu.STOCK_STATEMENT_KEY ->
+                                com.example.cashbookbd.navigation.ParityRoutes.PRODUCT_STOCK_STATEMENT
+                            else -> Routes.appListView(item.key)
+                        },
+                    )
+                },
             )
->>>>>>> main
         }
     }
 }

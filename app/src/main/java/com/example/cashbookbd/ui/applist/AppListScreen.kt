@@ -209,6 +209,7 @@ fun AppListScreen(
                     onHistory = viewModel::showHistory,
                     onDeepDelete = viewModel::requestDeepDelete,
                     onMeasureEdit = viewModel::startMeasureEdit,
+                    onSort = viewModel::onSort,
                 )
                 // A page turn keeps the table on screen; the only sign the next
                 // page is on its way is this spinner floating over it on a
@@ -601,6 +602,7 @@ private fun ListBody(
     onHistory: (AppListRow) -> Unit,
     onDeepDelete: (AppListRow) -> Unit = {},
     onMeasureEdit: (AppListRow) -> Unit = {},
+    onSort: (com.example.cashbookbd.ui.reports.TableSortChoice?) -> Unit = {},
 ) {
     when {
         state.isLoading -> Center { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
@@ -638,7 +640,22 @@ private fun ListBody(
                 // Keyed on the page so a fresh page starts reading from the top —
                 // the old page (and its scroll) stays up until the new rows land.
                 androidx.compose.runtime.key(state.currentPage, state.perPage) {
-                    ReportTable(columns = columns, data = state.rows, modifier = Modifier.weight(1f))
+                    ReportTable(
+                        columns = columns,
+                        data = state.rows,
+                        modifier = Modifier.weight(1f),
+                        sort = if (state.sortKey.isNotBlank()) {
+                            com.example.cashbookbd.ui.reports.TableSortChoice(
+                                key = state.sortKey,
+                                ascending = state.sortDir != "desc",
+                            )
+                        } else {
+                            null
+                        },
+                        // Only a list whose columns declare a sort key gets
+                        // tappable headers; every other list is unchanged.
+                        onSortChange = if (state.columns.any { it.sortKey != null }) onSort else null,
+                    )
                 }
             }
         }
@@ -712,6 +729,7 @@ private fun buildColumns(
                 header = col.label,
                 width = ReportColWidth.Fixed(if (col.numeric) 112.dp else 168.dp),
                 align = align,
+                sortKey = col.sortKey,
             ) { row, _ ->
                 // The three-line money cell needs its three lines.
                 val lines = if (col.format == com.example.cashbookbd.applist.CellFormat.ORDER_OUTSTANDING) 3 else 2

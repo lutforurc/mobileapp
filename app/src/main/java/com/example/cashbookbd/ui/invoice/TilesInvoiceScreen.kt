@@ -651,6 +651,15 @@ fun TilesInvoiceScreen(
                     }
                 }
 
+                if (state.lines.isNotEmpty()) {
+                    // The foot sums the Quantity column beside the money (web 182ed65e).
+                    Text(
+                        text = "Total   Qty ${plain(state.lines.sumOf { it.qty })}",
+                        fontWeight = AppFontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
                 // The purchase reads nought until a supplier is picked: a running
                 // balance needs someone to run against.
                 val has = state.isSales || state.party != null

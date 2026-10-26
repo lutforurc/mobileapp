@@ -45,7 +45,14 @@ fun CustomerHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    val items = CustomerMenu.visible(sessionState.permissions)
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "customer-supplier", CustomerMenu.visible(sessionState.permissions), subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Customers",
@@ -65,34 +72,11 @@ fun CustomerHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                CustomerRowItem(
-                    item = item,
-                    onClick = {
-                        // The customer list and Bank Opening are bespoke screens;
-                        // the rest use the shared read-only list.
-                        val route = when (item.key) {
-                            "customers" -> Routes.CUSTOMERS_LIST
-                            "bankOpening" -> Routes.BANK_OPENING
-                            "customerOpeningImport" -> com.example.cashbookbd.navigation.ParityRoutes.CUSTOMER_OPENING_IMPORT
-                            else -> Routes.appListView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "customer-supplier",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("customer-supplier", subPrefs),
         ) { item ->
             CustomerRowItem(
                 item = item,
@@ -102,12 +86,12 @@ fun CustomerHomeScreen(
                     val route = when (item.key) {
                         "customers" -> Routes.CUSTOMERS_LIST
                         "bankOpening" -> Routes.BANK_OPENING
+                        "customerOpeningImport" -> com.example.cashbookbd.navigation.ParityRoutes.CUSTOMER_OPENING_IMPORT
                         else -> Routes.appListView(item.key)
                     }
                     navController.navigate(route)
                 },
             )
->>>>>>> main
         }
     }
 }

@@ -43,6 +43,11 @@ data class LedgerRow(
     val description: String,
     /** Free-text voucher note ("-" from the API means none); highlight rules match on it. */
     val remarks: String,
+    /**
+     * 'Cash Received' / 'Cash Payment' for a 1-/2- voucher, else blank. Where
+     * present it IS the description shown (see [toLedgerStatement]).
+     */
+    val cashTransactionType: String = "",
     val debit: Double,
     val credit: Double,
     /** Cumulative balance after this row, seeded from the netted opening. */
@@ -76,15 +81,19 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
     val rows = details.orEmpty().map { dto ->
         // "-" is the backend's empty-remarks placeholder.
         val remarks = dto.remarks?.trim().orEmpty().takeUnless { it == "-" }.orEmpty()
+        val cashType = dto.cashTransactionType?.trim().orEmpty()
         running += (dto.debit ?: 0.0) - (dto.credit ?: 0.0)
         LedgerRow(
             date = dto.vrDate?.trim().orEmpty(),
             voucherNo = dto.vrNo?.trim().orEmpty(),
             // The web ledger's DESCRIPTION column renders `name` — the opposite
             // side of the entry ("Sales, Sales Discount (<items>)") — with the
-            // free-text remarks on a second line beneath it.
-            description = dto.name?.trim().orEmpty().ifBlank { remarks },
+            // free-text remarks on a second line beneath it. For a 1-/2- voucher
+            // the server's `cash_transaction_type` ("Cash Received" / "Cash
+            // Payment") takes the name's place there instead (web 2c319c28).
+            description = cashType.ifBlank { dto.name?.trim().orEmpty().ifBlank { remarks } },
             remarks = remarks,
+            cashTransactionType = cashType,
             debit = dto.debit ?: 0.0,
             credit = dto.credit ?: 0.0,
             runningBalance = running,

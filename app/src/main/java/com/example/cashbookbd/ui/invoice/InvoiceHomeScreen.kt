@@ -57,11 +57,20 @@ fun InvoiceHomeScreen(
         isTiles = CurrentBranchCache.load(branchApi, force = true)?.isTilesAndSanitary == true
     }
 
-    val items = InvoiceMenu.visible(
-        sessionState.permissions,
-        businessTypeId = sessionState.settings?.businessTypeId,
-        deductStockOnDelivery = sessionState.settings?.deductStockOnDelivery == true,
-    )
+    // The user's own inside-the-menu arrangement (the web's sidebar-sub).
+    val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }
+    val subPrefs by menuPrefs.subState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { menuPrefs.refreshSub() }
+
+    val items = com.example.cashbookbd.navigation.WebMenuIds.arrange(
+        "invoice",
+        InvoiceMenu.visible(
+            sessionState.permissions,
+            businessTypeId = sessionState.settings?.businessTypeId,
+            deductStockOnDelivery = sessionState.settings?.deductStockOnDelivery == true,
+        ),
+        subPrefs,
+    ) { it.key }
 
     AuthenticatedShell(
         title = "Invoice",
@@ -81,38 +90,11 @@ fun InvoiceHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                InvoiceRowItem(
-                    item = item,
-                    onClick = {
-                        val route = when (item.key) {
-                            InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
-                            InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
-                            InvoiceMenu.DELIVERY_KEY -> com.example.cashbookbd.navigation.ParityRoutes.delivery(null)
-                            "purchaseImport" -> com.example.cashbookbd.navigation.ParityRoutes.PURCHASE_IMPORT
-                            "salesImport" -> com.example.cashbookbd.navigation.ParityRoutes.SALES_IMPORT
-                            "sales" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES else Routes.invoiceView(item.key)
-                            "purchase" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE else Routes.invoiceView(item.key)
-                            "salesReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES_RETURN else Routes.invoiceView(item.key)
-                            "purchaseReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE_RETURN else Routes.invoiceView(item.key)
-                            else -> Routes.invoiceView(item.key)
-                        }
-                        navController.navigate(route)
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "invoice",
             items = items,
             keyOf = { it.key },
-            arranged = false,
+            arranged = com.example.cashbookbd.navigation.WebMenuIds.isArranged("invoice", subPrefs),
         ) { item ->
             InvoiceRowItem(
                 item = item,
@@ -120,12 +102,18 @@ fun InvoiceHomeScreen(
                     val route = when (item.key) {
                         InvoiceMenu.COMBINED_KEY -> Routes.COMBINED_INVOICE
                         InvoiceMenu.LABOUR_INVOICE_KEY -> Routes.LABOUR_INVOICE
+                        InvoiceMenu.DELIVERY_KEY -> com.example.cashbookbd.navigation.ParityRoutes.delivery(null)
+                        "purchaseImport" -> com.example.cashbookbd.navigation.ParityRoutes.PURCHASE_IMPORT
+                        "salesImport" -> com.example.cashbookbd.navigation.ParityRoutes.SALES_IMPORT
+                        "sales" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES else Routes.invoiceView(item.key)
+                        "purchase" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE else Routes.invoiceView(item.key)
+                        "salesReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_SALES_RETURN else Routes.invoiceView(item.key)
+                        "purchaseReturn" -> if (isTiles) com.example.cashbookbd.navigation.ParityRoutes.TILES_PURCHASE_RETURN else Routes.invoiceView(item.key)
                         else -> Routes.invoiceView(item.key)
                     }
                     navController.navigate(route)
                 },
             )
->>>>>>> main
         }
     }
 }

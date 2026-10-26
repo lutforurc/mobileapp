@@ -420,7 +420,7 @@ class HotelRepository(
         statedAdults: String,
         statedChildren: String,
         notes: String,
-        billedToPartyId: Long? = null,
+        billName: String? = null,
         stayKind: String = "paid",
         stayKindReason: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
@@ -437,10 +437,10 @@ class HotelRepository(
                 statedAdults.trim().toIntOrNull()?.let { addProperty("stated_adults", it) }
                 statedChildren.trim().toIntOrNull()?.let { addProperty("stated_children", it) }
                 notes.trim().takeIf { it.isNotEmpty() }?.let { addProperty("notes", it) }
-                // A corporate booking is refused without one: the bill goes to
-                // a company and the money comes later, so with no party there
-                // is nobody for the ageing report to chase.
-                billedToPartyId?.let { addProperty("billed_to_party_id", it) }
+                // A corporate booking's bill is made out to a company name the
+                // clerk types; the server keeps it as `bill_name` (web c5ea476f),
+                // which the bill and the other papers carry.
+                billName?.trim()?.takeIf { it.isNotEmpty() }?.let { addProperty("bill_name", it) }
                 // Absent means paid, which is what every caller before this meant.
                 if (stayKind != "paid") {
                     addProperty("stay_kind", stayKind)

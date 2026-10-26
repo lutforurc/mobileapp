@@ -13,6 +13,7 @@ import com.example.cashbookbd.data.repository.AppListRow
 import com.example.cashbookbd.data.repository.ProductRepository
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.session.Settings
+import com.example.cashbookbd.ui.reports.TableSortChoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -249,7 +250,8 @@ class AppListViewModel(
         val currentSpec = filtered.copy(
             params = filtered.params +
                 (if (filtered.searchable) mapOf("search" to _uiState.value.appliedSearch) else emptyMap()) +
-                filtered.selectorFilters.associate { it.paramKey to (_uiState.value.selectorValues[it.paramKey] ?: "") },
+                filtered.selectorFilters.associate { it.paramKey to (_uiState.value.selectorValues[it.paramKey] ?: "") } +
+                sortParams(filtered),
         )
         // With rows already on screen this is a page turn: the table stays put
         // under a thin progress line instead of vanishing behind the spinner.
@@ -308,6 +310,35 @@ class AppListViewModel(
 
     /** Changes the toolbar's extra filter (the Login Log's Result) and reloads from page 1. */
     fun onSearchText(value: String) = _uiState.update { it.copy(searchText = value) }
+
+    /**
+     * A sortable header's choice: the column's key and direction, or null to
+     * clear it back to the list's own order. Runs the report again from page one
+     * — the order decides which rows a page holds, so page five of the old order
+     * is not page five of the new one (web e07fd750).
+     */
+    fun onSort(choice: TableSortChoice?) {
+        _uiState.update {
+            it.copy(
+                sortKey = choice?.key.orEmpty(),
+                sortDir = when {
+                    choice == null -> ""
+                    choice.ascending -> "asc"
+                    else -> "desc"
+                },
+            )
+        }
+        load(page = 1)
+    }
+
+    /** The chosen sort, as the params the list's endpoint reads. */
+    private fun sortParams(spec: com.example.cashbookbd.applist.AppListSpec): Map<String, String> {
+        val param = spec.sortParam ?: return emptyMap()
+        val key = _uiState.value.sortKey
+        if (key.isBlank()) return emptyMap()
+        val dir = if (_uiState.value.sortDir == "desc") "desc" else "asc"
+        return mapOf(param to key, (spec.dirParam ?: param) to dir)
+    }
 
     /** Applied on the search key only — typing alone does not reload (web 681144ed). */
     fun applySearch() {

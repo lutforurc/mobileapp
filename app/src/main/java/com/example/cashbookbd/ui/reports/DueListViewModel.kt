@@ -54,19 +54,22 @@ class DueListViewModel(
         _uiState.update { it.copy(isBranchesLoading = true, branchesError = null) }
         viewModelScope.launch {
             when (val result = reportRepository.getBranches()) {
-                is Resource.Success -> _uiState.update {
-                    val branchTrDate = result.data.transactionDate
-                    val applyBranchDate = !dateDefaulted && branchTrDate != null
-                    if (applyBranchDate) {
-                        dateDefaulted = true
-                        defaultDate = branchTrDate!!
+                is Resource.Success -> {
+                    _uiState.update {
+                        val branchTrDate = result.data.transactionDate
+                        val applyBranchDate = !dateDefaulted && branchTrDate != null
+                        if (applyBranchDate) {
+                            dateDefaulted = true
+                            defaultDate = branchTrDate!!
+                        }
+                        it.copy(
+                            isBranchesLoading = false,
+                            branches = result.data.branches,
+                            selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
+                            endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
+                        )
                     }
-                    it.copy(
-                        isBranchesLoading = false,
-                        branches = result.data.branches,
-                        selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
-                        endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
-                    )
+                    refreshEmployeeGate()
                 }
 
                 is Resource.Error -> _uiState.update {
@@ -84,6 +87,7 @@ class DueListViewModel(
 
     fun onBranchSelected(branch: BranchOption) {
         _uiState.update { it.copy(selectedBranch = branch) }
+        refreshEmployeeGate()
     }
 
     fun onEndDateSelected(date: SimpleDate) {
@@ -92,6 +96,39 @@ class DueListViewModel(
 
     fun onPartyType(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
         _uiState.update { it.copy(partyType = option) }
+        refreshEmployeeGate()
+    }
+
+    fun onEmployee(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
+        _uiState.update { it.copy(employee = option) }
+    }
+
+    /** The branch whose employee list has already been fetched (once per branch). */
+    private var employeesLoadedForBranch: Long? = null
+
+    /**
+     * The Employee filter stands only where the SELECTED branch runs the field
+     * and the classification is not Supplier — the field lives on the customer
+     * form alone (web 015380a1). When it stands down the choice is cleared, so a
+     * hidden filter can never go on narrowing the report.
+     */
+    private fun refreshEmployeeGate() {
+        val state = _uiState.value
+        val on = state.selectedBranch?.needCustomerHandleByEmployee == true && state.partyType.id != "2"
+        _uiState.update {
+            it.copy(
+                handleByEmployeeOn = on,
+                employee = if (on) it.employee else ALL_EMPLOYEES,
+            )
+        }
+        if (!on) return
+        val branch = state.selectedBranch ?: return
+        if (employeesLoadedForBranch == branch.id) return
+        employeesLoadedForBranch = branch.id
+        viewModelScope.launch {
+            val employees = dueListRepository.fetchEmployees(branch.id)
+            _uiState.update { it.copy(employees = listOf(ALL_EMPLOYEES, NO_EMPLOYEE) + employees) }
+        }
     }
 
     fun onShowAgeing(on: Boolean) {
@@ -123,6 +160,7 @@ class DueListViewModel(
                 endApi = state.endDate.toApi(),
                 endDisplay = state.endDate.toDisplay(),
                 partyTypeId = state.partyType.id,
+                employeeId = if (state.handleByEmployeeOn) state.employee.id else "",
             )
             when (result) {
                 is Resource.Success -> _uiState.update {

@@ -201,17 +201,17 @@ class GenericReportRepository(
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload)
                 .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
-                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
                 .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
                 .let { rows ->
                     val key = config.groupByColumn
                     if (config.stockGroupSummary && key != null) rows.withStockGroupSummaries(key) else rows
                 }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
                 val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
-                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order) }
+                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
             }
         }
         return built.withPhoneFormat(config).withVehicleFormat(config)
@@ -499,6 +499,7 @@ class GenericReportRepository(
         voucherSpec: com.example.cashbookbd.report.ReportVoucherImages? = null,
         stacked: List<com.example.cashbookbd.report.ReportStackedColumn> = emptyList(),
         order: List<String> = emptyList(),
+        replace: Map<String, String> = emptyMap(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -540,13 +541,35 @@ class GenericReportRepository(
                 cells
             }
             ReportRow(
-                reorderCells(mergeStackedColumns(allCells, stacked), order),
+                reorderCells(mergeStackedColumns(applyLabelReplacements(allCells, obj, replace), stacked), order),
                 highlightText = highlightText,
                 highlightLabel = highlightLabel,
                 voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
             )
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /**
+     * Column substitutions (web's "show X in place of Y"): for each
+     * target → source pair, when the row's source value is non-blank it replaces
+     * the target cell's text. The source is read off the raw object, so it works
+     * even where the source column is itself hidden (Ledger Details' Description
+     * taking `cash_transaction_type` over `transaction_name`, web 81b824c0).
+     */
+    private fun applyLabelReplacements(
+        cells: List<ReportCell>,
+        obj: com.google.gson.JsonObject,
+        replace: Map<String, String>,
+    ): List<ReportCell> {
+        if (replace.isEmpty()) return cells
+        return cells.map { cell ->
+            val sourceKey = replace[cell.key] ?: return@map cell
+            val sourceValue = obj.entrySet()
+                .firstOrNull { it.key.lowercase(Locale.US) == sourceKey }
+                ?.value?.let { rawText(it) }?.trim().orEmpty()
+            if (sourceValue.isNotEmpty()) cell.copy(value = sourceValue) else cell
+        }
     }
 
     /**

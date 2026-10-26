@@ -62,10 +62,10 @@ class TransactionFormViewModel(
         if (spec?.fields?.any { it.picker == TxnPicker.BANK } == true) loadBankAccounts()
         // With no party picked yet, the every-party products come back.
         if (trackedContext != null) loadTrackedProducts(coa4Id = null)
-        // A Tiles and Sanitary branch gets its own Bank Received (the web's
-        // BankReceivedIndex reads the current branch's flag).
+        // A Tiles and Sanitary branch gets its own Bank screen, both Received
+        // and Payment now (web 2e55deb1; the corner reads the current branch's flag).
         val api = webApi
-        if (trackedContext == "received" && api != null) {
+        if (trackedContext != null && api != null) {
             viewModelScope.launch {
                 if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
                     _uiState.update { it.copy(isTiles = true) }

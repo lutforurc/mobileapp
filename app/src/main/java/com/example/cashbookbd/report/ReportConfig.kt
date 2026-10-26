@@ -223,6 +223,14 @@ data class ReportConfig(
      */
     val columnLabels: Map<String, String> = emptyMap(),
     /**
+     * Column substitutions, keyed by the target raw API row key (case-insensitive):
+     * when the row's paired source key is non-blank, its value replaces the target
+     * cell's text. Mirrors the web's "show X in place of Y" cases — Ledger Details'
+     * Description (`transaction_name`) showing the voucher's `cash_transaction_type`
+     * ("Cash Received" / "Cash Payment") instead (web 81b824c0).
+     */
+    val replaceLabels: Map<String, String> = emptyMap(),
+    /**
      * Raw API row keys in the order the WEB table shows its columns
      * (case-insensitive). Without this the columns follow the server's key
      * order; keys not listed here trail behind the listed ones, still in
@@ -861,13 +869,28 @@ object ReportMenu {
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
             ledgerParam = "party_id",
+            // The web draws a transaction-type selector here; its two values are
+            // the voucher prefix kinds (web 0012a389). Blank = unfiltered.
+            choiceParam = ReportChoiceParam(
+                paramKey = "transaction_type",
+                label = "Transaction Type",
+                options = listOf(
+                    ReportChoice("All Types", ""),
+                    ReportChoice("Cash Received", "1"),
+                    ReportChoice("Cash Payment", "2"),
+                ),
+            ),
             highlightPaths = listOf("remarks"),
             highlightColumn = "remarks",
             // The web's twelve columns; the raw voucher internals stay hidden.
             hiddenColumns = listOf(
                 "voucher_type", "trx_type", "product_name", "quantity", "total",
                 "received", "payment", "party_name", "mtmid", "is_approved",
+                // The cash label folds into the Description instead of a column.
+                "cash_transaction_type",
             ),
+            // A 1-/2- voucher's Description shows its cash kind, not the account.
+            replaceLabels = mapOf("transaction_name" to "cash_transaction_type"),
             columnOrder = listOf(
                 "vr_no", "vr_date", "transaction_name", "sales_item_name",
                 "order_number", "truck_no", "rate", "purchase_total",

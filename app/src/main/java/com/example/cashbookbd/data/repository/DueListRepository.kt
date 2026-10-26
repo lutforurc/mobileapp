@@ -7,6 +7,7 @@ import com.example.cashbookbd.data.remote.ReportApiService
 import com.example.cashbookbd.ui.reports.model.AgeParts
 import com.example.cashbookbd.ui.reports.model.DueListReport
 import com.example.cashbookbd.ui.reports.model.DueRow
+import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -38,6 +39,7 @@ class DueListRepository(
 
     companion object {
         private const val PATH = "reports/duelist"
+        private const val EMPLOYEE_DDL_PATH = "hrms/employee/ddl/list"
         private const val LOG_TAG = "DueList"
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
@@ -70,22 +72,35 @@ class DueListRepository(
         endDisplay: String,
         /** Client Type, applied by the server before the totals (web 95db3ee3); blank = all. */
         partyTypeId: String = "",
+        /**
+         * Whose customers: an `hrm_employees` id, or the word "none" for the
+         * parties nobody has been given to (web 015380a1). Blank = every party.
+         */
+        employeeId: String = "",
     ): Resource<DueListReport> = withContext(ioDispatcher) {
-        val first = request(branchId, endApi, partyTypeId)
+        val first = request(branchId, endApi, partyTypeId, employeeId)
         if (first is Resource.Error) return@withContext first
         if (first is Resource.Success && !first.data.isEmpty) return@withContext first
 
-        val second = request(branchId, endDisplay, partyTypeId)
+        val second = request(branchId, endDisplay, partyTypeId, employeeId)
         if (second is Resource.Success && !second.data.isEmpty) return@withContext second
         first
     }
 
-    private suspend fun request(branchId: Long, enddate: String, partyTypeId: String): Resource<DueListReport> {
+    private suspend fun request(
+        branchId: Long,
+        enddate: String,
+        partyTypeId: String,
+        employeeId: String,
+    ): Resource<DueListReport> {
         val params = buildMap {
             put("branch_id", branchId.toString())
             put("enddate", enddate)
             // Absent rather than empty: the server's own "no filter".
             if (partyTypeId.isNotBlank()) put("party_type_id", partyTypeId)
+            // "none" is a real value here — the parties nobody holds — so it must
+            // not be read as "no filter".
+            if (employeeId.isNotBlank()) put("handle_by_employee_id", employeeId)
         }
         return try {
             val response = api.get(PATH, params)
@@ -121,7 +136,10 @@ class DueListRepository(
         val root = response.body() ?: return Resource.Error("Invalid response from server.")
         if (BuildConfig.DEBUG) Log.d(LOG_TAG, "raw response: $root")
 
-        val array = locateRows(root)
+        // The API now answers `{ records, summary }`; a server not yet patched
+        // still returns one array with Total/Balance rows pushed onto it, so the
+        // tree search stays as the fallback.
+        val array = findRecordsArray(root) ?: locateRows(root)
         if (array == null) {
             if (BuildConfig.DEBUG) Log.d(LOG_TAG, "no rows array located")
             return Resource.Success(emptyReport())
@@ -160,9 +178,18 @@ class DueListRepository(
             Log.d(LOG_TAG, "located array size=${array.size()}, parsed dataRows=${dataRows.size}")
         }
 
-        val totalDebit = totalMap?.number(DEBIT_KEYS) ?: dataRows.sumOf { it.debit }
-        val totalCredit = totalMap?.number(CREDIT_KEYS) ?: dataRows.sumOf { it.credit }
-        val netBalance = balanceMap?.let { it.number(DEBIT_KEYS) - it.number(CREDIT_KEYS) }
+        // The filtered figures, as the API worked them out. Separate from the
+        // rows: the records are customers only, and the foot is drawn from here.
+        val summaryMap = findSummary(root)?.fieldMap()
+
+        val totalDebit = summaryMap?.number(DEBIT_KEYS)
+            ?: totalMap?.number(DEBIT_KEYS)
+            ?: dataRows.sumOf { it.debit }
+        val totalCredit = summaryMap?.number(CREDIT_KEYS)
+            ?: totalMap?.number(CREDIT_KEYS)
+            ?: dataRows.sumOf { it.credit }
+        val netBalance = summaryMap?.takeIf { it.containsKey("balance") }?.number(listOf("balance"))
+            ?: balanceMap?.let { it.number(DEBIT_KEYS) - it.number(CREDIT_KEYS) }
             ?: (totalDebit - totalCredit)
 
         return Resource.Success(
@@ -197,6 +224,80 @@ class DueListRepository(
     private fun JsonElement.hasRowMarker(): Boolean {
         val obj = asObjectOrNull() ?: return false
         return obj.entrySet().any { it.key.lowercase(Locale.US) in ROW_MARKER_KEYS }
+    }
+
+    /** The `{ records, summary }` payload's rows, or null on an unpatched server. */
+    private fun findRecordsArray(element: JsonElement): JsonArray? {
+        when {
+            element.isJsonObject -> {
+                val obj = element.asJsonObject
+                val records = obj.get("records")?.takeIf { it.isJsonArray }
+                if (records != null && records.asJsonArray.size() > 0) return records.asJsonArray
+                obj.entrySet().forEach { entry -> findRecordsArray(entry.value)?.let { return it } }
+            }
+            element.isJsonArray -> element.asJsonArray.forEach { child ->
+                findRecordsArray(child)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /** The payload's `summary` object (debit/credit/balance), or null. */
+    private fun findSummary(element: JsonElement): JsonObject? {
+        when {
+            element.isJsonObject -> {
+                val obj = element.asJsonObject
+                val summary = obj.get("summary")?.takeIf { it.isJsonObject }
+                if (summary != null) {
+                    val s = summary.asJsonObject
+                    if (s.has("debit") || s.has("credit") || s.has("balance")) return s
+                }
+                obj.entrySet().forEach { entry -> findSummary(entry.value)?.let { return it } }
+            }
+            element.isJsonArray -> element.asJsonArray.forEach { child ->
+                findSummary(child)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /**
+     * The branch's employees for the Due List's Employee filter
+     * (`hrms/employee/ddl/list`). Best-effort: a branch with no HRMS answers
+     * nothing, which is an empty list, never an error.
+     */
+    suspend fun fetchEmployees(branchId: Long): List<SelectorOption> = withContext(ioDispatcher) {
+        try {
+            val response = api.get(EMPLOYEE_DDL_PATH, mapOf("branch_id" to branchId.toString()))
+            if (!response.isSuccessful) return@withContext emptyList()
+            val array = employeeArray(response.body()) ?: return@withContext emptyList()
+            array.mapNotNull { el ->
+                val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                val value = obj.get("value")?.takeUnless { it.isJsonNull }?.asString?.trim().orEmpty()
+                val label = obj.get("label")?.takeUnless { it.isJsonNull }?.asString?.trim().orEmpty()
+                if (value.isBlank()) null else SelectorOption(id = value, label = label.ifBlank { value })
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /** Peels the `data` / `data.data` envelope and returns the array it holds. */
+    private fun employeeArray(root: JsonElement?): JsonArray? {
+        var node: JsonElement = root ?: return null
+        if (node.isJsonObject) {
+            val success = node.asJsonObject.get("success")?.takeUnless { it.isJsonNull }?.asBoolean
+            if (success == false) return null
+            val data = node.asJsonObject.get("data")?.takeUnless { it.isJsonNull }
+            if (data != null) {
+                node = data
+                if (node.isJsonObject) {
+                    val inner = node.asJsonObject.get("data")?.takeUnless { it.isJsonNull }
+                    if (inner != null) node = inner
+                }
+            }
+        }
+        return if (node.isJsonArray) node.asJsonArray else null
     }
 
     private fun emptyReport() = DueListReport(rows = emptyList(), totalDebit = 0.0, totalCredit = 0.0, netBalance = 0.0)

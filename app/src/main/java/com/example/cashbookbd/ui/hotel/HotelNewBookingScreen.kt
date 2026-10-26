@@ -116,11 +116,8 @@ data class HotelNewBookingUiState(
     val stayKind: String = "paid",
     val stayKindReason: String = "",
 
-    /** Corporate only: the company the bill goes to. */
-    val party: HotelParty? = null,
-    val partyQuery: String = "",
-    val partyResults: List<HotelParty> = emptyList(),
-    val isSearchingParties: Boolean = false,
+    /** Corporate only: the company the bill is made out to, typed (web c5ea476f). */
+    val companyName: String = "",
 
     /** What the property already knows about the mobile being typed. */
     val returning: HotelReturningGuest? = null,
@@ -138,7 +135,7 @@ data class HotelNewBookingUiState(
         get() = hasPicked && bookerName.isNotBlank() && !isSaving &&
             // Refused server-side anyway; said here so the button explains
             // itself rather than the save coming back with a sentence.
-            (!isCorporate || party != null) &&
+            (!isCorporate || companyName.isNotBlank()) &&
             (stayKind == "paid" || stayKindReason.isNotBlank())
 }
 
@@ -267,37 +264,10 @@ class HotelNewBookingViewModel(
         }
     }
 
-    // ---- The company a corporate bill goes to ---------------------------
+    // ---- The company a corporate bill is made out to --------------------
 
-    private var partySearch: Job? = null
+    fun onCompanyName(v: String) = _uiState.update { it.copy(companyName = v) }
 
-    fun onPartyQuery(v: String) {
-        _uiState.update { it.copy(partyQuery = v) }
-        partySearch?.cancel()
-        if (v.isBlank()) {
-            _uiState.update { it.copy(partyResults = emptyList()) }
-            return
-        }
-        partySearch = viewModelScope.launch {
-            delay(350)
-            _uiState.update { it.copy(isSearchingParties = true) }
-            val result = repository.searchParties(v)
-            _uiState.update { state ->
-                state.copy(
-                    isSearchingParties = false,
-                    partyResults = if (result is Resource.Success) result.data else emptyList(),
-                )
-            }
-        }
-    }
-
-    fun onPartyPicked(party: HotelParty) = _uiState.update {
-        it.copy(party = party, partyQuery = party.name, partyResults = emptyList())
-    }
-
-    fun clearParty() = _uiState.update {
-        it.copy(party = null, partyQuery = "", partyResults = emptyList())
-    }
     fun onAdults(v: String) = _uiState.update { it.copy(adults = v.filter { c -> c.isDigit() }) }
     fun onChildren(v: String) = _uiState.update { it.copy(children = v.filter { c -> c.isDigit() }) }
     fun onBookingType(option: SelectorOption) = _uiState.update { it.copy(bookingType = option.id) }
@@ -323,7 +293,7 @@ class HotelNewBookingViewModel(
                 statedAdults = state.adults,
                 statedChildren = state.children,
                 notes = state.notes,
-                billedToPartyId = state.party?.id.takeIf { state.isCorporate },
+                billName = state.companyName.trim().takeIf { state.isCorporate },
                 stayKind = state.stayKind,
                 stayKindReason = state.stayKindReason,
             )
@@ -592,48 +562,15 @@ fun HotelNewBookingScreen(
                     }
                     if (state.isCorporate) {
                         item {
-                            Column {
-                                AppTextField(
-                                    value = state.partyQuery,
-                                    onValueChange = viewModel::onPartyQuery,
-                                    label = "Billed to (company)",
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                val picked = state.party
-                                if (picked != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "Billing ${picked.name}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.appColors.success,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        LinkButton(text = "Change", onClick = viewModel::clearParty)
-                                    }
-                                } else {
-                                    Text(
-                                        text = "A corporate booking has to name the company it " +
-                                            "bills — the money comes later, and the ageing report " +
-                                            "has to know who to chase.",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.appColors.textMuted,
-                                    )
-                                }
-                                state.partyResults.forEach { party ->
-                                    Text(
-                                        text = buildString {
-                                            append(party.name)
-                                            if (party.mobile.isNotBlank()) append(" · ").append(party.mobile)
-                                            if (party.code.isNotBlank()) append(" · ").append(party.code)
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { viewModel.onPartyPicked(party) }
-                                            .padding(vertical = 6.dp),
-                                    )
-                                }
-                            }
+                            // The bill — and the papers that follow it — are made
+                            // out in this company's name, typed rather than picked
+                            // (web c5ea476f).
+                            AppTextField(
+                                value = state.companyName,
+                                onValueChange = viewModel::onCompanyName,
+                                label = "Company Name",
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
                     item {

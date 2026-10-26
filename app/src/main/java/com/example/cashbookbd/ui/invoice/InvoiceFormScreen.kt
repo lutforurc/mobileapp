@@ -469,6 +469,8 @@ private fun ProductEntry(
 
 @Composable
 private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: Double) {
+    // The foot sums the Quantity column beside the money (web 182ed65e).
+    val totalQty = lines.sumOf { it.qty }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             lines.forEachIndexed { index, line ->
@@ -515,7 +517,13 @@ private fun LinesList(lines: List<InvoiceLine>, onRemove: (Int) -> Unit, total: 
             Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Total", fontWeight = AppFontWeight.Bold)
-                Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Qty ${AmountFormat.format(totalQty)}",
+                        fontWeight = AppFontWeight.Bold,
+                    )
+                    Text(AmountFormat.format(total), fontWeight = AppFontWeight.Bold)
+                }
             }
         }
     }

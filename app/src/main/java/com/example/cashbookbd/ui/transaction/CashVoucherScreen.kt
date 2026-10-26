@@ -307,10 +307,22 @@ class CashVoucherViewModel(
             // web's CashReceivedIndex asks: a tiles branch runs Trading's id 4
             // but gets the General screen with its own three figures.
             val api = webApi
-            if (spec.key == CashVoucherForms.received.key && variant != CashVoucherVariant.HEAD_OFFICE && api != null) {
+            // Both cash forms have a tiles flavour now: the web's CashReceived
+            // index had one, and CashPaymentIndex gained one (web 2e55deb1). A
+            // tiles branch runs Trading's id 4 but gets the General screen with
+            // its own three figures, so this is asked before the inventory map.
+            if ((spec.key == CashVoucherForms.received.key || spec.key == CashVoucherForms.payment.key) &&
+                variant != CashVoucherVariant.HEAD_OFFICE && api != null
+            ) {
                 if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
                     variant = CashVoucherVariant.GENERAL
-                    _uiState.update { it.copy(variant = CashVoucherVariant.GENERAL, isTiles = true, showSearch = searchVisible(CashVoucherVariant.GENERAL)) }
+                    // The tiles screen carries the three figures and no order or
+                    // search box (web 2e55deb1); received keeps what it had.
+                    val showSearch = spec.key == CashVoucherForms.received.key &&
+                        searchVisible(CashVoucherVariant.GENERAL)
+                    _uiState.update {
+                        it.copy(variant = CashVoucherVariant.GENERAL, isTiles = true, showSearch = showSearch)
+                    }
                 }
             }
         }

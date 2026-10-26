@@ -109,6 +109,12 @@ data class AppListUiState(
     /** Per filter param key, its options (the "all" option first) and the picked id. */
     val selectorOptions: Map<String, List<SelectorOption>> = emptyMap(),
     val selectorValues: Map<String, String> = emptyMap(),
+    /**
+     * Server-side sort (web e07fd750): the chosen column's sort key and its
+     * direction ("asc"/"desc"). Blank key = the list's own order.
+     */
+    val sortKey: String = "",
+    val sortDir: String = "",
 ) {
     val canPrev: Boolean get() = isPaginated && currentPage > 1 && !isLoading && !isPageLoading
     val canNext: Boolean get() = isPaginated && currentPage < lastPage && !isLoading && !isPageLoading

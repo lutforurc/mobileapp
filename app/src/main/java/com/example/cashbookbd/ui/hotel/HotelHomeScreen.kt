@@ -72,34 +72,6 @@ fun HotelHomeScreen(
             return@AuthenticatedShell
         }
 
-<<<<<<< HEAD
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(items) { item ->
-                HotelRowItem(
-                    item = item,
-                    onClick = {
-                        when (item.key) {
-                            HotelMenu.DASHBOARD_KEY -> navController.navigate(Routes.HOTEL_DASHBOARD)
-                            HotelMenu.SETUP_KEY -> navController.navigate(Routes.HOTEL_SETUP)
-                            HotelMenu.BOOKINGS_KEY -> navController.navigate(Routes.HOTEL_BOOKINGS)
-                            HotelMenu.HALL_BOOKINGS_KEY -> navController.navigate(HotelMenu.ROUTE_HALL_BOOKING)
-                            HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
-                            HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
-                            HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
-                            HotelMenu.AMENITY_ISSUE_KEY -> navController.navigate(HotelMenu.ROUTE_AMENITY_ISSUE)
-                            HotelMenu.ASSET_PURCHASE_KEY -> navController.navigate(HotelMenu.ROUTE_ASSET_PURCHASE)
-                            HotelMenu.PAYMENT_ENTRY_KEY -> navController.navigate(HotelMenu.ROUTE_PAYMENT_ENTRY)
-                            HotelMenu.RECEIVED_ENTRY_KEY -> navController.navigate(HotelMenu.ROUTE_RECEIVED_ENTRY)
-                            else -> Unit
-                        }
-                    },
-                )
-            }
-=======
         SectionMenuList(
             menuId = "hotel",
             items = items,
@@ -117,11 +89,14 @@ fun HotelHomeScreen(
                         HotelMenu.CALENDAR_KEY -> navController.navigate(Routes.HOTEL_CALENDAR)
                         HotelMenu.HOUSEKEEPING_KEY -> navController.navigate(Routes.HOTEL_HOUSEKEEPING)
                         HotelMenu.REPORTS_KEY -> navController.navigate(Routes.HOTEL_REPORTS)
+                        HotelMenu.AMENITY_ISSUE_KEY -> navController.navigate(HotelMenu.ROUTE_AMENITY_ISSUE)
+                        HotelMenu.ASSET_PURCHASE_KEY -> navController.navigate(HotelMenu.ROUTE_ASSET_PURCHASE)
+                        HotelMenu.PAYMENT_ENTRY_KEY -> navController.navigate(HotelMenu.ROUTE_PAYMENT_ENTRY)
+                        HotelMenu.RECEIVED_ENTRY_KEY -> navController.navigate(HotelMenu.ROUTE_RECEIVED_ENTRY)
                         else -> Unit
                     }
                 },
             )
->>>>>>> main
         }
     }
 }

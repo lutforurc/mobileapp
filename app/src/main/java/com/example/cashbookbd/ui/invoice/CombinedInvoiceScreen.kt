@@ -649,6 +649,8 @@ private fun CombinedLinesList(
     salesTotal: Double,
     onRemove: (Int) -> Unit,
 ) {
+    // The foot sums the Quantity column beside the money (web 182ed65e).
+    val totalQty = lines.sumOf { it.qty }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             lines.forEachIndexed { index, line ->
@@ -686,6 +688,10 @@ private fun CombinedLinesList(
             }
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Total", fontWeight = AppFontWeight.Bold)
+                Text("Qty ${AmountFormat.format(totalQty)}", fontWeight = AppFontWeight.Bold)
+            }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Purchase Tk.", fontWeight = AppFontWeight.Bold)
                 Text(AmountFormat.format(purchaseTotal), fontWeight = AppFontWeight.Bold)
