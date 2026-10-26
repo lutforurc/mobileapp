@@ -2,6 +2,7 @@ package com.example.cashbookbd
 
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
+import com.example.cashbookbd.ui.invoice.TilesBranch
 import com.example.cashbookbd.ui.invoice.TilesInvoiceKind
 import com.example.cashbookbd.ui.invoice.TilesInvoiceUiState
 import com.example.cashbookbd.ui.invoice.TilesLine
@@ -27,6 +28,7 @@ import com.example.cashbookbd.ui.reports.model.BalanceSheetSection
 import com.example.cashbookbd.ui.reports.model.BalanceSheetSubsection
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.vrsettings.validateVoucherRange
+import com.example.cashbookbd.session.Settings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -143,6 +145,25 @@ class ParitySmokeTest {
         val cash = TilesInvoiceUiState(party = LedgerDropdownItem(17, "Cash", null))
         assertTrue(cash.isCash)
         assertFalse(TilesInvoiceUiState(party = party).isCash)
+    }
+
+    @Test
+    fun `a tiles branch is recognised by its flag or by the trade's name`() {
+        // The trade, however the server spells it.
+        assertTrue(TilesBranch.matches("Tiles and Sanitary"))
+        assertTrue(TilesBranch.matches("Tiles & Sanitary"))
+        assertTrue(TilesBranch.matches("Krishi Bitan Tiles and Sanitary Corner"))
+        assertFalse(TilesBranch.matches("Trading"))
+        assertFalse(TilesBranch.matches("Construction"))
+        assertFalse(TilesBranch.matches(null))
+
+        // The flag alone is enough, with no name to read.
+        assertTrue(TilesBranch.isTiles(Settings(isTilesAndSanitary = true), null))
+        // The trade's name (get-settings) alone is enough, with no flag and no call.
+        assertTrue(TilesBranch.isTiles(Settings(branchBusinessType = "Tiles and Sanitary"), null))
+        // A non-tiles branch is untouched.
+        assertFalse(TilesBranch.isTiles(Settings(branchBusinessType = "Trading"), null))
+        assertFalse(TilesBranch.isTiles(Settings(), null))
     }
 
     // ---- Report notes (web ReportNotes / *Notes.ts) ----

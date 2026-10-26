@@ -314,7 +314,11 @@ class CashVoucherViewModel(
             if ((spec.key == CashVoucherForms.received.key || spec.key == CashVoucherForms.payment.key) &&
                 variant != CashVoucherVariant.HEAD_OFFICE && api != null
             ) {
-                if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
+                if (com.example.cashbookbd.ui.invoice.TilesBranch.isTiles(
+                        sessionManager.state.value.settings,
+                        com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api),
+                    )
+                ) {
                     variant = CashVoucherVariant.GENERAL
                     // The tiles screen carries the three figures and no order or
                     // search box (web 2e55deb1); received keeps what it had.

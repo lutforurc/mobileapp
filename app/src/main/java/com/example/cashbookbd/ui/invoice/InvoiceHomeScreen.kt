@@ -49,13 +49,16 @@ fun InvoiceHomeScreen(
     val sessionManager = remember { ServiceLocator.provideSessionManager(context) }
     val sessionState by sessionManager.state.collectAsStateWithLifecycle()
 
-    // A Tiles and Sanitary branch has its own Sales/Purchase screens; the flag
-    // comes from `user/current-branch` (the web's SalesIndex reads the same).
+    // A Tiles and Sanitary branch has its own Sales/Purchase screens. The flag
+    // comes from `user/current-branch` as on the web, but the choice also reads
+    // the branch's trade name from the settings already in hand — so it cannot
+    // be missed by that one request (see TilesBranch).
     val branchApi = remember { ServiceLocator.provideWebApi(context.applicationContext) }
-    var isTiles by remember { mutableStateOf(CurrentBranchCache.value?.isTilesAndSanitary == true) }
+    var branchInfo by remember { mutableStateOf(CurrentBranchCache.value) }
     LaunchedEffect(sessionState.settings?.branchId) {
-        isTiles = CurrentBranchCache.load(branchApi, force = true)?.isTilesAndSanitary == true
+        branchInfo = CurrentBranchCache.load(branchApi, force = true)
     }
+    val isTiles = TilesBranch.isTiles(sessionState.settings, branchInfo)
 
     // The user's own inside-the-menu arrangement (the web's sidebar-sub).
     val menuPrefs = remember { ServiceLocator.provideMenuPreferencesRepository(context) }

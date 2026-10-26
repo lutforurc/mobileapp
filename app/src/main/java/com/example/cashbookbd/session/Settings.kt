@@ -34,6 +34,13 @@ data class Settings(
      * as the web's `businessTypeName` does (web e49e28c9).
      */
     val branchBusinessType: String? = null,
+    /**
+     * The branch is a Tiles and Sanitary shop — the flag the four Tiles screens
+     * (Cash Received/Payment, Sales/Purchase Invoice) are chosen by. Read from
+     * get-settings so the choice does not depend on `user/current-branch`
+     * answering; see [com.example.cashbookbd.ui.invoice.TilesBranch].
+     */
+    val isTilesAndSanitary: Boolean = false,
     val inventorySystemId: Int? = null,
     /** The signed-in user's branch id — e.g. the Head Office cash received form's default receiving branch. */
     val branchId: Long? = null,

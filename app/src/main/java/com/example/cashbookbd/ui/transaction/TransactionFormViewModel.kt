@@ -33,6 +33,8 @@ class TransactionFormViewModel(
     private val ledgerRepository: LedgerRepository,
     private val selectorRepository: SelectorRepository,
     private val webApi: com.example.cashbookbd.data.remote.WebApi? = null,
+    /** The session settings — read for the branch's Tiles trade signal. */
+    private val settings: com.example.cashbookbd.session.Settings? = null,
 ) : ViewModel() {
 
     private val spec = TransactionForms.byKey(txnKey)
@@ -67,7 +69,8 @@ class TransactionFormViewModel(
         val api = webApi
         if (trackedContext != null && api != null) {
             viewModelScope.launch {
-                if (com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)?.isTilesAndSanitary == true) {
+                val branch = com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)
+                if (com.example.cashbookbd.ui.invoice.TilesBranch.isTiles(settings, branch)) {
                     _uiState.update { it.copy(isTiles = true) }
                 }
             }
@@ -314,6 +317,7 @@ class TransactionFormViewModel(
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
                     selectorRepository = ServiceLocator.provideSelectorRepository(appContext),
                     webApi = ServiceLocator.provideWebApi(appContext),
+                    settings = ServiceLocator.provideSessionManager(appContext).state.value.settings,
                 )
             }
         }

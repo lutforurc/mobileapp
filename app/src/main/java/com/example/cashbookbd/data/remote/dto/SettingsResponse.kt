@@ -129,6 +129,13 @@ data class SettingsBranchDto(
      */
     @SerializedName("business_type") val businessType: String? = null,
     /**
+     * The branch's "Tiles and Sanitary" trade flag. The web reads it off
+     * `user/current-branch`; it rides the same `Branch::find()` row this
+     * settings payload carries, so it is available here too — and without a
+     * second request that the four Tiles screens could miss.
+     */
+    @SerializedName("is_tiles_and_sanitary") val isTilesAndSanitary: String? = null,
+    /**
      * Which inventory system the branch runs (1 general, 2 electronics,
      * 3 construction, 4 trading) — the key the invoice variants switch on.
      * The settings `branch` is the same `Branch::find()` row the web reads via

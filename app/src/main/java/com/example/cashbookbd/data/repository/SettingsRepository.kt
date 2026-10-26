@@ -59,6 +59,9 @@ class SettingsRepository(
                     // The branch's trade name, for the dashboard's page heading.
                     branchBusinessType = payload?.branch?.businessType?.trim()
                         ?.takeIf { it.isNotEmpty() },
+                    // The Tiles trade flag — "1"/"true" on, anything else off.
+                    isTilesAndSanitary = payload?.branch?.isTilesAndSanitary?.trim()
+                        ?.let { it == "1" || it.equals("true", ignoreCase = true) } == true,
                     inventorySystemId = payload?.branch?.inventorySystemId,
                     branchId = payload?.branch?.id,
                     branchTypesId = payload?.branch?.branchTypesId,

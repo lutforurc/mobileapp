@@ -1,5 +1,6 @@
 package com.example.cashbookbd.ui.invoice
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import com.example.cashbookbd.core.jObjects
 import com.example.cashbookbd.core.jPayload
 import com.example.cashbookbd.core.jStr
 import com.example.cashbookbd.data.remote.WebApi
+import com.example.cashbookbd.BuildConfig
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
@@ -52,8 +54,41 @@ data class CurrentBranchInfo(
     val deductStockOnDelivery: Boolean,
     /** The branch's own names for its four handwritten figures (blank = standard). */
     val labels: Map<String, String>,
+    /** The trade's name ("Tiles and Sanitary"), from `business_type` or the branch name. */
+    val businessType: String = "",
+    val name: String = "",
 ) {
     fun label(key: String, fallback: String) = labels[key]?.takeIf { it.isNotBlank() } ?: fallback
+
+    /** The flag, or — failing that — the trade's own name. */
+    val isTilesBranch: Boolean
+        get() = isTilesAndSanitary || TilesBranch.matches(businessType) || TilesBranch.matches(name)
+}
+
+/**
+ * Whether the branch is a Tiles and Sanitary shop — asked of EVERY signal the
+ * app holds, so a Tiles branch is never mistaken for a Trading one.
+ *
+ * The web reads a single flag off `user/current-branch`; the phone kept the same
+ * one signal, and if that one read was missing the four Tiles screens (Cash
+ * Received/Payment, Sales/Purchase Invoice) silently fell back to the general
+ * forms. get-settings carries the same `Branch::find()` row, so the flag and the
+ * trade's NAME are already in hand without another request — and the server
+ * itself recognises the trade by name, never by an auto-increment business type.
+ */
+object TilesBranch {
+    /** The trade's name, however the server spells it ("Tiles and Sanitary"). */
+    fun matches(name: String?): Boolean {
+        val n = name?.lowercase().orEmpty()
+        return n.contains("tiles") && n.contains("sanitary")
+    }
+
+    /** True when any signal says this is a Tiles and Sanitary branch. */
+    fun isTiles(settings: com.example.cashbookbd.session.Settings?, branch: CurrentBranchInfo?): Boolean =
+        settings?.isTilesAndSanitary == true ||
+            branch?.isTilesAndSanitary == true ||
+            matches(settings?.branchBusinessType) ||
+            branch?.isTilesBranch == true
 }
 
 private fun JsonObject.flag(key: String): Boolean {
@@ -64,6 +99,16 @@ private fun JsonObject.flag(key: String): Boolean {
     return s == "true" || s.toDoubleOrNull() == 1.0
 }
 
+/** A field that may arrive as text or as an object (its `name`), like `business_type`. */
+private fun JsonObject.nameOrText(key: String): String {
+    val el = get(key) ?: return ""
+    return when {
+        el.isJsonPrimitive -> el.asString.trim()
+        el.isJsonObject -> el.asJsonObject.jStr("name")
+        else -> ""
+    }
+}
+
 /** One read per session; the branch switch clears the dashboard cache, this too. */
 object CurrentBranchCache {
     @Volatile
@@ -71,7 +116,11 @@ object CurrentBranchCache {
 
     suspend fun load(api: WebApi, force: Boolean = false): CurrentBranchInfo? {
         if (!force) value?.let { return it }
-        val o = (api.get("user/current-branch") as? Resource.Success)?.data?.jPayload() ?: return value
+        val body = (api.get("user/current-branch") as? Resource.Success)?.data ?: return value
+        val o = body.jPayload()
+        // Kept for the next occurrence of a mis-detected branch: this is the
+        // payload the four Tiles screens are chosen from.
+        if (BuildConfig.DEBUG) Log.d("CurrentBranch", "raw: $body")
         val info = CurrentBranchInfo(
             id = o.jStr("id").toLongOrNull(),
             isTilesAndSanitary = o.flag("is_tiles_and_sanitary"),
@@ -81,6 +130,8 @@ object CurrentBranchCache {
                 "manual_voucher_no_label", "manual_voucher_date_label",
                 "manual_challan_no_label", "manual_challan_date_label",
             ).associateWith { o.jStr(it) },
+            businessType = o.nameOrText("business_type"),
+            name = o.jStr("name"),
         )
         value = info
         return info

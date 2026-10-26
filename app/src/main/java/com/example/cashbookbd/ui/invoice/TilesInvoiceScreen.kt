@@ -167,7 +167,7 @@ data class TilesInvoiceUiState(
     val isCash: Boolean get() = party?.id?.toString() == CASH_HEAD
 
     /** A tiles branch without "Have Warehouse" keeps one godown, picked for it. */
-    val singleWarehouse: Boolean get() = branch?.isTilesAndSanitary == true && branch.haveWarehouse.not()
+    val singleWarehouse: Boolean get() = branch?.isTilesBranch == true && branch.haveWarehouse.not()
 
     val linesTotal: Double get() = lines.sumOf { it.qty * it.price }
 
