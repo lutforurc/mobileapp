@@ -43,14 +43,8 @@ val hasReleaseSigning = keystoreProps.getProperty("storeFile")
 // val baseUrl = "https://mbdpp.cashbookbd.com/api/" 
 //val baseUrl = "https://kps.cashbookbd.com/api/"
 // val baseUrl = "https://kbr.cashbookbd.com/api/"
- // val baseUrl = "https://my.cashbookbd.com/api/"
- val baseUrl = "http://cashbook_api.test/api/"
-
-
-
-
-
-
+val baseUrl = "https://my.cashbookbd.com/api/"
+ // val baseUrl = "http://cashbook_api.test/api/"
 
 /**
  * Per-tenant branding. The tenant key is the base URL's subdomain, so switching
