@@ -62,6 +62,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** Leaving the balance on the booking: allowed by the server, ticked, and no party named. */
+private fun HotelCheckOutUiState.leavingOwing(): Boolean =
+    plan?.canCheckoutDue == true && leaveOwing && party == null && plan?.booking?.billedToPartyId == null
+
 data class HotelCheckOutUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -71,6 +75,8 @@ data class HotelCheckOutUiState(
     val chosen: Set<Long>? = null,
     /** Who the balance is billed to when it is not being paid here. */
     val party: HotelParty? = null,
+    /** Bill-wise due: leave the balance on the booking instead of naming a party. */
+    val leaveOwing: Boolean = false,
     val reason: String = "",
     val confirm: Boolean = false,
     val isWorking: Boolean = false,
@@ -161,11 +167,17 @@ class HotelCheckOutViewModel(
 
     fun clearParty() = _uiState.update { it.copy(party = null) }
 
+    fun onLeaveOwing(value: Boolean) = _uiState.update { it.copy(leaveOwing = value) }
+
     fun askConfirm() {
         val s = _uiState.value
         val plan = s.plan ?: return
         if (plan.rooms.size > 1 && s.chosen.isNullOrEmpty()) {
             return say("Name at least one room to check out.")
+        }
+        // Who let them go and why is the whole record of a balance left on a booking.
+        if (s.leavingOwing() && s.reason.isBlank()) {
+            return say("Say why the guest is leaving with a balance.")
         }
         _uiState.update { it.copy(confirm = true) }
     }
@@ -191,7 +203,7 @@ class HotelCheckOutViewModel(
                 is Resource.Success -> {
                     _uiState.update { it.copy(isWorking = false, message = result.data.message, done = closes) }
                     if (!closes) {
-                        _uiState.update { it.copy(chosen = null, party = null, reason = "") }
+                        _uiState.update { it.copy(chosen = null, party = null, leaveOwing = false, reason = "") }
                         load()
                     }
                 }
@@ -330,6 +342,8 @@ fun HotelCheckOutScreen(
                             !plan.closesBooking -> append(" The rest of the party stays and the bill stays open.")
                             plan.balance > 0 && state.party != null ->
                                 append(" ${hotelMoney(plan.balance)} is carried to ${state.party!!.name}.")
+                            plan.balance > 0 && state.leavingOwing() ->
+                                append(" ${hotelMoney(plan.balance)} stays owing on this booking, to be collected, billed to a party or written off later.")
                             plan.balance > 0 ->
                                 append(" ${hotelMoney(plan.balance)} is still owed — the server will refuse unless it is paid or billed to a party.")
                             plan.balance < 0 ->
@@ -535,10 +549,24 @@ private fun CheckOutBody(
                     if (state.party != null) {
                         LinkButton(text = "Clear — they pay here", onClick = viewModel::clearParty)
                     }
+                    // Bill-wise due: the server says whether this user may leave it owing.
+                    if (plan.canCheckoutDue && state.party == null && plan.booking.billedToPartyId == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = state.leaveOwing,
+                                onCheckedChange = viewModel::onLeaveOwing,
+                                enabled = !state.isWorking,
+                            )
+                            Text(
+                                text = "Leave ${hotelMoney(plan.balance)} owing on this booking — collect, bill or write it off later",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                     AppTextField(
                         value = state.reason,
                         onValueChange = viewModel::onReason,
-                        label = "Reason",
+                        label = if (state.leavingOwing()) "Reason for leaving it owing" else "Reason",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

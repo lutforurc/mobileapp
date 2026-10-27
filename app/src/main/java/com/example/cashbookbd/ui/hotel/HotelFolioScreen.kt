@@ -103,7 +103,10 @@ private val FALLBACK_CHARGE_TYPES = listOf(
     SelectorOption("other", "Other"),
 )
 
-enum class FolioDialog { BILL_NIGHTS, CHARGE, MONEY, DISCOUNT, TRANSFER, BILL_NAME }
+enum class FolioDialog { BILL_NIGHTS, CHARGE, MONEY, DISCOUNT, WRITE_OFF, TRANSFER, BILL_NAME }
+
+/** Forgiving what a checked-out guest left owing (bill-wise due). */
+data class FolioWriteOffDraft(val amount: String = "", val reason: String = "")
 
 data class FolioChargeDraft(
     val chargeType: String = "",
@@ -150,6 +153,7 @@ data class HotelFolioUiState(
     val charge: FolioChargeDraft = FolioChargeDraft(),
     val money: FolioMoneyDraft = FolioMoneyDraft(),
     val discount: FolioDiscountDraft = FolioDiscountDraft(),
+    val writeOff: FolioWriteOffDraft = FolioWriteOffDraft(),
     val transfer: FolioTransferDraft = FolioTransferDraft(),
     val billName: FolioBillNameDraft = FolioBillNameDraft(),
     val isWorking: Boolean = false,
@@ -243,6 +247,12 @@ class HotelFolioViewModel(
                         amount = folio.booking.discountAmount?.takeIf { a -> a > 0 }?.let { a -> plain(a) }.orEmpty(),
                         reason = folio.booking.discountReason,
                     ),
+                )
+            }
+            FolioDialog.WRITE_OFF -> _uiState.update {
+                it.copy(
+                    dialog = dialog,
+                    writeOff = FolioWriteOffDraft(amount = if (folio.balance > 0) plain(folio.balance) else ""),
                 )
             }
             FolioDialog.TRANSFER -> {
@@ -341,6 +351,20 @@ class HotelFolioViewModel(
             d.reason.isBlank() -> return say("Say why the discount was allowed — it goes on the record beside the figure.")
         }
         write { repository.giveDiscount(bookingId, rate, amount, d.reason) }
+    }
+
+    fun onWriteOff(transform: (FolioWriteOffDraft) -> FolioWriteOffDraft) =
+        _uiState.update { it.copy(writeOff = transform(it.writeOff)) }
+
+    /** The server re-checks the amount against what is owed; the reason is asked for here first. */
+    fun saveWriteOff() {
+        val d = _uiState.value.writeOff
+        val amount = d.amount.trim().toDoubleOrNull()
+        when {
+            amount == null || amount <= 0 -> return say("How much is being written off?")
+            d.reason.isBlank() -> return say("Say why the balance is being written off — it goes on the record.")
+        }
+        write { repository.writeOff(bookingId, amount!!, d.reason) }
     }
 
     /** Both figures zero is how the server is told to take the discount off. */
@@ -640,6 +664,28 @@ private fun FolioBody(
             }
         }
 
+        if (folio.writtenOff > 0) {
+            item {
+                Text(
+                    text = "Written off: ${hotelMoney(folio.writtenOff)} (already taken off what is owed)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.appColors.textOnScreenMuted,
+                )
+            }
+        }
+
+        // Bill-wise due: the guest has gone and this is still owing. Said at the
+        // top so a balance left on a checked-out booking is never hunted for.
+        if (booking.status == "checked_out" && folio.balance > 0 && bill?.carried != true) {
+            item {
+                HotelBanner(
+                    text = "${hotelMoney(folio.balance)} is still owing on this booking. Take the money, bill it to a party" +
+                        (if (folio.canWriteOff) ", or write it off." else "."),
+                    color = MaterialTheme.appColors.warning,
+                )
+            }
+        }
+
         item { WorkingLine(folio) }
 
         item {
@@ -690,11 +736,22 @@ private fun FolioBody(
                 if (canCheckOut && booking.status == "checked_in") {
                     SecondaryButton(text = "Check out", onClick = onCheckOut, enabled = !isWorking, compact = true)
                 }
+                // A checked-out stay may still be billed to a party: that is one
+                // of the ways a balance left at the door is settled.
                 if (canTransfer && bill != null && bill.outstanding > 0) {
                     SecondaryButton(
                         text = "Bill it to…",
                         onClick = { onOpen(FolioDialog.TRANSFER) },
-                        enabled = !isWorking && !closed,
+                        enabled = !isWorking && booking.status != "cancelled",
+                        compact = true,
+                    )
+                }
+                // The server's answer: checked out, still the guest's, owing, and permitted.
+                if (folio.canWriteOff) {
+                    SecondaryButton(
+                        text = "Write off balance",
+                        onClick = { onOpen(FolioDialog.WRITE_OFF) },
+                        enabled = !isWorking,
                         compact = true,
                     )
                 }
@@ -1192,6 +1249,46 @@ private fun FolioDialogs(state: HotelFolioUiState, viewModel: HotelFolioViewMode
                 },
                 confirmButton = {
                     PrimaryButton(text = "Allow", onClick = viewModel::saveDiscount, enabled = !working, isLoading = working, compact = true)
+                },
+                dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::close, enabled = !working) },
+            )
+        }
+
+        FolioDialog.WRITE_OFF -> {
+            val d = state.writeOff
+            AlertDialog(
+                onDismissRequest = viewModel::close,
+                title = { Text("Write off what is owing") },
+                text = {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "Up to ${hotelMoney(folio.balance)}. Debited to Hotel Discount Allowed and taken off " +
+                                "Advance Against Booking. The bill itself is not changed.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.appColors.textMuted,
+                        )
+                        AppTextField(
+                            value = d.amount,
+                            onValueChange = { v -> viewModel.onWriteOff { it.copy(amount = v) } },
+                            label = "Amount",
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardType = KeyboardType.Decimal,
+                        )
+                        AppTextField(
+                            value = d.reason,
+                            onValueChange = { v -> viewModel.onWriteOff { it.copy(reason = v.take(255)) } },
+                            label = "Why",
+                            modifier = Modifier.fillMaxWidth(),
+                            caption = "Kept with who wrote it off and when.",
+                            multiline = true,
+                        )
+                    }
+                },
+                confirmButton = {
+                    PrimaryButton(text = "Write off", onClick = viewModel::saveWriteOff, enabled = !working, isLoading = working, compact = true)
                 },
                 dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::close, enabled = !working) },
             )

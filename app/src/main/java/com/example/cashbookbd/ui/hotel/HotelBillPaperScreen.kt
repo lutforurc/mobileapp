@@ -359,6 +359,8 @@ internal fun hotelBillHtml(paper: HotelPaper): String {
     if (rounding != 0.0) row("Rounding", money(b["bill_rounding"]))
     row("Amount payable", money(b["bill_rounded"]), "big")
     row("Paid", money(b["bill_paid"]))
+    // Forgiven after check-out; only on a bill that had one, so the paper adds up.
+    if ((moneyOrNull(b["bill_written_off"]) ?: 0.0) != 0.0) row("Written off", money(b["bill_written_off"]))
     row(if (due < 0) "In hand" else "Due", money(Math.abs(due).toString()), "due")
     sb.append("</table></div>")
 

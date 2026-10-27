@@ -216,6 +216,33 @@ data class HotelCollection(
     val unposted: Int,
 )
 
+/** One checked-out booking still owing (bill-wise due). */
+data class HotelBookingDueRow(
+    val bookingId: Long,
+    val bookingNo: String,
+    val guest: String,
+    val mobile: String,
+    val checkoutDate: String,
+    val billed: Double,
+    val paid: Double,
+    val writtenOff: Double,
+    val due: Double,
+    val daysOverdue: Int,
+    val checkedOutBy: String,
+    val reason: String,
+)
+
+/**
+ * `reports/booking-due`. [advanceHeld] is money on stays that have not ended —
+ * set beside [due] so the Advance Against Booking head can be reconciled.
+ */
+data class HotelBookingDue(
+    val rows: List<HotelBookingDueRow>,
+    val due: Double,
+    val advanceHeld: Double,
+    val note: String,
+)
+
 data class HotelPerformanceTotals(
     val roomNightsAvailable: Int,
     val occupancy: Double,
@@ -593,6 +620,42 @@ class HotelOpsRepository(
                         byAccount = totals?.arr("by_account").orEmpty().map { it.toNamedAmount() },
                     ),
                     unposted = payload.int("unposted") ?: 0,
+                )
+            )
+        }
+    }
+
+    /** Checked-out bookings that still owe (`reports/booking-due`, perm hotel.booking.view). */
+    suspend fun fetchBookingDue(branchId: Long?): Resource<HotelBookingDue> = withContext(ioDispatcher) {
+        guarded {
+            val payload = read(
+                path = "hotel-setup/reports/booking-due",
+                params = branchParams(branchId),
+                denied = "You do not have permission to see bookings.",
+                fallback = "The due report could not be read.",
+            ).let { if (it is Resource.Error) return@guarded it else (it as Resource.Success).data }
+            val totals = payload.obj("totals")
+            Resource.Success(
+                HotelBookingDue(
+                    rows = payload.arr("rows").mapNotNull { o ->
+                        HotelBookingDueRow(
+                            bookingId = o.long("booking_id") ?: return@mapNotNull null,
+                            bookingNo = o.text("booking_no"),
+                            guest = o.text("guest"),
+                            mobile = o.text("mobile"),
+                            checkoutDate = o.text("checkout_date").take(10),
+                            billed = o.num("billed") ?: 0.0,
+                            paid = o.num("paid") ?: 0.0,
+                            writtenOff = o.num("written_off") ?: 0.0,
+                            due = o.num("due") ?: 0.0,
+                            daysOverdue = o.int("days_overdue") ?: 0,
+                            checkedOutBy = o.text("checked_out_by"),
+                            reason = o.text("reason"),
+                        )
+                    },
+                    due = totals?.num("due") ?: 0.0,
+                    advanceHeld = totals?.num("advance_held") ?: 0.0,
+                    note = payload.text("note"),
                 )
             )
         }

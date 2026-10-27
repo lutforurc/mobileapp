@@ -110,8 +110,12 @@ data class HotelFolio(
     val payments: List<HotelFolioPayment>,
     val totals: HotelFolioTotals,
     val paid: Double,
-    /** rounded − paid; negative means the guest is in credit ("in hand"). */
+    /** rounded − paid − written off; negative means the guest is in credit ("in hand"). */
     val balance: Double,
+    /** Forgiven after check-out (bill-wise due); already taken off [balance]. */
+    val writtenOff: Double,
+    /** Checked out, still the guest's, something owing, and the user holds hotel.booking.writeoff. */
+    val canWriteOff: Boolean,
     val unbilledNights: Int,
     val postedToLedger: Boolean,
     val unpostedRows: Int,
@@ -201,6 +205,11 @@ data class HotelCheckOutPlan(
     val paid: Double,
     val balance: Double,
     val chartMissing: List<String>,
+    /**
+     * Bill-wise due: this user may end the stay with the balance unpaid and no
+     * party — the balance stays on the booking. A reason is then required.
+     */
+    val canCheckoutDue: Boolean,
 )
 
 /** The check-out write: the sentence, and the plan as it stands afterwards. */
@@ -400,6 +409,19 @@ class HotelFolioRepository(
             addProperty("reason", reason.trim())
         }
         folioWrite(api.postObjectRaw("hotel-setup/bookings/folio/$bookingId/discount", body), "Discount recorded")
+    }
+
+    /**
+     * Forgive some or all of what a checked-out guest left owing
+     * (`folio/{id}/writeoff`, perm hotel.booking.writeoff). Not a discount:
+     * the bill is not re-priced; a voucher of its own lowers what is owed.
+     */
+    suspend fun writeOff(bookingId: Long, amount: Double, reason: String): Resource<HotelFolioWrite> = guarded {
+        val body = JsonObject().apply {
+            addProperty("amount", amount)
+            addProperty("reason", reason.trim())
+        }
+        folioWrite(api.postObjectRaw("hotel-setup/bookings/folio/$bookingId/writeoff", body), "Written off")
     }
 
     /** The name printed on the bill; empty resets it to whoever the bill is owed by. */
@@ -993,6 +1015,8 @@ class HotelFolioRepository(
             totals = obj("totals").toTotals(),
             paid = dbl("paid") ?: 0.0,
             balance = dbl("balance") ?: 0.0,
+            writtenOff = dbl("written_off") ?: 0.0,
+            canWriteOff = flag("can_writeoff"),
             unbilledNights = int("unbilled_nights") ?: 0,
             postedToLedger = flag("posted_to_ledger"),
             unpostedRows = int("unposted_rows") ?: 0,
@@ -1118,6 +1142,7 @@ class HotelFolioRepository(
             paid = dbl("paid") ?: 0.0,
             balance = dbl("balance") ?: 0.0,
             chartMissing = strings("chart_missing"),
+            canCheckoutDue = flag("can_checkout_due"),
         )
     }
 

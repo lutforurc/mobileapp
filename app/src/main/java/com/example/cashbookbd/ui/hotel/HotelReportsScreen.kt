@@ -35,7 +35,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.data.repository.HotelBookingDue
+import com.example.cashbookbd.data.repository.HotelBookingDueRow
 import com.example.cashbookbd.data.repository.HotelCollection
+import com.example.cashbookbd.hotel.HotelMenu
+import androidx.compose.foundation.clickable
 import com.example.cashbookbd.data.repository.HotelCollectionRow
 import com.example.cashbookbd.data.repository.HotelNamedAmount
 import com.example.cashbookbd.data.repository.HotelOpsRepository
@@ -70,7 +74,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-private val TABS = listOf("Register", "Money taken", "Performance")
+private val TABS = listOf("Register", "Money taken", "Performance", "Due")
+
+/** The tab index of "Booking-wise due" (bill-wise due). */
+private const val TAB_DUE = 3
 
 /** The three questions the register answers, in the order the morning asks them. */
 private val MODES = listOf(
@@ -117,6 +124,10 @@ data class HotelReportsUiState(
     val performanceError: String? = null,
     /** The server's sentence when this branch lets no rooms — the tab shows it and nothing else. */
     val notLodging: String? = null,
+    // Booking-wise due
+    val due: HotelBookingDue? = null,
+    val dueLoading: Boolean = false,
+    val dueError: String? = null,
     val sessionExpired: Boolean = false,
 )
 
@@ -149,6 +160,7 @@ class HotelReportsViewModel(
         when (state.tab) {
             0 -> if (force || state.register == null) loadRegister()
             1 -> if (force || state.collection == null) loadCollection()
+            TAB_DUE -> if (force || state.due == null) loadDue()
             else -> if (force || (state.performance == null && state.notLodging == null)) loadPerformance()
         }
     }
@@ -165,9 +177,30 @@ class HotelReportsViewModel(
                 register = null, registerError = null,
                 collection = null, collectionError = null,
                 performance = null, performanceError = null, notLodging = null,
+                due = null, dueError = null,
             )
         }
         loadTab(force = true)
+    }
+
+    // ---- Booking-wise due ----
+
+    fun loadDue() {
+        val state = _uiState.value
+        _uiState.update { it.copy(dueLoading = true, dueError = null) }
+        viewModelScope.launch {
+            when (val result = repository.fetchBookingDue(state.branch?.id)) {
+                is Resource.Success -> _uiState.update { it.copy(dueLoading = false, due = result.data) }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        dueLoading = false,
+                        dueError = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
     }
 
     // ---- Register ----
@@ -394,6 +427,11 @@ fun HotelReportsScreen(
                         onTo = { hotelOpsPickDate(context, state.to, viewModel::onTo) },
                         onMethod = viewModel::onMethod,
                         onRetry = viewModel::loadCollection,
+                    )
+                    TAB_DUE -> DueTab(
+                        state = state,
+                        onOpen = { id -> navController.navigate(HotelMenu.folio(id)) },
+                        onRetry = viewModel::loadDue,
                     )
                     else -> PerformanceTab(
                         state = state,
@@ -678,6 +716,80 @@ private fun collectionColumns(): List<ReportColumn<HotelCollectionRow>> {
             // has to account for, and a dash would let it pass as nothing.
             if (r.vrNo.isBlank()) cellText("not posted", color = warning) else cellText(r.vrNo)
         },
+    )
+}
+
+// ---------------------------------------------------------------------------
+//  Booking-wise due — ended stays that still owe
+// ---------------------------------------------------------------------------
+
+/**
+ * The real picture of Advance Against Booking: that head nets one guest's
+ * advance against another's balance, so the two figures are set side by side.
+ * A row opens the folio, where the money is taken, billed on or written off.
+ */
+@Composable
+private fun DueTab(state: HotelReportsUiState, onOpen: (Long) -> Unit, onRetry: () -> Unit) {
+    when {
+        state.dueError != null -> HotelOpsProblem(text = state.dueError, onRetry = onRetry)
+        state.dueLoading && state.due == null -> HotelOpsLoading()
+        state.due != null -> {
+            val due = state.due
+            Column(
+                modifier = Modifier.alpha(if (state.dueLoading) 0.6f else 1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HotelOpsFigure(
+                        "Total due (${due.rows.size})",
+                        hotelOpsMoney(due.due),
+                        tone = MaterialTheme.appColors.danger,
+                        lead = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    HotelOpsFigure("Advance held on open bookings", hotelOpsMoney(due.advanceHeld), modifier = Modifier.weight(1f))
+                }
+                ReportTable(
+                    columns = dueColumns(onOpen),
+                    data = due.rows,
+                    noDataMessage = "Nothing is owing on any checked-out booking.",
+                    scrollable = false,
+                )
+                if (due.note.isNotBlank()) HotelOpsNote(text = due.note, color = MaterialTheme.appColors.textMuted)
+            }
+        }
+    }
+}
+
+@Composable
+private fun dueColumns(onOpen: (Long) -> Unit): List<ReportColumn<HotelBookingDueRow>> {
+    val muted = MaterialTheme.appColors.textMuted
+    val danger = MaterialTheme.appColors.danger
+    val primary = MaterialTheme.colorScheme.primary
+    return listOf(
+        ReportColumn("BOOKING", ReportColWidth.Fixed(160.dp)) { r, _ ->
+            ReportTableCell.Slot {
+                Column(
+                    modifier = Modifier
+                        .clickable { onOpen(r.bookingId) }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                ) {
+                    Text(r.bookingNo.ifBlank { "#${r.bookingId}" }, style = MaterialTheme.typography.bodySmall, color = primary, maxLines = 1)
+                    if (r.guest.isNotBlank()) Text(r.guest, style = MaterialTheme.typography.labelSmall, color = muted, maxLines = 1)
+                }
+            }
+        },
+        ReportColumn("MOBILE", ReportColWidth.Fixed(120.dp)) { r, _ -> cellText(r.mobile.ifBlank { "—" }) },
+        ReportColumn("LEFT", ReportColWidth.Fixed(96.dp)) { r, _ -> cellText(HotelOpsDates.display(r.checkoutDate)) },
+        ReportColumn("BILLED", ReportColWidth.Fixed(100.dp), TextAlign.End) { r, _ -> cellText(hotelOpsMoney(r.billed)) },
+        ReportColumn("PAID", ReportColWidth.Fixed(100.dp), TextAlign.End) { r, _ -> cellText(hotelOpsMoney(r.paid)) },
+        ReportColumn("WRITTEN OFF", ReportColWidth.Fixed(100.dp), TextAlign.End) { r, _ ->
+            cellText(if (r.writtenOff > 0.0) hotelOpsMoney(r.writtenOff) else "—")
+        },
+        ReportColumn("DUE", ReportColWidth.Fixed(100.dp), TextAlign.End) { r, _ -> cellText(hotelOpsMoney(r.due), color = danger) },
+        ReportColumn("DAYS", ReportColWidth.Fixed(60.dp), TextAlign.End) { r, _ -> cellText(r.daysOverdue.toString()) },
+        ReportColumn("BY", ReportColWidth.Fixed(110.dp)) { r, _ -> cellText(r.checkedOutBy.ifBlank { "—" }) },
+        ReportColumn("REASON", ReportColWidth.Fixed(160.dp)) { r, _ -> cellText(r.reason.ifBlank { "—" }, maxLines = 2) },
     )
 }
 
