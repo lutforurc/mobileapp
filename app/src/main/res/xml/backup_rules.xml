@@ -1,13 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 11 and below (API 30-) full-backup rules - the counterpart of
+    data_extraction_rules.xml for older devices. See that file for why the
+    keystore-encrypted token store must not be backed up: it cannot be
+    decrypted after a restore, so the user is asked to sign in again instead.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="cashbook_secure_prefs.xml" />
 </full-backup-content>

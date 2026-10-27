@@ -26,10 +26,10 @@ object SheetReader {
             ?: throw UnsupportedSheet("This file could not be read.")
         return when {
             name.endsWith(".xls") -> throw UnsupportedSheet("Old .xls files cannot be read on the phone — save it as .xlsx and upload again.")
-            name.endsWith(".csv") -> parseDelimited(String(bytes, Charsets.UTF_8).removePrefix("﻿"), ',')
+            name.endsWith(".csv") -> parseDelimited(String(bytes, Charsets.UTF_8).removePrefix("\uFEFF"), ',')
             // An .xlsx is a zip: its first two bytes are "PK".
             bytes.size > 2 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() -> readXlsx(bytes)
-            else -> parseDelimited(String(bytes, Charsets.UTF_8).removePrefix("﻿"), ',')
+            else -> parseDelimited(String(bytes, Charsets.UTF_8).removePrefix("\uFEFF"), ',')
         }
     }
 

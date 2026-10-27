@@ -1,0 +1,58 @@
+<meta charset="utf-8">
+<!-- CashBookBD logo, drawn in the app's BrandPalette (ui/theme/Color.kt):
+     BlueDeep #1D5379 for the C and the word "CashBook", the teal gradient
+     TealPrimary #1BAFB3 -> TealDeep #178A9E for the B, the bars and "BD".
+     Render: ?v=light | dark | icon  (see playstore/play-listing.md) -->
+<style>
+  * { margin:0; padding:0; }
+  html, body { background:transparent; overflow:hidden; }
+  body.dark { background:#06181E; }
+  body.icon { background:#ffffff; }
+  svg { display:block; }
+</style>
+<svg id="mark-defs" width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="teal" gradientUnits="userSpaceOnUse" x1="140" y1="160" x2="450" y2="400">
+      <stop offset="0" stop-color="#1BAFB3"/><stop offset="1" stop-color="#178A9E"/>
+    </linearGradient>
+    <linearGradient id="tealDark" gradientUnits="userSpaceOnUse" x1="140" y1="160" x2="450" y2="400">
+      <stop offset="0" stop-color="#6FD3D6"/><stop offset="1" stop-color="#1BAFB3"/>
+    </linearGradient>
+    <!-- mark in a 512 box -->
+    <g id="mark">
+      <path class="c" d="M265 122 A124 124 0 1 0 150 343" fill="none" stroke-width="50"/>
+      <rect class="t" x="146" y="352" width="30" height="48" rx="3"/>
+      <rect class="t" x="188" y="322" width="30" height="78" rx="3"/>
+      <rect class="t" x="230" y="290" width="30" height="110" rx="3"/>
+      <rect class="t" x="276" y="168" width="50" height="232" rx="4"/>
+      <path class="t" fill="none" stroke-width="46" stroke-linejoin="round"
+            d="M300 191 H362 A42 42 0 0 1 362 275 H300 M300 275 H374 A51.5 51.5 0 0 1 374 377 H300"/>
+    </g>
+  </defs>
+</svg>
+<script>
+const v = new URLSearchParams(location.search).get('v') || 'light';
+document.body.className = v;
+const dark = v === 'dark';
+const cCol = dark ? '#8FB8D6' : '#1D5379';
+const tCol = dark ? 'url(#tealDark)' : 'url(#teal)';
+const style = `<style>.c{stroke:${cCol}} .t{fill:${tCol}} path.t{fill:none;stroke:${tCol}}</style>`;
+let html;
+if (v === 'icon') {
+  html = `<svg width="512" height="512" viewBox="0 0 512 512">${style}
+    <use href="#mark" transform="translate(13,15)"/></svg>`;
+} else {
+  const word = dark ? '#E8F1F3' : '#1D5379';
+  const bd = dark ? '#6FD3D6' : '#178A9E';
+  const tag = dark ? '#A3B8BF' : '#5A6470';
+  html = `<svg width="601" height="463" viewBox="0 0 601 463">${style}
+    <use href="#mark" transform="translate(154.4,18.8) scale(0.6)"/>
+    <text x="300.5" y="343" text-anchor="middle" font-family="Segoe UI, Roboto, sans-serif"
+          font-weight="700" font-size="76" letter-spacing="-1.5"><tspan fill="${word}">CashBook</tspan><tspan fill="${bd}">BD</tspan></text>
+    <line x1="50" y1="380" x2="92" y2="380" stroke="${tag}" stroke-width="2"/>
+    <line x1="509" y1="380" x2="551" y2="380" stroke="${tag}" stroke-width="2"/>
+    <text x="300.5" y="388" text-anchor="middle" font-family="Segoe UI, Roboto, sans-serif"
+          font-weight="600" font-size="22" fill="${tag}">Inventory, Accounting &amp; HRM System</text></svg>`;
+}
+document.body.insertAdjacentHTML('beforeend', html);
+</script>
