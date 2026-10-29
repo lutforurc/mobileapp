@@ -114,6 +114,15 @@ object CurrentBranchCache {
     @Volatile
     var value: CurrentBranchInfo? = null
 
+    /**
+     * Drop the cached branch. Called on logout and on a working-branch switch --
+     * the next company (or the login screen) must not inherit the branch the
+     * last session was reading from.
+     */
+    fun clear() {
+        value = null
+    }
+
     suspend fun load(api: WebApi, force: Boolean = false): CurrentBranchInfo? {
         if (!force) value?.let { return it }
         val body = (api.get("user/current-branch") as? Resource.Success)?.data ?: return value

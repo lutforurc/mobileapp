@@ -72,6 +72,10 @@ class AuthRepository(
         dashboardCache.clear()
         // Drop the previous user's permissions so nothing leaks across sessions.
         sessionManager.clear()
+        // And the branch the last session read from: the tile/invoice screens
+        // pick their form from it, so a stale one would choose the previous
+        // company's form on the next sign-in.
+        com.example.cashbookbd.ui.invoice.CurrentBranchCache.clear()
         // The next company to sign in on this phone has nothing to do with the
         // last one's bill -- without this, a lapsed tenant's block screen would
         // still be over the top of a paid-up tenant's session.
@@ -117,6 +121,8 @@ class AuthRepository(
                         tokenManager.saveToken(body.data!!.token!!, rememberMe)
                         // Fresh session — drop any dashboard cached for a prior user.
                         dashboardCache.clear()
+                        // ...and any branch cached for a prior user/company.
+                        com.example.cashbookbd.ui.invoice.CurrentBranchCache.clear()
                         // And any subscription block left over from the last one.
                         // A renewed company signing back in must not meet the
                         // screen its lapse put up an hour ago.

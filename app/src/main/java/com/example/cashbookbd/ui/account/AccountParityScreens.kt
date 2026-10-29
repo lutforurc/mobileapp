@@ -137,6 +137,9 @@ class SwitchBranchViewModel(
             when (val r = api.post("user/switch-branch", body)) {
                 is Resource.Success -> {
                     ServiceLocator.clearDashboardCache(appContext)
+                    // The working branch changed; drop the cached branch too so the
+                    // tile/invoice screens stop choosing their form from the one left.
+                    com.example.cashbookbd.ui.invoice.CurrentBranchCache.clear()
                     session.refresh()
                     _uiState.update { it.copy(isSaving = false, switched = r.data.jStr("message").ifBlank { "Working branch changed." }) }
                 }

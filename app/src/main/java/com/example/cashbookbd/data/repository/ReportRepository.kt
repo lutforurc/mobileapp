@@ -30,9 +30,12 @@ class ReportRepository(
 
     /**
      * @param ownCompany keeps the list inside the caller's own company even for
-     * a privileged user. The transfer forms ask for it; reports do not.
+     * a privileged user. Reports ask for it by default: a user must only be
+     * offered the branches of the company they are working in, so a branch
+     * picker can never list another company's branches (see the report "Select
+     * Branch" dropdown). The transfer forms ask for the same narrower list.
      */
-    suspend fun getBranches(ownCompany: Boolean = false): Resource<BranchList> = withContext(ioDispatcher) {
+    suspend fun getBranches(ownCompany: Boolean = true): Resource<BranchList> = withContext(ioDispatcher) {
         safeCall {
             val response = api.getBranches(if (ownCompany) "1" else null)
             response.unauthorizedOrNull()?.let { return@safeCall it }
