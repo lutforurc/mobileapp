@@ -161,10 +161,8 @@ object CashVoucherForms {
  * applies exactly its own web rule, never both.
  */
 fun cashVoucherVariant(spec: CashVoucherSpec, settings: Settings?): CashVoucherVariant = when {
-    spec.branchTypeForcesHeadOffice &&
-        settings?.branchTypesId == HEAD_OFFICE_BRANCH_TYPES_ID -> CashVoucherVariant.HEAD_OFFICE
-    !spec.branchTypeForcesHeadOffice &&
-        settings?.businessTypeId == HEAD_OFFICE_BUSINESS_TYPE_ID -> CashVoucherVariant.HEAD_OFFICE
+    // No Head Office pick on mobile: a voucher always posts to the user's own
+    // branch, so the "Select Branch" form is never chosen here.
     // The web indexes pick Trading from the branch's *inventory system* (4);
     // electronics (2) / construction (3) fall through to General.
     settings?.inventorySystemId == TRADING_INVENTORY_SYSTEM_ID -> CashVoucherVariant.TRADING
@@ -775,22 +773,8 @@ fun CashVoucherScreen(
                 .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // The web's voucher search: load an existing voucher for editing.
+            // The search row is gone; this only keeps the "Editing voucher" note.
             if (state.showSearch) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppTextField(
-                        value = state.search,
-                        onValueChange = viewModel::onSearchChange,
-                        label = if (state.title.contains("Payment")) "Search Payment" else "Search Received",
-                        modifier = Modifier.weight(1f),
-                    )
-                    PrimaryButton(
-                        text = "Search",
-                        onClick = viewModel::searchVoucher,
-                        isLoading = state.isSearching,
-                        compact = true,
-                    )
-                }
                 if (state.isEditMode) {
                     Text(
                         text = "Editing voucher ${state.search.trim()} — Save is now Update.",

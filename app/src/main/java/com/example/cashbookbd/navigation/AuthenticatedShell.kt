@@ -73,6 +73,7 @@ import com.example.cashbookbd.hotel.HotelMenu
 import com.example.cashbookbd.hrm.HrmMenu
 import com.example.cashbookbd.products.ProductsMenu
 import com.example.cashbookbd.subscription.SubscriptionMenu
+import com.example.cashbookbd.core.jRows
 import com.example.cashbookbd.data.repository.applyMenuOrder
 import com.example.cashbookbd.data.repository.isMenuDivider
 import com.example.cashbookbd.data.repository.menuDividerLabel
@@ -195,6 +196,16 @@ fun AuthenticatedShell(
             .summary() as? com.example.cashbookbd.core.Resource.Success)
             ?.let { myTasksNewCount = it.data.assignedNew }
     }
+    // "Switch Branch" only matters when the user's own company has more than
+    // one branch (web DropdownUser). Hidden until the count says so; a failed
+    // fetch keeps it hidden.
+    var branchCount by remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        (ServiceLocator.provideWebApi(context)
+            .get("branch/ddl/all-branch", mapOf("own_company" to "1"))
+            as? com.example.cashbookbd.core.Resource.Success)
+            ?.let { branchCount = it.data.jRows().size }
+    }
     // "Product Tracking" — the web's group for the settings + two reports.
     val canProductTracking = com.example.cashbookbd.producttracking.ProductTrackingMenu
         .hasParentAccess(sessionState.permissions)
@@ -315,7 +326,11 @@ fun AuthenticatedShell(
                             onProfile = { navigateTo(Routes.PROFILE) },
                             onMyTasks = { navigateTo(Routes.MY_TASKS) },
                             myTasksNewCount = myTasksNewCount,
-                            onSwitchBranch = { navigateTo(ParityRoutes.SWITCH_BRANCH) },
+                            onSwitchBranch = if (branchCount > 1) {
+                                { navigateTo(ParityRoutes.SWITCH_BRANCH) }
+                            } else {
+                                null
+                            },
                             onChangePassword = { navigateTo(ParityRoutes.CHANGE_PASSWORD) },
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {

@@ -105,7 +105,7 @@ class SwitchBranchViewModel(
 
     init {
         viewModelScope.launch {
-            when (val r = api.get("branch/ddl/all-branch")) {
+            when (val r = api.get("branch/ddl/all-branch", mapOf("own_company" to "1"))) {
                 is Resource.Success -> {
                     val list = r.data.jRows().map { SelectorOption(it.jStr("id"), it.jStr("name")) }
                     _uiState.update {
