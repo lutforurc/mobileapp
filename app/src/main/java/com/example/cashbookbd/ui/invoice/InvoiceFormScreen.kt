@@ -238,14 +238,11 @@ fun InvoiceFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            state.message?.let { message ->
-                Text(
-                    text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.example.cashbookbd.ui.components.FormMessage(
+                text = state.message,
+                isError = state.isError,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             // The product picker sits below the invoice itself: the invoice
             // fields are what the user came for, adding items is the side task.
@@ -533,14 +530,4 @@ private fun showDatePicker(
     context: Context,
     current: com.example.cashbookbd.ui.reports.model.SimpleDate,
     onPicked: (com.example.cashbookbd.ui.reports.model.SimpleDate) -> Unit,
-) {
-    DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            onPicked(com.example.cashbookbd.ui.reports.model.SimpleDate(year = year, month = month + 1, day = dayOfMonth))
-        },
-        current.year,
-        current.month - 1,
-        current.day,
-    ).show()
-}
+) = com.example.cashbookbd.ui.components.showDatePicker(context, current, onPicked)

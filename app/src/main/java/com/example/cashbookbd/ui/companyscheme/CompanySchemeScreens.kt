@@ -835,14 +835,5 @@ fun CompanySchemeHomeScreen(navController: NavHostController, onLogout: () -> Un
 /** One tappable row of a section's home, the Reports home's own look. */
 @Composable
 fun ParityMenuRow(title: String, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            androidx.compose.material3.Icon(
-                imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(title = title, onClick = onClick)
 }

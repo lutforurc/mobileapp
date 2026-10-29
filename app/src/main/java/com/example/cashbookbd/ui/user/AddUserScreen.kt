@@ -40,7 +40,8 @@ import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
-import com.example.cashbookbd.ui.components.DropdownAnchorField
+import com.example.cashbookbd.ui.components.ErrorState
+import com.example.cashbookbd.ui.components.FieldHint
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
@@ -99,17 +100,7 @@ fun AddUserScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (state.optionsError != null) {
-                    Text(
-                        text = state.optionsError!!,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    LinkButton(
-                        text = "Retry",
-                        onClick = viewModel::loadOptions,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    )
+                    ErrorState(text = state.optionsError!!, onRetry = viewModel::loadOptions)
                 }
 
                 Field("User Name", state.name, viewModel::onName)
@@ -117,7 +108,7 @@ fun AddUserScreen(
                 Field("Email", state.email, viewModel::onEmail, keyboard = KeyboardType.Email)
                 Field("Phone", state.phone, viewModel::onPhone, keyboard = KeyboardType.Phone)
                 if (!state.hasContact) {
-                    Hint("Give an email or a phone — at least one is required.")
+                    FieldHint("Give an email or a phone — at least one is required.")
                 }
 
                 BranchDropdown(
@@ -138,20 +129,18 @@ fun AddUserScreen(
                     state.password,
                     viewModel::onPassword,
                     isPassword = true,
-                    isError = state.passwordTooShort,
                 )
                 if (state.passwordTooShort) {
-                    Hint("At least $MIN_PASSWORD_LENGTH characters.", isError = true)
+                    FieldHint("At least $MIN_PASSWORD_LENGTH characters.", isError = true)
                 }
                 Field(
                     "Confirm Password",
                     state.confirmPassword,
                     viewModel::onConfirmPassword,
                     isPassword = true,
-                    isError = state.passwordsMismatch,
                 )
                 if (state.passwordsMismatch) {
-                    Hint("Passwords don't match.", isError = true)
+                    FieldHint("Passwords don't match.", isError = true)
                 }
 
                 PrimaryButton(
@@ -168,34 +157,24 @@ fun AddUserScreen(
 }
 
 @Composable
-private fun Hint(text: String, isError: Boolean = false) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = if (isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.appColors.textOnScreenMuted,
-    )
-}
-
-@Composable
 private fun Field(
     label: String,
     value: String,
     onChange: (String) -> Unit,
     keyboard: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
-    isError: Boolean = false,
 ) {
     AppTextField(
         value = value,
         onValueChange = onChange,
-        label = label,
+        label = "",
+        caption = label,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         keyboardType = if (isPassword) KeyboardType.Password else keyboard,
         modifier = Modifier.fillMaxWidth(),
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BranchDropdown(
     branches: List<BranchOption>,
@@ -203,24 +182,15 @@ private fun BranchDropdown(
     isLoading: Boolean,
     onSelected: (BranchOption) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        DropdownAnchorField(
-            label = "Branch",
-            valueText = selected?.name,
-            placeholder = if (isLoading) "Loading…" else "",
-            onClick = { if (branches.isNotEmpty()) expanded = true },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            branches.forEach { branch ->
-                DropdownMenuItem(
-                    text = { Text(branch.name) },
-                    onClick = { onSelected(branch); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
+    AppSelectDropdown(
+        label = "Branch",
+        options = branches.map { SelectorOption(it.id.toString(), it.name) },
+        selected = selected?.let { SelectorOption(it.id.toString(), it.name) },
+        onSelected = { option ->
+            branches.firstOrNull { it.id.toString() == option.id }?.let(onSelected)
+        },
+        placeholder = if (isLoading) "Loading…" else "",
+    )
 }
 
 @Composable

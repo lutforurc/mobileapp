@@ -91,29 +91,7 @@ fun ReportsHomeScreen(
 
 @Composable
 private fun ReportRowItem(report: ReportConfig, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = report.title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(title = report.title, onClick = onClick)
 }
 
 /** Routes a tapped report to its native screen, or the generic report flow. */

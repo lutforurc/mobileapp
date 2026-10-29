@@ -104,43 +104,11 @@ private fun AssetRowItem(item: AssetItem, onClick: () -> Unit) {
     // Every tab of the web's screen is here now; the greyed state is kept for
     // whatever is ported next, so a listed entry never opens an empty screen.
     val ready = item.supported
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (ready) Modifier.clickable(onClick = onClick) else Modifier),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (ready) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.appColors.textMuted
-                    },
-                )
-                Text(
-                    text = if (ready) {
-                        item.hint
-                    } else {
-                        "Not available in the app yet — use the web for now."
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.appColors.textMuted,
-                )
-            }
-            if (ready) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(
+        title = item.title,
+        onClick = onClick,
+        enabled = ready,
+        subtitle = if (ready) item.hint else "Not available in the app yet — use the web for now.",
+        trailing = ready,
+    )
 }

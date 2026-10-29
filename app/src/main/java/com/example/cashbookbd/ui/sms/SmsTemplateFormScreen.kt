@@ -344,12 +344,7 @@ private fun TemplateForm(state: SmsTemplateFormUiState, viewModel: SmsTemplateFo
 /** A muted hint line under a field, on the screen background. */
 @Composable
 private fun HelperText(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.appColors.textOnScreenMuted,
-        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-    )
+    com.example.cashbookbd.ui.components.FieldHint(text = text)
 }
 
 /** The live chips line of the `{{placeholders}}` the body currently uses. */

@@ -54,6 +54,21 @@ object BrandSheet {
 }
 
 /**
+ * The sticky-note palette of My Tasks. Deliberately outside [BrandPalette]:
+ * a note is a slip of paper, and paper does not darken with the app's theme —
+ * the fallback pastel and its ink stay the same in light and dark, so a note
+ * reads the same whichever theme is on. These are the only raw colours allowed
+ * outside the palette, named here so the screen writes a token, not a hex.
+ */
+object StickyNote {
+    /** The paper colour when a note carries no colour of its own. */
+    val PaperFallback = Color(0xFFFFE5B4)
+
+    /** Ink on a pastel note — dark in both themes, because the paper stays put. */
+    val Ink = Color(0xFF1F2935)
+}
+
+/**
  * One theme's colours, named by role rather than by shade.
  *
  * This is the single place a colour decision is made: [card] is *the* card
@@ -266,38 +281,40 @@ val LightPalette = BrandPalette(
 )
 
 /**
- * Dark: the brand teal rebuilt as a low-chroma tonal ramp.
+ * Dark: neutral graphite surfaces with the brand teal kept for emphasis.
  *
- * The mistake worth not repeating: the first attempt used Teal·primary
- * #1BAFB3 — an *accent* tone — as the card surface, and everything drawn on it
- * had to fight it (white text on that teal is only 2.7:1). Here the surfaces
- * step screen → card → row → chip in lightness alone, and saturated teal comes
- * back only as [primary], so it reads as deliberate emphasis. Contrast on the
- * card: body text 12.8:1, captions 7.1:1, every accent ≥ 4.5:1.
+ * The mistake worth not repeating: the first dark theme painted every backdrop
+ * and card in deep teal, so the whole app read as one blue-green wash. Here the
+ * surfaces are a barely-blue near-black behind slate cards — screen → card →
+ * row → chip step in lightness alone — and the brand teal comes back only where
+ * it means something: [primary], buttons, headers, links and the signature
+ * gradient. This is the palette that was trialled as "Dark V2" on the Dashboard
+ * and is now the app's one dark theme. Contrast on the card: body text 13.4:1,
+ * captions 6.9:1.
  */
 val DarkPalette = BrandPalette(
-    screen = Color(0xFF06181E),
-    onScreen = Color(0xFFE8F1F3),
-    card = Color(0xFF102C35),
-    cardRow = Color(0xFF173945),
-    cardRaised = Color(0xFF1E4855),
-    onCard = Color(0xFFE8F1F3),
-    onCardMuted = Color(0xFFA3B8BF),
-    cardMuted = Color(0xFF173945),
+    screen = Color(0xFF0D1117),
+    onScreen = Color(0xFFE6EDF3),
+    card = Color(0xFF161D24),
+    cardRow = Color(0xFF1D252E),
+    cardRaised = Color(0xFF242E39),
+    onCard = Color(0xFFE6EDF3),
+    onCardMuted = Color(0xFF9AA7B4),
+    cardMuted = Color(0xFF1D252E),
     primary = Color(0xFF178090),
     onPrimary = BrandSheet.White,
-    primaryContainer = Color(0xFF1E4855),
+    primaryContainer = Color(0xFF173C46),
     onPrimaryContainer = BrandSheet.TealTint,
     secondary = Color(0xFF8FB8D6),
     onSecondary = Color(0xFF0E2C42),
-    secondaryContainer = BrandSheet.BlueDeep,
-    onSecondaryContainer = Color(0xFFD4E4EF),
+    secondaryContainer = Color(0xFF25384C),
+    onSecondaryContainer = Color(0xFFD9E6F2),
     tertiary = Color(0xFF6FD3D6),
     onTertiary = Color(0xFF00393B),
-    tertiaryContainer = Color(0xFF0C5254),
+    tertiaryContainer = Color(0xFF124A4D),
     onTertiaryContainer = Color(0xFFC5EDEE),
-    outline = Color(0xFF4E7B89),
-    outlineVariant = Color(0xFF2A5764),
+    outline = Color(0xFF465361),
+    outlineVariant = Color(0xFF2B3540),
     gradient = listOf(Color(0xFF17808F), BrandSheet.BlueDeep),
     onGradient = BrandSheet.White,
     accents = AppAccents(
@@ -339,38 +356,6 @@ val DarkPalette = BrandPalette(
     ),
     chartSeries = ChartSeriesColors,
     glance = GlanceHueSet,
-)
-
-/**
- * Dark V2 — the reworked dark theme being trialled on the Dashboard only.
- *
- * What changes from [DarkPalette]: the *surfaces*. The current dark paints
- * every backdrop and card in deep teal, so the whole app reads as one
- * blue-green wash; V2 rebuilds the surfaces as neutral graphite (a barely-blue
- * near-black behind slate cards) and lets the brand teal come back only where
- * it means something — buttons, headers, links, the signature gradient. The
- * accents, highlight rules and status gradients are inherited unchanged.
- * Contrast on the card: body text 13.4:1, captions 6.9:1.
- *
- * Applied by [CashBookbdTheme]'s trial wrapper in Theme.kt; promote it by
- * replacing [DarkPalette]'s values once approved.
- */
-val DarkPaletteV2 = DarkPalette.copy(
-    screen = Color(0xFF0D1117),
-    onScreen = Color(0xFFE6EDF3),
-    card = Color(0xFF161D24),
-    cardRow = Color(0xFF1D252E),
-    cardRaised = Color(0xFF242E39),
-    onCard = Color(0xFFE6EDF3),
-    onCardMuted = Color(0xFF9AA7B4),
-    cardMuted = Color(0xFF1D252E),
-    primaryContainer = Color(0xFF173C46),
-    onPrimaryContainer = BrandSheet.TealTint,
-    secondaryContainer = Color(0xFF25384C),
-    onSecondaryContainer = Color(0xFFD9E6F2),
-    tertiaryContainer = Color(0xFF124A4D),
-    outline = Color(0xFF465361),
-    outlineVariant = Color(0xFF2B3540),
 )
 
 /**

@@ -124,11 +124,11 @@ private fun statusLabel(status: String): String = when (status) {
 private fun noteColor(hex: String): Color = try {
     Color(android.graphics.Color.parseColor(hex))
 } catch (_: Exception) {
-    Color(0xFFFFE5B4)
+    com.example.cashbookbd.ui.theme.StickyNote.PaperFallback
 }
 
 /** Ink on a pastel note is dark in BOTH themes — the paper does not darken. */
-private val NoteInk = Color(0xFF1F2935)
+private val NoteInk = com.example.cashbookbd.ui.theme.StickyNote.Ink
 
 /** Two letters standing in for a face the app does not have. */
 private fun initials(name: String): String = name.trim()

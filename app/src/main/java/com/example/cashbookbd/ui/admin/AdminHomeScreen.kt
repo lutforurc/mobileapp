@@ -122,26 +122,9 @@ fun AdminHomeScreen(
 
 @Composable
 private fun AdminRowItem(item: AdminItem, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = item.title, style = MaterialTheme.typography.bodyLarge)
-                if (!item.supported) {
-                    Text(
-                        text = "Coming soon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(
+        title = item.title,
+        onClick = onClick,
+        subtitle = if (!item.supported) "Coming soon" else null,
+    )
 }

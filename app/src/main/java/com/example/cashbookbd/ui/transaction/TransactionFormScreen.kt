@@ -231,18 +231,11 @@ fun TransactionFormScreen(
                 )
             }
 
-            state.message?.let { message ->
-                Text(
-                    text = message,
-                    color = if (state.isError) {
-                        MaterialTheme.colorScheme.onBackground
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.example.cashbookbd.ui.components.FormMessage(
+                text = state.message,
+                isError = state.isError,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

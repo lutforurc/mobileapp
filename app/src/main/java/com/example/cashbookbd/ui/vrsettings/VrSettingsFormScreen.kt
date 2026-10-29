@@ -115,14 +115,11 @@ fun VrSettingsFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            state.message?.let { message ->
-                Text(
-                    text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.example.cashbookbd.ui.components.FormMessage(
+                text = state.message,
+                isError = state.isError,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             // Already-deleted → offer a force delete.
             if (state.requiresConfirmation) {
@@ -190,7 +187,6 @@ private fun DateChangeFields(state: VrSettingsFormUiState, viewModel: VrSettings
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BranchDropdown(
     branches: List<BranchOption>,
@@ -198,24 +194,15 @@ private fun BranchDropdown(
     isLoading: Boolean,
     onSelected: (BranchOption) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        DropdownAnchorField(
-            label = "Select Branch",
-            valueText = selected?.name,
-            placeholder = if (isLoading) "Loading…" else "",
-            onClick = { if (branches.isNotEmpty()) expanded = true },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            branches.forEach { branch ->
-                DropdownMenuItem(
-                    text = { Text(branch.name) },
-                    onClick = { onSelected(branch); expanded = false },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
+    com.example.cashbookbd.ui.components.AppSelectDropdown(
+        label = "Select Branch",
+        options = branches.map { com.example.cashbookbd.ui.reports.model.SelectorOption(it.id.toString(), it.name) },
+        selected = selected?.let { com.example.cashbookbd.ui.reports.model.SelectorOption(it.id.toString(), it.name) },
+        onSelected = { option ->
+            branches.firstOrNull { it.id.toString() == option.id }?.let(onSelected)
+        },
+        placeholder = if (isLoading) "Loading…" else "",
+    )
 }
 
 @Composable
@@ -234,12 +221,5 @@ private fun DateField(
     )
 }
 
-private fun showDatePicker(context: Context, current: SimpleDate, onPicked: (SimpleDate) -> Unit) {
-    DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth -> onPicked(SimpleDate(year = year, month = month + 1, day = dayOfMonth)) },
-        current.year,
-        current.month - 1,
-        current.day,
-    ).show()
-}
+private fun showDatePicker(context: Context, current: SimpleDate, onPicked: (SimpleDate) -> Unit) =
+    com.example.cashbookbd.ui.components.showDatePicker(context, current, onPicked)

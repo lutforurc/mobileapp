@@ -106,41 +106,11 @@ private fun HotelRowItem(item: HotelItem, onClick: () -> Unit) {
     // Every entry opens a screen now (phase 3 landed 2026-09-06); the flag
     // stays so a future entry can be listed before it is built.
     val ready = item.supported
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (ready) Modifier.clickable(onClick = onClick) else Modifier),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (ready) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.appColors.textMuted
-                    },
-                )
-                if (!ready) {
-                    Text(
-                        text = "Not available in the app yet — use the web for now.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.appColors.textMuted,
-                    )
-                }
-            }
-            if (ready) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(
+        title = item.title,
+        onClick = onClick,
+        enabled = ready,
+        subtitle = if (ready) null else "Not available in the app yet — use the web for now.",
+        trailing = ready,
+    )
 }

@@ -146,14 +146,11 @@ fun RequisitionFormScreen(
                 )
             }
 
-            state.message?.let { message ->
-                Text(
-                    text = message,
-                    color = if (state.isError) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.example.cashbookbd.ui.components.FormMessage(
+                text = state.message,
+                isError = state.isError,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             if (state.lines.isNotEmpty()) {
                 RequisitionLinesTable(
@@ -347,14 +344,4 @@ private fun showDatePicker(
     context: Context,
     current: SimpleDate,
     onPicked: (SimpleDate) -> Unit,
-) {
-    DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            onPicked(SimpleDate(year = year, month = month + 1, day = dayOfMonth))
-        },
-        current.year,
-        current.month - 1,
-        current.day,
-    ).show()
-}
+) = com.example.cashbookbd.ui.components.showDatePicker(context, current, onPicked)

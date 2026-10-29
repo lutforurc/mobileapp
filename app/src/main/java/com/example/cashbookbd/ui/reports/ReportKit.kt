@@ -1,34 +1,24 @@
 package com.example.cashbookbd.ui.reports
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.data.repository.ReportRepository
-import com.example.cashbookbd.ui.accounts.pickAccountsDate
+import com.example.cashbookbd.ui.components.AppDateField
 import com.example.cashbookbd.ui.components.AppSelectDropdown
-import com.example.cashbookbd.ui.components.LinkButton
+import com.example.cashbookbd.ui.components.EmptyState
+import com.example.cashbookbd.ui.components.ErrorState
+import com.example.cashbookbd.ui.components.LoadingState
 import com.example.cashbookbd.ui.reports.model.BranchOption
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
-import com.example.cashbookbd.ui.theme.appColors
 
 /*
  * The pieces every report and form of the 2026-10 parity pass starts with:
@@ -116,14 +106,12 @@ fun DateField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
 ) {
-    val context = LocalContext.current
-    PickerField(
+    AppDateField(
         label = label,
-        value = date?.toDisplay().orEmpty(),
-        trailingIcon = Icons.Filled.DateRange,
-        placeholder = placeholder,
+        date = date,
+        onPicked = onPicked,
         modifier = modifier,
-        onClick = { pickAccountsDate(context, date, onPicked) },
+        placeholder = placeholder,
     )
 }
 
@@ -146,32 +134,17 @@ fun DateRangeFields(
 /** A quiet centred line: "choose filters", "nothing found". */
 @Composable
 fun ReportNote(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(
-            text = text,
-            color = MaterialTheme.appColors.textOnScreenMuted,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
+    EmptyState(text = text, modifier = modifier)
 }
 
 @Composable
 fun ReportError(text: String, onRetry: (() -> Unit)? = null, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(text, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-        if (onRetry != null) LinkButton(text = "Retry", onClick = onRetry)
-    }
+    ErrorState(text = text, modifier = modifier, onRetry = onRetry)
 }
 
 @Composable
 fun ReportLoading(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
-    }
+    LoadingState(modifier = modifier)
 }
 
 /** The web's thousandSeparator with a zero written as a dash. */

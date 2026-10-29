@@ -86,23 +86,7 @@ fun TransactionHomeScreen(
 
 @Composable
 private fun TransactionRowItem(item: TransactionItem, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    com.example.cashbookbd.ui.components.MenuListRow(title = item.title, onClick = onClick)
 }
 
 /** Installments opens the customer installment schedule; the rest open a form. */
