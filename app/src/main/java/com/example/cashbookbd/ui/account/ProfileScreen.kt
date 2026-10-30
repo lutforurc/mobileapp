@@ -231,6 +231,10 @@ fun ProfileScreen(
                         color = MaterialTheme.appColors.textOnScreenMuted,
                     )
                 }
+                LinkButton(
+                    text = "Request Account Deletion",
+                    onClick = { navController.navigate(Routes.ACCOUNT_DELETION) },
+                )
             }
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
         }
