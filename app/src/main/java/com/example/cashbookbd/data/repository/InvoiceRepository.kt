@@ -31,6 +31,16 @@ sealed interface InvoiceOutcome {
 }
 
 /** The Trading sales form's invoice-level extras (vehicle + linked orders). */
+/** What an update carries beyond the store's body (see [InvoiceRepository.submit]). */
+data class InvoiceEditRef(
+    val mtmId: String,
+    val vrNo: String,
+    /** Electronics sales' saved schedule (empty elsewhere). */
+    val installments: JsonArray = JsonArray(),
+    /** Voucher columns the form does not show, sent back as loaded (manual numbers). */
+    val passthrough: Map<String, String> = emptyMap(),
+)
+
 data class TradingExtras(
     val vehicleNumber: String = "",
     val salesOrderNumber: String = "",
@@ -143,6 +153,48 @@ class InvoiceRepository(
      *
      * ⚠️ Posts a REAL voucher server-side — never auto-retry.
      */
+    /**
+     * Loads a saved Sales/Purchase invoice for editing through the variant's
+     * own edit endpoint — the web's searchInvoice. A credit sale (10-) or
+     * credit purchase (9-) was booked as a journal and is looked up as one.
+     */
+    suspend fun loadForEdit(
+        spec: InvoiceSpec,
+        vrNo: String,
+        electronics: Boolean,
+        trading: Boolean,
+    ): Resource<InvoiceEdit> = withContext(ioDispatcher) {
+        val sales = spec.kind == InvoiceKind.SALES
+        val endpoint = when {
+            sales && electronics -> "electronics/sales/edit"
+            sales -> "trading/sales/api-edit"
+            electronics -> "electronics/purchase/edit"
+            trading -> "trading/purchase/api-edit"
+            else -> "construction/purchase/api-edit"
+        }
+        val body = JsonObject().apply {
+            addProperty("invoiceNo", vrNo.trim())
+            if (sales) {
+                addProperty("salesType", com.example.cashbookbd.navigation.VoucherEdit.salesType(vrNo))
+            } else {
+                addProperty("purchaseType", com.example.cashbookbd.navigation.VoucherEdit.purchaseType(vrNo))
+            }
+        }
+        try {
+            val response = transactionApi.postObject(endpoint, body)
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            }
+            val root = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+            parseInvoiceEdit(root, sales)
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
     suspend fun submit(
         spec: InvoiceSpec,
         party: TxnSelection,
@@ -161,6 +213,8 @@ class InvoiceRepository(
         transportationAmt: Double = 0.0,
         trackedProductId: String = "",
         allowNegative: Boolean = false,
+        /** The invoice being rewritten; null posts a fresh one. */
+        edit: InvoiceEditRef? = null,
     ): Resource<InvoiceOutcome> = withContext(ioDispatcher) {
         val useElectronics = electronics && spec.electronicsEndpoint != null
         val body = if (spec.isReturn) {
@@ -173,11 +227,31 @@ class InvoiceRepository(
             )
         }
         if (allowNegative) body.addProperty("allow_negative", true)
+        if (edit != null) {
+            // The update reads the store's own body plus the voucher's hashed
+            // id and the number it was opened by (web: formData.searchInvoice).
+            body.addProperty("mtmId", edit.mtmId)
+            body.addProperty("searchInvoice", edit.vrNo)
+            edit.passthrough.forEach { (k, v) -> body.addProperty(k, v) }
+            if (edit.installments.size() > 0) {
+                // A saved schedule is rewritten row for row, not raised again.
+                body.add("installments", edit.installments)
+                body.addProperty("isInstallment", false)
+                body.add("installmentData", com.google.gson.JsonNull.INSTANCE)
+            }
+        }
         // Variant → store endpoint, as the web's PurchaseIndex/SalesIndex resolve
         // it: Electronics has its own store for both kinds; Trading only for
         // Purchase (Trading/General sales share spec.endpoint); the spec default
         // covers everyone else (Construction purchase, General sales, returns).
         val endpoint = when {
+            edit != null -> when {
+                spec.kind == InvoiceKind.SALES && useElectronics -> "electronics/sales/update"
+                spec.kind == InvoiceKind.SALES -> "trading/sales/api-update"
+                useElectronics -> "electronics/purchase/update"
+                trading != null && spec.tradingEndpoint != null -> "trading/purchase/api-update"
+                else -> "construction/purchase/api-update"
+            }
             useElectronics -> spec.electronicsEndpoint!!
             trading != null && spec.tradingEndpoint != null -> spec.tradingEndpoint
             else -> spec.endpoint
@@ -229,8 +303,17 @@ class InvoiceRepository(
         notesApplyTo: String,
         trackedProductId: String,
         lines: List<CombinedLine>,
+        /** The entry being rewritten (`trading/combined/api-update`); null stores a new one. */
+        combinedNumber: String? = null,
+        /** A "separate" entry's own two notes, sent back as loaded. */
+        legNotes: Pair<String, String>? = null,
     ): Resource<String> = withContext(ioDispatcher) {
         val body = JsonObject().apply {
+            combinedNumber?.let { addProperty("combined_number", it) }
+            legNotes?.let { (purchase, sales) ->
+                addBlankAsNull("purchaseNotes", purchase)
+                addBlankAsNull("salesNotes", sales)
+            }
             addProperty("supplierAccount", supplier.id)
             addProperty("supplierName", supplier.name)
             addProperty("customerAccount", customer.id)
@@ -257,7 +340,10 @@ class InvoiceRepository(
             })
         }
         try {
-            val response = transactionApi.postObject("trading/combined/api-store", body)
+            val response = transactionApi.postObject(
+                if (combinedNumber != null) "trading/combined/api-update" else "trading/combined/api-store",
+                body,
+            )
             when (response.code()) {
                 HTTP_UNAUTHORIZED -> return@withContext Resource.Error(
                     "Your session has expired. Please log in again.", isUnauthorized = true,
@@ -275,6 +361,33 @@ class InvoiceRepository(
             } else {
                 Resource.Error("Server error (${e.code()}). Please try again later.")
             }
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /**
+     * Loads a combined entry by its combined number (`trading/combined/api-edit`):
+     * the payload at data.data, refused when it names no combined number.
+     */
+    suspend fun loadCombined(combinedNumber: String): Resource<JsonObject> = withContext(ioDispatcher) {
+        try {
+            val response = transactionApi.postObject(
+                "trading/combined/api-edit",
+                JsonObject().apply { addProperty("combined_number", combinedNumber.trim()) },
+            )
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            }
+            val root = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+            val data = root?.getAsJsonObject("data")?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+            val ok = root?.get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+            if (!ok || data == null || data.str("combined_number").isNullOrBlank()) {
+                return@withContext Resource.Error(root?.str("message") ?: "Combined entry not found.")
+            }
+            Resource.Success(data)
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }

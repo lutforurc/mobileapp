@@ -44,10 +44,13 @@ import com.example.cashbookbd.data.remote.WebApi
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.StockShortageWarning
 import com.example.cashbookbd.data.repository.TransactionRepository
+import com.example.cashbookbd.data.repository.parseInvoiceEdit
 import com.example.cashbookbd.data.repository.parseStockShortage
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.navigation.VoucherEdit
+import com.example.cashbookbd.navigation.VoucherEditTarget
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -158,6 +161,9 @@ data class TilesInvoiceUiState(
     val warehouse: TilesWarehouse? = null,
     val editIndex: Int? = null,
     val lines: List<TilesLine> = emptyList(),
+    /** Opened from a report's Edit: the voucher being rewritten (Save → Update). */
+    val editingVrNo: String? = null,
+    val editLoading: Boolean = false,
     val isSaving: Boolean = false,
     val shortage: StockShortageWarning? = null,
     val message: String? = null,
@@ -210,6 +216,14 @@ class TilesInvoiceViewModel(
                 val default = mine.firstOrNull { it.isDefault } ?: mine.firstOrNull()
                 s.copy(branch = branch, warehouses = warehouses, warehouse = if (s.copy(branch = branch).singleWarehouse) default else s.warehouse)
             }
+            // Opened from a report's Edit (after the warehouses, which name the lines).
+            val target = when (kind) {
+                TilesInvoiceKind.SALES -> VoucherEditTarget.SALES
+                TilesInvoiceKind.PURCHASE -> VoucherEditTarget.PURCHASE
+                TilesInvoiceKind.SALES_RETURN -> VoucherEditTarget.SALES_RETURN
+                TilesInvoiceKind.PURCHASE_RETURN -> VoucherEditTarget.PURCHASE_RETURN
+            }
+            VoucherEdit.take(target)?.let { loadForEdit(it) }
         }
         if (kind == TilesInvoiceKind.SALES) {
             viewModelScope.launch {
@@ -218,6 +232,134 @@ class TilesInvoiceViewModel(
                 val list = body?.get("data").jAsArr() ?: body?.get("data").jAsObj()?.get("data").jAsArr()
                 val labels = list?.jObjects().orEmpty().mapNotNull { o -> o.jStr("id").toIntOrNull()?.let { it to o.jStr("name") } }.toMap()
                 _uiState.update { it.copy(serviceLabels = labels) }
+            }
+        }
+    }
+
+    /** The voucher being rewritten: its hashed id, and what the form does not show. */
+    private var editMtmId: String = ""
+    private var editVrNo: String = ""
+    private var editOrderId: String = ""
+    private var editOrderText: String = ""
+    private var editInvoiceNo: String = ""
+    private var editInvoiceDate: String = ""
+
+    private fun lineOf(id: String, name: String, code: String, unit: String, qty: Double, price: Double,
+                       warehouseId: String, measurement: String = "", measurementUnit: String = "",
+                       packageSize: String = "", packageUnit: String = ""): TilesLine {
+        val product = TilesProduct(id, name, code, unit, 0.0, 0.0, measurement, measurementUnit, packageSize, packageUnit)
+        val warehouseName = _uiState.value.warehouses.firstOrNull { it.id == warehouseId }?.name.orEmpty()
+        return TilesLine(product, qty, price, warehouseId, warehouseName)
+    }
+
+    private fun editDate(raw: String): SimpleDate? =
+        SimpleDate.fromApi(raw.take(10)) ?: SimpleDate.fromDisplay(raw)
+
+    /**
+     * Loads a saved voucher the way the web's Tiles screens search: a sale on
+     * the Electronics edit, a purchase on Trading's, a return on its own.
+     */
+    private suspend fun loadForEdit(vrNo: String) {
+        _uiState.update { it.copy(editLoading = true) }
+        if (kind.isReturn) {
+            val r = api.postEnvelope("${kind.returnPrefix}-return/api-edit", JsonObject().apply { addProperty("invoiceNo", vrNo) })
+            val p = (r as? Resource.Success)?.data?.jPayload()
+            if (p == null || p.jStr("vr_no").isBlank()) {
+                val msg = (r as? Resource.Error)?.message ?: (r as? Resource.Success)?.data?.let { WebApi.messageOf(it) }
+                _uiState.update { it.copy(editLoading = false, message = msg?.ifBlank { null } ?: "Return not found.", sessionExpired = (r as? Resource.Error)?.isUnauthorized == true) }
+                return
+            }
+            editMtmId = p.jStr("mtmId")
+            editVrNo = p.jStr("vr_no")
+            _uiState.update { s ->
+                s.copy(
+                    editLoading = false,
+                    editingVrNo = editVrNo,
+                    party = LedgerDropdownItem(p.jStr("account").toIntOrNull() ?: 0, p.jStr("accountName"), null),
+                    amount = p.jStr("netpayment"),
+                    amountManual = true,
+                    discount = p.jNum("discount").takeIf { it > 0 }?.let(::plain).orEmpty(),
+                    invoiceNo = p.jStr("invoice_no"),
+                    invoiceDate = editDate(p.jStr("invoice_date")),
+                    notes = p.jStr("notes"),
+                    manualVoucherNo = p.jStr("manual_voucher_no"),
+                    manualVoucherDate = editDate(p.jStr("manual_voucher_date")),
+                    manualChallanNo = p.jStr("manual_challan_no"),
+                    manualChallanDate = editDate(p.jStr("manual_challan_date")),
+                    lines = p.get("products").jAsArr()?.jObjects().orEmpty().map { l ->
+                        lineOf(l.jStr("product"), l.jStr("product_name"), l.jStr("product_code"), l.jStr("unit"),
+                            l.jNum("qty"), l.jNum("price"), "")
+                    },
+                )
+            }
+            loadEditBalance(p.jStr("account"))
+            return
+        }
+        val sales = kind == TilesInvoiceKind.SALES
+        val body = JsonObject().apply {
+            addProperty("invoiceNo", vrNo)
+            if (sales) addProperty("salesType", VoucherEdit.salesType(vrNo))
+            else addProperty("purchaseType", VoucherEdit.purchaseType(vrNo))
+        }
+        val endpoint = if (sales) "electronics/sales/edit" else "trading/purchase/api-edit"
+        val parsed = when (val r = api.postEnvelope(endpoint, body)) {
+            is Resource.Success -> parseInvoiceEdit(r.data, sales)
+            is Resource.Error -> r
+            Resource.Loading -> return
+        }
+        val e = (parsed as? Resource.Success)?.data
+        if (e == null) {
+            _uiState.update { it.copy(editLoading = false, message = (parsed as? Resource.Error)?.message, sessionExpired = (parsed as? Resource.Error)?.isUnauthorized == true) }
+            return
+        }
+        editMtmId = e.mtmId
+        editVrNo = vrNo
+        editOrderId = e.purchaseOrderId
+        editOrderText = e.purchaseOrderText
+        editInvoiceNo = e.invoiceNo
+        editInvoiceDate = e.invoiceDate
+        _uiState.update { s ->
+            s.copy(
+                editLoading = false,
+                editingVrNo = vrNo,
+                party = LedgerDropdownItem(e.partyId.toIntOrNull() ?: 0, e.partyName, null),
+                // A sale reloads the cash debited; a purchase its netpayment (web).
+                amount = if (sales) plain(e.cashDebit) else e.netPayment,
+                amountManual = true,
+                discount = if (e.discount > 0) plain(e.discount) else "",
+                notes = e.notes,
+                serviceCharge = if (e.serviceCharge > 0) plain(e.serviceCharge) else "",
+                tdsAmount = if (e.tdsAmount > 0) plain(e.tdsAmount) else "",
+                transportationAmt = if (e.transportationAmt > 0) plain(e.transportationAmt) else "",
+                manualVoucherNo = e.manualVoucherNo,
+                manualVoucherDate = editDate(e.manualVoucherDate),
+                manualChallanNo = e.manualChallanNo,
+                manualChallanDate = editDate(e.manualChallanDate),
+                deductsStock = e.deductsStock,
+                referrerId = e.referrerId,
+                trackedProduct = e.trackedProductId.takeIf { it.isNotBlank() }?.let { SelectorOption(it, "Product $it") },
+                lines = e.lines.map { l ->
+                    lineOf(l.productId, l.name, l.code, l.unit, l.qty, l.price, l.warehouseId,
+                        l.measurement, l.measurementUnit, l.packageSize, l.packageUnit)
+                },
+            )
+        }
+        loadEditBalance(e.partyId)
+    }
+
+    /** The party's balance without this voucher in it (`exclude_mtm_id`), as the web asks. */
+    private suspend fun loadEditBalance(partyId: String) {
+        if (partyId.isBlank() || partyId == CASH_HEAD) return
+        val r = api.get("trading/cash/received/previous-balance", mapOf("account" to partyId, "exclude_mtm_id" to editMtmId, "allow_negative" to "1"))
+        val bal = (r as? Resource.Success)?.data?.jPayload()?.jNum("balance") ?: 0.0
+        _uiState.update { it.copy(previousBalance = bal) }
+        if (kind == TilesInvoiceKind.PURCHASE) {
+            val products = transactions.fetchTrackedProducts("purchase", partyId).map { (pid, name) -> SelectorOption(pid, name) }
+            _uiState.update { s ->
+                s.copy(
+                    trackedProducts = products,
+                    trackedProduct = s.trackedProduct?.let { t -> products.firstOrNull { it.id == t.id } ?: t },
+                )
             }
         }
     }
@@ -347,6 +489,7 @@ class TilesInvoiceViewModel(
     }
 
     fun reset() = _uiState.update {
+        editMtmId = ""; editVrNo = ""; editOrderId = ""; editOrderText = ""; editInvoiceNo = ""; editInvoiceDate = ""
         TilesInvoiceUiState(
             kind = kind, branch = it.branch, warehouses = it.warehouses, serviceLabels = it.serviceLabels,
             // One store all day: the warehouse stays between bills.
@@ -369,7 +512,28 @@ class TilesInvoiceViewModel(
         }
         _uiState.update { it.copy(isSaving = true, shortage = null) }
         viewModelScope.launch {
-            when (val r = api.postEnvelope(kind.endpoint, buildPayload(s, party, allowNegative))) {
+            val editing = editMtmId.isNotBlank()
+            val endpoint = when {
+                !editing -> kind.endpoint
+                kind.isReturn -> "${kind.returnPrefix}-return/api-update"
+                kind == TilesInvoiceKind.SALES -> "electronics/sales/update"
+                else -> "trading/purchase/api-update"
+            }
+            val payload = buildPayload(s, party, allowNegative).apply {
+                if (editing) {
+                    addProperty("mtmId", editMtmId)
+                    if (!kind.isReturn) addProperty("searchInvoice", editVrNo)
+                    if (kind == TilesInvoiceKind.PURCHASE) {
+                        // The purchase screen shows no order or bill box; what
+                        // the voucher had goes back as it came.
+                        addProperty("purchaseOrderNumber", editOrderId)
+                        addProperty("purchaseOrderText", editOrderText)
+                        addProperty("invoice_no", editInvoiceNo)
+                        addProperty("invoice_date", editInvoiceDate)
+                    }
+                }
+            }
+            when (val r = api.postEnvelope(endpoint, payload)) {
                 is Resource.Success -> {
                     val body = r.data
                     val shortage = parseStockShortage(body)
@@ -533,6 +697,12 @@ fun TilesInvoiceScreen(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = ScreenGutter, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (state.editLoading) {
+                    com.example.cashbookbd.ui.components.FieldHint(text = "Loading the voucher…")
+                }
+                state.editingVrNo?.let { vrNo ->
+                    com.example.cashbookbd.ui.components.FieldHint(text = VoucherEdit.note(vrNo))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f)) {
                         SearchableLedgerDropdown(
@@ -674,7 +844,7 @@ fun TilesInvoiceScreen(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PrimaryButton(text = if (state.isSaving) "Saving..." else "Save", onClick = { viewModel.save() }, isLoading = state.isSaving, modifier = Modifier.weight(1f))
+                    PrimaryButton(text = when { state.isSaving -> "Saving..."; state.editingVrNo != null -> "Update"; else -> "Save" }, onClick = { viewModel.save() }, isLoading = state.isSaving, modifier = Modifier.weight(1f))
                     SecondaryButton(text = "Reset", onClick = viewModel::reset, modifier = Modifier.weight(1f))
                 }
             }

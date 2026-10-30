@@ -94,6 +94,10 @@ data class InvoiceFormUiState(
     val earlyDiscount: String = "",
     val earlyPaymentDate: SimpleDate? = null,
 
+    /** Opened from a report's Edit: the invoice being rewritten (Save → Update). */
+    val editingVrNo: String? = null,
+    val editLoading: Boolean = false,
+
     val isSubmitting: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
@@ -129,6 +133,7 @@ data class InvoiceFormUiState(
     val canSubmit: Boolean
         get() = isSupported &&
             !isSubmitting &&
+            !editLoading &&
             party != null &&
             lines.isNotEmpty() &&
             (amount.isNotBlank() || allowBlankAmount) &&

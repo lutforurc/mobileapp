@@ -45,6 +45,13 @@ data class TransactionFormUiState(
     val batchTotalLabel: String = "Total",
     val lines: List<CashVoucherLine> = emptyList(),
 
+    /**
+     * Opened from a report's Edit: the voucher being rewritten. Save becomes
+     * Update; [editLoading] covers the lookup.
+     */
+    val editingVrNo: String? = null,
+    val editLoading: Boolean = false,
+
     val isSubmitting: Boolean = false,
     /** Transient result banner; [isError] chooses success vs error styling. */
     val message: String? = null,
@@ -54,7 +61,7 @@ data class TransactionFormUiState(
 ) {
     val canSubmit: Boolean
         get() = when {
-            !isSupported || isSubmitting -> false
+            !isSupported || isSubmitting || editLoading -> false
             // Bank: the bank account plus at least one added row — like the
             // web, which saves only what was added to the table.
             isBankBatch -> selections["bank"] != null && lines.isNotEmpty()

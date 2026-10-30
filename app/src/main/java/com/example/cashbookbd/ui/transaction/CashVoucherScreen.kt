@@ -327,6 +327,17 @@ class CashVoucherViewModel(
                     }
                 }
             }
+            // Opened from a report's Edit: load that voucher, now that the
+            // variant (and so the edit endpoint) is settled.
+            val target = if (spec.key == CashVoucherForms.received.key) {
+                com.example.cashbookbd.navigation.VoucherEditTarget.CASH_RECEIVED
+            } else {
+                com.example.cashbookbd.navigation.VoucherEditTarget.CASH_PAYMENT
+            }
+            com.example.cashbookbd.navigation.VoucherEdit.take(target)?.let { vrNo ->
+                _uiState.update { it.copy(search = vrNo) }
+                searchVoucher()
+            }
         }
     }
 
@@ -517,12 +528,17 @@ class CashVoucherViewModel(
             }
             when (val result = transactionRepository.searchCashVoucher(endpoint, state.search)) {
                 is Resource.Success -> _uiState.update { current ->
-                    val rows = result.data
+                    val rows = result.data.lines
                     current.copy(
                         isSearching = false,
                         lines = rows,
                         isEditMode = true,
                         editingMtmId = rows.firstOrNull()?.mtmId.orEmpty(),
+                        // A tiles receipt's voucher-level figures ride on row 0.
+                        discount = if (current.isTiles && result.data.discount > 0) {
+                            result.data.discount.toPlainAmount()
+                        } else current.discount,
+                        manualVoucherNo = if (current.isTiles) result.data.manualVoucherNo else current.manualVoucherNo,
                         selectedBranch = rows.firstOrNull()?.branchId?.toLongOrNull()
                             ?.let { id -> current.branches.firstOrNull { b -> b.id == id } }
                             ?: current.selectedBranch,
@@ -773,15 +789,15 @@ fun CashVoucherScreen(
                 .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // The search row is gone; this only keeps the "Editing voucher" note.
-            if (state.showSearch) {
-                if (state.isEditMode) {
-                    Text(
-                        text = "Editing voucher ${state.search.trim()} — Save is now Update.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            // The search row is gone (web b2135a8d): a voucher arrives from a
+            // report's Edit, and this note says which one is open.
+            if (state.isSearching) {
+                com.example.cashbookbd.ui.components.FieldHint(text = "Loading the voucher…")
+            }
+            if (state.isEditMode) {
+                com.example.cashbookbd.ui.components.FieldHint(
+                    text = com.example.cashbookbd.navigation.VoucherEdit.note(state.search),
+                )
             }
 
             if (state.variant == CashVoucherVariant.HEAD_OFFICE) {

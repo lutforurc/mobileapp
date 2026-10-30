@@ -21,6 +21,42 @@ import java.net.URLEncoder
 /** The chosen account for one form field: its id (sent) and display name. */
 data class TxnSelection(val id: String, val name: String)
 
+/**
+ * A cash voucher loaded for editing: its rows, plus the two voucher-level
+ * figures a Tiles receipt keeps on its first row (web TilesCashReceived).
+ */
+data class CashVoucherEdit(
+    val lines: List<CashVoucherLine>,
+    val discount: Double = 0.0,
+    val manualVoucherNo: String = "",
+)
+
+/**
+ * A bank voucher loaded for editing (`general/bank/{general|payment}/edit/{vr}`):
+ * the voucher's own id + hashed id, its bank leg, the order it answers to (kept
+ * so an update does not take it off), the Tiles figures, and its party rows.
+ */
+data class BankVoucherEdit(
+    val id: String,
+    val mtmId: String,
+    val bank: TxnSelection?,
+    val orderNumber: String,
+    val discount: Double,
+    val manualVoucherNo: String,
+    val lines: List<CashVoucherLine>,
+)
+
+/** An employee loan loaded for editing (`hrms/loan/search`). */
+data class EmployeeLoanEdit(
+    val loanDetailId: Long,
+    val mainTrxId: Long,
+    val vrNo: String,
+    val employee: TxnSelection,
+    val remarks: String,
+    val amount: Double,
+    val manualVoucherNo: String,
+)
+
 /** One pending line of a multi-row Cash Received/Payment batch. */
 data class CashVoucherLine(
     val account: TxnSelection,
@@ -239,13 +275,32 @@ class TransactionRepository(
          */
         tilesDiscount: Double? = null,
         tilesInstrumentNo: String? = null,
+        /** The voucher being updated; null posts a fresh one. */
+        edit: BankVoucherEdit? = null,
     ): Resource<String> = postForMessage {
         val received = spec.kind == TxnKind.BANK_RECEIVED
         val tempId = System.currentTimeMillis()
+        val endpoint = when {
+            edit == null -> spec.endpoint
+            received -> "general/bank/update"
+            else -> "general/bank/payment/update"
+        }
         api.postObject(
-            spec.endpoint,
+            endpoint,
             JsonObject().apply {
-                addProperty("mtmId", "")
+                if (edit != null) {
+                    addProperty("id", edit.id)
+                    addProperty("mtmId", edit.mtmId)
+                    // Sent on every update, empty included: an absent order is
+                    // how the server clears one. The Tiles screen has no order
+                    // box and leaves it out on purpose (web TilesBank*).
+                    if (tilesDiscount == null) {
+                        if (edit.orderNumber.isBlank()) add("purchaseOrderNumber", com.google.gson.JsonNull.INSTANCE)
+                        else addProperty("purchaseOrderNumber", edit.orderNumber)
+                    }
+                } else {
+                    addProperty("mtmId", "")
+                }
                 tilesDiscount?.let { addProperty("discount", it) }
                 tilesInstrumentNo?.let { addProperty("manual_voucher_no", it) }
                 addProperty(if (received) "bankReceivedAccount" else "bankPaymentAccount", bank.id)
@@ -514,7 +569,7 @@ class TransactionRepository(
     suspend fun searchCashVoucher(
         endpoint: String,
         invoiceNo: String,
-    ): Resource<List<CashVoucherLine>> = withContext(ioDispatcher) {
+    ): Resource<CashVoucherEdit> = withContext(ioDispatcher) {
         try {
             val response = api.postObject(
                 endpoint,
@@ -533,15 +588,23 @@ class TransactionRepository(
             if (success == false) {
                 return@withContext Resource.Error(message ?: "Voucher not found.")
             }
-            val rows = body.getAsJsonObject("data")?.get("data")
+            val raw = body.getAsJsonObject("data")?.get("data")
                 ?.takeIf { it.isJsonArray }?.asJsonArray
-                ?.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject?.toEditLine() }
+                ?.mapNotNull { el -> el.takeIf { it.isJsonObject }?.asJsonObject }
                 .orEmpty()
+            val rows = raw.mapNotNull { it.toEditLine() }
             if (rows.isEmpty()) {
                 // "This voucher is approved!" or an empty voucher — not editable.
                 return@withContext Resource.Error(message ?: "Voucher not found.")
             }
-            Resource.Success(rows)
+            val first = raw.first()
+            Resource.Success(
+                CashVoucherEdit(
+                    lines = rows,
+                    discount = first.number("discount"),
+                    manualVoucherNo = first.text("manual_voucher_no"),
+                )
+            )
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {
@@ -549,6 +612,126 @@ class TransactionRepository(
         } catch (e: Exception) {
             Resource.Error("Something went wrong. Please try again.")
         }
+    }
+
+    /**
+     * Loads a bank voucher for editing. The bank contra leg is written last, so
+     * the tail detail is the bank and the rest are the party rows — on a
+     * receipt their credits, on a payment their debits (web mapPaymentData).
+     */
+    suspend fun loadBankVoucher(received: Boolean, vrNo: String): Resource<BankVoucherEdit> =
+        withContext(ioDispatcher) {
+            try {
+                val base = if (received) "general/bank/general/edit/" else "general/bank/payment/edit/"
+                val response = api.get(base + URLEncoder.encode(vrNo.trim(), "UTF-8"))
+                if (response.code() == HTTP_UNAUTHORIZED) {
+                    return@withContext Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+                }
+                val body = (response.body() ?: response.errorBody()?.string()?.let {
+                    runCatching { com.google.gson.JsonParser.parseString(it) }.getOrNull()
+                })?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@withContext Resource.Error("Server error (${response.code()}). Please try again later.")
+                val message = body.text("message").ifBlank { null }
+                if (body.get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean == false) {
+                    return@withContext Resource.Error(message ?: "Voucher not found.")
+                }
+                val data = body.getAsJsonObject("data")?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                val master = data?.get("acc_transaction_master")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.firstOrNull()?.takeIf { it.isJsonObject }?.asJsonObject
+                val details = master?.get("acc_transaction_details")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject }
+                    .orEmpty()
+                if (data == null || master == null || details.size < 2) {
+                    return@withContext Resource.Error(message ?: "Voucher not found.")
+                }
+                fun JsonObject.account(): TxnSelection = TxnSelection(
+                    id = text("coa4_id"),
+                    name = get("coa_l4")?.takeIf { it.isJsonObject }?.asJsonObject?.text("name").orEmpty(),
+                )
+                val bankRow = details.last()
+                Resource.Success(
+                    BankVoucherEdit(
+                        id = data.text("id"),
+                        mtmId = data.text("mtmId"),
+                        bank = bankRow.account().takeIf { it.id.isNotBlank() },
+                        orderNumber = master.text("order_no"),
+                        discount = data.number("discount"),
+                        manualVoucherNo = data.text("manual_voucher_no"),
+                        lines = details.dropLast(1).map { d ->
+                            CashVoucherLine(
+                                account = d.account(),
+                                remarks = d.text("remarks"),
+                                amount = d.number(if (received) "credit" else "debit"),
+                                trackedProductId = d.text("trackedProductId"),
+                            )
+                        },
+                    )
+                )
+            } catch (e: IOException) {
+                Resource.Error("No internet connection. Please check your network and try again.")
+            } catch (e: Exception) {
+                Resource.Error("Something went wrong. Please try again.")
+            }
+        }
+
+    /** Loads an employee loan by its voucher number for editing (web loadLoan). */
+    suspend fun loadEmployeeLoan(vrNo: String): Resource<EmployeeLoanEdit> = withContext(ioDispatcher) {
+        try {
+            val response = api.postObject(
+                "hrms/loan/search",
+                JsonObject().apply { addProperty("vr_no", vrNo.trim()) },
+            )
+            if (response.code() == HTTP_UNAUTHORIZED) {
+                return@withContext Resource.Error("Your session has expired. Please log in again.", isUnauthorized = true)
+            }
+            val body = response.body()?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("No employee loan found.")
+            if (body.get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean == false) {
+                return@withContext Resource.Error(body.text("message").ifBlank { "No employee loan found." })
+            }
+            val d = body.getAsJsonObject("data")?.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@withContext Resource.Error("No employee loan found for this voucher number.")
+            if (d.text("is_approved") == "1") {
+                return@withContext Resource.Error("Approved loan cannot be edited.")
+            }
+            Resource.Success(
+                EmployeeLoanEdit(
+                    loanDetailId = d.text("loan_detail_id").toLongOrNull() ?: 0L,
+                    mainTrxId = d.text("main_trx_id").toLongOrNull() ?: 0L,
+                    vrNo = d.text("vr_no"),
+                    employee = TxnSelection(d.text("account"), d.text("accountName")),
+                    remarks = d.text("remarks"),
+                    amount = d.number("amount"),
+                    manualVoucherNo = d.text("manual_voucher_no"),
+                )
+            )
+        } catch (e: IOException) {
+            Resource.Error("No internet connection. Please check your network and try again.")
+        } catch (e: Exception) {
+            Resource.Error("Something went wrong. Please try again.")
+        }
+    }
+
+    /** Rewrites a loaded loan in place (`hrms/loan/update`); a blank voucher no clears it. */
+    suspend fun updateEmployeeLoan(
+        loan: EmployeeLoanEdit,
+        employee: TxnSelection,
+        remarks: String,
+        amount: Double,
+        manualVoucherNo: String,
+    ): Resource<String> = postForMessage {
+        api.postObject(
+            "hrms/loan/update",
+            JsonObject().apply {
+                addProperty("loan_detail_id", loan.loanDetailId)
+                addProperty("main_trx_id", loan.mainTrxId)
+                addProperty("account", employee.id)
+                addProperty("accountName", employee.name)
+                addProperty("remarks", remarks)
+                addProperty("amount", amount)
+                addProperty("manual_voucher_no", manualVoucherNo)
+            },
+        )
     }
 
     /** One api-edit row → a pending line (both the trading and the HO shape). */

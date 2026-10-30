@@ -307,6 +307,8 @@ data class ReportConfig(
      * column (shown only while the branch's `show_voucher_image` is on).
      */
     val voucherImages: ReportVoucherImages? = null,
+    /** Rows carry an ACTION column whose pencil opens the voucher's own screen. */
+    val voucherEdit: Boolean = false,
     /**
      * Adjacent column pairs to render as ONE stacked cell (top value over bottom),
      * e.g. the Loan Ledger's "Vr No & Date". Empty = no merging.
@@ -902,6 +904,8 @@ object ReportMenu {
                 "sales_total" to "Sal. Total",
             ),
             vehicleColumns = listOf("truck_no"),
+            // The web's Action column (7d8f76da): each kind's own edit permission.
+            voucherEdit = true,
         ),
         ReportConfig(
             key = "dueInstallments",

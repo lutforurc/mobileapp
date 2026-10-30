@@ -85,4 +85,12 @@ data class ApiLedgerRowDto(
     @SerializedName("voucher_image") val voucherImage: String? = null,
     /** Raw branch id — padded to 4 for the attachment URLs. */
     @SerializedName("branch_id") val branchId: String? = null,
+    // The facts the row's Edit reads (web voucherEditNavigation). Kept as raw
+    // elements: the server sends 1/0, "1"/"0" or true/false depending on the query.
+    @SerializedName("is_approved") val isApproved: com.google.gson.JsonElement? = null,
+    @SerializedName("is_bank_voucher") val isBankVoucher: com.google.gson.JsonElement? = null,
+    /** A tiles discount journal's row names its receipt here. */
+    @SerializedName("edit_vr_no") val editVrNo: String? = null,
+    /** A screen the number cannot name (`employee_loan`). */
+    @SerializedName("edit_screen") val editScreen: String? = null,
 )

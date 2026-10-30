@@ -16,6 +16,8 @@ import com.example.cashbookbd.invoice.ELECTRONICS_INVENTORY_SYSTEM_ID
 import com.example.cashbookbd.invoice.InvoiceForms
 import com.example.cashbookbd.invoice.InvoiceKind
 import com.example.cashbookbd.invoice.TRADING_INVENTORY_SYSTEM_ID
+import com.example.cashbookbd.navigation.VoucherEdit
+import com.example.cashbookbd.navigation.VoucherEditTarget
 import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.session.SessionManager
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -114,25 +116,134 @@ class InvoiceFormViewModel(
         // index refetches the current branch on mount, so refresh settings and
         // re-derive the variant flags when they land.
         viewModelScope.launch {
-            if (sessionRepository?.refresh() !is Resource.Success) return@launch
-            val fresh = sessionManager.state.value.settings?.inventorySystemId
-            if (fresh == inventorySystemId) return@launch
-            inventorySystemId = fresh
-            isElectronics = spec?.electronicsEndpoint != null &&
-                fresh == ELECTRONICS_INVENTORY_SYSTEM_ID
-            isTrading = fresh == TRADING_INVENTORY_SYSTEM_ID &&
-                (spec?.kind == InvoiceKind.SALES || spec?.tradingEndpoint != null)
-            _uiState.update {
-                it.copy(
-                    isElectronics = isElectronics,
-                    isTrading = isTrading,
-                    showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
-                    showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
-                    showVehicleNumber = !(isElectronics && spec?.kind == InvoiceKind.SALES),
-                    showExtraCharges = isElectronics && spec?.kind == InvoiceKind.SALES,
-                    allowBlankAmount = isTrading && spec?.isReturn != true,
-                )
+            refreshVariant()
+            // Opened from a report's Edit: load that invoice once the variant
+            // (and so its edit endpoint) is settled.
+            val target = when {
+                spec == null -> null
+                spec.isReturn && spec.kind == InvoiceKind.SALES -> VoucherEditTarget.SALES_RETURN
+                spec.isReturn -> VoucherEditTarget.PURCHASE_RETURN
+                spec.kind == InvoiceKind.SALES -> VoucherEditTarget.SALES
+                else -> VoucherEditTarget.PURCHASE
             }
+            val vrNo = target?.let { VoucherEdit.take(it) } ?: return@launch
+            if (spec?.isReturn == true) {
+                // The web edits a return on the Tiles screens only; this one
+                // opens empty there too, so say why rather than stay silent.
+                _uiState.update { it.copy(message = "A return is edited on the Tiles and Sanitary return screen; this branch's return screen has no edit.", isError = true) }
+            } else {
+                loadForEdit(vrNo)
+            }
+        }
+    }
+
+    /** The invoice being rewritten; null on a fresh entry. */
+    private var editRef: com.example.cashbookbd.data.repository.InvoiceEditRef? = null
+
+    private suspend fun loadForEdit(vrNo: String) {
+        val currentSpec = spec ?: return
+        _uiState.update { it.copy(editLoading = true) }
+        when (val r = invoiceRepository.loadForEdit(currentSpec, vrNo, isElectronics, isTrading)) {
+            is Resource.Success -> {
+                val e = r.data
+                val sales = currentSpec.kind == InvoiceKind.SALES
+                editRef = com.example.cashbookbd.data.repository.InvoiceEditRef(
+                    mtmId = e.mtmId,
+                    vrNo = vrNo,
+                    installments = if (sales && isElectronics) e.installments else com.google.gson.JsonArray(),
+                    // Trading purchase carries the voucher's four manual figures
+                    // back as it found them (web TradingBusinessPurchase).
+                    passthrough = if (!sales && isTrading) mapOf(
+                        "manual_voucher_no" to e.manualVoucherNo,
+                        "manual_voucher_date" to e.manualVoucherDate,
+                        "manual_challan_no" to e.manualChallanNo,
+                        "manual_challan_date" to e.manualChallanDate,
+                    ) else emptyMap(),
+                )
+                cashAmountManuallyEdited = false
+                val party = TxnSelection(e.partyId, e.partyName)
+                _uiState.update { s ->
+                    s.copy(
+                        editLoading = false,
+                        editingVrNo = vrNo,
+                        party = party,
+                        lines = e.lines.map { l ->
+                            InvoiceLine(
+                                product = com.example.cashbookbd.ui.invoice.model.InvoiceProduct(
+                                    id = l.productId, name = l.name, unit = l.unit,
+                                    purchasePrice = null, code = l.code,
+                                ),
+                                qty = l.qty,
+                                price = l.price,
+                                serialNo = l.serialNo,
+                                warehouseId = l.warehouseId,
+                                warehouseName = s.warehouses.firstOrNull { it.id == l.warehouseId }?.label.orEmpty(),
+                                bag = l.bag,
+                                variance = l.variance,
+                                varianceType = l.varianceType,
+                            )
+                        },
+                        // General sales and every purchase reload the master's
+                        // netpayment; Trading/Electronics sales the cash debited.
+                        amount = if (sales && (isTrading || isElectronics)) e.cashDebit.plain() else e.netPayment,
+                        amountLocked = party.id == CASH_ACCOUNT_ID && !s.showExtraCharges,
+                        discount = if (e.discount > 0) e.discount.plain() else "",
+                        notes = e.notes,
+                        vehicleNumber = e.vehicleNo,
+                        invoiceNo = e.invoiceNo,
+                        invoiceDate = parseEditDate(e.invoiceDate) ?: s.invoiceDate,
+                        invoiceDateTouched = parseEditDate(e.invoiceDate) != null,
+                        purchaseOrder = e.purchaseOrderId.takeIf { it.isNotBlank() }?.let {
+                            OrderOption(id = it, orderNumber = e.purchaseOrderText, customerName = "", productName = "", rate = null, remainingQty = null)
+                        },
+                        trackedProduct = e.trackedProductId.takeIf { it.isNotBlank() }?.let { id ->
+                            s.trackedProducts.firstOrNull { it.id == id } ?: SelectorOption(id, "Product $id")
+                        },
+                        serviceCharge = if (e.serviceCharge > 0) e.serviceCharge.plain() else "",
+                        tdsAmount = if (e.tdsAmount > 0) e.tdsAmount.plain() else "",
+                        transportationAmt = if (e.transportationAmt > 0) e.transportationAmt.plain() else "",
+                    )
+                }
+                if (isTrading && currentSpec.isReturn != true) loadTrackedProducts(coa4Id = party.id)
+            }
+            is Resource.Error -> _uiState.update {
+                it.copy(editLoading = false, message = r.message, isError = true, sessionExpired = r.isUnauthorized)
+            }
+            Resource.Loading -> Unit
+        }
+    }
+
+    /** The edit reply's dates: yyyy-MM-dd (maybe with a time) or dd/MM/yyyy. */
+    private fun parseEditDate(raw: String): com.example.cashbookbd.ui.reports.model.SimpleDate? =
+        com.example.cashbookbd.ui.reports.model.SimpleDate.fromApi(raw.take(10))
+            ?: com.example.cashbookbd.ui.reports.model.SimpleDate.fromDisplay(raw)
+
+    private fun Double.plain(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
+
+    /**
+     * The branch's inventory system may have changed since login — the web
+     * index refetches the current branch on mount, so refresh settings and
+     * re-derive the variant flags when they land.
+     */
+    private suspend fun refreshVariant() {
+        if (sessionRepository?.refresh() !is Resource.Success) return
+        val fresh = sessionManager.state.value.settings?.inventorySystemId
+        if (fresh == inventorySystemId) return
+        inventorySystemId = fresh
+        isElectronics = spec?.electronicsEndpoint != null &&
+            fresh == ELECTRONICS_INVENTORY_SYSTEM_ID
+        isTrading = fresh == TRADING_INVENTORY_SYSTEM_ID &&
+            (spec?.kind == InvoiceKind.SALES || spec?.tradingEndpoint != null)
+        _uiState.update {
+            it.copy(
+                isElectronics = isElectronics,
+                isTrading = isTrading,
+                showInstallment = isElectronics && spec?.kind == InvoiceKind.SALES,
+                showSalesOrderPicker = isTrading && spec?.kind == InvoiceKind.SALES,
+                showVehicleNumber = !(isElectronics && spec?.kind == InvoiceKind.SALES),
+                showExtraCharges = isElectronics && spec?.kind == InvoiceKind.SALES,
+                allowBlankAmount = isTrading && spec?.isReturn != true,
+            )
         }
     }
 
@@ -508,7 +619,9 @@ class InvoiceFormViewModel(
                     state.trackedProduct?.id.orEmpty()
                 },
                 allowNegative = allowNegative,
+                edit = editRef,
             )
+            if ((result as? Resource.Success)?.data is InvoiceOutcome.Saved) editRef = null
             when (result) {
                 is Resource.Success -> when (val outcome = result.data) {
                     // Not enough stock: nothing saved, nothing wrong. Hold the
@@ -522,6 +635,7 @@ class InvoiceFormViewModel(
 
                     is InvoiceOutcome.Saved -> _uiState.update {
                         it.copy(
+                            editingVrNo = null,
                             isSubmitting = false,
                             message = outcome.message,
                             isError = false,

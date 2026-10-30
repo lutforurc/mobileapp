@@ -11,6 +11,8 @@ import com.example.cashbookbd.data.repository.SelectorRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
 import com.example.cashbookbd.data.repository.TxnSelection
 import com.example.cashbookbd.di.ServiceLocator
+import com.example.cashbookbd.navigation.VoucherEdit
+import com.example.cashbookbd.navigation.VoucherEditTarget
 import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.transaction.TransactionForms
 import com.example.cashbookbd.transaction.TxnPicker
@@ -67,15 +69,79 @@ class TransactionFormViewModel(
         // A Tiles and Sanitary branch gets its own Bank screen, both Received
         // and Payment now (web 2e55deb1; the corner reads the current branch's flag).
         val api = webApi
-        if (trackedContext != null && api != null) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            if (trackedContext != null && api != null) {
                 val branch = com.example.cashbookbd.ui.invoice.CurrentBranchCache.load(api)
                 if (com.example.cashbookbd.ui.invoice.TilesBranch.isTiles(settings, branch)) {
                     _uiState.update { it.copy(isTiles = true) }
                 }
             }
+            // Opened from a report's Edit (after the Tiles question, which
+            // decides whether the voucher's discount shows).
+            val target = when (spec?.kind) {
+                com.example.cashbookbd.transaction.TxnKind.BANK_RECEIVED -> VoucherEditTarget.BANK_RECEIVED
+                com.example.cashbookbd.transaction.TxnKind.BANK_PAYMENT -> VoucherEditTarget.BANK_PAYMENT
+                com.example.cashbookbd.transaction.TxnKind.EMPLOYEE_LOAN -> VoucherEditTarget.EMPLOYEE_LOAN
+                else -> null
+            }
+            target?.let { VoucherEdit.take(it) }?.let { loadForEdit(it) }
         }
     }
+
+    /** The bank voucher / loan being rewritten; null on a fresh entry. */
+    private var bankEdit: com.example.cashbookbd.data.repository.BankVoucherEdit? = null
+    private var loanEdit: com.example.cashbookbd.data.repository.EmployeeLoanEdit? = null
+
+    /** Loads [vrNo] into the form; Save then rewrites it in place. */
+    private suspend fun loadForEdit(vrNo: String) {
+        _uiState.update { it.copy(editLoading = true) }
+        if (spec?.kind == com.example.cashbookbd.transaction.TxnKind.EMPLOYEE_LOAN) {
+            when (val r = transactionRepository.loadEmployeeLoan(vrNo)) {
+                is Resource.Success -> {
+                    val loan = r.data
+                    loanEdit = loan
+                    _uiState.update {
+                        it.copy(
+                            editLoading = false,
+                            editingVrNo = loan.vrNo.ifBlank { vrNo },
+                            selections = it.selections + ("account" to loan.employee),
+                            remarks = loan.remarks,
+                            amount = loan.amount.plain(),
+                            manualVoucherNo = loan.manualVoucherNo,
+                        )
+                    }
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(editLoading = false, message = r.message, isError = true, sessionExpired = r.isUnauthorized)
+                }
+                Resource.Loading -> Unit
+            }
+            return
+        }
+        val received = spec?.kind == com.example.cashbookbd.transaction.TxnKind.BANK_RECEIVED
+        when (val r = transactionRepository.loadBankVoucher(received, vrNo)) {
+            is Resource.Success -> {
+                val v = r.data
+                bankEdit = v
+                _uiState.update {
+                    it.copy(
+                        editLoading = false,
+                        editingVrNo = vrNo,
+                        selections = v.bank?.let { b -> mapOf("bank" to b) } ?: it.selections,
+                        lines = v.lines,
+                        discount = if (it.isTiles && v.discount > 0) v.discount.plain() else "",
+                        instrumentNo = if (it.isTiles) v.manualVoucherNo else "",
+                    )
+                }
+            }
+            is Resource.Error -> _uiState.update {
+                it.copy(editLoading = false, message = r.message, isError = true, sessionExpired = r.isUnauthorized)
+            }
+            Resource.Loading -> Unit
+        }
+    }
+
+    private fun Double.plain(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
 
     /** Tiles: the party's balance with its sign; pre-fills Amount only when owing. */
     private fun loadPreviousBalance(accountId: String) {
@@ -245,6 +311,7 @@ class TransactionFormViewModel(
 
         _uiState.update { it.copy(isSubmitting = true, message = null, isError = false) }
         viewModelScope.launch {
+            val loan = loanEdit
             val result = if (state.isBankBatch) {
                 transactionRepository.submitBankVoucher(
                     spec = currentSpec,
@@ -252,6 +319,15 @@ class TransactionFormViewModel(
                     lines = state.lines,
                     tilesDiscount = if (state.isTiles) state.discount.toDoubleOrNull() ?: 0.0 else null,
                     tilesInstrumentNo = if (state.isTiles) state.instrumentNo else null,
+                    edit = bankEdit,
+                )
+            } else if (loan != null) {
+                transactionRepository.updateEmployeeLoan(
+                    loan = loan,
+                    employee = state.selections.getValue("account"),
+                    remarks = state.remarks.trim(),
+                    amount = state.amount.toDoubleOrNull() ?: 0.0,
+                    manualVoucherNo = state.manualVoucherNo.trim(),
                 )
             } else {
                 transactionRepository.submit(
@@ -263,11 +339,17 @@ class TransactionFormViewModel(
                     manualVoucherNo = state.manualVoucherNo.trim(),
                 )
             }
+            if (result is Resource.Success) {
+                // An update ends the edit; the next save is a fresh voucher.
+                bankEdit = null
+                loanEdit = null
+            }
             when (result) {
                 is Resource.Success -> _uiState.update {
                     // Clear the form for the next entry on success. The bank
                     // batch keeps the bank account, like the web.
                     it.copy(
+                        editingVrNo = null,
                         isSubmitting = false,
                         message = result.data,
                         isError = false,

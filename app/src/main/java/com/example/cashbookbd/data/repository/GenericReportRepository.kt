@@ -1,6 +1,8 @@
 package com.example.cashbookbd.data.repository
 
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.jBool
+import com.example.cashbookbd.core.jStr
 import com.example.cashbookbd.core.VoucherAttachment
 import com.example.cashbookbd.core.VoucherImages
 import com.example.cashbookbd.data.remote.ReportApiService
@@ -545,9 +547,24 @@ class GenericReportRepository(
                 highlightText = highlightText,
                 highlightLabel = highlightLabel,
                 voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
+                voucherEdit = obj.toVoucherEditRow(),
             )
         }
         else -> ReportRow(listOf(ReportCell("Value", formatValue(this))))
+    }
+
+    /** The voucher facts a row's Edit reads; null when the row names no voucher. */
+    private fun com.google.gson.JsonObject.toVoucherEditRow(): com.example.cashbookbd.navigation.VoucherEditRow? {
+        val vrNo = jStr("vr_no").ifBlank { return null }
+        return com.example.cashbookbd.navigation.VoucherEditRow(
+            vrNo = vrNo,
+            editVrNo = jStr("edit_vr_no"),
+            // Only a real `true` picks the bank pair (web: === true).
+            isBankVoucher = get("is_bank_voucher")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asBoolean == true,
+            isApproved = jBool("is_approved"),
+            combinedNumber = jStr("combined_number"),
+            editScreen = jStr("edit_screen"),
+        )
     }
 
     /**

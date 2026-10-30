@@ -121,6 +121,12 @@ fun TransactionFormScreen(
                 .padding(horizontal = ScreenGutter, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (state.editLoading) {
+                com.example.cashbookbd.ui.components.FieldHint(text = "Loading the voucher…")
+            }
+            state.editingVrNo?.let { vrNo ->
+                com.example.cashbookbd.ui.components.FieldHint(text = com.example.cashbookbd.navigation.VoucherEdit.note(vrNo))
+            }
             state.fields.forEach { field ->
                 AccountField(
                     field = field,
@@ -205,7 +211,7 @@ fun TransactionFormScreen(
                         modifier = Modifier.weight(1f),
                     )
                     PrimaryButton(
-                        text = "Save",
+                        text = if (state.editingVrNo != null) "Update" else "Save",
                         onClick = viewModel::submit,
                         enabled = state.canSubmit,
                         isLoading = state.isSubmitting,
@@ -223,7 +229,7 @@ fun TransactionFormScreen(
                 }
             } else {
                 PrimaryButton(
-                    text = "Save",
+                    text = if (state.editingVrNo != null) "Update" else "Save",
                     onClick = viewModel::submit,
                     enabled = state.canSubmit,
                     isLoading = state.isSubmitting,

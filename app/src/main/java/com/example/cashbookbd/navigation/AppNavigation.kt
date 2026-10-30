@@ -742,6 +742,10 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             val sessionState by sessionManager.state.collectAsStateWithLifecycle()
             val realEstatePayment = cashVoucher?.key == CashVoucherForms.payment.key &&
                 RealEstateMenu.visibleForBranch(sessionState.settings?.businessTypeId)
+            // A report's Edit on a real-estate payment lands on the project form.
+            val realEstateEditVrNo = remember(realEstatePayment) {
+                if (realEstatePayment) VoucherEdit.take(VoucherEditTarget.CASH_PAYMENT) else null
+            }
             PermissionGate(anyOf = item?.anyOf ?: emptyList()) {
                 if (realEstatePayment) {
                     ProjectExpenseScreen(
@@ -749,6 +753,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                         onLogout = backToLogin,
                         title = CashVoucherForms.payment.title,
                         drawerRoute = Routes.TRANSACTIONS,
+                        initialVrNo = realEstateEditVrNo,
                     )
                 } else if (cashVoucher != null) {
                     CashVoucherScreen(

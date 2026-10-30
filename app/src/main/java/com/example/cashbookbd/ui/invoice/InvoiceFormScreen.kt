@@ -119,6 +119,12 @@ fun InvoiceFormScreen(
                 .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (state.editLoading) {
+                com.example.cashbookbd.ui.components.FieldHint(text = "Loading the voucher…")
+            }
+            state.editingVrNo?.let { vrNo ->
+                com.example.cashbookbd.ui.components.FieldHint(text = com.example.cashbookbd.navigation.VoucherEdit.note(vrNo))
+            }
             SearchableLedgerDropdown(
                 selectedLedger = state.party?.let { LedgerDropdownItem(it.id.toIntOrNull() ?: 0, it.name, null) },
                 onLedgerSelected = { viewModel.onPartySelected(TxnSelection(it.id.toString(), it.name)) },
@@ -231,7 +237,7 @@ fun InvoiceFormScreen(
             }
 
             PrimaryButton(
-                text = "Save Invoice",
+                text = if (state.editingVrNo != null) "Update Invoice" else "Save Invoice",
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
                 isLoading = state.isSubmitting,

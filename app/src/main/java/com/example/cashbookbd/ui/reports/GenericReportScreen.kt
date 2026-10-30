@@ -106,6 +106,9 @@ fun GenericReportScreen(
     ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val editor = if (com.example.cashbookbd.report.ReportMenu.byKey(reportKey)?.voucherEdit == true) {
+        com.example.cashbookbd.ui.components.rememberVoucherRowEditor(navController)
+    } else null
 
     LaunchedEffect(uiState.sessionExpired) {
         if (uiState.sessionExpired) {
@@ -147,7 +150,7 @@ fun GenericReportScreen(
                 onApply = viewModel::apply,
             )
             Box(modifier = Modifier.weight(1f)) {
-                ReportResults(state = uiState, onRetry = viewModel::apply)
+                ReportResults(state = uiState, onRetry = viewModel::apply, editor = editor)
             }
         }
     }
@@ -528,7 +531,11 @@ private fun MonthYearPickerDialog(
 }
 
 @Composable
-private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
+private fun ReportResults(
+    state: GenericReportUiState,
+    onRetry: () -> Unit,
+    editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
+) {
     when {
         state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
@@ -560,12 +567,15 @@ private fun ReportResults(state: GenericReportUiState, onRetry: () -> Unit) {
             )
         }
 
-        else -> ReportRowList(state)
+        else -> ReportRowList(state, editor)
     }
 }
 
 @Composable
-private fun ReportRowList(state: GenericReportUiState) {
+private fun ReportRowList(
+    state: GenericReportUiState,
+    editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
+) {
     val result = state.result ?: return
     val table = remember(result.rows, state.totalColumns) {
         buildTable(result.rows, state.totalColumns, state.totalRowLabel)
@@ -584,7 +594,7 @@ private fun ReportRowList(state: GenericReportUiState) {
                 )
             }
         } else {
-            GenericReportTable(table)
+            GenericReportTable(table, editor)
         }
     }
 }
@@ -720,7 +730,10 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
  * branch's `show_voucher_image` switch is on, like the web ledgers.
  */
 @Composable
-private fun GenericReportTable(table: TableModel) {
+private fun GenericReportTable(
+    table: TableModel,
+    editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
+) {
     val rules = rememberHighlightRules()
     val brand = MaterialTheme.brand
     val context = LocalContext.current
@@ -747,7 +760,9 @@ private fun GenericReportTable(table: TableModel) {
         }
     }
 
-    val columns = remember(table, rowHighlights, showVouchers, isLocalEnv) {
+    // The ACTION column shows only when some row can actually be edited.
+    val editable = editor?.takeIf { ed -> table.edits.any { it != null && ed.canEdit(it) } }
+    val columns = remember(table, rowHighlights, showVouchers, isLocalEnv, editable) {
         buildGenericColumns(
             table = table,
             rowHighlights = rowHighlights,
@@ -756,6 +771,7 @@ private fun GenericReportTable(table: TableModel) {
             } else {
                 null
             },
+            editor = editable,
         )
     }
     val footerRows = table.footer?.let { footer ->
@@ -773,6 +789,7 @@ private fun GenericReportTable(table: TableModel) {
                     )
                 }
                 if (showVouchers) add(ReportFooterCell(ReportTableCell.Empty))
+                if (editable != null) add(ReportFooterCell(ReportTableCell.Empty))
             }
         )
     }.orEmpty()
@@ -801,6 +818,7 @@ private fun buildGenericColumns(
     table: TableModel,
     rowHighlights: List<Color?>,
     voucherColumn: VoucherColumn? = null,
+    editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
 ): List<ReportColumn<List<String>>> = buildList {
     add(
         ReportColumn("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { _, index ->
@@ -850,6 +868,20 @@ private fun buildGenericColumns(
             },
         )
     }
+    if (editor != null) {
+        // An approved voucher, a kind with no update endpoint, or one the user
+        // may not edit gets no pencil (web canShowEditAction).
+        add(
+            ReportColumn("Action", ReportColWidth.Fixed(64.dp), TextAlign.Center) { _, index ->
+                val row = table.edits.getOrNull(index)?.takeIf { editor.canEdit(it) }
+                if (row == null) {
+                    ReportTableCell.Empty
+                } else {
+                    ReportTableCell.Slot { com.example.cashbookbd.ui.components.VoucherEditButton(row, editor) }
+                }
+            },
+        )
+    }
 }
 
 /**
@@ -889,6 +921,8 @@ private data class TableModel(
     val summaryRows: List<Boolean> = emptyList(),
     /** Per row, the Sl text; restarts after each band summary. */
     val serials: List<String> = emptyList(),
+    /** Per row, its voucher for the ACTION column (null = none). */
+    val edits: List<com.example.cashbookbd.navigation.VoucherEditRow?> = emptyList(),
 )
 
 /**
@@ -950,6 +984,7 @@ private fun buildTable(
         highlightTexts = rows.map { it.highlightText },
         highlightCol = highlightLabel?.let { columns.indexOf(it) } ?: -1,
         attachments = rows.map { it.voucherAttachments },
+        edits = rows.map { it.voucherEdit },
         footer = footer,
         footerLabel = totalRowLabel,
         summaryRows = rows.map { it.isSummary },

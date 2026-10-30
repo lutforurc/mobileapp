@@ -28,6 +28,8 @@ data class ReportRow(
     val voucherAttachments: List<VoucherAttachment> = emptyList(),
     /** A band's own total line: bold, unnumbered, never summed into the footer. */
     val isSummary: Boolean = false,
+    /** The row's voucher, for reports that offer Edit ([ReportConfig.voucherEdit]). */
+    val voucherEdit: com.example.cashbookbd.navigation.VoucherEditRow? = null,
 )
 
 /**

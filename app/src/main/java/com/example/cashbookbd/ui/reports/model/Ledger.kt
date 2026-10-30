@@ -56,7 +56,16 @@ data class LedgerRow(
     val branchName: String = "",
     /** The voucher's photo/document attachments — the flag-gated Voucher column. */
     val attachments: List<VoucherAttachment> = emptyList(),
+    /** What the row's Edit needs to find the voucher's screen. */
+    val edit: com.example.cashbookbd.navigation.VoucherEditRow? = null,
 )
+
+/** 1, "1", true, "true", "yes", "approved" are on (web isApprovedValue). */
+internal fun com.google.gson.JsonElement?.isOn(): Boolean {
+    val p = this?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive ?: return false
+    if (p.isBoolean) return p.asBoolean
+    return p.asString.trim().lowercase() in setOf("1", "true", "yes", "approved")
+}
 
 fun LedgerSearchItemDto.toLedgerDropdownItem(): LedgerDropdownItem? {
     val id = value?.toInt() ?: return null
@@ -102,6 +111,17 @@ fun ApiLedgerStatementDto.toLedgerStatement(): LedgerStatement {
                 dto.voucherImage,
                 VoucherImages.branchPad(dto.branchId),
             ),
+            edit = dto.vrNo?.trim()?.takeIf { it.isNotBlank() }?.let { vr ->
+                com.example.cashbookbd.navigation.VoucherEditRow(
+                    vrNo = vr,
+                    editVrNo = dto.editVrNo?.trim().orEmpty(),
+                    // Only a real `true` picks the bank pair (web: === true).
+                    isBankVoucher = dto.isBankVoucher?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asBoolean == true,
+                    isApproved = dto.isApproved.isOn(),
+                    combinedNumber = dto.combinedNumber?.trim().orEmpty(),
+                    editScreen = dto.editScreen?.trim().orEmpty(),
+                )
+            },
         )
     }
 

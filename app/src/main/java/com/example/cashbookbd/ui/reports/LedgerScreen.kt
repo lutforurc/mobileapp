@@ -61,6 +61,7 @@ import com.example.cashbookbd.ui.components.rememberHighlightRules
 import com.example.cashbookbd.core.Resource
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
+import com.example.cashbookbd.navigation.VoucherEditRow
 import com.example.cashbookbd.report.HighlightRule
 import com.example.cashbookbd.report.matchHighlightRule
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
@@ -104,6 +105,8 @@ fun LedgerScreen(
         }
     }
 
+    val editor = com.example.cashbookbd.ui.components.rememberVoucherRowEditor(navController)
+
     AuthenticatedShell(
         title = "Ledger",
         currentRoute = Routes.LEDGER,
@@ -123,7 +126,7 @@ fun LedgerScreen(
             )
 
             Box(modifier = Modifier.weight(1f)) {
-                LedgerResults(state = uiState, onRetry = viewModel::apply)
+                LedgerResults(state = uiState, onRetry = viewModel::apply, editor = editor)
             }
         }
     }
@@ -236,7 +239,7 @@ private fun BranchDropdown(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
+private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit, editor: com.example.cashbookbd.ui.components.VoucherRowEditor) {
     when {
         state.isReportLoading -> CenterBox { CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground) }
 
@@ -263,6 +266,7 @@ private fun LedgerResults(state: LedgerUiState, onRetry: () -> Unit) {
         else -> LedgerTable(
             statement = state.statement,
             showBranchNames = state.appliedAllBranches,
+            editor = editor,
         )
     }
 }
@@ -290,6 +294,7 @@ private fun ledgerColumns(
     summaryColor: Color,
     voucherColumn: LedgerVoucherColumn? = null,
     showBranchNames: Boolean = false,
+    editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
 ) = listOf(
     ReportColumn<LedgerDisplayRow>("#", ReportColWidth.Fixed(COL_SL), TextAlign.Center) { r, _ ->
         cellText(r.sl, bold = r.isSummary, align = TextAlign.Center, color = r.summaryInk(summaryColor))
@@ -336,6 +341,18 @@ private fun ledgerColumns(
                         onOpen = vc.onOpen,
                     )
                 }
+            }
+        }
+    },
+    // An approved voucher, a kind with no update endpoint, or a kind the user
+    // may not edit gets no pencil (web canShowEditAction).
+    editor?.let { ed ->
+        ReportColumn<LedgerDisplayRow>("ACTION", ReportColWidth.Fixed(64.dp), TextAlign.Center) { r, _ ->
+            val row = r.edit?.takeIf { ed.canEdit(it) }
+            if (row == null) {
+                ReportTableCell.Empty
+            } else {
+                ReportTableCell.Slot { com.example.cashbookbd.ui.components.VoucherEditButton(row, ed) }
             }
         }
     },
@@ -414,6 +431,8 @@ private data class LedgerDisplayRow(
     val branchName: String = "",
     /** The voucher's attachments — the flag-gated VOUCHER column. */
     val attachments: List<VoucherAttachment> = emptyList(),
+    /** The facts the ACTION column's Edit reads; null on the opening line. */
+    val edit: VoucherEditRow? = null,
 )
 
 /**
@@ -447,13 +466,14 @@ private fun LedgerStatement.toDisplayRows(): List<LedgerDisplayRow> {
             isSummary = false,
             branchName = r.branchName,
             attachments = r.attachments,
+            edit = r.edit,
         )
     }
     return list
 }
 
 @Composable
-private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean) {
+private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean, editor: com.example.cashbookbd.ui.components.VoucherRowEditor) {
     val rules = rememberHighlightRules()
     val summaryBg = MaterialTheme.colorScheme.secondaryContainer
     val summaryInk = MaterialTheme.colorScheme.onSecondaryContainer
@@ -466,7 +486,9 @@ private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean) {
     val isLocalEnv = settings?.isLocalEnv == true
     var viewing by remember { mutableStateOf<VoucherAttachment?>(null) }
 
-    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv, showBranchNames) {
+    // The column shows only when some row can actually be edited.
+    val showEdit = statement.rows.any { r -> r.edit?.let(editor.canEdit) == true }
+    val columns = remember(rules, summaryInk, showVouchers, isLocalEnv, showBranchNames, showEdit, editor) {
         ledgerColumns(
             rules = rules,
             summaryColor = summaryInk,
@@ -482,6 +504,7 @@ private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean) {
                 null
             },
             showBranchNames = showBranchNames,
+            editor = if (showEdit) editor else null,
         )
     }
     ReportTable(

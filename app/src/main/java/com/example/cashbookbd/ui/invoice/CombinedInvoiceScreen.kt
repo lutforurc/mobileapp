@@ -39,6 +39,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.core.AmountFormat
 import com.example.cashbookbd.core.Resource
+import com.example.cashbookbd.core.jBool
+import com.example.cashbookbd.core.jNum
+import com.example.cashbookbd.core.jObjs
+import com.example.cashbookbd.core.jStr
 import com.example.cashbookbd.data.repository.InvoiceRepository
 import com.example.cashbookbd.data.repository.LedgerRepository
 import com.example.cashbookbd.data.repository.TransactionRepository
@@ -109,6 +113,15 @@ data class CombinedInvoiceUiState(
 
     val lines: List<CombinedLine> = emptyList(),
 
+    /** Opened from a report's Edit: the combined number being rewritten. */
+    val editingNumber: String? = null,
+    val editLoading: Boolean = false,
+    /**
+     * One leg is approved and locked: the other leg opens on its own screen
+     * instead (web getCombinedVoucherOpenState). The screen navigates on it.
+     */
+    val redirect: Pair<com.example.cashbookbd.navigation.VoucherEditTarget, String>? = null,
+
     val isSubmitting: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
@@ -130,7 +143,8 @@ data class CombinedInvoiceUiState(
             customer != null &&
             (amount.toDoubleOrNull() ?: -1.0) >= 0.0 &&
             lines.isNotEmpty() &&
-            !isSubmitting
+            !isSubmitting &&
+            !editLoading
 }
 
 class CombinedInvoiceViewModel(
@@ -153,6 +167,92 @@ class CombinedInvoiceViewModel(
         )
     )
     val uiState: StateFlow<CombinedInvoiceUiState> = _uiState.asStateFlow()
+
+    /** A "separate" entry's two notes — this form writes one note, so they go back as loaded. */
+    private var editLegNotes: Pair<String, String>? = null
+
+    init {
+        com.example.cashbookbd.navigation.VoucherEdit.take(
+            com.example.cashbookbd.navigation.VoucherEditTarget.COMBINED,
+        )?.let { number -> viewModelScope.launch { loadForEdit(number) } }
+    }
+
+    /** The web's fetchCombinedEntry: the entry, or the editable leg when one is approved. */
+    private suspend fun loadForEdit(number: String) {
+        _uiState.update { it.copy(editLoading = true) }
+        val d = when (val r = invoiceRepository.loadCombined(number)) {
+            is Resource.Success -> r.data
+            is Resource.Error -> {
+                _uiState.update { it.copy(editLoading = false, message = r.message, isError = true, sessionExpired = r.isUnauthorized) }
+                return
+            }
+            Resource.Loading -> return
+        }
+        fun approved(vararg keys: String) = keys.any { d.jBool(it) }
+        val purchaseApproved = approved("purchase_is_approved", "purchaseIsApproved", "is_purchase_approved", "purchase_approved")
+        val salesApproved = approved("sales_is_approved", "salesIsApproved", "is_sales_approved", "sales_approved")
+        if (purchaseApproved || salesApproved) {
+            val purchaseVr = d.jStr("purchase_vr_no").ifBlank { d.jStr("purchaseVrNo") }
+            val salesVr = d.jStr("sales_vr_no").ifBlank { d.jStr("salesVrNo") }
+            val other = when {
+                purchaseApproved && !salesApproved && salesVr.isNotBlank() ->
+                    com.example.cashbookbd.navigation.VoucherEditTarget.SALES to salesVr
+                salesApproved && !purchaseApproved && purchaseVr.isNotBlank() ->
+                    com.example.cashbookbd.navigation.VoucherEditTarget.PURCHASE to purchaseVr
+                else -> null
+            }
+            _uiState.update {
+                if (other == null) it.copy(editLoading = false, message = "Approved voucher cannot be opened.", isError = true)
+                else it.copy(editLoading = false, redirect = other)
+            }
+            return
+        }
+        val notesApplyTo = d.jStr("notesApplyTo").ifBlank { d.jStr("notes_apply_to") }.ifBlank { "both" }
+        editLegNotes = if (notesApplyTo == "separate") d.jStr("purchaseNotes") to d.jStr("salesNotes") else null
+        fun order(id: String, text: String) = id.takeIf { it.isNotBlank() }?.let {
+            OrderOption(id = it, orderNumber = text, customerName = "", productName = "", rate = null, remainingQty = null)
+        }
+        val supplier = TxnSelection(d.jStr("supplierAccount"), d.jStr("supplierName"))
+        val customer = TxnSelection(d.jStr("customerAccount"), d.jStr("customerName"))
+        val amount = d.jNum("amount")
+        _uiState.update { s ->
+            s.copy(
+                editLoading = false,
+                editingNumber = d.jStr("combined_number"),
+                supplier = supplier,
+                customer = customer,
+                purchaseOrder = order(d.jStr("purchaseOrderNumber"), d.jStr("purchaseOrderText")),
+                salesOrder = order(d.jStr("salesOrderNumber"), d.jStr("salesOrderText")),
+                amount = d.jStr("amount"),
+                onlySalesPosting = amount > 0 && d.jBool("onlySalesPosting"),
+                discount = d.jStr("salesDiscountAmt"),
+                vehicleNumber = d.jStr("vehicleNumber"),
+                notes = d.jStr("notes"),
+                notesApplyTo = if (notesApplyTo == "separate") "both" else notesApplyTo,
+                trackedProduct = d.jStr("trackedProductId").takeIf { it.isNotBlank() }?.let { SelectorOption(it, "Product $it") },
+                lines = d.jObjs("products").map { l ->
+                    CombinedLine(
+                        product = InvoiceProduct(
+                            id = l.jStr("product"),
+                            name = l.jStr("product_name"),
+                            unit = l.jStr("unit"),
+                            purchasePrice = l.jNum("purchase_price"),
+                            salesPrice = l.jNum("sales_price"),
+                        ),
+                        qty = l.jNum("qty"),
+                        purchasePrice = l.jNum("purchase_price"),
+                        salesPrice = l.jNum("sales_price"),
+                        bag = l.jStr("bag"),
+                        variance = l.jStr("variance"),
+                        varianceType = l.jStr("variance_type"),
+                    )
+                },
+            )
+        }
+        loadTrackedProducts(supplier, customer)
+    }
+
+    fun onRedirectHandled() = _uiState.update { it.copy(redirect = null) }
 
     // ---- Parties -----------------------------------------------------------
 
@@ -357,7 +457,10 @@ class CombinedInvoiceViewModel(
                 notesApplyTo = if (state.showNotesApplyTo) state.notesApplyTo else "both",
                 trackedProductId = state.trackedProduct?.id.orEmpty(),
                 lines = state.lines,
+                combinedNumber = state.editingNumber,
+                legNotes = editLegNotes,
             )
+            if (result is Resource.Success) editLegNotes = null
             when (result) {
                 is Resource.Success -> _uiState.update {
                     CombinedInvoiceUiState(
@@ -422,6 +525,16 @@ fun CombinedInvoiceScreen(
         }
     }
 
+    // One leg is approved: the other opens on its own invoice screen instead.
+    LaunchedEffect(state.redirect) {
+        val (target, vrNo) = state.redirect ?: return@LaunchedEffect
+        viewModel.onRedirectHandled()
+        com.example.cashbookbd.navigation.VoucherEdit.handOff(target, vrNo)
+        navController.navigate(com.example.cashbookbd.navigation.VoucherEdit.route(target, isTiles = false)) {
+            popUpTo(Routes.COMBINED_INVOICE) { inclusive = true }
+        }
+    }
+
     AuthenticatedShell(
         title = "Combined Invoice",
         currentRoute = Routes.INVOICES,
@@ -437,6 +550,12 @@ fun CombinedInvoiceScreen(
                 .padding(horizontal = ScreenGutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (state.editLoading) {
+                com.example.cashbookbd.ui.components.FieldHint(text = "Loading the voucher…")
+            }
+            state.editingNumber?.let { number ->
+                com.example.cashbookbd.ui.components.FieldHint(text = com.example.cashbookbd.navigation.VoucherEdit.note(number))
+            }
             SearchableLedgerDropdown(
                 selectedLedger = state.supplier?.let { LedgerDropdownItem(it.id.toIntOrNull() ?: 0, it.name, null) },
                 onLedgerSelected = { viewModel.onSupplierSelected(TxnSelection(it.id.toString(), it.name)) },
@@ -540,7 +659,7 @@ fun CombinedInvoiceScreen(
             }
 
             PrimaryButton(
-                text = "Save Combined Invoice",
+                text = if (state.editingNumber != null) "Update Combined Invoice" else "Save Combined Invoice",
                 onClick = viewModel::submit,
                 enabled = state.canSubmit,
                 isLoading = state.isSubmitting,
