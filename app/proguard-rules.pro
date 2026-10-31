@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Gson maps JSON to fields by name, and most models here carry no
+# @SerializedName, so renaming a field silently empties it. Keep every
+# field name in the app's own classes; the classes and methods still get
+# renamed and unused code still goes.
+-keepclassmembers class com.example.cashbookbd.** { <fields>; }
+-keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
+
+# Readable crash stack traces (Play de-obfuscates with the bundled mapping).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

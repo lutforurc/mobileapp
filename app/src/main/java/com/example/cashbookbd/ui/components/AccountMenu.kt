@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
@@ -319,6 +320,7 @@ fun accountMenuItems(
     onSwitchBranch: (() -> Unit)? = null,
     /** The user's own password. */
     onChangePassword: (() -> Unit)? = null,
+    onAccountDeletion: (() -> Unit)? = null,
 ): List<AccountMenuItem> = buildList {
     add(AccountMenuItem("Dashboard", Icons.Filled.Home, onDashboard))
     onProfile?.let { add(AccountMenuItem("Profile", Icons.Filled.AccountCircle, it)) }
@@ -328,6 +330,7 @@ fun accountMenuItems(
     }
     onSwitchBranch?.let { add(AccountMenuItem("Switch Branch", Icons.Filled.Share, it)) }
     onChangePassword?.let { add(AccountMenuItem("Change Password", Icons.Filled.Lock, it)) }
+    onAccountDeletion?.let { add(AccountMenuItem("Request Account Deletion", Icons.Filled.Delete, it)) }
     add(AccountMenuItem("My Devices", Icons.Filled.Phone, onMyDevices))
     onSubscription?.let { add(AccountMenuItem("Subscription", Icons.Filled.Star, it)) }
 }

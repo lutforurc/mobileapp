@@ -332,6 +332,8 @@ fun AuthenticatedShell(
                                 null
                             },
                             onChangePassword = { navigateTo(ParityRoutes.CHANGE_PASSWORD) },
+                            onAccountDeletion = { navigateTo(Routes.ACCOUNT_DELETION) },
+
                             onMyDevices = { navigateTo(Routes.MY_DEVICES) },
                             onSubscription = if (canSubscription) {
                                 { navigateTo(Routes.SUBSCRIPTION) }

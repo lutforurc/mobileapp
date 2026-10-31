@@ -107,6 +107,7 @@ import com.example.cashbookbd.ui.admin.InAppMessageFormScreen
 import com.example.cashbookbd.ui.analytics.ComparisonScreen
 import com.example.cashbookbd.data.repository.TradeLedgerKind
 import com.example.cashbookbd.ui.account.ProfileScreen
+import com.example.cashbookbd.ui.account.AccountDeletionScreen
 import com.example.cashbookbd.ui.reports.ChallanPrintScreen
 import com.example.cashbookbd.ui.reports.TradeLedgerScreen
 import com.example.cashbookbd.ui.reports.GroupReportScreen
@@ -245,6 +246,7 @@ object Routes {
 
     /** The signed-in user's own page (name + profile photo). */
     const val PROFILE = "account/profile"
+    const val ACCOUNT_DELETION = "account/request-deletion"
 
     // Purchase/Sales Ledger — one native screen keyed by kind.
     const val TRADE_LEDGER_PATTERN = "reports/trade-ledger/{kind}"
@@ -913,6 +915,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
         composable(Routes.PROFILE) {
             ProfileScreen(navController = navController, onLogout = backToLogin)
+        }
+
+        // Personal, like Profile above: no permission gate; the server scopes
+        // every row to the signed-in user.
+        composable(Routes.ACCOUNT_DELETION) {
+            AccountDeletionScreen(navController = navController, onLogout = backToLogin)
         }
 
         composable(Routes.ANALYTICS_COMPARISON) {
