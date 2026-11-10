@@ -518,6 +518,9 @@ object ReportMenu {
         "balancesheet.view",
         "trial.balance.l3",
         "trial.balance.l4",
+        // The two statements below Trial Balance Details (react 08ca7cf4).
+        "cash.flow.statement",
+        "general.ledger",
         "installment.create",
         "ledger.view",
         "ledger.customer",
@@ -725,6 +728,34 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             // Rendered by the bespoke TrialBalanceScreen (real table), not the generic flow.
             native = true,
+        ),
+        // The two statements the web lists below Trial Balance Details
+        // (react 08ca7cf4). Both are bespoke screens: the General Ledger's
+        // per-head running balance and the Cash Flow's sectioned statement
+        // cannot ride the flat generic table.
+        ReportConfig(
+            key = "cashFlowStatement",
+            title = "Cash Flow Statement",
+            routeName = "ReportCashFlowStatement",
+            webPath = "/reports/cash-flow-statement",
+            anyOf = listOf("cash.flow.statement"),
+            endpointKey = "cashFlowStatement",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+            startDateDefault = ReportConfig.StartDateDefault.YEAR_FIRST,
+        ),
+        ReportConfig(
+            key = "generalLedger",
+            title = "General Ledger",
+            routeName = "ReportGeneralLedger",
+            webPath = "/reports/general-ledger",
+            anyOf = listOf("general.ledger"),
+            endpointKey = "generalLedger",
+            method = ReportMethod.GET,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+            startDateDefault = ReportConfig.StartDateDefault.YEAR_FIRST,
         ),
         ReportConfig(
             key = "expenseReport",

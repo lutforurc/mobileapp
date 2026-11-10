@@ -8,13 +8,13 @@ place to resume.
 
 | | |
 |---|---|
-| **Web UI reviewed** | `cashbookbd_react` branch `Reseller-ui` @ `fd4c4e3d` (2026-11-10) |
-| **API reviewed** | `cashbook_api` branch `Reseller` @ `bb636617` (2026-11-10) |
+| **Web UI reviewed** | `cashbookbd_react` branch `Reseller-ui` @ `91062fef` (2026-11-10); the ported change is `08ca7cf4` |
+| **API reviewed** | `cashbook_api` branch `Reseller` @ `851b9686` (2026-11-10) |
 | **Android baseline** | `main` @ `587361b` (2026-11-05) |
 | **Pass date** | 2026-11-10 |
 | **Last verified on a device** | none this pass (no emulator/device session was run) |
 | **Work in progress** | none — the pass ended cleanly |
-| **Next step** | Port the **Financial Statement report group** (section "Pending" below), starting with **General Ledger** and **Cash Flow Statement**—both are GET endpoints and fit the generic report engine. Then **Monthly Statement**, **Profit & Loss (Date Wise)**, **Business Summary**, **Product Profit Summary**, **Product Statement**, **Customer Sales Report**, **Tiles Purchase**. |
+| **Next step** | Port the rest of the **Financial Statement report group** (section "Pending" below): **Monthly Statement**, **Profit & Loss (Date Wise)**, **Business Summary**, **Product Profit Summary**, **Product Statement**, **Customer Sales Report**, **Tiles Purchase**. General Ledger and Cash Flow Statement are done (rows 11–12). |
 
 Both repos above are the **live demo branches and were opened read-only**; no
 file in either was modified by this pass.
@@ -23,7 +23,7 @@ file in either was modified by this pass.
 
 ```
 .\gradlew.bat :app:compileDebugKotlin   -> BUILD SUCCESSFUL
-.\gradlew.bat :app:testDebugUnitTest    -> BUILD SUCCESSFUL (ParitySmokeTest incl. 4 new Ledger money cases)
+.\gradlew.bat :app:testDebugUnitTest    -> BUILD SUCCESSFUL (45 tests, incl. 4 new Cash Flow / General Ledger cases)
 .\gradlew.bat :app:assembleDebug        -> BUILD SUCCESSFUL
 .\gradlew.bat :app:lintDebug            -> BUILD SUCCESSFUL
 ```
@@ -60,12 +60,14 @@ points at the installed SDK, `D:\Local\Android\Sdk`, so Gradle can build.
 | 8 | `fd4c4e3d` Hotel reports: VAT collection by rate | Hotel → Reports | Implemented | New **VAT by rate** tab: From/To (both ends inclusive), a tile with "VAT collected · N rate(s)", a table (VAT Rate / VAT Collected), a Grand Total footer and the server's note. Reads `hotel-setup/reports/vat-summary`. Mobile adaptation: the tab strip is now `PrimaryScrollableTabRow` so five labels fit a phone. Files: `HotelOpsRepository.kt`, `ui/hotel/HotelReportsScreen.kt`. Build green. |
 | 9 | `fb6c2836` Real Estate: keep project/building after save | Real Estate → Project Expense / Project Income | Implemented | Picking an account no longer clears the project/building; both survive a saved line and a saved voucher. The project box stays open until an account is picked; building follows the project. A line that is not an expense/income head still saves untracked (row drops them). Files: `ProjectExpenseViewModel.kt`, `ProjectExpenseScreen.kt`, `ProjectIncomeViewModel.kt`, `ProjectIncomeScreen.kt`. Build green. |
 | 10 | `609fa5f6` Sales Summary: total every filtered record | Real Estate → Sales Summary | Implemented (no code change needed) | The Android screen already prints the server's `totals` block rather than re-adding visible rows, which is exactly what the web moved to. The server now includes installment receipts in those totals, so Received/Due agree with Sold Units with no client change. `ui/realestate/SalesSummaryScreen.kt`. |
+| 11 | `08ca7cf4` Cash Flow Statement (indirect method) | Reports → Financial Statements → Cash Flow Statement | Implemented | New bespoke screen under the two Trial Balances, gated on `cash.flow.statement`. Filter: branch + date range, opened year-to-date from the branch's business date (the web's Jan 1 → transaction day). Reads `reports/cash-flow-statement` (GET, `branch_id`/`start_date`/`end_date`, `yyyy-MM-dd`). The statement's row wording and order are a rule-for-rule port of `cashFlowStatementRows.ts` (`ui/reports/CashFlowRows.kt`): operating → non-cash → working capital → subtotals, investing, financing, optional "Other movements not classified", net increase/decrease, opening/closing cash, and the two ledger-difference rows when the server says it does not reconcile. Four summary tiles, section/subtotal/total/note styling, and the web's basis sentences. Files: `data/repository/CashFlowStatementRepository.kt`, `ui/reports/model/CashFlowStatement.kt`, `ui/reports/CashFlowRows.kt`, `CashFlowStatementUiState.kt`, `CashFlowStatementViewModel.kt`, `CashFlowStatementScreen.kt`. No print/Excel export — print stays web-only by the existing policy. Build, unit tests and lint green. |
+| 12 | `08ca7cf4` General Ledger | Reports → Financial Statements → General Ledger | Implemented | New bespoke screen gated on `general.ledger`. Filter: branch, optional searchable **Accounts Head** (server `reports/general-ledger/accounts?search=`; blank = All Accounts), start/end dates opened year-to-date. Reads `reports/general-ledger` (GET) page by Accounts Head at the web's 25 per page; four total tiles (Total/Closing Debit & Credit, summed over the full filtered set, not the page); one card per head with its group trail and code, a leading Opening Balance row, every posted entry, the server's per-row running balance, a Total footer and a Closing Balance footer; Previous/Next pager. The web's Voucher-cell link is carried as an ACTION pencil through the existing `VoucherEdit` permissions (hidden on approved vouchers and uneditable kinds). Files: `data/repository/GeneralLedgerRepository.kt`, `ui/reports/model/GeneralLedger.kt`, `GeneralLedgerUiState.kt`, `GeneralLedgerViewModel.kt`, `GeneralLedgerScreen.kt`. Build, unit tests and lint green. |
 
 ## Pending (identified, not started)
 
 | # | Web change | What is owed on Android | Status | Notes / next step |
 |---|---|---|---|---|
-| P1 | `08ca7cf4` (Cash Flow Statement, General Ledger), `ac5af26f` (Monthly Statement), `649f9f81` (P&L Date Wise), `74921537` (Business Summary), `6d3edbbb` (Product Profit Summary), `87782eb7` (Product Statement), `b3d99a2e` (Customer Sales Report), `eaac018d` (Tiles Purchase) | The **Financial Statement** report group the web added to the sidebar | Pending | API already serves: `reports/cash-flow-statement`, `reports/general-ledger` (+ `/accounts`), `reports/monthly-statement`, `reports/profit-loss-date-wise`, `reports/business-summary(-detail)`, `reports/product-profit-summary`, `reports/product-statement`, `reports/customer-sales`, and the tiles purchase endpoint. Register them in `report/ReportConfig.kt` + `report/ReportEndpoints.kt`, add the web's menu group in `navigation/MenuGroups.kt`, and give any bespoke layout a native screen. Do General Ledger and Cash Flow Statement first (GET, generic-engine friendly). |
+| P1 | `ac5af26f` (Monthly Statement), `649f9f81` (P&L Date Wise), `74921537` (Business Summary), `6d3edbbb` (Product Profit Summary), `87782eb7` (Product Statement), `b3d99a2e` (Customer Sales Report), `eaac018d` (Tiles Purchase) | The rest of the **Financial Statement** report group | Pending | `08ca7cf4`'s **Cash Flow Statement** and **General Ledger** are done (rows 11–12). API still serves: `reports/monthly-statement`, `reports/profit-loss-date-wise`, `reports/business-summary(-detail)`, `reports/product-profit-summary`, `reports/product-statement`, `reports/customer-sales` (already a native screen), and the tiles purchase endpoint. Register each in `report/ReportConfig.kt` + `report/ReportEndpoints.kt`, add it to the web's menu group in `navigation/MenuGroups.kt`, and give any bespoke layout a native screen; the generic engine covers the plain tables. |
 | P2 | `9f3c02bd`, `bf4a31d7`, `e88c85f0`, `41895d37`, `a40a8003`, `615f5b80` (Production/Manufacturing), `12dc55ea` (Material Issue retry), `2263efca` (issue print) | A Production / Manufacturing module | Pending | Large new module: production entry (several outputs, expiry), batch list/details, recipe screen, variance, register/costing, sales return, and the existing Material Issue form. API routes live under `production/*` and require both a production permission and the branch's manufacturing switch. Start with the handoff docs in `cashbookbd_react/docs/Manufacturing/` (v4 plan + phase-1 handoff), then `production/voucher-types`, `/list`, `/details/{id}`. The retry-deduction guard (`12dc55ea`) is API-side; the mobile form posts once per save, so no client change is expected. |
 | P3 | `2acca618` Hotel Setup: Income Setup | Branch Hotel Setup step | Blocked | The Android branch form has no hotel setup section at all — hotel VAT/due/income modes are set on the web and read from the server (see `WEB_PARITY_2026_08_01.md`, hotel phase 3). The folio already prints whatever totals the server sends, so the setting has no mobile UI to add until the branch form's hotel step is ported. |
 | P4 | `5e2a1d28` Hotel booking: two-column screens, folding floors, Enter walks the form | Hotel → New Booking / booking screens | Pending | A desktop-layout change (two columns, Enter key navigation). On a phone the one-column layout is already the right form; the folding floors list and keyboard order should be checked against `HotelNewBookingScreen.kt` before changing anything. Low priority, layout adaptation only. |
@@ -84,7 +86,10 @@ parity passes on 2026-10-26 and 2026-10-30 (design-system refresh, ledger edit,
 account deletion). This pass read the gap forward from the **2026-11-05** icon
 commit (`587361b`), i.e. the 2026-11-05 → 2026-11-10 web window, plus the
 immediately preceding report/production additions where the Android registry had
-no entry. Older 2026-10 items (delivery, product in/out, tiles, daily account
+no entry. A continuation session on the same date then ported `08ca7cf4`'s two
+statements (rows 11–12), reading the web screens at `91062fef` and the controllers
+at api `851b9686`; the newer api commits after `bb636617` are Hotel-only and were
+not part of it. Older 2026-10 items (delivery, product in/out, tiles, daily account
 book, customer opening import, product catalogue download) were **not** re-opened
 in this pass; treat `WEB_PARITY_2026_08_01.md` as their record until a dedicated
 audit says otherwise.

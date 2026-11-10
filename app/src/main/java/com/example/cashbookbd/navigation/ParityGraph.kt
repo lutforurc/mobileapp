@@ -20,6 +20,9 @@ import com.example.cashbookbd.ui.common.PermissionGate
 object ParityRoutes {
     // ---- Reports ----
     const val CUSTOMER_SALES = "reports/customer-sales"
+    // The two financial statements below Trial Balance Details (react 08ca7cf4).
+    const val CASH_FLOW_STATEMENT = "reports/cash-flow-statement"
+    const val GENERAL_LEDGER = "reports/general-ledger"
     const val DAILY_ACCOUNT_BOOK = "reports/daily-account-book"
     const val SALES_REFERRER = "reports/sales-referrer"
     const val DELIVERY_REPORT = "reports/delivery"
@@ -102,6 +105,16 @@ fun NavGraphBuilder.parityGraph(
     backToLogin: () -> Unit,
 ) {
     // ---- Reports ----
+    composable(ParityRoutes.CASH_FLOW_STATEMENT) {
+        PermissionGate(anyOf = com.example.cashbookbd.report.ReportMenu.permissionsFor("cashFlowStatement")) {
+            com.example.cashbookbd.ui.reports.CashFlowStatementScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.GENERAL_LEDGER) {
+        PermissionGate(anyOf = com.example.cashbookbd.report.ReportMenu.permissionsFor("generalLedger")) {
+            com.example.cashbookbd.ui.reports.GeneralLedgerScreen(navController, backToLogin)
+        }
+    }
     composable(ParityRoutes.CUSTOMER_SALES) {
         PermissionGate(anyOf = listOf("sales.ledger")) {
             com.example.cashbookbd.ui.reports.CustomerSalesScreen(navController, backToLogin)

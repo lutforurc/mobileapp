@@ -57,6 +57,8 @@ class ReportMenuPermissionTest {
             "Balance Sheet" to "balancesheet.view",
             "Trial Balance Group" to "trial.balance.l3",
             "Trial Balance Details" to "trial.balance.l4",
+            "Cash Flow Statement" to "cash.flow.statement",
+            "General Ledger" to "general.ledger",
         )
 
         guarded.forEach { (title, permission) ->

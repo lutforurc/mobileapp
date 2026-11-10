@@ -59,7 +59,11 @@ object MenuGroups {
             "Financial Statements",
             listOf(
                 "profitLoss", "productProfitLoss", "balanceSheet",
-                "trialBalanceLevel3", "trialBalanceLevel4", "expenseReport",
+                "trialBalanceLevel3", "trialBalanceLevel4",
+                // The two statements the web puts directly below Trial Balance
+                // Details (react 08ca7cf4).
+                "cashFlowStatement", "generalLedger",
+                "expenseReport",
             ),
         ),
     )

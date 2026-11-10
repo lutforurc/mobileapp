@@ -12,6 +12,9 @@ import com.example.cashbookbd.ui.products.AddProductUiState
 import com.example.cashbookbd.ui.products.MeasurementFields
 import com.example.cashbookbd.report.LedgerMoneyInput
 import com.example.cashbookbd.report.ledgerMoney
+import com.example.cashbookbd.ui.reports.CashFlowRowKind
+import com.example.cashbookbd.ui.reports.cashFlowAmountText
+import com.example.cashbookbd.ui.reports.cashFlowRows
 import com.example.cashbookbd.ui.reports.PlIncomeGroup
 import com.example.cashbookbd.ui.reports.ProfitLossFigures
 import com.example.cashbookbd.ui.reports.balanceSheetNoteIndex
@@ -28,6 +31,16 @@ import com.example.cashbookbd.ui.reports.model.BalanceSheetGroup
 import com.example.cashbookbd.ui.reports.model.BalanceSheetReport
 import com.example.cashbookbd.ui.reports.model.BalanceSheetSection
 import com.example.cashbookbd.ui.reports.model.BalanceSheetSubsection
+import com.example.cashbookbd.ui.reports.model.CashFlowLine
+import com.example.cashbookbd.ui.reports.model.CashFlowNonCash
+import com.example.cashbookbd.ui.reports.model.CashFlowOperating
+import com.example.cashbookbd.ui.reports.model.CashFlowReconciliation
+import com.example.cashbookbd.ui.reports.model.CashFlowSection
+import com.example.cashbookbd.ui.reports.model.CashFlowStatementReport
+import com.example.cashbookbd.ui.reports.model.GeneralLedgerAccount
+import com.example.cashbookbd.ui.reports.model.GeneralLedgerRow
+import com.example.cashbookbd.ui.reports.model.generalLedgerBalanceText
+import com.example.cashbookbd.ui.reports.model.generalLedgerTableRows
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.vrsettings.validateVoucherRange
 import com.example.cashbookbd.session.Settings
@@ -340,5 +353,158 @@ class ParitySmokeTest {
         assertEquals("Supplier Advances [2]", reportGroupLabel("Supplier Advances", noStock))
         assertEquals("Current Liabilities", reportSectionLabel("Current Liability"))
         assertEquals("", noteRef(null))
+    }
+
+    // ---- Cash Flow Statement (react 08ca7cf4 / cashFlowStatementRows.ts) ----
+
+    private fun cashFlowReport(
+        netProfit: Double = 1000.0,
+        depreciationSupported: Boolean = true,
+        workingCapital: List<CashFlowLine> = emptyList(),
+        unclassified: List<CashFlowLine> = emptyList(),
+        netIncrease: Double = 0.0,
+        difference: Double = 0.0,
+        reconciles: Boolean = true,
+    ) = CashFlowStatementReport(
+        branchName = "Head Office",
+        startDate = "2026-01-01",
+        endDate = "2026-11-10",
+        depreciationSupported = depreciationSupported,
+        operating = CashFlowOperating(
+            netProfit = netProfit,
+            nonCash = CashFlowNonCash(depreciation = 100.0, otherExpense = 0.0, income = 50.0, total = 50.0),
+            workingCapital = workingCapital,
+            total = 1150.0,
+        ),
+        investing = CashFlowSection(
+            lines = listOf(CashFlowLine("l3:5", "Fixed Assets", "asset", -500.0)),
+            total = -500.0,
+        ),
+        financing = CashFlowSection(
+            lines = listOf(CashFlowLine("l3:9", "Capital", "liability", 700.0)),
+            total = 700.0,
+        ),
+        unclassified = CashFlowSection(lines = unclassified, total = unclassified.sumOf { it.amount }),
+        reconciliation = CashFlowReconciliation(
+            openingCash = 3000.0,
+            netIncrease = netIncrease,
+            closingCash = 3000.0 + netIncrease,
+            ledgerClosingCash = 3000.0,
+            difference = difference,
+            reconciles = reconciles,
+        ),
+    )
+
+    @Test
+    fun `cash flow rows keep the web's section order and wording`() {
+        val rows = cashFlowRows(
+            cashFlowReport(
+                workingCapital = listOf(
+                    CashFlowLine("l3:1", "Debtors", "asset", 200.0),
+                    CashFlowLine("l3:2", "Creditors", "liability", -300.0),
+                ),
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "Operating Activities",
+                "Net profit for the period",
+                "Non-cash adjustments",
+                "Add: Depreciation (non-cash)",
+                "Less: Non-cash sales & income (settled outside cash)",
+                "Working capital adjustments",
+                "Decrease in Debtors",
+                "Decrease in Creditors",
+                "Net cash from operating activities",
+                "Investing Activities",
+                "Fixed Assets",
+                "Net cash from investing activities",
+                "Financing Activities",
+                "Capital",
+                "Net cash from financing activities",
+                "Net increase / (decrease) in cash and cash equivalents",
+                "Cash and cash equivalents at the beginning of the period",
+                "Cash and cash equivalents at the end of the period",
+            ),
+            rows.map { it.label },
+        )
+        assertEquals(-50.0, rows.first { it.key == "noncash-income" }.amount!!, 0.001)
+        assertEquals(CashFlowRowKind.SECTION, rows.first { it.key == "inv-head" }.kind)
+        assertEquals(CashFlowRowKind.TOTAL, rows.first { it.key == "closing-cash" }.kind)
+    }
+
+    @Test
+    fun `cash flow rows name an unclassified line by its type and report a loss`() {
+        val rows = cashFlowRows(
+            cashFlowReport(
+                netProfit = -800.0,
+                unclassified = listOf(CashFlowLine("l3:7", "Suspense", "asset", 40.0)),
+            )
+        )
+
+        assertTrue(rows.any { it.label == "Net loss for the period" })
+        assertTrue(rows.any { it.label == "Suspense (asset)" })
+        assertTrue(rows.any { it.label == "Net other movements" })
+        assertEquals(40.0, rows.first { it.key == "unc-total" }.amount!!, 0.001)
+    }
+
+    @Test
+    fun `an unreconciled statement prints the ledger difference rows`() {
+        val rows = cashFlowRows(
+            cashFlowReport(netIncrease = -250.0, difference = -250.0, reconciles = false)
+        )
+
+        val difference = rows.first { it.key == "difference" }
+        assertEquals(CashFlowRowKind.NOTE, difference.kind)
+        assertEquals(-250.0, difference.amount!!, 0.001)
+        assertTrue(rows.any { it.key == "ledger-closing" })
+        assertTrue(rows.any { it.label == "Net decrease in cash and cash equivalents" })
+    }
+
+    @Test
+    fun `cash flow amounts print a negative in parentheses`() {
+        assertEquals("", cashFlowAmountText(null))
+        assertEquals("1,234.50", cashFlowAmountText(1234.5))
+        assertEquals("(1,234.50)", cashFlowAmountText(-1234.5))
+    }
+
+    // ---- General Ledger (react 08ca7cf4 / GeneralLedger.tsx) ----
+
+    @Test
+    fun `general ledger table leads with the opening row and formats wire dates`() {
+        val account = GeneralLedgerAccount(
+            coa4Id = 7,
+            code = "7",
+            name = "Cash",
+            typeName = "Assets",
+            group2Name = "Current Assets",
+            groupName = "Cash",
+            openingBalance = -250.0,
+            openingDebit = 0.0,
+            openingCredit = 250.0,
+            debit = 400.0,
+            credit = 100.0,
+            closingBalance = 50.0,
+            rows = listOf(
+                GeneralLedgerRow(1, "1-261000001", "2026-11-03", "", 400.0, 0.0, 150.0, "Dr"),
+                GeneralLedgerRow(2, "1-261000002", "2026-11-04 00:00:00", "Rent", 0.0, 100.0, 50.0, "Dr"),
+            ),
+        )
+
+        val rows = generalLedgerTableRows(account)
+
+        assertEquals(3, rows.size)
+        assertTrue(rows.first().isOpening)
+        assertEquals("Opening Balance", rows.first().narration)
+        assertEquals("Cr", rows.first().balanceType)
+        assertEquals("-", rows.first().dateText)
+        assertEquals("03/11/2026", rows[1].dateText)
+        assertEquals("04/11/2026", rows[2].dateText)
+        assertEquals("-", rows[1].narration)
+
+        assertEquals("4,000.00 Dr", generalLedgerBalanceText(4000.0))
+        assertEquals("250.00 Cr", generalLedgerBalanceText(-250.0))
+        assertEquals("Assets / Current Assets / Cash", account.groupTrail)
     }
 }

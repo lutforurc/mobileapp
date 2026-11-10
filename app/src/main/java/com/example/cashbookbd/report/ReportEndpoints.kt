@@ -19,6 +19,10 @@ object ReportEndpoints {
         "balanceSheet" to "reports/balance-sheet",
         "trialBalanceLevel3" to "reports/trialbalance-level3",
         "trialBalanceLevel4" to "reports/trialbalance-level4",
+        // The two financial statements below Trial Balance Details.
+        "cashFlowStatement" to "reports/cash-flow-statement",
+        "generalLedger" to "reports/general-ledger",
+        "generalLedgerAccounts" to "reports/general-ledger/accounts",
         "cashBankReceivedPayment" to "reports/cash-bank-received-payment",
         "bankInformation" to "reports/bank-information-data",
         "connectedMember" to "reports/connected-member-data",

@@ -17,7 +17,9 @@ import com.example.cashbookbd.data.repository.AppListRepository
 import com.example.cashbookbd.data.repository.AuthRepository
 import com.example.cashbookbd.data.repository.BalanceSheetRepository
 import com.example.cashbookbd.data.repository.BranchRepository
+import com.example.cashbookbd.data.repository.CashFlowStatementRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
+import com.example.cashbookbd.data.repository.GeneralLedgerRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.HighlightRuleRepository
@@ -124,6 +126,12 @@ object ServiceLocator {
 
     @Volatile
     private var balanceSheetRepository: BalanceSheetRepository? = null
+
+    @Volatile
+    private var generalLedgerRepository: GeneralLedgerRepository? = null
+
+    @Volatile
+    private var cashFlowStatementRepository: CashFlowStatementRepository? = null
 
     @Volatile
     private var dueListRepository: DueListRepository? = null
@@ -422,6 +430,20 @@ object ServiceLocator {
             balanceSheetRepository ?: BalanceSheetRepository(
                 api = provideReportApiService(context),
             ).also { balanceSheetRepository = it }
+        }
+
+    fun provideGeneralLedgerRepository(context: Context): GeneralLedgerRepository =
+        generalLedgerRepository ?: synchronized(this) {
+            generalLedgerRepository ?: GeneralLedgerRepository(
+                api = provideWebApi(context),
+            ).also { generalLedgerRepository = it }
+        }
+
+    fun provideCashFlowStatementRepository(context: Context): CashFlowStatementRepository =
+        cashFlowStatementRepository ?: synchronized(this) {
+            cashFlowStatementRepository ?: CashFlowStatementRepository(
+                api = provideWebApi(context),
+            ).also { cashFlowStatementRepository = it }
         }
 
     fun provideDueListRepository(context: Context): DueListRepository =
