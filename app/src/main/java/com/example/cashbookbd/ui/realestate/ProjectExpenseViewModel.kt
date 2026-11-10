@@ -182,15 +182,13 @@ class ProjectExpenseViewModel(
     fun onAccountSelected(option: SelectorOption) {
         val isExpense = expenseHeads[option.id] == true
         _uiState.update {
+            // Project and building are NOT cleared here: the next expense line
+            // is nearly always for the same site, and the row itself drops them
+            // when it is not project-tracked (web fb6c2836).
             it.copy(
                 account = option.id,
                 accountName = option.label,
                 isExpenseAccount = isExpense,
-                projectId = if (isExpense) it.projectId else "",
-                projectName = if (isExpense) it.projectName else "",
-                buildingId = if (isExpense) it.buildingId else "",
-                buildingName = if (isExpense) it.buildingName else "",
-                buildings = if (isExpense) it.buildings else emptyList(),
             )
         }
     }

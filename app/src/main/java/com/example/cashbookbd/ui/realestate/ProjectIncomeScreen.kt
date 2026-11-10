@@ -182,37 +182,31 @@ fun ProjectIncomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
-                // Only an income head takes a project, so until one is picked
-                // the box stays empty and says why rather than showing a choice
-                // that would not be saved.
+                // Only an income head is saved with a project (the line drops
+                // it otherwise), but the box stays open until an account is
+                // picked — so the site carried over from the last line or
+                // voucher can still be changed (web fb6c2836).
                 val projectChoices = incomeProjectOptions(state.projects)
+                val projectEnabled = state.account.isBlank() || state.isIncomeAccount
                 AppSelectDropdown(
                     label = "Project (Optional)",
                     options = projectChoices,
-                    selected = if (state.isIncomeAccount) {
-                        projectChoices.firstOrNull { it.id == state.projectId }
-                    } else {
-                        null
-                    },
+                    selected = projectChoices.firstOrNull { it.id == state.projectId },
                     onSelected = viewModel::onProjectSelected,
-                    enabled = state.isIncomeAccount,
+                    enabled = projectEnabled,
                     placeholder = when {
                         state.isLoadingDdls -> "Loading…"
-                        state.account.isBlank() -> "Pick an account first"
+                        projectEnabled -> "Branch income (no project)"
                         else -> "Not tracked — this is not an income account"
                     },
                 )
                 Spacer(Modifier.height(10.dp))
                 val buildingChoices = incomeBuildingOptions(state.buildings)
-                val buildingEnabled = state.isIncomeAccount && state.projectId.isNotBlank()
+                val buildingEnabled = projectEnabled && state.projectId.isNotBlank()
                 AppSelectDropdown(
                     label = "Building",
                     options = buildingChoices,
-                    selected = if (buildingEnabled) {
-                        buildingChoices.firstOrNull { it.id == state.buildingId }
-                    } else {
-                        null
-                    },
+                    selected = buildingChoices.firstOrNull { it.id == state.buildingId },
                     onSelected = viewModel::onBuildingSelected,
                     enabled = buildingEnabled,
                     placeholder = "Whole project (no single building)",

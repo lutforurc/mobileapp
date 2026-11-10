@@ -1093,7 +1093,7 @@ private fun flooredTotals(report: SoldUnitsReport): FlooredTotals {
     return FlooredTotals(
         parkingValue = sales.sumOf { wholeTaka(it.parkingAmount) },
         saleValue = sales.sumOf { wholeTaka(it.totalAmount) },
-        received = sales.sumOf { wholeTaka(it.receivedAmount) },
+        received = sales.sumOf { wholeTaka(it.receivedAmount) + wholeTaka(it.installmentReceived) },
         due = sales.sumOf { wholeTaka(it.dueAmount) },
     )
 }
@@ -1520,12 +1520,32 @@ private fun SoldUnitSaleBand(
             modifier = Modifier.width(COL_RECEIVED).fillMaxHeight().padding(horizontal = 6.dp),
             contentAlignment = Alignment.CenterEnd,
         ) {
-            Text(
-                text = money(sale.receivedAmount),
-                style = MaterialTheme.typography.bodySmall,
-                color = onScreen,
-                textAlign = TextAlign.End,
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = money(sale.receivedAmount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = onScreen,
+                    textAlign = TextAlign.End,
+                )
+                // Installment money, apart from the booking receipts above: a
+                // receipt here is an allocation, not a booking receipt (web
+                // b9b85802). The API keeps the two pools apart and so does the
+                // column, but the grand total carries both.
+                if (sale.installmentReceived > 0.0) {
+                    Text(
+                        text = "Installment",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                    )
+                    Text(
+                        text = money(sale.installmentReceived),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = onScreen,
+                        textAlign = TextAlign.End,
+                    )
+                }
+            }
         }
         VLine(gridLine)
 

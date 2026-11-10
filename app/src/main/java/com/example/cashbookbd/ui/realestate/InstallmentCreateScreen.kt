@@ -867,7 +867,7 @@ private fun previewColumns(
             cellText(r.installmentNo.toString(), align = TextAlign.Center, color = onScreen)
         },
         ReportColumn("Due Date", ReportColWidth.Fixed(96.dp)) { r, _ ->
-            cellText(r.dueDate.toDisplay(), color = onScreen)
+            cellText(r.dueDate.toShortDisplay(), color = onScreen)
         },
         ReportColumn("Amount", ReportColWidth.Fixed(104.dp), TextAlign.End) { r, _ ->
             cellText(AmountFormat.formatOrDash(r.amount), align = TextAlign.End, color = onScreen)
@@ -895,7 +895,7 @@ private fun savedColumns(
             cellText(r.installmentNo.toString(), align = TextAlign.Center, color = onScreen)
         },
         ReportColumn("Due Date", ReportColWidth.Fixed(94.dp)) { r, _ ->
-            cellText(r.dueDate.ifBlank { "-" }, color = onScreen)
+            cellText(r.dueDate.asShortDate().ifBlank { "-" }, color = onScreen)
         },
         ReportColumn("Amount", ReportColWidth.Fixed(100.dp), TextAlign.End) { r, _ ->
             cellText(AmountFormat.formatOrDash(r.amount), align = TextAlign.End, color = onScreen)
@@ -1044,6 +1044,14 @@ private fun SimpleDate.plusMonths(months: Int): SimpleDate {
 /** Dates arrive as dd/MM/yyyy in reports and yyyy-MM-dd on the wire; try both. */
 private fun parseAnyDate(value: String?): SimpleDate? =
     SimpleDate.fromDisplay(value) ?: SimpleDate.fromApi(value)
+
+/**
+ * dd/MM/yyyy (how the API sends a row's due date) -> dd/MM/yy for the tight
+ * Due Date cells. The stored value keeps its four-digit form so an Edit reads
+ * back the same day (web dd0b10ad).
+ */
+private fun String.asShortDate(): String =
+    parseAnyDate(this)?.toShortDisplay() ?: this
 
 private fun showInstallmentDatePicker(
     context: Context,

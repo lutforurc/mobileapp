@@ -24,6 +24,12 @@ data class CashBankOpening(
 /** One voucher that touched the till or the bank — a contra fills two cells on one row. */
 data class CashBankRow(
     val mtmId: Long,
+    /**
+     * A stable key for the row: `row_key` from the payload, else the voucher id.
+     * With `split_heads` on, one voucher spans several rows (one per account
+     * head), so the voucher id alone would repeat.
+     */
+    val rowKey: String,
     val vrNo: String,
     val vrDate: String,
     val debitCash: Double,
@@ -100,6 +106,10 @@ class CashBankBookRepository(
                 put("start_date", from)
                 put("end_date", to)
                 bankAccountId?.let { put("bank_account_id", it.toString()) }
+                // One row per head with its own amount, like the Cash Book (web
+                // a62592b3). Without it a voucher spanning several heads arrives
+                // as one row and the reader cannot see which head carried what.
+                put("split_heads", "1")
             }
             val response = api.get("reports/cash-book-two-column", params)
             if (response.code() == 401) {
@@ -173,6 +183,7 @@ class CashBankBookRepository(
         val id = long("mtm_id") ?: return null
         return CashBankRow(
             mtmId = id,
+            rowKey = text("row_key").ifBlank { id.toString() },
             vrNo = text("vr_no"),
             vrDate = text("vr_date").take(10),
             debitCash = dbl("debit_cash") ?: 0.0,

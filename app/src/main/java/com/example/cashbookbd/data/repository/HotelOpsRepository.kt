@@ -290,6 +290,24 @@ data class HotelPerformance(
     val byRoomType: List<HotelPerformanceRoomType>,
 )
 
+/** One rate's VAT on the VAT return. */
+data class HotelVatBandAmount(val rate: Double, val vat: Double)
+
+/**
+ * VAT collected at each rate over a stretch of days (`reports/vat-summary`) —
+ * the figure the VAT return needs. The rate is the one FROZEN onto each bill
+ * line, not today's rate card, and any bill discount has already taken its
+ * share off the VAT figure the server sends.
+ */
+data class HotelVatSummary(
+    val from: String,
+    val to: String,
+    val rows: List<HotelVatBandAmount>,
+    val totalVat: Double,
+    val rateCount: Int,
+    val note: String,
+)
+
 /**
  * The hotel's OPERATIONS reads — the board, the calendar, the three reports.
  *
@@ -725,6 +743,41 @@ class HotelOpsRepository(
                             revpar = o.num("revpar") ?: 0.0,
                         )
                     },
+                )
+            )
+        }
+    }
+
+    /**
+     * VAT collected at each rate between two dates (`reports/vat-summary`) —
+     * both ends inclusive, grouped by the rate recorded on each bill line.
+     */
+    suspend fun fetchVatSummary(
+        from: String,
+        to: String,
+        branchId: Long?,
+    ): Resource<HotelVatSummary> = withContext(ioDispatcher) {
+        guarded {
+            val payload = read(
+                path = "hotel-setup/reports/vat-summary",
+                params = branchParams(branchId) + mapOf("from" to from, "to" to to),
+                denied = "You do not have permission to see hotel reports.",
+                fallback = "The VAT summary could not be read.",
+            ).let { if (it is Resource.Error) return@guarded it else (it as Resource.Success).data }
+            val totals = payload.obj("totals")
+            Resource.Success(
+                HotelVatSummary(
+                    from = payload.text("from").take(10),
+                    to = payload.text("to").take(10),
+                    rows = payload.arr("rows").map { o ->
+                        HotelVatBandAmount(
+                            rate = o.num("rate") ?: 0.0,
+                            vat = o.num("vat") ?: 0.0,
+                        )
+                    },
+                    totalVat = totals?.num("vat") ?: 0.0,
+                    rateCount = totals?.int("rates") ?: 0,
+                    note = payload.text("note"),
                 )
             )
         }

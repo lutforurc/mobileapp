@@ -350,11 +350,25 @@ private fun LineEntry(
         )
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val available = state.availableStock
             AppTextField(
                 value = state.qty,
                 onValueChange = viewModel::onQtyChange,
                 label = qtyLabel,
                 keyboardType = KeyboardType.Decimal,
+                // The issuing branch's stock, inside the box the way the web
+                // draws it (67e6364f) — what there is to issue, before saving.
+                trailingIcon = if (available != null) {
+                    {
+                        Text(
+                            text = AmountFormat.format(available),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.appColors.textMuted,
+                        )
+                    }
+                } else {
+                    null
+                },
                 modifier = Modifier.weight(1f),
             )
             // Rate comes with the picked product and is never sent — shown only

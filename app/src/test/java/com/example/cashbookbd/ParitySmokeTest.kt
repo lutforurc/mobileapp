@@ -10,6 +10,8 @@ import com.example.cashbookbd.ui.invoice.TilesProduct
 import com.example.cashbookbd.ui.products.AddBrandUiState
 import com.example.cashbookbd.ui.products.AddProductUiState
 import com.example.cashbookbd.ui.products.MeasurementFields
+import com.example.cashbookbd.report.LedgerMoneyInput
+import com.example.cashbookbd.report.ledgerMoney
 import com.example.cashbookbd.ui.reports.PlIncomeGroup
 import com.example.cashbookbd.ui.reports.ProfitLossFigures
 import com.example.cashbookbd.ui.reports.balanceSheetNoteIndex
@@ -214,6 +216,102 @@ class ParitySmokeTest {
 
     private fun group(name: String, closing: Double, movement: Double = 0.0) =
         BalanceSheetGroup(name, emptyList(), 0.0, movement, closing)
+
+    // ---- Ledger Details money (web c28dc0e1 / 333f6a6e / d3d4eaff) ----
+
+    @Test
+    fun `ledger details - opening row puts its balance on the right side`() {
+        val debit = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "", remarks = "Opening Balance", trxType = "Opening", voucherType = 0.0,
+                total = 0.0, received = 0.0, payment = 0.0, debit = 0.0, credit = 0.0,
+                balance = 2500.0,
+            )
+        )
+        assertEquals(2500.0, debit.debit, 0.001)
+        assertEquals(0.0, debit.credit, 0.001)
+        assertEquals(0.0, debit.invoiceAmount, 0.001)
+        assertFalse(debit.isInvoiceRow)
+
+        val credit = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "", remarks = "Opening Balance", trxType = "Opening", voucherType = 0.0,
+                total = 0.0, received = 0.0, payment = 0.0, debit = 0.0, credit = 0.0,
+                balance = -300.0,
+            )
+        )
+        assertEquals(0.0, credit.debit, 0.001)
+        assertEquals(300.0, credit.credit, 0.001)
+    }
+
+    @Test
+    fun `ledger details - a receipt credits and a payment debits`() {
+        val received = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "1-261000001", remarks = "", trxType = "Transaction", voucherType = 1.0,
+                total = 0.0, received = 500.0, payment = 0.0, debit = 0.0, credit = 500.0,
+                balance = 500.0,
+            )
+        )
+        assertEquals(0.0, received.debit, 0.001)
+        assertEquals(500.0, received.credit, 0.001)
+        assertFalse(received.isInvoiceRow)
+
+        val paid = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "2-261000002", remarks = "", trxType = "Transaction", voucherType = 2.0,
+                total = 0.0, received = 0.0, payment = 400.0, debit = 400.0, credit = 0.0,
+                balance = 100.0,
+            )
+        )
+        assertEquals(400.0, paid.debit, 0.001)
+        assertEquals(0.0, paid.credit, 0.001)
+    }
+
+    @Test
+    fun `ledger details - an invoice blanks debit and credit and moves the cash leg to Inv Amt`() {
+        // A cash purchase: its settlement sits in debit, so Inv. Amt is negative.
+        val purchase = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "4-261000003", remarks = "", trxType = "Purchase", voucherType = 4.0,
+                total = 800.0, received = 200.0, payment = 0.0, debit = 0.0, credit = 200.0,
+                balance = 800.0,
+            )
+        )
+        assertTrue(purchase.isInvoiceRow)
+        assertEquals(200.0, purchase.debit, 0.001)
+        assertEquals(800.0, purchase.credit, 0.001)
+        assertEquals(-200.0, purchase.invoiceAmount, 0.001)
+
+        // A sale: the cash leg is the credit side, so Inv. Amt is positive.
+        val sale = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "3-261000004", remarks = "", trxType = "Sales", voucherType = 3.0,
+                total = 1000.0, received = 0.0, payment = 300.0, debit = 300.0, credit = 0.0,
+                balance = 1000.0,
+            )
+        )
+        assertTrue(sale.isInvoiceRow)
+        assertEquals(1000.0, sale.debit, 0.001)
+        assertEquals(300.0, sale.credit, 0.001)
+        assertEquals(300.0, sale.invoiceAmount, 0.001)
+    }
+
+    @Test
+    fun `ledger details - trx_type wins over the voucher prefix for 9 and 10`() {
+        // A credit sale (prefix 10) is still a Sales row, and its bill is not
+        // folded a second time onto the debit side.
+        val creditSale = ledgerMoney(
+            LedgerMoneyInput(
+                vrNo = "10-261000005", remarks = "", trxType = "Sales", voucherType = 3.0,
+                total = 700.0, received = 0.0, payment = 0.0, debit = 700.0, credit = 0.0,
+                balance = 700.0,
+            )
+        )
+        assertTrue(creditSale.isInvoiceRow)
+        assertEquals(0.0, creditSale.debit, 0.001)
+        assertEquals(0.0, creditSale.credit, 0.001)
+    }
 
     @Test
     fun `balance sheet notes follow the groups the sheet carries`() {

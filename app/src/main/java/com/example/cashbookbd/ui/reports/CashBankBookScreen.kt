@@ -268,7 +268,7 @@ fun CashBankBookScreen(
                         )
                     }
                 }
-                items(report.rows.size, key = { report.rows[it].mtmId }) { index ->
+                items(report.rows.size, key = { report.rows[it].rowKey }) { index ->
                     CashBankVoucherRow(report.rows[index])
                 }
                 item { HorizontalDivider() }

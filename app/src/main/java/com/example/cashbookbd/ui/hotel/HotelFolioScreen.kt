@@ -853,25 +853,40 @@ private fun FolioBody(
 /**
  * How the figure was arrived at, in one line — each part only when it is not
  * zero, so a bill with no service charge does not say "service 0% 0.00".
+ *
+ * A DISCOUNTED bill reads the way its paper does (web cee049a7): charges with
+ * VAT, less the discount, the net, and what the net is made of — rent plus
+ * each VAT band. VAT is shown once, on the net, not again on the pre-discount
+ * figure.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WorkingLine(folio: HotelFolio) {
     val t = folio.totals
     val parts = mutableListOf<Pair<String, Boolean>>()
-    if (t.base != 0.0) parts += "Charges ${hotelMoney(t.base)}" to false
-    if (t.serviceCharge != 0.0) parts += "service ${hotelRate(t.serviceChargeRate)}% ${hotelMoney(t.serviceCharge)}" to false
-    if (t.vat != 0.0) {
-        parts += if (t.vatBands.size > 1) {
-            "VAT " + t.vatBands.joinToString(" · ") { "${hotelRate(it.rate)}% ${hotelMoney(it.vat)}" } to false
-        } else {
-            val rate = t.vatBands.firstOrNull()?.rate
-            "VAT ${rate?.let { hotelRate(it) + "% " }.orEmpty()}${hotelMoney(t.vat)}" to false
-        }
-    }
-    if (t.gross != t.base) parts += "gross ${hotelMoney(t.gross)}" to false
     if (t.discount != 0.0) {
+        parts += "Charges (VAT incl.) ${hotelMoney(t.gross)}" to false
         parts += "less discount ${if (t.discountRate > 0) hotelRate(t.discountRate) + "% " else ""}${hotelMoney(t.discount)}" to true
+        parts += "net ${hotelMoney(t.net)}" to false
+        val rent = t.net - t.vat
+        val vatPart = if (t.vatBands.isNotEmpty()) {
+            t.vatBands.joinToString(" · ") { "+ VAT ${hotelRate(it.rate)}% ${hotelMoney(it.vat)}" }
+        } else {
+            "+ VAT ${hotelMoney(t.vat)}"
+        }
+        parts += "= rent (excl. VAT) ${hotelMoney(rent)} $vatPart" to false
+    } else {
+        if (t.base != 0.0) parts += "Charges ${hotelMoney(t.base)}" to false
+        if (t.serviceCharge != 0.0) parts += "service ${hotelRate(t.serviceChargeRate)}% ${hotelMoney(t.serviceCharge)}" to false
+        if (t.vat != 0.0) {
+            parts += if (t.vatBands.size > 1) {
+                "VAT " + t.vatBands.joinToString(" · ") { "${hotelRate(it.rate)}% ${hotelMoney(it.vat)}" } to false
+            } else {
+                val rate = t.vatBands.firstOrNull()?.rate
+                "VAT ${rate?.let { hotelRate(it) + "% " }.orEmpty()}${hotelMoney(t.vat)}" to false
+            }
+        }
+        if (t.gross != t.base) parts += "gross ${hotelMoney(t.gross)}" to false
     }
     if (t.rounding != 0.0 || t.net != t.rounded) parts += "rounded ${hotelMoney(t.net)} → ${hotelMoney(t.rounded)}" to false
     if (parts.isEmpty()) return

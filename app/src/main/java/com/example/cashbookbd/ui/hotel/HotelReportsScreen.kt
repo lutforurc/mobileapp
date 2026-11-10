@@ -15,8 +15,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +48,8 @@ import com.example.cashbookbd.data.repository.HotelPerformanceDay
 import com.example.cashbookbd.data.repository.HotelPerformanceRoomType
 import com.example.cashbookbd.data.repository.HotelRegister
 import com.example.cashbookbd.data.repository.HotelRegisterRow
+import com.example.cashbookbd.data.repository.HotelVatBandAmount
+import com.example.cashbookbd.data.repository.HotelVatSummary
 import com.example.cashbookbd.data.repository.ReportRepository
 import com.example.cashbookbd.di.ServiceLocator
 import com.example.cashbookbd.navigation.AuthenticatedShell
@@ -57,6 +59,7 @@ import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.reports.PickerField
 import com.example.cashbookbd.ui.reports.ReportColWidth
 import com.example.cashbookbd.ui.reports.ReportColumn
+import com.example.cashbookbd.ui.reports.ReportFooterCell
 import com.example.cashbookbd.ui.reports.ReportTable
 import com.example.cashbookbd.ui.reports.ReportTableCell
 import com.example.cashbookbd.ui.reports.cellText
@@ -74,10 +77,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-private val TABS = listOf("Register", "Money taken", "Performance", "Due")
+private val TABS = listOf("Register", "Money taken", "Performance", "Due", "VAT by rate")
 
 /** The tab index of "Booking-wise due" (bill-wise due). */
 private const val TAB_DUE = 3
+
+/** The tab index of VAT by rate (the VAT return's own question). */
+private const val TAB_VAT = 4
 
 /** The three questions the register answers, in the order the morning asks them. */
 private val MODES = listOf(
@@ -128,6 +134,12 @@ data class HotelReportsUiState(
     val due: HotelBookingDue? = null,
     val dueLoading: Boolean = false,
     val dueError: String? = null,
+    // VAT by rate
+    val vatFrom: SimpleDate = HotelOpsDates.monthStart(SimpleDate.today()),
+    val vatTo: SimpleDate = SimpleDate.today(),
+    val vat: HotelVatSummary? = null,
+    val vatLoading: Boolean = false,
+    val vatError: String? = null,
     val sessionExpired: Boolean = false,
 )
 
@@ -161,6 +173,7 @@ class HotelReportsViewModel(
             0 -> if (force || state.register == null) loadRegister()
             1 -> if (force || state.collection == null) loadCollection()
             TAB_DUE -> if (force || state.due == null) loadDue()
+            TAB_VAT -> if (force || state.vat == null) loadVat()
             else -> if (force || (state.performance == null && state.notLodging == null)) loadPerformance()
         }
     }
@@ -178,6 +191,7 @@ class HotelReportsViewModel(
                 collection = null, collectionError = null,
                 performance = null, performanceError = null, notLodging = null,
                 due = null, dueError = null,
+                vat = null, vatError = null,
             )
         }
         loadTab(force = true)
@@ -338,6 +352,45 @@ class HotelReportsViewModel(
         }
     }
 
+    // ---- VAT by rate ----
+
+    fun onVatFrom(date: SimpleDate) {
+        _uiState.update { it.copy(vatFrom = date) }
+        loadVat()
+    }
+
+    fun onVatTo(date: SimpleDate) {
+        _uiState.update { it.copy(vatTo = date) }
+        loadVat()
+    }
+
+    /** The VAT return's question: what VAT was collected at each rate. */
+    fun loadVat() {
+        val state = _uiState.value
+        _uiState.update { it.copy(vatLoading = true, vatError = null) }
+        viewModelScope.launch {
+            val result = repository.fetchVatSummary(
+                from = state.vatFrom.toApi(),
+                to = state.vatTo.toApi(),
+                branchId = state.branch?.id,
+            )
+            when (result) {
+                is Resource.Success -> _uiState.update {
+                    it.copy(vatLoading = false, vat = result.data)
+                }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        vatLoading = false,
+                        vat = null,
+                        vatError = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun onSessionExpiredHandled() = _uiState.update { it.copy(sessionExpired = false) }
 
     companion object {
@@ -392,12 +445,15 @@ fun HotelReportsScreen(
         modifier = modifier,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TabRow(selectedTabIndex = state.tab) {
+            PrimaryScrollableTabRow(
+                selectedTabIndex = state.tab,
+                edgePadding = 8.dp,
+            ) {
                 TABS.forEachIndexed { index, title ->
                     Tab(
                         selected = state.tab == index,
                         onClick = { viewModel.onTab(index) },
-                        text = { Text(title) },
+                        text = { Text(title, maxLines = 1) },
                     )
                 }
             }
@@ -432,6 +488,12 @@ fun HotelReportsScreen(
                         state = state,
                         onOpen = { id -> navController.navigate(HotelMenu.folio(id)) },
                         onRetry = viewModel::loadDue,
+                    )
+                    TAB_VAT -> VatTab(
+                        state = state,
+                        onFrom = { hotelOpsPickDate(context, state.vatFrom, viewModel::onVatFrom) },
+                        onTo = { hotelOpsPickDate(context, state.vatTo, viewModel::onVatTo) },
+                        onRetry = viewModel::loadVat,
                     )
                     else -> PerformanceTab(
                         state = state,
@@ -640,6 +702,93 @@ private fun CollectionBody(collection: HotelCollection, dimmed: Boolean) {
         )
     }
 }
+
+// ---------------------------------------------------------------------------
+//  VAT by rate — the VAT return's own question
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun VatTab(
+    state: HotelReportsUiState,
+    onFrom: () -> Unit,
+    onTo: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        PickerField(
+            label = "From",
+            value = state.vatFrom.toDisplay(),
+            trailingIcon = Icons.Filled.DateRange,
+            modifier = Modifier.weight(1f),
+            onClick = onFrom,
+        )
+        PickerField(
+            label = "To",
+            value = state.vatTo.toDisplay(),
+            trailingIcon = Icons.Filled.DateRange,
+            modifier = Modifier.weight(1f),
+            onClick = onTo,
+        )
+    }
+
+    when {
+        state.vatError != null -> HotelOpsProblem(text = state.vatError, onRetry = onRetry)
+        state.vatLoading && state.vat == null -> HotelOpsLoading()
+        state.vat != null -> VatBody(summary = state.vat, dimmed = state.vatLoading)
+    }
+}
+
+/**
+ * One row per rate recorded on the bills of the period, and the grand total in
+ * the table's own foot — the figure the person filling in the VAT return has
+ * to account for, not only a tile.
+ */
+@Composable
+private fun VatBody(summary: HotelVatSummary, dimmed: Boolean) {
+    Column(
+        modifier = Modifier.alpha(if (dimmed) 0.6f else 1f),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HotelOpsFigure(
+                label = "VAT collected · ${summary.rateCount} " +
+                    if (summary.rateCount == 1) "rate" else "rates",
+                value = hotelOpsMoney(summary.totalVat),
+                lead = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        ReportTable(
+            columns = vatColumns(),
+            data = summary.rows,
+            footerRows = listOf(
+                listOf(
+                    ReportFooterCell(cellText("Grand Total", bold = true, align = TextAlign.End)),
+                    ReportFooterCell(
+                        cellText(
+                            hotelOpsMoney(summary.totalVat),
+                            align = TextAlign.End,
+                            bold = true,
+                        ),
+                    ),
+                ),
+            ),
+            noDataMessage = "No VAT was charged in that range.",
+            scrollable = false,
+        )
+        if (summary.note.isNotBlank()) HotelOpsNote(text = summary.note)
+    }
+}
+
+@Composable
+private fun vatColumns(): List<ReportColumn<HotelVatBandAmount>> = listOf(
+    ReportColumn("VAT Rate", ReportColWidth.Weight(1f)) { row, _ ->
+        cellText("${hotelRate(row.rate)}%")
+    },
+    ReportColumn("VAT Collected", ReportColWidth.Weight(1f), TextAlign.End) { row, _ ->
+        cellText(hotelOpsMoney(row.vat), align = TextAlign.End)
+    },
+)
 
 @Composable
 private fun NamedAmounts(title: String, rows: List<HotelNamedAmount>, modifier: Modifier = Modifier) {

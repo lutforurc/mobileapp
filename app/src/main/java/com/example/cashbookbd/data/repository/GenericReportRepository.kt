@@ -203,17 +203,17 @@ class GenericReportRepository(
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload)
                 .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
-                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
+                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
                 .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
                 .let { rows ->
                     val key = config.groupByColumn
                     if (config.stockGroupSummary && key != null) rows.withStockGroupSummaries(key) else rows
                 }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
                 val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
-                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels) }
+                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
             }
         }
         return built.withPhoneFormat(config).withVehicleFormat(config)
@@ -502,6 +502,8 @@ class GenericReportRepository(
         stacked: List<com.example.cashbookbd.report.ReportStackedColumn> = emptyList(),
         order: List<String> = emptyList(),
         replace: Map<String, String> = emptyMap(),
+        replaceValues: Map<String, String> = emptyMap(),
+        invoiceAmountKey: String? = null,
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -543,7 +545,20 @@ class GenericReportRepository(
                 cells
             }
             ReportRow(
-                reorderCells(mergeStackedColumns(applyLabelReplacements(allCells, obj, replace), stacked), order),
+                reorderCells(
+                    mergeStackedColumns(
+                        applyValueReplacements(
+                            applyInvoiceAmount(
+                                applyLabelReplacements(allCells, obj, replace),
+                                obj,
+                                invoiceAmountKey,
+                            ),
+                            replaceValues,
+                        ),
+                        stacked,
+                    ),
+                    order,
+                ),
                 highlightText = highlightText,
                 highlightLabel = highlightLabel,
                 voucherAttachments = extractVoucherAttachments(obj, voucherSpec),
@@ -587,6 +602,81 @@ class GenericReportRepository(
                 ?.value?.let { rawText(it) }?.trim().orEmpty()
             if (sourceValue.isNotEmpty()) cell.copy(value = sourceValue) else cell
         }
+    }
+
+    /**
+     * Exact text substitutions on the finished cells (web's shortened voucher
+     * labels: "Cash Received" → "Received", "Cash Payment" → "Payment").
+     */
+    private fun applyValueReplacements(
+        cells: List<ReportCell>,
+        replacements: Map<String, String>,
+    ): List<ReportCell> {
+        if (replacements.isEmpty()) return cells
+        return cells.map { cell -> replacements[cell.value]?.let { cell.copy(value = it) } ?: cell }
+    }
+
+    /**
+     * Ledger Details' Inv. Amt — the settlement leg of an invoice voucher,
+     * signed (web 333f6a6e / d3d4eaff). The arithmetic lives in
+     * [com.example.cashbookbd.report.ledgerMoney] so it can be unit-tested;
+     * this only maps the row and lays the cells out.
+     */
+    private fun applyInvoiceAmount(
+        cells: List<ReportCell>,
+        obj: com.google.gson.JsonObject,
+        invoiceKey: String?,
+    ): List<ReportCell> {
+        if (invoiceKey == null) return cells
+
+        fun num(key: String): Double? = obj.numberOrNull(key)
+        fun text(key: String): String = obj.get(key)
+            ?.takeUnless { it.isJsonNull }
+            ?.takeIf { it.isJsonPrimitive }
+            ?.asString?.trim().orEmpty()
+        // The web's Number.isFinite(Number(x)) check: present-but-null is zero,
+        // absent falls back to the raw figure.
+        fun displayed(key: String): Double? =
+            if (obj.has(key)) num(key) ?: 0.0 else null
+
+        val money = com.example.cashbookbd.report.ledgerMoney(
+            com.example.cashbookbd.report.LedgerMoneyInput(
+                vrNo = text("vr_no"),
+                remarks = text("remarks"),
+                trxType = text("trx_type"),
+                voucherType = num("voucher_type") ?: num("voucher_type_id") ?: 0.0,
+                total = num("total") ?: 0.0,
+                received = num("received") ?: 0.0,
+                payment = num("payment") ?: 0.0,
+                debit = num("debit") ?: 0.0,
+                credit = num("credit") ?: 0.0,
+                balance = num("balance") ?: 0.0,
+                displayedReceived = displayed("displayed_received"),
+                displayedPayment = displayed("displayed_payment"),
+            )
+        )
+
+        fun moneyText(value: Double): String =
+            if (value == 0.0) "-" else AmountFormat.format(value)
+
+        val key = invoiceKey.lowercase(Locale.US)
+        val withoutOld = cells.filterNot { it.key == key }
+        val out = withoutOld.map { cell ->
+            when (cell.key) {
+                "debit" -> cell.copy(
+                    value = if (money.isInvoiceRow) "" else moneyText(money.debit),
+                )
+                "credit" -> cell.copy(
+                    value = if (money.isInvoiceRow) "" else moneyText(money.credit),
+                )
+                else -> cell
+            }
+        }
+        return out + ReportCell(
+            label = "Inv. Amt",
+            value = if (money.invoiceAmount == 0.0) "" else AmountFormat.format(money.invoiceAmount),
+            key = key,
+        )
     }
 
     /**

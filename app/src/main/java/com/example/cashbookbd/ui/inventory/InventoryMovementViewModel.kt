@@ -20,6 +20,7 @@ import com.example.cashbookbd.inventory.InventoryForms
 import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.ui.reports.model.SelectorOption
 import com.example.cashbookbd.ui.reports.model.SimpleDate
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +44,9 @@ class InventoryMovementViewModel(
 
     /** Last product search results, so a picked option maps back to its unit/rate. */
     private var productCache: Map<String, InventoryProduct> = emptyMap()
+
+    /** The in-flight available-stock read; cancelled when the pick moves on. */
+    private var stockJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         InventoryMovementUiState(
@@ -174,7 +178,10 @@ class InventoryMovementViewModel(
 
     fun onDateChange(date: SimpleDate) = _uiState.update { it.copy(date = date) }
 
-    fun onFromBranchSelected(option: SelectorOption) = _uiState.update { it.copy(fromBranch = option) }
+    fun onFromBranchSelected(option: SelectorOption) {
+        _uiState.update { it.copy(fromBranch = option) }
+        refreshAvailableStock()
+    }
 
     fun onToBranchSelected(option: SelectorOption) = _uiState.update { it.copy(toBranch = option) }
 
@@ -214,7 +221,34 @@ class InventoryMovementViewModel(
 
     fun onProductSelected(option: SelectorOption) {
         val product = productCache[option.id] ?: return
-        _uiState.update { it.copy(product = product) }
+        _uiState.update { it.copy(product = product, availableStock = null) }
+        refreshAvailableStock()
+    }
+
+    /**
+     * Asks the issuing branch what it holds of the chosen product, so the
+     * Quantity box says what there is to issue (web 67e6364f). Only the issue
+     * form asks; a stale answer is dropped when the pick has moved on.
+     */
+    private fun refreshAvailableStock() {
+        if (spec?.kind != InventoryFormKind.BRANCH_ISSUE) return
+        val state = _uiState.value
+        val productId = state.product?.id
+        val branchId = state.fromBranch?.id
+        stockJob?.cancel()
+        if (productId == null || branchId.isNullOrBlank()) {
+            _uiState.update { it.copy(availableStock = null) }
+            return
+        }
+        stockJob = viewModelScope.launch {
+            val result = inventoryMovementRepository.fetchAvailableStock(branchId, productId)
+            if (result is Resource.Success &&
+                _uiState.value.product?.id == productId &&
+                _uiState.value.fromBranch?.id == branchId
+            ) {
+                _uiState.update { it.copy(availableStock = result.data) }
+            }
+        }
     }
 
     fun onQtyChange(value: String) = _uiState.update { it.copy(qty = value.decimalOnly()) }
@@ -266,6 +300,7 @@ class InventoryMovementViewModel(
                 )
             }
         }
+        refreshAvailableStock()
     }
 
     /** Loads a pending line back into the entry (and removes it from the batch). */
@@ -294,6 +329,7 @@ class InventoryMovementViewModel(
                 )
             }
         }
+        refreshAvailableStock()
     }
 
     fun removeLine(index: Int) {

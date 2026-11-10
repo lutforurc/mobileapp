@@ -52,6 +52,12 @@ data class InventoryMovementUiState(
 
     // Current (not-yet-added) line entry.
     val product: InventoryProduct? = null,
+    /**
+     * The issuing branch's stock of [product] — shown inside the Quantity box
+     * (web 67e6364f). Null while no product/branch is chosen or the read has
+     * not answered.
+     */
+    val availableStock: Double? = null,
     val qty: String = "",
     val damagedQty: String = "",
     val shortQty: String = "",

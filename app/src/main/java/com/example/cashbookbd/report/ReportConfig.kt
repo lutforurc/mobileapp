@@ -231,6 +231,19 @@ data class ReportConfig(
      */
     val replaceLabels: Map<String, String> = emptyMap(),
     /**
+     * Exact cell-text substitutions applied to the finished cells, keyed by the
+     * text as it arrived. The web's shortened voucher labels ("Cash Received" →
+     * "Received", "Cash Payment" → "Payment" — web c28dc0e1).
+     */
+    val replaceValues: Map<String, String> = emptyMap(),
+    /**
+     * Ledger Details' own computed money column (web 333f6a6e / d3d4eaff): the
+     * settlement leg of an invoice voucher, signed (purchase cash −, sale cash
+     * +), with the Debit/Credit cells left blank on those rows. Set to the raw
+     * key the cell should take (e.g. "inv_amt").
+     */
+    val invoiceAmountColumn: String? = null,
+    /**
      * Raw API row keys in the order the WEB table shows its columns
      * (case-insensitive). Without this the columns follow the server's key
      * order; keys not listed here trail behind the listed ones, still in
@@ -871,15 +884,19 @@ object ReportMenu {
             method = ReportMethod.GET,
             filterType = ReportFilterType.BRANCH_LEDGER_DATE_RANGE,
             ledgerParam = "party_id",
-            // The web draws a transaction-type selector here; its two values are
-            // the voucher prefix kinds (web 0012a389). Blank = unfiltered.
+            // The web draws a transaction-type selector here; its values are
+            // the voucher prefix kinds. All Transactions is selectable, not a
+            // disabled placeholder (web c28dc0e1), and the cash pair reads
+            // Received / Payment rather than Cash Received / Cash Payment.
             choiceParam = ReportChoiceParam(
                 paramKey = "transaction_type",
                 label = "Transaction Type",
                 options = listOf(
-                    ReportChoice("All Types", ""),
-                    ReportChoice("Cash Received", "1"),
-                    ReportChoice("Cash Payment", "2"),
+                    ReportChoice("All Transactions", ""),
+                    ReportChoice("Received", "1"),
+                    ReportChoice("Payment", "2"),
+                    ReportChoice("Sales", "3"),
+                    ReportChoice("Purchase", "4"),
                 ),
             ),
             highlightPaths = listOf("remarks"),
@@ -893,17 +910,29 @@ object ReportMenu {
             ),
             // A 1-/2- voucher's Description shows its cash kind, not the account.
             replaceLabels = mapOf("transaction_name" to "cash_transaction_type"),
+            // ...and the kind is shortened the way the web reads it.
+            replaceValues = mapOf(
+                "Cash Received" to "Received",
+                "Cash Payment" to "Payment",
+            ),
+            // Inv. Amt sits between Sal. Total and Debit, and the Debit/Credit
+            // cells empty on invoice rows (the settlement leg moves here).
+            invoiceAmountColumn = "inv_amt",
             columnOrder = listOf(
                 "vr_no", "vr_date", "transaction_name", "sales_item_name",
                 "order_number", "truck_no", "rate", "purchase_total",
-                "sales_total", "debit", "credit", "balance", "remarks",
+                "sales_total", "inv_amt", "debit", "credit", "balance", "remarks",
             ),
             columnLabels = mapOf(
                 "truck_no" to "Vehicle No",
                 "purchase_total" to "Pur. Total",
                 "sales_total" to "Sal. Total",
+                "inv_amt" to "Inv. Amt",
             ),
             vehicleColumns = listOf("truck_no"),
+            // The web's footer: Debit/Credit stay the full ledger movement and
+            // Inv. Amt is the net cash across invoices.
+            totalColumns = listOf("debit", "credit", "inv_amt"),
             // The web's Action column (7d8f76da): each kind's own edit permission.
             voucherEdit = true,
         ),

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -734,13 +735,25 @@ private fun TradeLedgerTable(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (showLines) r.lines.forEach { line ->
-                        Text(
-                            text = line.productLabel.ifBlank { "-" },
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    if (showLines) r.lines.forEachIndexed { index, line ->
+                        // A rule under every product line (web 50e5a4da): the
+                        // stacked lines would otherwise read as one block beside
+                        // the figures. The row's last line keeps its rule when a
+                        // note follows, so the note stays part of the stack.
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = line.productLabel.ifBlank { "-" },
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (index < r.lines.lastIndex || r.note.isNotBlank()) {
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
+                        }
                     }
                     if (r.note.isNotBlank()) {
                         // The voucher's note, boxed in a highlight rule's colour
@@ -951,7 +964,17 @@ private fun stackedCell(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            row.lines.forEach { line(it) }
+            row.lines.forEachIndexed { index, detail ->
+                line(detail)
+                // The same rule as the product cell, so each line's figures
+                // sit beside the line they belong to rather than in a block.
+                if (index < row.lines.lastIndex) {
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
+                }
+            }
         }
     }
 }

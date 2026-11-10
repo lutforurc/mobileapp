@@ -308,6 +308,32 @@ class InventoryMovementRepository(
             }
         }
 
+    /**
+     * The issuing branch's stock of the chosen product
+     * (`warehouse/transfer/available-stock`) — the same figure the save's
+     * shortage check reads. Shown inside the Quantity box (web 67e6364f); a
+     * failed read simply leaves the box without its suffix.
+     */
+    suspend fun fetchAvailableStock(branchId: String, productId: String): Resource<Double> =
+        withContext(ioDispatcher) {
+            safeCall {
+                val response = reportApi.get(
+                    "warehouse/transfer/available-stock",
+                    mapOf("branch_id" to branchId, "product_id" to productId),
+                )
+                response.unauthorizedOrNull()?.let { return@safeCall it }
+                if (!response.isSuccessful) {
+                    return@safeCall Resource.Error("Server error (${response.code()}).")
+                }
+                val data = unwrap(response.body())
+                    ?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?: return@safeCall Resource.Error("The stock could not be read.")
+                Resource.Success(
+                    data.str("available")?.replace(",", "")?.toDoubleOrNull() ?: 0.0,
+                )
+            }
+        }
+
     /** Project/site dropdown (`real-estate/projects/ddl`) — value=id, label=name. */
     suspend fun getProjects(): Resource<List<SelectorOption>> = withContext(ioDispatcher) {
         safeCall {

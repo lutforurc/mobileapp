@@ -58,6 +58,13 @@ data class SoldUnitSale(
     val totalAmount: Double,
     val bookingAmount: Double,
     val receivedAmount: Double,
+    /**
+     * Installment receipts on live vouchers, kept apart from the booking and
+     * down-payment money (web b9b85802). The API deducts both from the sale's
+     * due, so a grand total that sums only [receivedAmount] reads short by
+     * exactly this figure while Due has already counted it (web c705bb46).
+     */
+    val installmentReceived: Double,
     val dueAmount: Double,
     val lines: List<SoldUnitLine>,
 )
@@ -74,6 +81,8 @@ data class SoldUnitCustomer(
     val parkingAmount: Double,
     val totalAmount: Double,
     val receivedAmount: Double,
+    /** Installment money under this buyer, beside the booking receipts. */
+    val installmentReceived: Double,
     val dueAmount: Double,
     val units: List<SoldUnitSale>,
 )
@@ -87,6 +96,8 @@ data class SoldUnitsTotals(
     val parkingAmount: Double,
     val totalAmount: Double,
     val receivedAmount: Double,
+    /** Installment money across the report, part of the Received column. */
+    val installmentReceived: Double,
     val dueAmount: Double,
 )
 
@@ -469,6 +480,7 @@ class RealEstateSalesRepository(
             parkingAmount = dbl("parking_amount"),
             totalAmount = dbl("total_amount"),
             receivedAmount = dbl("received_amount"),
+            installmentReceived = dbl("installment_received"),
             dueAmount = dbl("due_amount"),
             units = arr("units")?.mapNotNull { it.objOrNull()?.toSoldUnitSale() }.orEmpty(),
         )
@@ -500,6 +512,7 @@ class RealEstateSalesRepository(
         totalAmount = dbl("total_amount"),
         bookingAmount = dbl("booking_amount"),
         receivedAmount = dbl("received_amount"),
+        installmentReceived = dbl("installment_received"),
         dueAmount = dbl("due_amount"),
         lines = arr("lines")?.mapNotNull { el ->
             el.objOrNull()?.let { o ->
@@ -521,6 +534,7 @@ class RealEstateSalesRepository(
         parkingAmount = this?.dbl("parking_amount") ?: 0.0,
         totalAmount = this?.dbl("total_amount") ?: 0.0,
         receivedAmount = this?.dbl("received_amount") ?: 0.0,
+        installmentReceived = this?.dbl("installment_received") ?: 0.0,
         dueAmount = this?.dbl("due_amount") ?: 0.0,
     )
 
