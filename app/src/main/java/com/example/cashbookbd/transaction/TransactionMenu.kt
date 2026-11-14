@@ -35,6 +35,9 @@ object TransactionMenu {
         TransactionItem("installments", "Installments", listOf("installment.create")),
         TransactionItem("employeeLoan", "Employee Loan", listOf("hrm.loan.create")),
         TransactionItem("journal", "Journal", listOf("journal.create")),
+        // Moved from Hotel (web 2026-11-14); the key keeps its hotel name so a
+        // saved arrangement still finds it.
+        TransactionItem("hotelAssetPurchase", "Accounts Transaction", listOf("hotel.accounts.transaction.create")),
     )
 
     private val byKey: Map<String, TransactionItem> = all.associateBy { it.key }

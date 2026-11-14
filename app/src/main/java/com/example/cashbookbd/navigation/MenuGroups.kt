@@ -71,7 +71,7 @@ object MenuGroups {
     private val TRANSACTION = listOf(
         Group("Cash", listOf("cashReceived", "cashPayment")),
         Group("Bank", listOf("bankReceived", "bankPayment", "bankReconciliation", "chequeRegister")),
-        Group("Journal & Others", listOf("journal", "installments", "employeeLoan")),
+        Group("Journal & Others", listOf("journal", "hotelAssetPurchase", "installments", "employeeLoan")),
         Group("Period End", listOf("budget", "yearClosing")),
     )
 
@@ -160,7 +160,7 @@ object MenuGroups {
         Group("Bookings", listOf("hotelBookings", "hotelHallBookings", "hotelCalendar")),
         Group(
             "Operations",
-            listOf("hotelHousekeeping", "hotelAmenityIssue", "hotelAssetPurchase"),
+            listOf("hotelHousekeeping", "hotelAmenityIssue"),
         ),
         Group("Accounts", listOf("hotelReceivedEntry", "hotelPaymentEntry")),
         Group("Reports & Setup", listOf("hotelReports", "hotelSetup")),

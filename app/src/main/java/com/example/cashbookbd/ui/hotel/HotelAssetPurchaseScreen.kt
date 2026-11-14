@@ -306,7 +306,7 @@ fun HotelAssetPurchaseScreen(
         else -> "Select an item"
     }
 
-    AuthenticatedShell(title = "Accounts Transaction", currentRoute = Routes.HOTEL, navController = navController, onLogout = onLogout) {
+    AuthenticatedShell(title = "Accounts Transaction", currentRoute = Routes.TRANSACTIONS, navController = navController, onLogout = onLogout) {
         Box(Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item { Text("Asset & Inventory", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.appColors.textOnScreenMuted) }

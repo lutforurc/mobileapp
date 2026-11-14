@@ -66,6 +66,7 @@ object WebMenuIds {
         "installments" to "installment_list",
         "employeeLoan" to "employee_loan",
         "journal" to "accounts/journal",
+        "hotelAssetPurchase" to "hotel_asset_purchase",
     )
 
     private val ADMIN: Map<String, String> = mapOf(
@@ -110,7 +111,6 @@ object WebMenuIds {
         "hotelCalendar" to "hotel_calendar",
         "hotelHousekeeping" to "hotel_housekeeping",
         "hotelAmenityIssue" to "hotel_amenity_issue",
-        "hotelAssetPurchase" to "hotel_asset_purchase",
         "hotelPaymentEntry" to "hotel_payment_entry",
         "hotelReceivedEntry" to "hotel_received_entry",
         "hotelReports" to "hotel_reports",

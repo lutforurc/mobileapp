@@ -78,7 +78,6 @@ object HotelMenu {
         // The money side (web 48829576 … a41123c5): what the hotel buys to be
         // furnished with or uses up, and the payments and receipts it writes.
         // The web gates these on the Hotel group alone.
-        HotelItem(ASSET_PURCHASE_KEY, "Assets Purchase", PARENT_PERMISSIONS_LIST),
         HotelItem(PAYMENT_ENTRY_KEY, "Payment Entry", PARENT_PERMISSIONS_LIST),
         HotelItem(RECEIVED_ENTRY_KEY, "Received Entry", PARENT_PERMISSIONS_LIST),
         HotelItem(REPORTS_KEY, "Reports", listOf("hotel.report.view")),
