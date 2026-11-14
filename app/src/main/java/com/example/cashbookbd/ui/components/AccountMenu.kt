@@ -60,6 +60,12 @@ data class AccountMenuItem(
      * null shows nothing — a "0" badge is noise dressed as news.
      */
     val badgeCount: Int? = null,
+    /**
+     * Render this row after the theme / full-screen switches instead of with
+     * the rest. The two security/destructive actions sit at the foot of the
+     * menu, below those switches (owner's numbered order).
+     */
+    val afterToggles: Boolean = false,
 )
 
 /**
@@ -107,40 +113,8 @@ fun AccountMenu(
             )
             HorizontalDivider()
 
-            items.forEach { item ->
-                DropdownMenuItem(
-                    text = {
-                        val count = item.badgeCount ?: 0
-                        if (count <= 0) {
-                            Text(item.label)
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(item.label)
-                                Spacer(Modifier.width(8.dp))
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary,
-                                ) {
-                                    Text(
-                                        text = count.toString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    leadingIcon = item.icon?.let { icon ->
-                        { Icon(icon, contentDescription = null) }
-                    },
-                    onClick = {
-                        // Close first: the click usually navigates away, and a menu
-                        // left open would linger over the new screen.
-                        expanded = false
-                        item.onClick()
-                    },
-                )
+            items.filterNot { it.afterToggles }.forEach { item ->
+                AccountMenuEntry(item, onDismiss = { expanded = false })
             }
 
             SwitchMenuItem(
@@ -157,6 +131,10 @@ fun AccountMenu(
                 onCheckedChange = onFullScreenChange,
             )
 
+            items.filter { it.afterToggles }.forEach { item ->
+                AccountMenuEntry(item, onDismiss = { expanded = false })
+            }
+
             HorizontalDivider()
 
             DropdownMenuItem(
@@ -171,6 +149,44 @@ fun AccountMenu(
             )
         }
     }
+}
+
+/** One navigation row of the account menu; closes the menu before navigating. */
+@Composable
+private fun AccountMenuEntry(item: AccountMenuItem, onDismiss: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            val count = item.badgeCount ?: 0
+            if (count <= 0) {
+                Text(item.label)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.label)
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Text(
+                            text = count.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            }
+        },
+        leadingIcon = item.icon?.let { icon ->
+            { Icon(icon, contentDescription = null) }
+        },
+        onClick = {
+            // Close first: the click usually navigates away, and a menu left
+            // open would linger over the new screen.
+            onDismiss()
+            item.onClick()
+        },
+    )
 }
 
 /**
@@ -569,10 +585,16 @@ fun accountMenuItems(
         add(AccountMenuItem("My Tasks", MyTasksIcon, it, badgeCount = myTasksNewCount))
     }
     onSwitchBranch?.let { add(AccountMenuItem("Switch Branch", Icons.Filled.Share, it)) }
-    onChangePassword?.let { add(AccountMenuItem("Change Password", Icons.Filled.Lock, it)) }
-    onAccountDeletion?.let { add(AccountMenuItem("Request Account Deletion", Icons.Filled.Delete, it)) }
+    // Devices and the plan sit with the everyday account actions; the two
+    // destructive/security actions come last, in the owner's numbered order.
     add(AccountMenuItem("My Devices", MyDevicesIcon, onMyDevices))
     onSubscription?.let { add(AccountMenuItem("Subscription", SubscriptionIcon, it)) }
+    onChangePassword?.let {
+        add(AccountMenuItem("Change Password", Icons.Filled.Lock, it, afterToggles = true))
+    }
+    onAccountDeletion?.let {
+        add(AccountMenuItem("Request Account Deletion", Icons.Filled.Delete, it, afterToggles = true))
+    }
 }
 
 private val AvatarSize = 32.dp
