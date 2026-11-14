@@ -42,6 +42,15 @@ class DateFormatTest {
     }
 
     @Test
+    fun `device timestamps use a short year and keep their time`() {
+        assertEquals("14/11/26 10:32:52", DateFormat.dayMonthYearShort("2026-11-14 10:32:52"))
+        assertEquals("13/11/26 12:06:55", DateFormat.dayMonthYearShort("2026-11-13T12:06:55Z"))
+        assertEquals("14/11/26", DateFormat.dayMonthYearShort("14/11/2026"))
+        assertEquals("14/11/26", DateFormat.dayMonthYearShort("14/11/26"))
+        assertEquals("-", DateFormat.dayMonthYearShort(null))
+    }
+
+    @Test
     fun `what it cannot read is handed back, not swallowed`() {
         // A date in a shape nobody anticipated is still worth more on screen
         // than a dash.

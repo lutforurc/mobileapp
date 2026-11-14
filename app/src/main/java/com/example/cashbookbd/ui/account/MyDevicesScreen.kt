@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.cashbookbd.core.DateFormat
 import com.example.cashbookbd.data.repository.UserDevice
 import com.example.cashbookbd.navigation.AuthenticatedShell
 import com.example.cashbookbd.navigation.Routes
@@ -165,8 +166,8 @@ private fun DeviceCard(device: UserDevice, isRevoking: Boolean, onRevoke: () -> 
             }
 
             device.ip?.let { DetailRow("IP", it) }
-            device.lastUsedAt?.let { DetailRow("Last used", it) }
-            device.createdAt?.let { DetailRow("Signed in", it) }
+            device.lastUsedAt?.let { DetailRow("Last used", DateFormat.dayMonthYearShort(it)) }
+            device.createdAt?.let { DetailRow("Signed in", DateFormat.dayMonthYearShort(it)) }
 
             // The current device is never revocable — see MyDevicesViewModel.revoke.
             if (!device.isCurrent) {
