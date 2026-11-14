@@ -28,6 +28,7 @@ object DrawerMenus {
         DrawerMenuDef("product_tracking", "Product Tracking"),
         DrawerMenuDef("company_scheme", "Company Scheme"),
         DrawerMenuDef("requisition", "Requisition"),
+        DrawerMenuDef("production", "Production"),
         DrawerMenuDef("real-estate", "Real Estate"),
         DrawerMenuDef("hotel", "Hotel"),
         DrawerMenuDef("asset", "Assets"),

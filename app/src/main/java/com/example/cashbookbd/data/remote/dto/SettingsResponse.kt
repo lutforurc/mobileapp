@@ -136,6 +136,12 @@ data class SettingsBranchDto(
      */
     @SerializedName("is_tiles_and_sanitary") val isTilesAndSanitary: String? = null,
     /**
+     * Branch column `manufactur_control` — the Production menu's branch-side
+     * gate (web sidebar: permission AND this switch). Read leniently, like the
+     * other branch flags: "" and "0" both mean off.
+     */
+    @SerializedName("manufactur_control") val manufacturControl: String? = null,
+    /**
      * Which inventory system the branch runs (1 general, 2 electronics,
      * 3 construction, 4 trading) — the key the invoice variants switch on.
      * The settings `branch` is the same `Branch::find()` row the web reads via

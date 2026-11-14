@@ -20,6 +20,8 @@ import com.example.cashbookbd.data.repository.BranchRepository
 import com.example.cashbookbd.data.repository.CashFlowStatementRepository
 import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.GeneralLedgerRepository
+import com.example.cashbookbd.data.repository.InvoiceWiseProfitRepository
+import com.example.cashbookbd.data.repository.ProductionRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.HighlightRuleRepository
@@ -129,6 +131,12 @@ object ServiceLocator {
 
     @Volatile
     private var generalLedgerRepository: GeneralLedgerRepository? = null
+
+    @Volatile
+    private var invoiceWiseProfitRepository: InvoiceWiseProfitRepository? = null
+
+    @Volatile
+    private var productionRepository: ProductionRepository? = null
 
     @Volatile
     private var cashFlowStatementRepository: CashFlowStatementRepository? = null
@@ -437,6 +445,20 @@ object ServiceLocator {
             generalLedgerRepository ?: GeneralLedgerRepository(
                 api = provideWebApi(context),
             ).also { generalLedgerRepository = it }
+        }
+
+    fun provideInvoiceWiseProfitRepository(context: Context): InvoiceWiseProfitRepository =
+        invoiceWiseProfitRepository ?: synchronized(this) {
+            invoiceWiseProfitRepository ?: InvoiceWiseProfitRepository(
+                api = provideWebApi(context),
+            ).also { invoiceWiseProfitRepository = it }
+        }
+
+    fun provideProductionRepository(context: Context): ProductionRepository =
+        productionRepository ?: synchronized(this) {
+            productionRepository ?: ProductionRepository(
+                api = provideWebApi(context),
+            ).also { productionRepository = it }
         }
 
     fun provideCashFlowStatementRepository(context: Context): CashFlowStatementRepository =

@@ -7,10 +7,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -23,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,6 +62,7 @@ import com.example.cashbookbd.navigation.VoucherEdit
 import com.example.cashbookbd.navigation.VoucherEditTarget
 import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.FieldFrame
 import com.example.cashbookbd.ui.components.LedgerDropdownItem
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
@@ -60,6 +70,9 @@ import com.example.cashbookbd.ui.components.SearchableLedgerDropdown
 import com.example.cashbookbd.ui.components.SearchableSelectDropdown
 import com.example.cashbookbd.ui.components.SecondaryButton
 import com.example.cashbookbd.ui.components.StockShortageDialog
+import com.example.cashbookbd.ui.components.fieldPlaceholderTextStyle
+import com.example.cashbookbd.ui.components.fieldValueTextStyle
+import com.example.cashbookbd.ui.components.showDatePicker
 import com.example.cashbookbd.ui.reports.DateField
 import com.example.cashbookbd.ui.reports.LogoutOnExpiry
 import com.example.cashbookbd.ui.reports.SnackOnMessage
@@ -115,7 +128,10 @@ data class TilesProduct(
     val measurementUnit: String,
     val packageSize: String,
     val packageUnit: String,
-)
+) {
+    /** The search wording: "CODE — NAME", or the bare name when there is no code. */
+    val dropdownLabel: String get() = if (code.isNotBlank()) "$code — $name" else name
+}
 
 data class TilesLine(
     val product: TilesProduct,
@@ -381,7 +397,7 @@ class TilesInvoiceViewModel(
                     )
                 }
                 productCache = products.associateBy { it.id }
-                Resource.Success(products.map { SelectorOption(it.id, it.name, it.unit) })
+                Resource.Success(products.map { SelectorOption(it.id, it.dropdownLabel, it.unit) })
             }
             is Resource.Error -> r
             Resource.Loading -> Resource.Loading
@@ -728,12 +744,35 @@ fun TilesInvoiceScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppTextField(state.manualVoucherNo, viewModel::onManualVoucherNo, label = branch?.label("manual_voucher_no_label", "Memo No.") ?: "Memo No.", modifier = Modifier.weight(1f))
-                    DateField(branch?.label("manual_voucher_date_label", "Memo Date") ?: "Memo Date", state.manualVoucherDate, viewModel::onManualVoucherDate, Modifier.weight(1f))
+                    // The label stays INSIDE the box whether or not a value is
+                    // present: a placeholder-only label vanished as soon as the
+                    // clerk typed, which read as a different, unlabelled field.
+                    InlineLabelTextField(
+                        value = state.manualVoucherNo,
+                        onValueChange = viewModel::onManualVoucherNo,
+                        label = branch?.label("manual_voucher_no_label", "Memo No.") ?: "Memo No.",
+                        modifier = Modifier.weight(1f),
+                    )
+                    InlineLabelDateField(
+                        label = branch?.label("manual_voucher_date_label", "Memo Date") ?: "Memo Date",
+                        date = state.manualVoucherDate,
+                        onPicked = viewModel::onManualVoucherDate,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppTextField(state.manualChallanNo, viewModel::onManualChallanNo, label = branch?.label("manual_challan_no_label", "Challan No") ?: "Challan No", modifier = Modifier.weight(1f))
-                    DateField(branch?.label("manual_challan_date_label", "Challan Date") ?: "Challan Date", state.manualChallanDate, viewModel::onManualChallanDate, Modifier.weight(1f))
+                    InlineLabelTextField(
+                        value = state.manualChallanNo,
+                        onValueChange = viewModel::onManualChallanNo,
+                        label = branch?.label("manual_challan_no_label", "Challan No") ?: "Challan No",
+                        modifier = Modifier.weight(1f),
+                    )
+                    InlineLabelDateField(
+                        label = branch?.label("manual_challan_date_label", "Challan Date") ?: "Challan Date",
+                        date = state.manualChallanDate,
+                        onPicked = viewModel::onManualChallanDate,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -775,7 +814,9 @@ fun TilesInvoiceScreen(
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SearchableSelectDropdown(
-                            selected = state.product?.let { SelectorOption(it.id, it.name, it.unit) },
+                            selected = state.product?.let {
+                                SelectorOption(it.id, it.dropdownLabel, it.unit)
+                            },
                             onSelected = viewModel::onProduct,
                             search = viewModel::searchProducts,
                             label = "Select Product",
@@ -849,6 +890,93 @@ fun TilesInvoiceScreen(
                 }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+        }
+    }
+}
+
+/**
+ * A text field whose label is ALWAYS visible inside the box, above the typed
+ * value. The standard field's label is a placeholder and disappears on the
+ * first keystroke; on the Memo/Challan rows that left the box looking like an
+ * unlabelled field. Two short lines fit the shared 52dp frame.
+ */
+@Composable
+private fun InlineLabelTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+) {
+    FieldFrame(label = "", modifier = modifier) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = AppFontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // The field below otherwise measures to the frame's full
+                // height and clips this line to a sliver.
+                modifier = Modifier.height(16.dp),
+            )
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = fieldValueTextStyle(),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * The date twin of [InlineLabelTextField]: the name stays on the box's first
+ * line and the picked date (or `dd/mm/yyyy`) on the second, with the calendar
+ * icon trailing. The whole box opens the picker.
+ */
+@Composable
+private fun InlineLabelDateField(
+    label: String,
+    date: SimpleDate?,
+    onPicked: (SimpleDate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    FieldFrame(
+        label = "",
+        modifier = modifier,
+        onClick = { showDatePicker(context, date, onPicked) },
+        trailingIcon = {
+            Icon(
+                imageVector = Icons.Filled.DateRange,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = AppFontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.height(16.dp),
+            )
+            Text(
+                text = date?.toDisplay() ?: "dd/mm/yyyy",
+                style = if (date == null) fieldPlaceholderTextStyle() else fieldValueTextStyle(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

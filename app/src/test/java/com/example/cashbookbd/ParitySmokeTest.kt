@@ -42,6 +42,9 @@ import com.example.cashbookbd.ui.reports.model.GeneralLedgerRow
 import com.example.cashbookbd.ui.reports.model.generalLedgerBalanceText
 import com.example.cashbookbd.ui.reports.model.generalLedgerTableRows
 import com.example.cashbookbd.ui.reports.model.SelectorOption
+import com.example.cashbookbd.ui.invoice.model.InvoiceProduct
+import com.example.cashbookbd.ui.reports.model.invoiceWiseProfitAmountText
+import com.example.cashbookbd.ui.reports.model.invoiceWiseProfitReceivedText
 import com.example.cashbookbd.ui.vrsettings.validateVoucherRange
 import com.example.cashbookbd.session.Settings
 import org.junit.Assert.assertEquals
@@ -506,5 +509,58 @@ class ParitySmokeTest {
         assertEquals("4,000.00 Dr", generalLedgerBalanceText(4000.0))
         assertEquals("250.00 Cr", generalLedgerBalanceText(-250.0))
         assertEquals("Assets / Current Assets / Cash", account.groupTrail)
+    }
+
+    // ---- Invoice Wise Profit (react f0028a3b / c59b2cfb) ----
+
+    @Test
+    fun `invoice wise profit - amounts dash at zero and received prints a nought`() {
+        // thousandSeparator: a zero amount is a dash ...
+        assertEquals("-", invoiceWiseProfitAmountText(0.0))
+        assertEquals("1,234.50", invoiceWiseProfitAmountText(1234.5))
+        assertEquals("-45.00", invoiceWiseProfitAmountText(-45.0))
+
+        // ... except Received, where "nothing was paid" is 0.00 -- at least two
+        // decimals even when the branch drops them from every other amount.
+        assertEquals("0.00", invoiceWiseProfitReceivedText(0.0))
+        assertEquals("0.00", invoiceWiseProfitReceivedText(0.0, places = 0))
+        assertEquals("1,234.50", invoiceWiseProfitReceivedText(1234.5))
+    }
+
+    // ---- Invoice product search labels ----
+
+    @Test
+    fun `product search shows code and name, and same names keep distinct ids`() {
+        val coded = InvoiceProduct(
+            id = "11",
+            name = "Homogenious Stair",
+            unit = "Pcs",
+            purchasePrice = null,
+            code = "GMST-2660102",
+        )
+        val uncoded = InvoiceProduct(
+            id = "12",
+            name = "Homogenious Stair",
+            unit = "Pcs",
+            purchasePrice = null,
+        )
+
+        assertEquals("GMST-2660102 — Homogenious Stair", coded.dropdownLabel)
+        assertEquals("Homogenious Stair", uncoded.dropdownLabel)
+        assertTrue(coded.id != uncoded.id)
+
+        val tiles = TilesProduct(
+            id = "13",
+            name = "Homogenious Stair",
+            code = "GMST-2660102",
+            unit = "Pcs",
+            purchasePrice = 0.0,
+            salesPrice = 0.0,
+            measurement = "",
+            measurementUnit = "",
+            packageSize = "",
+            packageUnit = "",
+        )
+        assertEquals("GMST-2660102 — Homogenious Stair", tiles.dropdownLabel)
     }
 }

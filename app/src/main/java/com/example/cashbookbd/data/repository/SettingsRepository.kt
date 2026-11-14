@@ -62,6 +62,9 @@ class SettingsRepository(
                     // The Tiles trade flag — "1"/"true" on, anything else off.
                     isTilesAndSanitary = payload?.branch?.isTilesAndSanitary?.trim()
                         ?.let { it == "1" || it.equals("true", ignoreCase = true) } == true,
+                    // The Production menu's branch switch (manufactur_control).
+                    manufacturControl = payload?.branch?.manufacturControl?.trim()
+                        ?.toDoubleOrNull() == 1.0,
                     inventorySystemId = payload?.branch?.inventorySystemId,
                     branchId = payload?.branch?.id,
                     branchTypesId = payload?.branch?.branchTypesId,

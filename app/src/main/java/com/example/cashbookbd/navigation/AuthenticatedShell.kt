@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MailOutline
@@ -149,6 +150,11 @@ fun AuthenticatedShell(
     val canHrm = HrmMenu.hasParentAccess(sessionState.permissions)
     // The "Requisition" section is shown when the user has any requisition permission.
     val canRequisition = RequisitionMenu.hasParentAccess(sessionState.permissions)
+    // "Production" needs both doors open: a production.* key AND the branch's
+    // Manufacture switch, exactly as the web sidebar checks them.
+    val canProduction = com.example.cashbookbd.production.ProductionMenu
+        .hasParentAccess(sessionState.permissions) &&
+        sessionState.settings?.manufacturControl == true
     // "Real Estate" shows only for business type 9 branches with the section
     // permission — the same condition as the web sidebar.
     val canRealEstate = RealEstateMenu.hasParentAccess(sessionState.permissions) &&
@@ -245,6 +251,7 @@ fun AuthenticatedShell(
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
                 canRequisition = canRequisition,
+                canProduction = canProduction,
                 canRealEstate = canRealEstate,
                 canAdmin = canAdmin,
                 canHrm = canHrm,
@@ -391,6 +398,7 @@ private fun AppDrawerContent(
     canInvoices: Boolean,
     canVrSettings: Boolean,
     canRequisition: Boolean,
+    canProduction: Boolean,
     canRealEstate: Boolean,
     canAdmin: Boolean,
     canHrm: Boolean,
@@ -458,6 +466,14 @@ private fun AppDrawerContent(
                 // Then the Company Scheme receivable lists, as on the web.
                 if (canCompanyScheme) add(DrawerEntry("company_scheme", "Company Scheme", CompanySchemeIcon, currentRoute == ParityRoutes.COMPANY_SCHEME, ParityRoutes.COMPANY_SCHEME))
                 if (canRequisition) add(DrawerEntry("requisition", "Requisition", Icons.Filled.MailOutline, currentRoute == Routes.REQUISITIONS, Routes.REQUISITIONS))
+                // The web puts Production between Requisition and Real Estate.
+                if (canProduction) add(
+                    DrawerEntry(
+                        "production", "Production", Icons.AutoMirrored.Filled.List,
+                        currentRoute == com.example.cashbookbd.production.ProductionMenu.ROUTE_HOME,
+                        com.example.cashbookbd.production.ProductionMenu.ROUTE_HOME,
+                    )
+                )
                 if (canRealEstate) add(DrawerEntry("real-estate", "Real Estate", Icons.Filled.Place, currentRoute == Routes.REAL_ESTATE, Routes.REAL_ESTATE))
                 // Beside Real Estate: the other property module, and the web
                 // sidebar keeps them together for the same reason.

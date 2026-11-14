@@ -390,7 +390,9 @@ private fun ProductEntry(
         Text("Add Product", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
         SearchableSelectDropdown(
-            selected = state.selectedProduct?.let { SelectorOption(it.id, it.name, it.unit) },
+            selected = state.selectedProduct?.let {
+                SelectorOption(it.id, it.dropdownLabel, it.unit)
+            },
             onSelected = onProductSelected,
             search = searchProducts,
             label = "Select Product",

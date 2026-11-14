@@ -521,6 +521,8 @@ object ReportMenu {
         // The two statements below Trial Balance Details (react 08ca7cf4).
         "cash.flow.statement",
         "general.ledger",
+        // Invoice Wise Profit (react f0028a3b / c59b2cfb).
+        "invoice.wise.profit",
         "installment.create",
         "ledger.view",
         "ledger.customer",
@@ -756,6 +758,23 @@ object ReportMenu {
             filterType = ReportFilterType.BRANCH_DATE_RANGE,
             native = true,
             startDateDefault = ReportConfig.StartDateDefault.YEAR_FIRST,
+        ),
+        // Financial Statement → Invoice Wise Profit (react f0028a3b /
+        // c59b2cfb). A bespoke screen: the server pages the sorted invoice
+        // list and foots the whole filtered set, which the flat generic table
+        // cannot show.
+        ReportConfig(
+            key = "invoiceWiseProfit",
+            title = "Invoice Wise Profit",
+            routeName = "ReportInvoiceWiseProfit",
+            webPath = "/reports/invoice-wise-profit",
+            anyOf = listOf("invoice.wise.profit"),
+            endpointKey = "invoiceWiseProfit",
+            method = ReportMethod.POST,
+            filterType = ReportFilterType.BRANCH_DATE_RANGE,
+            native = true,
+            startParam = "startDate",
+            endParam = "endDate",
         ),
         ReportConfig(
             key = "expenseReport",

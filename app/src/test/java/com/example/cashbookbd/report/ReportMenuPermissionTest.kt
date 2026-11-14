@@ -59,6 +59,7 @@ class ReportMenuPermissionTest {
             "Trial Balance Details" to "trial.balance.l4",
             "Cash Flow Statement" to "cash.flow.statement",
             "General Ledger" to "general.ledger",
+            "Invoice Wise Profit" to "invoice.wise.profit",
         )
 
         guarded.forEach { (title, permission) ->

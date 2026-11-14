@@ -34,6 +34,13 @@ data class InvoiceProduct(
 ) {
     /** "CODE - NAME" when the product has a code, the bare name otherwise (web b8dff41c). */
     val rowLabel: String get() = if (code.isNotBlank()) "$code - $name" else name
+
+    /**
+     * The product search's wording: code and name together, so two products
+     * sharing a name are told apart before one is picked. The bare name when
+     * the product has no code.
+     */
+    val dropdownLabel: String get() = if (code.isNotBlank()) "$code — $name" else name
 }
 
 /** One added line of the Combined (purchase + sales) invoice. */

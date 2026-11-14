@@ -23,6 +23,7 @@ object ParityRoutes {
     // The two financial statements below Trial Balance Details (react 08ca7cf4).
     const val CASH_FLOW_STATEMENT = "reports/cash-flow-statement"
     const val GENERAL_LEDGER = "reports/general-ledger"
+    const val INVOICE_WISE_PROFIT = "reports/invoice-wise-profit"
     const val DAILY_ACCOUNT_BOOK = "reports/daily-account-book"
     const val SALES_REFERRER = "reports/sales-referrer"
     const val DELIVERY_REPORT = "reports/delivery"
@@ -113,6 +114,37 @@ fun NavGraphBuilder.parityGraph(
     composable(ParityRoutes.GENERAL_LEDGER) {
         PermissionGate(anyOf = com.example.cashbookbd.report.ReportMenu.permissionsFor("generalLedger")) {
             com.example.cashbookbd.ui.reports.GeneralLedgerScreen(navController, backToLogin)
+        }
+    }
+    composable(ParityRoutes.INVOICE_WISE_PROFIT) {
+        PermissionGate(anyOf = com.example.cashbookbd.report.ReportMenu.permissionsFor("invoiceWiseProfit")) {
+            com.example.cashbookbd.ui.reports.InvoiceWiseProfitScreen(navController, backToLogin)
+        }
+    }
+
+    // ---- Production (Manufacturing) ----
+    // The menu also needs the branch's manufacture switch; the drawer checks
+    // it, and the server refuses both endpoints when it is off.
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_HOME) {
+        PermissionGate(anyOf = com.example.cashbookbd.production.ProductionMenu.PARENT_PERMISSIONS) {
+            com.example.cashbookbd.ui.production.ProductionHomeScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_REGISTER) {
+        PermissionGate(anyOf = listOf("production.report.view")) {
+            com.example.cashbookbd.ui.production.ProductionRegisterScreen(navController, backToLogin)
+        }
+    }
+    composable(
+        route = com.example.cashbookbd.production.ProductionMenu.ROUTE_COSTING,
+        arguments = listOf(navArgument("batchId") { type = NavType.LongType }),
+    ) { entry ->
+        PermissionGate(anyOf = listOf("production.report.view")) {
+            com.example.cashbookbd.ui.production.ProductionCostingScreen(
+                navController = navController,
+                onLogout = backToLogin,
+                batchId = entry.arguments?.getLong("batchId") ?: 0L,
+            )
         }
     }
     composable(ParityRoutes.CUSTOMER_SALES) {

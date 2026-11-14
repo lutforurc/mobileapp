@@ -107,6 +107,7 @@ private fun NavHostController.openReport(report: ReportConfig) {
         "trialBalanceLevel4" -> Routes.TRIAL_BALANCE_L4
         "cashFlowStatement" -> com.example.cashbookbd.navigation.ParityRoutes.CASH_FLOW_STATEMENT
         "generalLedger" -> com.example.cashbookbd.navigation.ParityRoutes.GENERAL_LEDGER
+        "invoiceWiseProfit" -> com.example.cashbookbd.navigation.ParityRoutes.INVOICE_WISE_PROFIT
         "profitLoss" -> Routes.PROFIT_LOSS
         "balanceSheet" -> Routes.BALANCE_SHEET
         "dueList" -> Routes.DUE_LIST

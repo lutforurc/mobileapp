@@ -23,6 +23,8 @@ object ReportEndpoints {
         "cashFlowStatement" to "reports/cash-flow-statement",
         "generalLedger" to "reports/general-ledger",
         "generalLedgerAccounts" to "reports/general-ledger/accounts",
+        // Financial Statement → Invoice Wise Profit (react f0028a3b).
+        "invoiceWiseProfit" to "reports/invoice-wise-profit",
         "cashBankReceivedPayment" to "reports/cash-bank-received-payment",
         "bankInformation" to "reports/bank-information-data",
         "connectedMember" to "reports/connected-member-data",

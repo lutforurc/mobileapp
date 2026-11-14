@@ -348,7 +348,9 @@ class InvoiceFormViewModel(
             is Resource.Success -> {
                 productCache = result.data.associateBy { it.id }
                 Resource.Success(
-                    result.data.map { SelectorOption(id = it.id, label = it.name, sublabel = it.unit) }
+                    result.data.map {
+                        SelectorOption(id = it.id, label = it.dropdownLabel, sublabel = it.unit)
+                    }
                 )
             }
             is Resource.Error -> result

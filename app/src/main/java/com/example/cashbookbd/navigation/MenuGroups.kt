@@ -58,7 +58,7 @@ object MenuGroups {
         Group(
             "Financial Statements",
             listOf(
-                "profitLoss", "productProfitLoss", "balanceSheet",
+                "profitLoss", "productProfitLoss", "invoiceWiseProfit", "balanceSheet",
                 "trialBalanceLevel3", "trialBalanceLevel4",
                 // The two statements the web puts directly below Trial Balance
                 // Details (react 08ca7cf4).
@@ -177,8 +177,14 @@ object MenuGroups {
     )
 
     /** Keyed by the drawer/menu id the section-home screens pass in. */
+    /** Production (Manufacturing): the web puts all nine entries in one group. */
+    private val PRODUCTION = listOf(
+        Group("Production", listOf("productionRegister")),
+    )
+
     val menus: Map<String, List<Group>> = mapOf(
         "reports" to REPORTS,
+        "production" to PRODUCTION,
         "transaction" to TRANSACTION,
         "invoice" to INVOICE,
         "branch-transfer" to BRANCH_TRANSFER,

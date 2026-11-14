@@ -41,6 +41,12 @@ data class Settings(
      * answering; see [com.example.cashbookbd.ui.invoice.TilesBranch].
      */
     val isTilesAndSanitary: Boolean = false,
+    /**
+     * Branch column `manufactur_control`: the branch runs the Production side.
+     * The web sidebar requires it as well as a `production.*` permission before
+     * the Production menu appears.
+     */
+    val manufacturControl: Boolean = false,
     val inventorySystemId: Int? = null,
     /** The signed-in user's branch id — e.g. the Head Office cash received form's default receiving branch. */
     val branchId: Long? = null,
