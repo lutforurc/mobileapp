@@ -365,9 +365,13 @@ class HotelRepository(
             val rooms = mutableListOf<HotelRoom>()
             payload.get("buildings")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { bEl ->
                 val building = bEl.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+                // A switched-off building (or floor) is not for sale; one with
+                // no rooms never reaches the list, as groups come from rooms.
+                if ((building.int("status") ?: 1) != 1) return@forEach
                 val buildingName = building.text("name")
                 building.get("floors")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { fEl ->
                     val floor = fEl.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+                    if ((floor.int("status") ?: 1) != 1) return@forEach
                     val floorName = floor.text("name")
                     floor.get("rooms")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { rEl ->
                         rEl.takeIf { it.isJsonObject }?.asJsonObject
@@ -887,6 +891,7 @@ class HotelRepository(
 
     private fun JsonObject.toRoom(buildingName: String, floorName: String): HotelRoom? {
         val id = long("id") ?: return null
+        if ((int("status") ?: 1) != 1) return null
         return HotelRoom(
             id = id,
             code = text("code"),
