@@ -545,7 +545,7 @@ class ParitySmokeTest {
             purchasePrice = null,
         )
 
-        assertEquals("GMST-2660102 — Homogenious Stair", coded.dropdownLabel)
+        assertEquals("GMST-2660102 - Homogenious Stair", coded.dropdownLabel)
         assertEquals("Homogenious Stair", uncoded.dropdownLabel)
         assertTrue(coded.id != uncoded.id)
 
@@ -561,6 +561,6 @@ class ParitySmokeTest {
             packageSize = "",
             packageUnit = "",
         )
-        assertEquals("GMST-2660102 — Homogenious Stair", tiles.dropdownLabel)
+        assertEquals("GMST-2660102 - Homogenious Stair", tiles.dropdownLabel)
     }
 }

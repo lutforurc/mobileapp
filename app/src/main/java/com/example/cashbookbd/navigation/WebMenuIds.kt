@@ -65,6 +65,7 @@ object WebMenuIds {
         "bankPayment" to "accounts/bank/payment",
         "installments" to "installment_list",
         "employeeLoan" to "employee_loan",
+        "purchaseAdvance" to "purchase_advance",
         "journal" to "accounts/journal",
         "hotelAssetPurchase" to "hotel_asset_purchase",
     )
@@ -117,6 +118,37 @@ object WebMenuIds {
         "hotelSetup" to "hotel_setup",
     )
 
+    /** Financial Statement — the web's own top-level statements menu. */
+    private val FINANCIAL_STATEMENT: Map<String, String> = mapOf(
+        "productProfitLoss" to "product_profit_loss",
+        "productProfitSummary" to "product_profit_summary",
+        "invoiceWiseProfit" to "invoice_wise_profit",
+        "profitLossDateWise" to "profit_loss_date_wise",
+        "monthlyStatement" to "monthly_statement",
+        "trialBalanceLevel4" to "trial_balance_level4",
+        "trialBalanceLevel3" to "trial_balance_level3",
+        "trialBalance" to "trial_balance",
+        "expenseReport" to "expense_report",
+        "profitLoss" to "profit_loss",
+        "balanceSheet" to "balance_sheet",
+        "businessSummary" to "business_summary",
+        "cashFlowStatement" to "cash_flow_statement",
+        "generalLedger" to "general_ledger",
+    )
+
+    /** Production — the web's nine-entry group. */
+    private val PRODUCTION: Map<String, String> = mapOf(
+        "productionEntry" to "production_entry",
+        "productionSales" to "production_sales",
+        "productionPurchase" to "production_purchase",
+        "productionSalesReturn" to "production_sales_return",
+        "productionScheme" to "production_scheme",
+        "productionRecipe" to "production_recipe",
+        "productionRegister" to "production_register",
+        "productionFreeGoods" to "production_free_goods",
+        "productionExpiry" to "production_expiry",
+    )
+
     /** Assets — the web's one-child group; the app lists its tabs as entries. */
     private val ASSET: Map<String, String> = mapOf(
         "assetCategories" to "asset_setup",
@@ -136,6 +168,8 @@ object WebMenuIds {
         "labour_items" to LABOUR_ITEMS,
         "hotel" to HOTEL,
         "asset" to ASSET,
+        "production" to PRODUCTION,
+        "financial_statement" to FINANCIAL_STATEMENT,
     )
 
     fun forMenu(menuId: String): Map<String, String> = menus[menuId].orEmpty()

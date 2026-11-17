@@ -69,7 +69,7 @@ fun InvoiceWiseProfitScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -128,8 +128,7 @@ private fun InvoiceWiseProfitContent(
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {

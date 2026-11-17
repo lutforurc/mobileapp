@@ -25,7 +25,12 @@ data class InventoryProduct(
     val unit: String,
     /** Purchase price (`label_4`) — display-only on the transfer forms, never sent. */
     val purchasePrice: Double?,
-)
+    /** The product's own code; blank when it has none. */
+    val code: String = "",
+) {
+    /** "CODE - NAME" when a code exists, the bare name otherwise. */
+    val label: String get() = com.example.cashbookbd.core.ProductLabel.of(code, name)
+}
 
 /** One pending line of a Branch Issue / Branch Receive batch. */
 data class BranchTransferLine(
@@ -302,6 +307,7 @@ class InventoryMovementRepository(
                             name = o.str("label") ?: id,
                             unit = o.str("label_3").orEmpty(),
                             purchasePrice = o.str("label_4")?.replace(",", "")?.toDoubleOrNull(),
+                            code = o.str("code").orEmpty(),
                         )
                     }
                 )

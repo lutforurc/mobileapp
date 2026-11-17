@@ -69,6 +69,198 @@ data class ProductionRegisterReport(
     val isEmpty: Boolean get() = rows.isEmpty()
 }
 
+/** One output of a saved draft or posted batch, as `production/list` reads it. */
+data class ProductionBatchOutput(
+    val productId: Long?,
+    val productName: String,
+    val qty: Double,
+    val unitCost: Double,
+    val expiryDate: String,
+)
+
+/** One row of `production/list` — the Recent batches table. */
+data class ProductionBatchRow(
+    val id: Long,
+    val batchRef: String,
+    val vrNo: String,
+    val productionDate: String,
+    val outputProduct: String,
+    val unitCost: Double,
+    val status: String,
+    val outputs: List<ProductionBatchOutput> = emptyList(),
+) {
+    val label: String get() = batchRef.ifBlank { "#$id" }
+}
+
+/** One posted expense line a batch may be costed from. */
+data class ProductionAllocatableRow(
+    val sourceAccDetailId: Long,
+    val voucherNo: String,
+    val headName: String,
+    val remaining: Double,
+)
+
+/** A saved batch opened for editing (`production/details/{id}`). */
+data class ProductionDetailsInput(
+    val productId: Long?,
+    val productName: String,
+    val unit: String,
+    val godownId: Long?,
+    val baseQty: Double,
+    val enteredUnitId: Long?,
+    val enteredUnit: String,
+    val enteredQty: Double,
+)
+
+data class ProductionDetailsOutput(
+    val productId: Long?,
+    val productName: String,
+    val unit: String,
+    val godownId: Long?,
+    val qty: Double,
+    val salesPrice: Double?,
+    val sharePct: Double?,
+    val expiryDate: String,
+)
+
+data class ProductionRecipeSnapshot(
+    val recipeId: Long?,
+    val name: String,
+    val version: String,
+    val yieldQty: Double,
+    val outputProductId: Long?,
+    val unit: String,
+    val salesPrice: Double?,
+    val lossBasis: String,
+    val lossTolerancePct: Double,
+    val targetQty: Double,
+    val factor: Double,
+    val lines: List<ProductionDetailsInput>,
+)
+
+data class ProductionBatchDetails(
+    val id: Long,
+    val productionDate: String,
+    val batchRef: String,
+    val notes: String,
+    val recipeId: Long?,
+    val recipeQty: Double?,
+    val lossActual: Double,
+    val lossTolerancePct: Double,
+    val lossBasis: String,
+    val lossReason: String,
+    val inputs: List<ProductionDetailsInput> = emptyList(),
+    val outputs: List<ProductionDetailsOutput> = emptyList(),
+    val allocations: Map<Long, Double> = emptyMap(),
+    val recipe: ProductionRecipeSnapshot? = null,
+)
+
+/** Which production voucher form is open. */
+enum class ProductionInvoiceMode(val title: String) {
+    PURCHASE("Production Purchase"),
+    SALE("Production Sales"),
+    SALES_RETURN("Production Sales Return"),
+}
+
+/** One line of a production voucher, as the edit endpoint brings it back. */
+data class ProductionInvoiceLine(
+    val id: Long,
+    val productId: String,
+    val productName: String,
+    val unit: String,
+    val qty: Double,
+    val price: Double,
+    val free: Boolean = false,
+    val schemeId: Long? = null,
+)
+
+/** `production/{sales|purchase|sales-return}/edit` — the saved voucher. */
+data class ProductionInvoiceEdit(
+    val mtmId: String,
+    val vrNo: String,
+    val account: String,
+    val accountName: String,
+    val invoiceDate: String,
+    val invoiceNo: String,
+    val discount: Double,
+    val netPayment: Double,
+    val notes: String,
+    val lines: List<ProductionInvoiceLine>,
+)
+
+/** A stock shortage the server answered with instead of a refusal. */
+data class ProductionShortage(
+    val message: String,
+    val blocked: Boolean,
+)
+
+/** One free-goods row (`production/report/free-goods`). */
+data class FreeGoodsRow(
+    val id: Long,
+    val vrNo: String,
+    val date: String,
+    val productName: String,
+    val productCode: String,
+    val schemeName: String,
+    val qty: Double,
+    val unitCost: Double,
+    val value: Double,
+)
+
+data class FreeGoodsReport(
+    val rows: List<FreeGoodsRow> = emptyList(),
+    val totalQty: Double = 0.0,
+    val totalCost: Double = 0.0,
+)
+
+/** One near-expiry row (`production/report/expiry`). */
+data class ExpiryRow(
+    val productionId: Long,
+    val productName: String,
+    val productCode: String,
+    val batchRef: String,
+    val vrNo: String,
+    val productionDate: String,
+    val expiryDate: String,
+    val daysLeft: Double,
+    val qty: Double,
+    val unit: String,
+    val onHand: Double,
+)
+
+/** What a sale line earns from the scheme master (`production/schemes/match`). */
+data class SchemeMatch(
+    val schemeId: Long? = null,
+    val name: String = "",
+    val freeProductId: String? = null,
+    val freeQty: Double = 0.0,
+)
+
+/** One "buy X get Y" rule on the Production Sales form (web `ProductionScheme`). */
+data class ProductionSchemeRow(
+    val id: Long,
+    val name: String,
+    val productId: Long?,
+    val productName: String,
+    val productCode: String,
+    val freeProductId: Long?,
+    val freeProductName: String,
+    val thresholdQty: Double,
+    val freeQty: Double,
+    val repeatable: Boolean,
+    val fromDate: String,
+    val toDate: String,
+    val note: String,
+    val status: String,
+) {
+    val isActive: Boolean get() = status.equals("active", ignoreCase = true)
+    val freeLabel: String
+        get() = freeProductName.ifBlank { productName }
+    val datesLabel: String get() = "${fromDate.ifBlank { "-" }} → ${toDate.ifBlank { "-" }}"
+    val productLabel: String
+        get() = productName + if (productCode.isNotBlank()) " ($productCode)" else ""
+}
+
 /** The batch facts both the register and the costing detail carry. */
 data class ProductionMaster(
     val id: Long,

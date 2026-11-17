@@ -20,7 +20,7 @@ object RequisitionMenu {
 
     val all: List<RequisitionItem> = listOf(
         RequisitionItem("requisitions", "Requisitions", listOf("requisition.view")),
-        RequisitionItem("requisitionCreate", "New Requisition", listOf("requisition.create")),
+        RequisitionItem("requisitionCreate", "Create", listOf("requisition.create")),
         RequisitionItem("requisitionComparison", "Comparison", listOf("requisition.comparison")),
     )
 

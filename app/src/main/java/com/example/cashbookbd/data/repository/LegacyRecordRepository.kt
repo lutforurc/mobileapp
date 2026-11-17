@@ -23,8 +23,8 @@ data class LegacyArchive(
 )
 
 object LegacyArchives {
-    val CURRENT = LegacyArchive("legacy", "legacy.record.view", "Old ERP Record")
-    val OLD = LegacyArchive("legacy-old", "legacy.old.record.view", "Old ERP Record (Old Version)")
+    val CURRENT = LegacyArchive("legacy", "legacy.record.view", "Old ERP Record 1")
+    val OLD = LegacyArchive("legacy-old", "legacy.old.record.view", "Old ERP Record 2")
     val all = listOf(CURRENT, OLD)
 }
 

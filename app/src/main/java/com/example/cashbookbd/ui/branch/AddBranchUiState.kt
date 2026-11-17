@@ -106,6 +106,10 @@ data class AddBranchUiState(
         BranchOptions.MONEY_FORMAT -> BranchForm.moneyFormatOptions
         BranchOptions.PAD_PRINT_MODE -> BranchForm.padPrintModeOptions
         BranchOptions.DOWN_PAYMENT_BASE -> BranchForm.downPaymentBaseOptions
+        BranchOptions.DDL_LINES -> BranchForm.ddlLineOptions
+        BranchOptions.HOTEL_VAT_MODE -> BranchForm.hotelVatModeOptions
+        BranchOptions.HOTEL_DUE_MODE -> BranchForm.hotelDueModeOptions
+        BranchOptions.HOTEL_INCOME_MODE -> BranchForm.hotelIncomeModeOptions
     }
 
     /**

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -77,7 +79,7 @@ fun BankBookScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -86,9 +88,7 @@ fun BankBookScreen(
                 onApply = viewModel::apply,
             )
 
-            Box(modifier = Modifier.weight(1f)) {
-                BankBookResults(state = uiState, onRetry = viewModel::apply)
-            }
+            BankBookResults(state = uiState, onRetry = viewModel::apply)
         }
     }
 }
@@ -233,8 +233,8 @@ private fun BankBookResults(state: BankBookUiState, onRetry: () -> Unit) {
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
@@ -349,6 +349,7 @@ private fun BankBookTable(rows: List<BankBookRow>) {
         data = rows,
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
         noDataMessage = "No transactions found for this period.",
+        scrollable = false,
     )
 }
 

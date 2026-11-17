@@ -71,7 +71,7 @@ class RequisitionFormViewModel(
                     result.data.map { item ->
                         SelectorOption(
                             id = item.id,
-                            label = item.name,
+                            label = item.label,
                             sublabel = listOf(item.typeName(), item.unit)
                                 .filter { it.isNotBlank() }
                                 .joinToString("  •  ")

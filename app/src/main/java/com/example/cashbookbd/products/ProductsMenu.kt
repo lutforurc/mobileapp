@@ -23,8 +23,8 @@ object ProductsMenu {
     val all: List<ProductItem> = listOf(
         ProductItem("brandList", "Brand List", listOf("brand.list")),
         ProductItem("categoryList", "Category List", listOf("category.view")),
-        ProductItem("productGroupList", "Product Group List", listOf("product_group.view")),
-        ProductItem("packSizeList", "Pack Size List", listOf("package.size.view")),
+        ProductItem("productGroupList", "Product Group", listOf("product_group.view")),
+        ProductItem("packSizeList", "Pack Size", listOf("package.size.view")),
         ProductItem("productList", "Product List", listOf("products.view")),
         // The stock statement per product (web 87782eb7), on the menu's own gate.
         ProductItem(STOCK_STATEMENT_KEY, "Product Statement", listOf("products.view")),

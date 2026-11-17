@@ -258,6 +258,41 @@ data class ReportConfig(
     /** The footer row's left label ("Total", "Grand Total", "Summary"…). */
     val totalRowLabel: String = "Total",
     /**
+     * The Ledger Details footer, rebuilt the web's way (2026-11): Opening ·
+     * Pur. Qty · Sal. Qty · Pur. Amt · Sal. Amt · Inv. Amt · Debit · Credit ·
+     * Closing, computed from the table's own rows and the summary, in one
+     * right-aligned line instead of a figure under each column.
+     */
+    val ledgerFooter: Boolean = false,
+    /**
+     * A free-text Search box over the returned rows (product name or code), the
+     * way the web's Stock Details narrows its list in the browser. Applied when
+     * Apply is pressed, never per keystroke.
+     */
+    val searchFilter: Boolean = false,
+    /** The Search box's hint; ignored when [searchFilter] is false. */
+    val searchFilterHint: String = "Search product name or code…",
+    /**
+     * The cell that should read "CODE - NAME" (e.g. `product_name`). The code
+     * columns below are folded into it and hidden, so no separate Code column
+     * appears. Null leaves product cells as the server sends them.
+     */
+    val productLabelColumn: String? = null,
+    /** Where the code may be found; tried in order, case-insensitive. */
+    val productCodeColumns: List<String> = listOf("code", "product_code"),
+    /** Raw keys whose column should be drawn wide (long names, descriptions). */
+    val wideColumns: List<String> = emptyList(),
+    /** Raw keys whose column should be drawn narrow (unit, a short flag). */
+    val narrowColumns: List<String> = emptyList(),
+    /** Exact column widths in dp, by raw key (wins over wide/narrow). */
+    val columnWidths: Map<String, Int> = emptyMap(),
+    /**
+     * Raw keys always drawn left-aligned, even when their values begin with a
+     * number (a product name like "1 PPR pipe" would otherwise read as numeric
+     * and be right-aligned).
+     */
+    val leftAlignColumns: List<String> = emptyList(),
+    /**
      * Raw API row keys (case-insensitive) whose zero value should render as "-"
      * instead of "0" — e.g. Product Stock's opening/in/out/balance amounts. Their
      * non-zero values also carry the [unitColumn] suffix when one is set.
@@ -904,12 +939,25 @@ object ReportMenu {
                 "period_in_amount",
                 "period_in_qty",
             ),
+            // The product cell reads "CODE - NAME" when the row carries a code,
+            // the bare name otherwise; no separate Code column.
+            productLabelColumn = "product_name",
             // The web's column order: product first, the two invoices, then
             // the qty/rate/total pairs, ending on Effect.
             columnOrder = listOf(
                 "product_name", "purchase_invoice", "vr_no", "vr_date", "sold_qty",
                 "unit_purchase_rate", "purchase_total", "unit_sale_rate", "sale_total", "profit",
             ),
+            // The two invoice columns are reference numbers, not prose: narrow.
+            // Vr. Date is a fixed dd/MM/yyyy, so it needs even less.
+            columnWidths = mapOf(
+                "purchase_invoice" to 105,
+                "vr_no" to 105,
+                "vr_date" to 96,
+                // The product name carries its code, so it needs room.
+                "product_name" to 292,
+            ),
+            leftAlignColumns = listOf("product_name"),
             // The web's headers.
             columnLabels = mapOf(
                 "purchase_invoice" to "Pur. Invoice",
@@ -981,8 +1029,9 @@ object ReportMenu {
             ),
             vehicleColumns = listOf("truck_no"),
             // The web's footer: Debit/Credit stay the full ledger movement and
-            // Inv. Amt is the net cash across invoices.
-            totalColumns = listOf("debit", "credit", "inv_amt"),
+            // Inv. Amt is the net cash across invoices. The footer itself is one
+            // summary line (Opening … Closing), built from the table's columns.
+            ledgerFooter = true,
             // The web's Action column (7d8f76da): each kind's own edit permission.
             voucherEdit = true,
         ),
@@ -1343,6 +1392,12 @@ object ReportMenu {
                 "expenditure" to "খরচ",
                 "comments" to "মন্তব্য",
             ),
+            // The web sums the five money columns over every row (its tfoot is
+            // computed client-side from the same rows, not from a server total).
+            totalColumns = listOf(
+                "sales", "downpayment", "kistyaday", "cashsales", "expenditure",
+            ),
+            totalRowLabel = "Grand Total",
         ),
         ReportConfig(
             key = "closingStock",
@@ -1360,6 +1415,18 @@ object ReportMenu {
             endParam = "end_date",
             altStartParam = "startdate",
             altEndParam = "enddate",
+            // The web's own filter row: Brand, Group, Category, Search (product
+            // name or code), then the dates. The search runs over the returned
+            // rows in the browser, so it is the same here.
+            selectors = listOf(
+                ReportSelector("brand_id", "Select Brand (optional)", ReportSelectorSource.BRAND, required = false),
+                ReportSelector("group_id", "Select Group (optional)", ReportSelectorSource.PRODUCT_GROUP, required = false),
+                ReportSelector("category_id", "Select Category (optional)", ReportSelectorSource.CATEGORY, required = false),
+            ),
+            searchFilter = true,
+            // The product cell reads "CODE - NAME"; the code has no column of
+            // its own. Same wording as every product search in the app.
+            productLabelColumn = "product_name",
             // The payload is a brand-keyed map of row arrays — the NORMAL shape
             // found no rows, so this report rendered empty until now.
             responseShape = ReportResponseShape.NESTED_GROUPS,
@@ -1385,14 +1452,32 @@ object ReportMenu {
             endParam = "end_date",
             altStartParam = "startdate",
             altEndParam = "enddate",
+            // Same page and the same filter row as Closing Stock (web route
+            // /somity-report/stock-details reuses ClosingStockReport).
+            selectors = listOf(
+                ReportSelector("brand_id", "Select Brand (optional)", ReportSelectorSource.BRAND, required = false),
+                ReportSelector("group_id", "Select Group (optional)", ReportSelectorSource.PRODUCT_GROUP, required = false),
+                ReportSelector("category_id", "Select Category (optional)", ReportSelectorSource.CATEGORY, required = false),
+            ),
+            searchFilter = true,
+            // The product cell reads "CODE - NAME"; the code has no column of
+            // its own. Same wording as every product search in the app.
+            productLabelColumn = "product_name",
+            // The web's table reads Code, then Product Details, then the money.
             // Same page as Closing Stock on the web — same shape fix.
             responseShape = ReportResponseShape.NESTED_GROUPS,
-            hiddenColumns = CLOSING_STOCK_HIDDEN,
+            // Category and group are headings on the web, never columns here.
+            hiddenColumns = CLOSING_STOCK_HIDDEN + listOf(
+                "category", "category_id", "cat_name",
+                "group", "group_id", "group_name",
+            ),
+            // The product name needs room; the unit is one short word.
+            wideColumns = listOf("product_name"),
+            narrowColumns = listOf("unit"),
+            leftAlignColumns = listOf("product_name"),
             columnLabels = CLOSING_STOCK_LABELS,
             totalColumns = listOf("stock", "total_stock"),
             totalRowLabel = "Grand Total",
-            groupByColumn = "category",
-            stockGroupSummary = true,
         ),
         ReportConfig(
             key = "productStock",
@@ -1409,10 +1494,23 @@ object ReportMenu {
             // each amount instead). The web shows category only as a group
             // header and folds the brand into the product cell, so neither is
             // its own column.
-            hiddenColumns = listOf("product_id", "category_id", "unit", "cat_name", "brand_name"),
+            hiddenColumns = listOf(
+                "product_id", "brand_id", "brand", "category_id", "unit",
+                "cat_name", "brand_name",
+                // The web folds the group into the product cell; no Group Id or
+                // Group Name column is drawn.
+                "group", "group_id", "group_name",
+            ),
             // Show "-" for 0, and suffix the unit ("1 nos") for the stock amounts.
             zeroDashColumns = listOf("opening", "stock_in", "stock_out", "balance"),
             unitColumn = "unit",
+            // The product cell reads "CODE - NAME"; there is no Code column.
+            productLabelColumn = "product_name",
+            // The product name is the widest thing on this table: 1.7× the
+            // default 172dp text column.
+            columnWidths = mapOf("product_name" to 292),
+            // Left-aligned: a name like "1 PPR pipe" must not read as a number.
+            leftAlignColumns = listOf("product_name"),
             // The web's Grand Total row over the four stock amounts.
             totalColumns = listOf("opening", "stock_in", "stock_out", "balance"),
             totalRowLabel = "Grand Total",

@@ -24,6 +24,7 @@ object ParityRoutes {
     const val CASH_FLOW_STATEMENT = "reports/cash-flow-statement"
     const val GENERAL_LEDGER = "reports/general-ledger"
     const val INVOICE_WISE_PROFIT = "reports/invoice-wise-profit"
+    const val FINANCIAL_STATEMENT = "reports/financial-statement"
     const val DAILY_ACCOUNT_BOOK = "reports/daily-account-book"
     const val SALES_REFERRER = "reports/sales-referrer"
     const val DELIVERY_REPORT = "reports/delivery"
@@ -135,6 +136,58 @@ fun NavGraphBuilder.parityGraph(
             com.example.cashbookbd.ui.production.ProductionRegisterScreen(navController, backToLogin)
         }
     }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_RECIPE) {
+        PermissionGate(anyOf = listOf("production.view")) {
+            com.example.cashbookbd.ui.production.RecipeScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_SCHEME) {
+        PermissionGate(anyOf = listOf("production.create")) {
+            com.example.cashbookbd.ui.production.ProductionSchemeScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_ENTRY) {
+        PermissionGate(anyOf = listOf("production.create")) {
+            com.example.cashbookbd.ui.production.ProductionEntryScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_SALES) {
+        PermissionGate(anyOf = listOf("production.create")) {
+            com.example.cashbookbd.ui.production.ProductionInvoiceScreen(
+                mode = com.example.cashbookbd.ui.production.model.ProductionInvoiceMode.SALE,
+                navController = navController,
+                onLogout = backToLogin,
+            )
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_PURCHASE) {
+        PermissionGate(anyOf = listOf("production.create")) {
+            com.example.cashbookbd.ui.production.ProductionInvoiceScreen(
+                mode = com.example.cashbookbd.ui.production.model.ProductionInvoiceMode.PURCHASE,
+                navController = navController,
+                onLogout = backToLogin,
+            )
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_SALES_RETURN) {
+        PermissionGate(anyOf = listOf("production.sales.return.create")) {
+            com.example.cashbookbd.ui.production.ProductionInvoiceScreen(
+                mode = com.example.cashbookbd.ui.production.model.ProductionInvoiceMode.SALES_RETURN,
+                navController = navController,
+                onLogout = backToLogin,
+            )
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_FREE_GOODS) {
+        PermissionGate(anyOf = listOf("production.report.view")) {
+            com.example.cashbookbd.ui.production.FreeGoodsScreen(navController, backToLogin)
+        }
+    }
+    composable(com.example.cashbookbd.production.ProductionMenu.ROUTE_EXPIRY) {
+        PermissionGate(anyOf = listOf("production.report.view")) {
+            com.example.cashbookbd.ui.production.ProductionExpiryScreen(navController, backToLogin)
+        }
+    }
     composable(
         route = com.example.cashbookbd.production.ProductionMenu.ROUTE_COSTING,
         arguments = listOf(navArgument("batchId") { type = NavType.LongType }),
@@ -144,6 +197,16 @@ fun NavGraphBuilder.parityGraph(
                 navController = navController,
                 onLogout = backToLogin,
                 batchId = entry.arguments?.getLong("batchId") ?: 0L,
+            )
+        }
+    }
+    composable(ParityRoutes.FINANCIAL_STATEMENT) {
+        PermissionGate(
+            anyOf = com.example.cashbookbd.ui.reports.FINANCIAL_PARENT_PERMISSIONS,
+        ) {
+            com.example.cashbookbd.ui.reports.FinancialStatementHomeScreen(
+                navController,
+                backToLogin,
             )
         }
     }

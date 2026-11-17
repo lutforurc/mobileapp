@@ -114,7 +114,7 @@ fun LedgerScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             LedgerFilterForm(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -125,9 +125,7 @@ fun LedgerScreen(
                 onApply = viewModel::apply,
             )
 
-            Box(modifier = Modifier.weight(1f)) {
-                LedgerResults(state = uiState, onRetry = viewModel::apply, editor = editor)
-            }
+            LedgerResults(state = uiState, onRetry = viewModel::apply, editor = editor)
         }
     }
 }
@@ -513,6 +511,7 @@ private fun LedgerTable(statement: LedgerStatement, showBranchNames: Boolean, ed
         footerRows = ledgerFooterRows(statement),
         // The Opening Balance line is styled like the summary rows.
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
+        scrollable = false,
     )
 
     viewing?.let { attachment ->
@@ -570,8 +569,8 @@ private fun formatVrDate(raw: String): String {
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }

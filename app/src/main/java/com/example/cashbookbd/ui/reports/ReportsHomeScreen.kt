@@ -52,7 +52,10 @@ fun ReportsHomeScreen(
     androidx.compose.runtime.LaunchedEffect(Unit) { menuPrefs.refreshSub() }
 
     val reports = com.example.cashbookbd.navigation.WebMenuIds.arrange(
-        "reports", ReportMenu.visible(sessionState.permissions), subPrefs,
+        "reports",
+        ReportMenu.visible(sessionState.permissions)
+            .filterNot { it.key in FINANCIAL_STATEMENT_KEYS },
+        subPrefs,
     ) { it.key }
 
     AuthenticatedShell(

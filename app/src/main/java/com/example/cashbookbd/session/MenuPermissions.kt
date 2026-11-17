@@ -19,6 +19,7 @@ object MenuPermissions {
             "bank.received.create",
             "bank.payment.create",
             "hrm.loan.create",
+            "purchase.advance.view",
             "journal.create",
             "hotel.accounts.transaction.create",
             "branch.transfer.create",

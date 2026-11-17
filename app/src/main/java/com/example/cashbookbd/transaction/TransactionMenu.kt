@@ -34,6 +34,9 @@ object TransactionMenu {
         TransactionItem("bankPayment", "Bank Payment", listOf("bank.payment.create")),
         TransactionItem("installments", "Installments", listOf("installment.create")),
         TransactionItem("employeeLoan", "Employee Loan", listOf("hrm.loan.create")),
+        // Money handed to staff to buy goods with — its own view/create keys
+        // (web `purchase.advance.view` / `.create`).
+        TransactionItem("purchaseAdvance", "Advance for Purchase", listOf("purchase.advance.view")),
         TransactionItem("journal", "Journal", listOf("journal.create")),
         // Moved from Hotel (web 2026-11-14); the key keeps its hotel name so a
         // saved arrangement still finds it.

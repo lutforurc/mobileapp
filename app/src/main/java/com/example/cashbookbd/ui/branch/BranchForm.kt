@@ -72,6 +72,10 @@ enum class BranchOptions {
     MONEY_FORMAT,
     PAD_PRINT_MODE,
     DOWN_PAYMENT_BASE,
+    DDL_LINES,
+    HOTEL_VAT_MODE,
+    HOTEL_DUE_MODE,
+    HOTEL_INCOME_MODE,
 }
 
 /**
@@ -394,6 +398,71 @@ object BranchForm {
                 ),
             ),
         ),
+        // The web's own step: what the customer/supplier and product search
+        // boxes show under each name. Two boxes, one step — they are the same
+        // kind of setting, not the same answer.
+        BranchStep(
+            title = "Dropdown",
+            summary = "Which details the customer, supplier and product search boxes show.",
+            fields = listOf(
+                BranchField.Choice(
+                    "party_ddl_lines", "Customer / Supplier Dropdown Type", BranchOptions.DDL_LINES,
+                    description = "How many lines each party takes in the search box. Single Line has room for one or two of the details below; Multiple Line for all of them.",
+                ),
+                BranchField.Toggle(
+                    "party_ddl_show_code", "Show Party Code?",
+                    description = "Lists the party's own code beside the name — what tells two parties of the same name apart.",
+                ),
+                BranchField.Toggle(
+                    "party_ddl_show_mobile", "Show Party Mobile?",
+                    description = "Lists the party's mobile number under the name.",
+                ),
+                BranchField.Toggle(
+                    "party_ddl_show_address", "Show Party Address?",
+                    description = "Lists the party's address under the name.",
+                ),
+                BranchField.Toggle(
+                    "party_ddl_show_father", "Show Father's Name?",
+                    description = "Lists the father's name the party was filed under, which the counter often recognises before the party's own name.",
+                ),
+                BranchField.Choice(
+                    "product_ddl_lines", "Product Dropdown Type", BranchOptions.DDL_LINES,
+                    description = "How many lines each product takes. Multiple Line is what the box has always done.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_category", "Show Product Category?",
+                    description = "Lists the category under each product's name in the search box.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_brand", "Show Product Brand?",
+                    description = "Lists the brand under each product's name. A product with no brand shows none.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_group", "Show Product Group?",
+                    description = "Lists the group under each product's name, for a branch that files its products in groups.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_name", "Show Product Name?",
+                    description = "The name is the line a product is picked by. Off, only the details under it remain.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_purchase_price", "Show Purchase Price?",
+                    description = "Lists what the product cost. Still hidden from a user who may not see purchase prices.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_sales_price", "Show Sales Price?",
+                    description = "Lists the price the product sells at.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_unit", "Show Unit?",
+                    description = "Lists the unit the product is kept in, such as Kg or Pcs.",
+                ),
+                BranchField.Toggle(
+                    "product_ddl_show_balance", "Show Balance?",
+                    description = "Lists what is left in stock on this branch. The only switch here that makes the product search work harder, so it is off by default.",
+                ),
+            ),
+        ),
         BranchStep(
             title = "Real Estate Setup",
             summary = "The allotment letter's payment schedule and references.",
@@ -424,6 +493,46 @@ object BranchForm {
                 BranchField.Text("letter_ref_date", "Letter Reference Date (yyyy-MM-dd)"),
             ),
         ),
+        // The hotel step, carried over from the web's AddBranch form. Only a
+        // branch that is a hotel uses it; every other branch can leave it alone.
+        BranchStep(
+            title = "Hotel Setup",
+            summary = "When the day turns over at this property, for a branch that is a hotel.",
+            fields = listOf(
+                BranchField.Text(
+                    "hotel_check_out_time", "Check-out time",
+                    description = "When the room has to be given up. Noon almost everywhere. It must come before check-in on the same day, or the same room would be let to two parties on every turnover day.",
+                ),
+                BranchField.Text(
+                    "hotel_check_in_time", "Check-in time",
+                    description = "When the next guest may take the room. Two hours later leaves housekeeping a window.",
+                ),
+                BranchField.Text(
+                    "hotel_hold_hours", "Hold lasts (hours)", KeyboardType.Number,
+                    description = "How long an unconfirmed booking keeps a room off the market when the desk names no date of its own. 24 hours is one day; 168 is a week.",
+                ),
+                BranchField.Text(
+                    "hotel_hold_max_hours", "Longest hold (hours)", KeyboardType.Number,
+                    description = "The most the desk may ask for. Too long and rooms are turned away for guests who are not coming; too short and an enquiry that rang back finds the room sold.",
+                ),
+                BranchField.Choice(
+                    "hotel_vat_mode", "VAT Setup", BranchOptions.HOTEL_VAT_MODE,
+                    description = "What a rate means, not what the tax is. Excluding: the rate is the room alone and VAT and service charge come on top (a 3,000 room bills 3,622.50). Including: the rate is the whole price and the parts are worked back out of it (3,000 exactly). Nothing already on file is converted, so a property that means to keep collecting the same money must raise its rate card first.",
+                ),
+                BranchField.Choice(
+                    "hotel_due_mode", "Due Setup", BranchOptions.HOTEL_DUE_MODE,
+                    description = "Customer-wise: a balance at check-out must be taken or billed to a party. Bill-wise: with the Check-out With Due permission a guest may leave owing, and the balance stays on the booking until it is collected, billed or written off.",
+                ),
+                BranchField.Choice(
+                    "hotel_income_mode", "Income Setup", BranchOptions.HOTEL_INCOME_MODE,
+                    description = "At Bill: income and VAT post when the bill is made, and advance and settlement money go to the advance head. At Settlement: the bill posts with the settlement, so the money goes to income and VAT — it needs a Guest Receivable head. Changing this affects new bills only.",
+                ),
+                BranchField.Text(
+                    "hotel_registration_terms", "Registration card terms", multiline = true,
+                    description = "Printed under every guest's registration card, above the two signature lines. The property's own words, kept as typed.",
+                ),
+            ),
+        ),
         BranchStep(
             title = "Feature Controls",
             summary = "Operational controls, sharing options, and SMS preferences.",
@@ -447,6 +556,7 @@ object BranchForm {
                 BranchField.Toggle(
                     "sms_service", "SMS service",
                     description = "The master switch for this branch. Off, none of the messages below go out however they are set. What each message says is set on the SMS Template screen, not here.",
+                    ownerOnly = true,
                 ),
                 // Money first, both directions, then the two invoice ones
                 // (web f7cc020): Received and Payment are the same question
@@ -467,6 +577,10 @@ object BranchForm {
                 BranchField.Toggle(
                     "purchase_sms", "Purchase SMS",
                     description = "Texts the supplier when a purchase is posted against them.",
+                ),
+                BranchField.Toggle(
+                    "booking_sms", "Hotel Booking SMS",
+                    description = "Texts the booker the booking-confirmed message the moment a hotel booking is saved.",
                 ),
                 BranchField.Toggle(
                     "show_voucher_image", "Show Voucher Image?",
@@ -552,5 +666,25 @@ object BranchForm {
     val downPaymentBaseOptions = listOf(
         SelectorOption(id = "total", label = "Total Property Value"),
         SelectorOption(id = "net_payable", label = "Net Payable Balance after Booking Money"),
+    )
+
+    val ddlLineOptions = listOf(
+        SelectorOption(id = "multiple", label = "Multiple Line"),
+        SelectorOption(id = "single", label = "Single Line"),
+    )
+
+    val hotelVatModeOptions = listOf(
+        SelectorOption(id = "exclusive", label = "VAT Excluding"),
+        SelectorOption(id = "inclusive", label = "VAT Including"),
+    )
+
+    val hotelDueModeOptions = listOf(
+        SelectorOption(id = "customer", label = "Customer-wise due"),
+        SelectorOption(id = "bill", label = "Bill-wise due"),
+    )
+
+    val hotelIncomeModeOptions = listOf(
+        SelectorOption(id = "bill", label = "Income at Bill"),
+        SelectorOption(id = "settlement", label = "Income at Settlement"),
     )
 }

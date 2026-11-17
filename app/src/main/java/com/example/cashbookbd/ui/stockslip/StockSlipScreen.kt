@@ -274,7 +274,7 @@ class StockSlipViewModel(
             Resource.Loading -> Resource.Loading
         }
 
-    private fun RequisitionItemOption.toOption() = SelectorOption(id, name, unit.takeIf { it.isNotBlank() })
+    private fun RequisitionItemOption.toOption() = SelectorOption(id, label, unit.takeIf { it.isNotBlank() })
 
     /** Party lookup for the reasons that ask for one: name, mobile or code. */
     suspend fun searchParties(q: String): Resource<List<SelectorOption>> =

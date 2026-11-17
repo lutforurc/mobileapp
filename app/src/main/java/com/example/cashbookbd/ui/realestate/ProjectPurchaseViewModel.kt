@@ -157,7 +157,7 @@ class ProjectPurchaseViewModel(
         when (val result = repository.searchProducts(query)) {
             is Resource.Success -> {
                 productPrices = productPrices + result.data.associate { it.id to it.price }
-                Resource.Success(result.data.map { SelectorOption(id = it.id.toString(), label = it.name) })
+                Resource.Success(result.data.map { SelectorOption(id = it.id.toString(), label = it.label) })
             }
             is Resource.Error -> Resource.Error(result.message, result.isUnauthorized)
             Resource.Loading -> Resource.Loading

@@ -3,6 +3,8 @@ package com.example.cashbookbd.ui.reports
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -230,7 +232,7 @@ fun ExpenseReportScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -291,12 +293,12 @@ fun ExpenseReportScreen(
                 }
 
                 state.isLoading && state.report == null -> Box(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
                 !state.hasApplied -> Box(
-                    Modifier.fillMaxSize().padding(32.dp),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -406,6 +408,7 @@ private fun ExpenseGroupTable(
         headerGroups = headerGroups,
         footerRows = listOf(grandTotalFooter(report.groups, leadingSpan = 2)),
         rowBackground = { row, _ -> if (row is ExpRow.Group) null else detailBg },
+        scrollable = false,
     )
 }
 
@@ -455,6 +458,7 @@ private fun ExpenseDetailsTable(report: ExpenseReport) {
         data = rows,
         headerGroups = headerGroups,
         footerRows = listOf(grandTotalFooter(report.details, leadingSpan = 3)),
+        scrollable = false,
     )
 }
 

@@ -130,7 +130,8 @@ data class TilesProduct(
     val packageUnit: String,
 ) {
     /** The search wording: "CODE — NAME", or the bare name when there is no code. */
-    val dropdownLabel: String get() = if (code.isNotBlank()) "$code — $name" else name
+    val dropdownLabel: String
+        get() = com.example.cashbookbd.core.ProductLabel.of(code, name)
 }
 
 data class TilesLine(

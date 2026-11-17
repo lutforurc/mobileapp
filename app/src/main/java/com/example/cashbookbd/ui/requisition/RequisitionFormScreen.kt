@@ -174,7 +174,7 @@ private fun ItemEntry(state: RequisitionFormUiState, viewModel: RequisitionFormV
         Text("Add Item", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
         SearchableSelectDropdown(
-            selected = state.selectedItem?.let { SelectorOption(it.id, it.name, it.unit) },
+            selected = state.selectedItem?.let { SelectorOption(it.id, it.label, it.unit) },
             onSelected = viewModel::onItemSelected,
             search = viewModel::searchItems,
             label = "Select Product",

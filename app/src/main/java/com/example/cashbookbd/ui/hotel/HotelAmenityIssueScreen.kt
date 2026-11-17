@@ -177,7 +177,7 @@ class HotelAmenityIssueViewModel(
         when (val result = inventoryRepository.searchProducts(query)) {
             is Resource.Success -> {
                 lastProducts = result.data
-                Resource.Success(result.data.map { SelectorOption(it.id, it.name, it.unit.takeIf { u -> u.isNotBlank() }) })
+                Resource.Success(result.data.map { SelectorOption(it.id, it.label, it.unit.takeIf { u -> u.isNotBlank() }) })
             }
             is Resource.Error -> result
             Resource.Loading -> Resource.Loading

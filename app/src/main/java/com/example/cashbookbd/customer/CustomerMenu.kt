@@ -22,13 +22,13 @@ object CustomerMenu {
     private val SECTION_PERMISSIONS: List<String> = MenuPermissions.map["customer"].orEmpty()
 
     val all: List<CustomerItem> = listOf(
-        CustomerItem("customers", "Customers", SECTION_PERMISSIONS),
+        CustomerItem("customers", "Customer & Supplier", SECTION_PERMISSIONS),
         // Customer opening balances from an Excel sheet (web 874b9447).
         CustomerItem("customerOpeningImport", "Opening Import", listOf("party.opening.edit", "cs.edit")),
         CustomerItem("coaL1", "CoA L1", listOf("coa.l1.view")),
         CustomerItem("coaL2", "CoA L2", listOf("coa.l2.view")),
         CustomerItem("coaL3", "CoA L3", listOf("coa.l3.view")),
-        CustomerItem("coaL4", "CoA L4", listOf("coa.l4.view")),
+        CustomerItem("coaL4", "Accounts Head List", listOf("coa.l4.view")),
         // Kept out of the CoA L4 list itself: most of that chart is expense and
         // sales heads, which open at nothing. Its own permission too — reading
         // the chart and opening a bank account with a figure are not the same

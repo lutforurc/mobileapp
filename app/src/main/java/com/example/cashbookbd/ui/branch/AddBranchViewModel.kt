@@ -68,6 +68,17 @@ class AddBranchViewModel(
             // Unset means on server-side (flagMeta default true): letters have
             // always carried their reference, so a new branch starts that way.
             "print_letter_ref" to "1",
+            // The web's own defaults: two lines in each search box, and the
+            // hotel answers every property has billed with so far.
+            "party_ddl_lines" to "multiple",
+            "product_ddl_lines" to "multiple",
+            "hotel_check_in_time" to "14:00",
+            "hotel_check_out_time" to "12:00",
+            "hotel_hold_hours" to "2",
+            "hotel_hold_max_hours" to "24",
+            "hotel_vat_mode" to "exclusive",
+            "hotel_due_mode" to "customer",
+            "hotel_income_mode" to "bill",
         )
 
     fun load() {

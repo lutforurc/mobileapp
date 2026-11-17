@@ -2,6 +2,8 @@ package com.example.cashbookbd.ui.reports
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -457,7 +459,7 @@ fun TradeLedgerScreen(
         modifier = modifier,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -533,7 +535,7 @@ fun TradeLedgerScreen(
                     }
 
                     !state.hasApplied -> Box(
-                        Modifier.fillMaxSize().padding(32.dp),
+                        Modifier.fillMaxWidth().padding(32.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -544,7 +546,7 @@ fun TradeLedgerScreen(
                     }
 
                     state.isLoading && state.report == null -> Box(
-                        Modifier.fillMaxSize(),
+                        Modifier.fillMaxWidth().padding(32.dp),
                         contentAlignment = Alignment.Center,
                     ) { CircularProgressIndicator() }
 
@@ -877,6 +879,7 @@ private fun TradeLedgerTable(
         footerRows = if (report.rows.isEmpty()) emptyList() else listOf(footer),
         // A return with nothing in the range is a fact, not a failure.
         noDataMessage = if (state.kind.isReturn) "এই সময়ের মধ্যে কোনো রিটার্ন পাওয়া যায়নি।" else "No data found",
+        scrollable = false,
     )
 }
 

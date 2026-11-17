@@ -24,15 +24,15 @@ object ProductTrackingMenu {
 
     val all: List<ProductTrackingItem> = listOf(
         ProductTrackingItem(
-            SETTINGS_KEY, "Product Tracking",
+            SETTINGS_KEY, "Tracking",
             listOf("product.tracking.settings.view"),
         ),
         ProductTrackingItem(
-            STATEMENT_KEY, "Product Statement",
+            STATEMENT_KEY, "Statement",
             listOf("product.tracking.report.view"),
         ),
         ProductTrackingItem(
-            SUMMARY_KEY, "Product Receivable / Payable",
+            SUMMARY_KEY, "Receivable & Payable",
             listOf("product.tracking.report.view"),
         ),
     )

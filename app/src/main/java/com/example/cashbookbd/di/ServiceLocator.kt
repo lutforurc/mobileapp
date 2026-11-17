@@ -22,6 +22,8 @@ import com.example.cashbookbd.data.repository.DashboardRepository
 import com.example.cashbookbd.data.repository.GeneralLedgerRepository
 import com.example.cashbookbd.data.repository.InvoiceWiseProfitRepository
 import com.example.cashbookbd.data.repository.ProductionRepository
+import com.example.cashbookbd.data.repository.RecipeRepository
+import com.example.cashbookbd.data.repository.PurchaseAdvanceRepository
 import com.example.cashbookbd.data.repository.DueListRepository
 import com.example.cashbookbd.data.repository.GenericReportRepository
 import com.example.cashbookbd.data.repository.HighlightRuleRepository
@@ -137,6 +139,12 @@ object ServiceLocator {
 
     @Volatile
     private var productionRepository: ProductionRepository? = null
+
+    @Volatile
+    private var recipeRepository: RecipeRepository? = null
+
+    @Volatile
+    private var purchaseAdvanceRepository: PurchaseAdvanceRepository? = null
 
     @Volatile
     private var cashFlowStatementRepository: CashFlowStatementRepository? = null
@@ -459,6 +467,20 @@ object ServiceLocator {
             productionRepository ?: ProductionRepository(
                 api = provideWebApi(context),
             ).also { productionRepository = it }
+        }
+
+    fun provideRecipeRepository(context: Context): RecipeRepository =
+        recipeRepository ?: synchronized(this) {
+            recipeRepository ?: RecipeRepository(
+                api = provideWebApi(context),
+            ).also { recipeRepository = it }
+        }
+
+    fun providePurchaseAdvanceRepository(context: Context): PurchaseAdvanceRepository =
+        purchaseAdvanceRepository ?: synchronized(this) {
+            purchaseAdvanceRepository ?: PurchaseAdvanceRepository(
+                api = provideWebApi(context),
+            ).also { purchaseAdvanceRepository = it }
         }
 
     fun provideCashFlowStatementRepository(context: Context): CashFlowStatementRepository =

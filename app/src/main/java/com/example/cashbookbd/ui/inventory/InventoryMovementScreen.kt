@@ -310,7 +310,7 @@ private fun LineEntry(
     Text("Add Item", style = MaterialTheme.typography.titleSmall, fontWeight = AppFontWeight.SemiBold)
 
     SearchableSelectDropdown(
-        selected = state.product?.let { SelectorOption(it.id, it.name, it.unit) },
+        selected = state.product?.let { SelectorOption(it.id, it.label, it.unit) },
         onSelected = viewModel::onProductSelected,
         search = viewModel::searchProducts,
         label = "Select Product",

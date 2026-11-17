@@ -98,7 +98,7 @@ fun TrialBalanceScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -108,9 +108,7 @@ fun TrialBalanceScreen(
                 onReset = viewModel::reset,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Box(modifier = Modifier.weight(1f)) {
-                Results(state = uiState, onRetry = viewModel::apply)
-            }
+            Results(state = uiState, onRetry = viewModel::apply)
         }
     }
 }
@@ -250,7 +248,7 @@ private fun ReportContent(
     notes: List<ReportNoteItem> = emptyList(),
 ) {
     val withNotes = notes.isNotEmpty()
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         // Summary boxes
         Row(
             modifier = Modifier
@@ -418,8 +416,8 @@ private fun totalCell(value: Double): ReportFooterCell =
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }

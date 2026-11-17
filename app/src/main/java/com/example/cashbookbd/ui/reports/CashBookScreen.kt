@@ -98,7 +98,7 @@ fun CashBookScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -107,9 +107,7 @@ fun CashBookScreen(
                 onApply = viewModel::apply,
             )
 
-            Box(modifier = Modifier.weight(1f)) {
-                CashBookResults(state = uiState, onRetry = viewModel::apply)
-            }
+            CashBookResults(state = uiState, onRetry = viewModel::apply)
         }
     }
 }
@@ -255,8 +253,8 @@ private fun CashBookResults(state: CashBookUiState, onRetry: () -> Unit) {
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
@@ -391,6 +389,8 @@ private fun CashBookTable(rows: List<CashBookRow>) {
         columns = columns,
         data = rows,
         rowBackground = { row, _ -> if (row.isSummary) summaryBg else null },
+        // The page scrolls; the table wraps its own height.
+        scrollable = false,
     )
 
     viewing?.let { attachment ->

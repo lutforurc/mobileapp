@@ -326,11 +326,10 @@ fun CustomerSalesScreen(
         navController = navController,
         onLogout = onLogout,
     ) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -444,6 +443,7 @@ private fun CustomerSalesTable(built: CustomerSalesBuilt) {
                 ReportFooterCell(cellText(kitMoney(built.totalAmount), bold = true)),
             ),
         ),
+        scrollable = false,
     )
 }
 

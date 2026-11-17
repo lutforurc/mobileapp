@@ -19,12 +19,13 @@ object DrawerMenus {
     val all: List<DrawerMenuDef> = listOf(
         DrawerMenuDef("dashboard", "Dashboard"),
         // Mobile's flat drawer gives the web Dashboard group's second page a row.
-        DrawerMenuDef("delivery_dashboard", "Delivery Dashboard"),
+        DrawerMenuDef("delivery_dashboard", "Delivery System"),
         DrawerMenuDef("reseller", "Reseller Dashboard"),
         DrawerMenuDef("transaction", "Transaction"),
         DrawerMenuDef("invoice", "Invoice"),
         DrawerMenuDef("branch-transfer", "Branch Transfer"),
         DrawerMenuDef("reports", "Reports"),
+        DrawerMenuDef("financial_statement", "Financial Statement"),
         DrawerMenuDef("product_tracking", "Product Tracking"),
         DrawerMenuDef("company_scheme", "Company Scheme"),
         DrawerMenuDef("requisition", "Requisition"),
@@ -39,8 +40,8 @@ object DrawerMenus {
         DrawerMenuDef("hrm", "HRM"),
         DrawerMenuDef("customer-supplier", "Customers"),
         DrawerMenuDef("al-charts", "Analytics"),
-        DrawerMenuDef("subscription", "Subscription"),
         DrawerMenuDef("legacy", "Old Software"),
+        DrawerMenuDef("subscription", "Subscription"),
     )
 
     fun titleOf(id: String): String? = all.firstOrNull { it.id == id }?.title

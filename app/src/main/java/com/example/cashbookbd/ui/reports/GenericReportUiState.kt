@@ -27,6 +27,21 @@ data class GenericReportUiState(
     /** Raw keys (lowercase) summed into the footer Total row; empty = none. */
     val totalColumns: List<String> = emptyList(),
     val totalRowLabel: String = "Total",
+    /** The Ledger Details footer: one right-aligned line, web-style. */
+    val ledgerFooter: Boolean = false,
+    /** The free-text Search box over the rows (Stock Details). */
+    val showSearch: Boolean = false,
+    val searchFilterHint: String = "Search product name or code…",
+    val searchQuery: String = "",
+    /** The query the report is drawn through — set when Apply is pressed. */
+    val appliedSearch: String = "",
+    /** Column keys drawn wider / narrower than the default (case-insensitive). */
+    val wideColumns: List<String> = emptyList(),
+    val narrowColumns: List<String> = emptyList(),
+    /** Exact widths in dp by raw column key. */
+    val columnWidths: Map<String, Int> = emptyMap(),
+    /** Column keys kept left-aligned whatever their values look like. */
+    val leftAlignColumns: List<String> = emptyList(),
     /** False when this report's filters aren't yet available in the mobile app. */
     val isSupported: Boolean = true,
     val showStartDate: Boolean = true,

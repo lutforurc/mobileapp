@@ -53,7 +53,7 @@ fun CashFlowStatementScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,8 +97,7 @@ private fun CashFlowContent(state: CashFlowStatementUiState) {
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {

@@ -227,7 +227,7 @@ fun GroupReportScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,7 +288,7 @@ fun GroupReportScreen(
                 }
 
                 !state.hasApplied -> Box(
-                    Modifier.fillMaxSize().padding(32.dp),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -299,7 +299,7 @@ fun GroupReportScreen(
                 }
 
                 state.isLoading && state.report == null -> Box(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
@@ -325,8 +325,7 @@ private fun GroupReportBody(report: GroupReport) {
     }
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .fillMaxWidth(),
     ) {
         report.sections.forEach { section ->
             Text(

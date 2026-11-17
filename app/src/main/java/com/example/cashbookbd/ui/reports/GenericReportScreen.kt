@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cashbookbd.ui.components.FilterActions
+import com.example.cashbookbd.ui.components.AppTextField
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
 import com.example.cashbookbd.ui.components.SecondaryButton
@@ -76,6 +79,7 @@ import com.example.cashbookbd.ui.components.VoucherImageViewerDialog
 import com.example.cashbookbd.ui.components.openVoucherAttachment
 import com.example.cashbookbd.report.ReportCell
 import com.example.cashbookbd.report.ReportRow
+import com.example.cashbookbd.report.ReportResult
 import com.example.cashbookbd.report.ReportSelectorSource
 import com.example.cashbookbd.report.matchHighlightRule
 import com.example.cashbookbd.ui.components.highlightColor
@@ -135,7 +139,7 @@ fun GenericReportScreen(
             return@AuthenticatedShell
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -147,11 +151,10 @@ fun GenericReportScreen(
                 onMonthYear = viewModel::onMonthYearSelected,
                 onStartDate = viewModel::onStartDateSelected,
                 onEndDate = viewModel::onEndDateSelected,
+                onSearch = viewModel::onSearchChanged,
                 onApply = viewModel::apply,
             )
-            Box(modifier = Modifier.weight(1f)) {
-                ReportResults(state = uiState, onRetry = viewModel::apply, editor = editor)
-            }
+            ReportResults(state = uiState, onRetry = viewModel::apply, editor = editor)
         }
     }
 }
@@ -168,6 +171,7 @@ private fun FilterCard(
     onMonthYear: (MonthYear) -> Unit,
     onStartDate: (SimpleDate) -> Unit,
     onEndDate: (SimpleDate) -> Unit,
+    onSearch: (String) -> Unit,
     onApply: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -217,6 +221,17 @@ private fun FilterCard(
                     onSelected = { onSelectorSelected(field.config.paramKey, it) },
                 )
             }
+        }
+
+        if (state.showSearch) {
+            Spacer(Modifier.height(12.dp))
+            AppTextField(
+                value = state.searchQuery,
+                onValueChange = onSearch,
+                label = state.searchFilterHint,
+                caption = "Search",
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         if (state.showLedger) {
@@ -577,11 +592,36 @@ private fun ReportRowList(
     editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
 ) {
     val result = state.result ?: return
-    val table = remember(result.rows, state.totalColumns) {
-        buildTable(result.rows, state.totalColumns, state.totalRowLabel)
+    // The Search box narrows the rows in place — name or code, case-insensitive —
+    // the same way the web's Stock Details filters in the browser.
+    val shownRows = remember(result.rows, state.appliedSearch) {
+        val needle = state.appliedSearch.trim()
+        if (needle.isBlank()) {
+            result.rows
+        } else {
+            result.rows.filter { row ->
+                row.cells.any { cell ->
+                    cell.value.contains(needle, ignoreCase = true) ||
+                        cell.label.contains(needle, ignoreCase = true)
+                }
+            }
+        }
+    }
+    val table = remember(shownRows, state.totalColumns, state.ledgerFooter) {
+        buildTable(
+            shownRows,
+            // The Ledger Details footer is one summary line, not a figure under
+            // each column, so the per-column totals are suppressed for it.
+            totalColumns = if (state.ledgerFooter) emptyList() else state.totalColumns,
+            totalRowLabel = state.totalRowLabel,
+            wideColumns = state.wideColumns,
+            narrowColumns = state.narrowColumns,
+            columnWidths = state.columnWidths,
+            leftAlignColumns = state.leftAlignColumns,
+        )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         if (result.summary.isNotEmpty()) {
             SummaryBoxes(result.summary)
         }
@@ -594,7 +634,11 @@ private fun ReportRowList(
                 )
             }
         } else {
-            GenericReportTable(table, editor)
+            GenericReportTable(
+                table = table,
+                editor = editor,
+                ledgerFooterLine = if (state.ledgerFooter) ledgerFooterLine(result) else null,
+            )
         }
     }
 }
@@ -733,6 +777,8 @@ private fun KpiCard(style: KpiStyle, value: String, modifier: Modifier = Modifie
 private fun GenericReportTable(
     table: TableModel,
     editor: com.example.cashbookbd.ui.components.VoucherRowEditor? = null,
+    /** The Ledger Details one-line footer (Opening … Closing); null elsewhere. */
+    ledgerFooterLine: String? = null,
 ) {
     val rules = rememberHighlightRules()
     val brand = MaterialTheme.brand
@@ -774,27 +820,51 @@ private fun GenericReportTable(
             editor = editable,
         )
     }
-    val footerRows = table.footer?.let { footer ->
-        listOf(
-            buildList {
-                // The label sits in the table's own Sl column.
-                add(ReportFooterCell(cellText(table.footerLabel, bold = true)))
-                footer.forEachIndexed { ci, value ->
-                    add(
-                        if (value.isEmpty()) {
-                            ReportFooterCell(ReportTableCell.Empty)
-                        } else {
-                            ReportFooterCell(cellText(value, bold = true, align = TextAlign.End))
-                        }
-                    )
-                }
-                if (showVouchers) add(ReportFooterCell(ReportTableCell.Empty))
-                if (editable != null) add(ReportFooterCell(ReportTableCell.Empty))
-            }
+    val footerRows = when {
+        ledgerFooterLine != null -> listOf(
+            listOf(
+                ReportFooterCell(
+                    cell = cellText(
+                        text = ledgerFooterLine,
+                        align = TextAlign.End,
+                        bold = true,
+                        maxLines = 4,
+                    ),
+                    colSpan = 1 + table.columns.size +
+                        (if (showVouchers) 1 else 0) +
+                        (if (editable != null) 1 else 0),
+                )
+            )
         )
-    }.orEmpty()
+        else -> table.footer?.let { footer ->
+            listOf(
+                buildList {
+                    // The label sits in the table's own Sl column.
+                    add(ReportFooterCell(cellText(table.footerLabel, bold = true)))
+                    footer.forEachIndexed { ci, value ->
+                        add(
+                            if (value.isEmpty()) {
+                                ReportFooterCell(ReportTableCell.Empty)
+                            } else {
+                                ReportFooterCell(cellText(value, bold = true, align = TextAlign.End))
+                            }
+                        )
+                    }
+                    if (showVouchers) add(ReportFooterCell(ReportTableCell.Empty))
+                    if (editable != null) add(ReportFooterCell(ReportTableCell.Empty))
+                }
+            )
+        }.orEmpty()
+    }
 
-    ReportTable(columns = columns, data = table.rows, footerRows = footerRows)
+    ReportTable(
+        columns = columns,
+        data = table.rows,
+        footerRows = footerRows,
+        // The page itself scrolls (the Daily Account Book pattern): the table
+        // wraps its content height so the filters can travel up out of the way.
+        scrollable = false,
+    )
 
     viewing?.let { attachment ->
         VoucherImageViewerDialog(
@@ -831,7 +901,9 @@ private fun buildGenericColumns(
         add(
             ReportColumn(
                 header = label,
-                width = ReportColWidth.Fixed(if (numeric) 112.dp else 172.dp),
+                width = ReportColWidth.Fixed(
+                    table.widths.getOrNull(ci) ?: if (numeric) 112.dp else 172.dp
+                ),
                 align = align,
             ) { row, index ->
                 cellText(
@@ -923,6 +995,8 @@ private data class TableModel(
     val serials: List<String> = emptyList(),
     /** Per row, its voucher for the ACTION column (null = none). */
     val edits: List<com.example.cashbookbd.navigation.VoucherEditRow?> = emptyList(),
+    /** Per column, a width the report asked for; null = the default by type. */
+    val widths: List<Dp?> = emptyList(),
 )
 
 /**
@@ -934,11 +1008,25 @@ private fun buildTable(
     rows: List<ReportRow>,
     totalColumns: List<String> = emptyList(),
     totalRowLabel: String = "Total",
+    wideColumns: List<String> = emptyList(),
+    narrowColumns: List<String> = emptyList(),
+    columnWidths: Map<String, Int> = emptyMap(),
+    leftAlignColumns: List<String> = emptyList(),
 ): TableModel {
     val columnOrder = LinkedHashSet<String>()
     rows.forEach { row -> row.cells.forEach { columnOrder.add(it.label) } }
     // Drop any serial/SL column the API sends — the table renders its own "Sl. No.".
     val columns = columnOrder.filterNot { isSerialColumn(it) }
+
+    // A column's raw key, from the first row that carries one (the header is the
+    // display label, so the key has to be read through this map).
+    val keyByLabel = buildMap {
+        rows.forEach { row ->
+            row.cells.forEach { cell ->
+                if (cell.key.isNotBlank()) putIfAbsent(cell.label, cell.key)
+            }
+        }
+    }
 
     val matrix = rows.map { row ->
         val byLabel = row.cells.associate { it.label to it.value }
@@ -947,7 +1035,18 @@ private fun buildTable(
 
     val numeric = columns.indices.map { col ->
         val values = matrix.mapNotNull { it[col].takeIf { v -> v.isNotBlank() } }
-        values.isNotEmpty() && values.all { isNumericCell(it) }
+        val looksNumeric = values.isNotEmpty() && values.all { isNumericCell(it) }
+        looksNumeric && keyByLabel[columns[col]] !in leftAlignColumns
+    }
+
+    val widths = columns.map { label ->
+        val key = keyByLabel[label]
+        when {
+            key != null && columnWidths.containsKey(key) -> columnWidths.getValue(key).dp
+            key in wideColumns -> 320.dp
+            key in narrowColumns -> 64.dp
+            else -> null
+        }
     }
 
     // The web tfoot: the configured raw keys, summed down the column. The
@@ -956,13 +1055,6 @@ private fun buildTable(
     val footer: List<String>? = if (totalColumns.isEmpty() || rows.isEmpty()) {
         null
     } else {
-        val keyByLabel = buildMap {
-            rows.forEach { row ->
-                row.cells.forEach { cell ->
-                    if (cell.key.isNotBlank()) putIfAbsent(cell.label, cell.key)
-                }
-            }
-        }
         columns.map { label ->
             if (keyByLabel[label] !in totalColumns) {
                 ""
@@ -988,6 +1080,7 @@ private fun buildTable(
         footer = footer,
         footerLabel = totalRowLabel,
         summaryRows = rows.map { it.isSummary },
+        widths = widths,
         serials = run {
             // Numbered within each band; the summary line takes no number.
             var n = 0
@@ -1000,12 +1093,58 @@ private fun buildTable(
 private fun parseCellNumber(value: String): Double =
     value.trim().substringBefore(' ').replace(",", "").toDoubleOrNull() ?: 0.0
 
+/**
+ * The Ledger Details footer, the web's rule (ledgerWithProductUtils
+ * `getFooterTotals`): Opening, the two quantity and amount pairs when they are
+ * not nothing, Inv. Amt, Debit, Credit, and
+ * `Closing = Opening + Sal. Amt − Pur. Amt − Inv. Amt + Debit − Credit`.
+ * The opening row takes no part in the sums.
+ */
+private fun ledgerFooterLine(result: ReportResult): String {
+    val summary = result.summary.associate { it.key.lowercase(java.util.Locale.US) to it.value }
+    fun summaryNum(vararg keys: String): Double? = keys.firstNotNullOfOrNull { key ->
+        summary[key]?.let { parseCellNumber(it) }
+    }
+    fun rowSum(key: String): Double = result.rows
+        .filterNot { it.isSummary }
+        .sumOf { row ->
+            row.cells.firstOrNull { it.key.equals(key, ignoreCase = true) }
+                ?.value?.let { parseCellNumber(it) } ?: 0.0
+        }
+
+    val opening = summaryNum("opening_balance", "opening") ?: 0.0
+    val purchaseQty = summaryNum("purchase_qty") ?: 0.0
+    val salesQty = summaryNum("sales_qty") ?: 0.0
+    val purchaseAmt = summaryNum("purchase_amt") ?: rowSum("purchase_total")
+    val salesAmt = summaryNum("sales_amt") ?: rowSum("sales_total")
+    val invAmt = summaryNum("inv_amt") ?: rowSum("inv_amt")
+    val debit = rowSum("debit")
+    val credit = rowSum("credit")
+    val closing = Math.round(
+        (opening + salesAmt - purchaseAmt - invAmt + debit - credit) * 100.0,
+    ) / 100.0
+
+    return buildList {
+        add("Opening: " + if (opening == 0.0) "-" else AmountFormat.format(opening))
+        if (purchaseQty > 0) add("Pur. Qty: " + AmountFormat.format(purchaseQty))
+        if (salesQty > 0) add("Sal. Qty: " + AmountFormat.format(salesQty))
+        if (purchaseAmt > 0) add("Pur. Amt: " + AmountFormat.format(purchaseAmt))
+        if (salesAmt > 0) add("Sal. Amt: " + AmountFormat.format(salesAmt))
+        add("Inv. Amt: " + AmountFormat.format(invAmt))
+        add("Debit: " + AmountFormat.format(debit))
+        add("Credit: " + AmountFormat.format(credit))
+        add("Closing: " + AmountFormat.format(closing))
+    }.joinToString("   ·   ")
+}
+
 @Composable
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            // Inside a scrolling page, so it takes its own content height rather
+            // than filling an unmeasured screen.
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }

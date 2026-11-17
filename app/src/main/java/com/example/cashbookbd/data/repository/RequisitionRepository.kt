@@ -29,7 +29,12 @@ data class RequisitionItemOption(
     val unit: String,
     /** The purchase price the form pre-fills (`label_4`); null when absent. */
     val purchasePrice: Double?,
-)
+    /** The product's own code, when the server sends one. */
+    val code: String = "",
+) {
+    /** "CODE - NAME" when a code exists, the bare name otherwise. */
+    val label: String get() = com.example.cashbookbd.core.ProductLabel.of(code, name)
+}
 
 /** One pending line of a requisition batch. Day/qty/price stay the typed strings. */
 data class RequisitionLine(
@@ -111,6 +116,7 @@ class RequisitionRepository(
                 type = o.text("label_2"),
                 unit = o.text("label_3"),
                 purchasePrice = o.text("label_4").replace(",", "").toDoubleOrNull(),
+                code = o.text("code"),
             )
         }
     }

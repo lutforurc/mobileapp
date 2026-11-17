@@ -98,6 +98,7 @@ private fun NavHostController.openTransaction(item: TransactionItem) {
         // The web's Installments page (receive per row) — the Due Installments
         // report stays under Reports.
         item.key == "installments" -> Routes.INSTALLMENTS
+        item.key == "purchaseAdvance" -> Routes.PURCHASE_ADVANCE
         item.key == com.example.cashbookbd.hotel.HotelMenu.ASSET_PURCHASE_KEY ->
             com.example.cashbookbd.hotel.HotelMenu.ROUTE_ASSET_PURCHASE
         else -> Routes.txnView(item.key)

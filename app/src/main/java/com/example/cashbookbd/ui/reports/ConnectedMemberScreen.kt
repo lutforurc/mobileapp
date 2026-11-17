@@ -3,6 +3,8 @@ package com.example.cashbookbd.ui.reports
 import android.app.DatePickerDialog
 import android.content.Context
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -296,7 +298,7 @@ fun ConnectedMemberScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -358,7 +360,7 @@ fun ConnectedMemberScreen(
                 }
 
                 !state.hasApplied -> Box(
-                    Modifier.fillMaxSize().padding(32.dp),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -369,7 +371,7 @@ fun ConnectedMemberScreen(
                 }
 
                 state.isLoading && state.groups.isEmpty() -> Box(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
@@ -578,6 +580,7 @@ private fun ConnectedMemberTable(
         data = rows,
         footerRows = footerRows,
         rowBackground = { row, _ -> if (row is CmRow.Group) groupBg else null },
+        scrollable = false,
     )
 }
 

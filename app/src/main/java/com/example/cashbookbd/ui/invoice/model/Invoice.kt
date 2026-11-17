@@ -40,7 +40,8 @@ data class InvoiceProduct(
      * sharing a name are told apart before one is picked. The bare name when
      * the product has no code.
      */
-    val dropdownLabel: String get() = if (code.isNotBlank()) "$code — $name" else name
+    val dropdownLabel: String
+        get() = com.example.cashbookbd.core.ProductLabel.of(code, name)
 }
 
 /** One added line of the Combined (purchase + sales) invoice. */

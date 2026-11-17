@@ -92,6 +92,14 @@ private val STAY_KINDS = listOf(
     SelectorOption("house_use", "House use — the property's own people"),
 )
 
+/** How an advance was paid; each narrows the account list that follows. */
+private val ADVANCE_METHODS = listOf(
+    SelectorOption("cash", "Cash"),
+    SelectorOption("bank", "Bank"),
+    SelectorOption("card", "Card"),
+    SelectorOption("mobile", "Mobile"),
+)
+
 data class HotelNewBookingUiState(
     val checkIn: SimpleDate = SimpleDate.today(),
     val checkOut: SimpleDate = SimpleDate.today().plusDays(1),
@@ -122,6 +130,22 @@ data class HotelNewBookingUiState(
     /** What the property already knows about the mobile being typed. */
     val returning: HotelReturningGuest? = null,
 
+    /**
+     * May this person take money while booking? The same permission as
+     * Folio → Receive (hotel.folio.bill), because an advance taken here is that
+     * same receipt and voucher.
+     */
+    val canTakeMoney: Boolean = false,
+    /** The company's cash and bank heads (`folio/tills`), loaded when first needed. */
+    val tills: List<com.example.cashbookbd.data.repository.HotelTill> = emptyList(),
+
+    // Money taken while booking — an ADVANCE, the same receipt Folio > Receive
+    // writes. Empty amount means none.
+    val advanceAmount: String = "",
+    val advanceMethod: String = "cash",
+    val advanceTillId: Long? = null,
+    val advanceReference: String = "",
+
     val isSaving: Boolean = false,
     val message: String? = null,
     val saved: Boolean = false,
@@ -131,23 +155,54 @@ data class HotelNewBookingUiState(
 
     val isCorporate: Boolean get() = bookingType == "corporate"
 
+    /**
+     * ⚠️ An advance only with a new, charged booking. A complimentary or
+     * house-use stay has nothing to take an advance against, and no room picked
+     * means there is nothing to charge for.
+     */
+    val canTakeAdvance: Boolean
+        get() = canTakeMoney && hasPicked && stayKind == "paid"
+
+    val advance: Double get() = advanceAmount.trim().toDoubleOrNull() ?: 0.0
+
+    /** Which accounts "How" offers: cash → cash heads, bank/card → bank, mobile → both. */
+    val advanceSide: String?
+        get() = when (advanceMethod) {
+            "cash" -> "cash"
+            "bank", "card" -> "bank"
+            else -> null
+        }
+
+    val tillOptions: List<com.example.cashbookbd.data.repository.HotelTill>
+        get() = tills.filter { advanceSide == null || it.side == advanceSide }
+
+    /** The chosen till, or the first of the list while none has been picked. */
+    val advanceTill: Long?
+        get() = advanceTillId?.takeIf { id -> tillOptions.any { it.id == id } }
+            ?: tillOptions.firstOrNull()?.id
+
     val canSave: Boolean
         get() = hasPicked && bookerName.isNotBlank() && !isSaving &&
             // Refused server-side anyway; said here so the button explains
             // itself rather than the save coming back with a sentence.
             (!isCorporate || companyName.isNotBlank()) &&
-            (stayKind == "paid" || stayKindReason.isNotBlank())
+            (stayKind == "paid" || stayKindReason.isNotBlank()) &&
+            (advance <= 0 || advanceTill != null)
 }
 
 class HotelNewBookingViewModel(
     private val repository: HotelRepository,
+    private val canTakeMoney: Boolean = false,
+    /** The same till list Folio → Receive reads; null when the caller cannot take money. */
+    private val tillRepository: com.example.cashbookbd.data.repository.HotelFolioRepository? = null,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HotelNewBookingUiState())
+    private val _uiState = MutableStateFlow(HotelNewBookingUiState(canTakeMoney = canTakeMoney))
     val uiState: StateFlow<HotelNewBookingUiState> = _uiState.asStateFlow()
 
     init {
         loadAvailability()
+        loadTills()
     }
 
     fun onCheckIn(date: SimpleDate) {
@@ -276,6 +331,41 @@ class HotelNewBookingViewModel(
     fun onStayKind(kind: String) = _uiState.update { it.copy(stayKind = kind) }
     fun onStayKindReason(v: String) = _uiState.update { it.copy(stayKindReason = v.take(255)) }
 
+    fun onAdvanceAmount(v: String) =
+        _uiState.update { it.copy(advanceAmount = v.filter { c -> c.isDigit() || c == '.' }) }
+
+    fun onAdvanceMethod(method: String) = _uiState.update {
+        // A new way of paying is a new list of accounts: the old choice is
+        // dropped, and the first of the new list is taken until one is picked.
+        it.copy(advanceMethod = method, advanceTillId = null)
+    }
+
+    fun onAdvanceTill(option: SelectorOption) =
+        _uiState.update { it.copy(advanceTillId = option.id.toLongOrNull()) }
+
+    fun onAdvanceReference(v: String) = _uiState.update { it.copy(advanceReference = v.take(255)) }
+
+    /**
+     * The company's cash and bank heads, read once. Read only where money may
+     * be taken — the endpoint is behind hotel.folio.bill.
+     */
+    private fun loadTills() {
+        val repo = tillRepository ?: return
+        if (!canTakeMoney) return
+        viewModelScope.launch {
+            when (val result = repo.fetchTills()) {
+                is Resource.Success -> _uiState.update { it.copy(tills = result.data) }
+                is Resource.Error -> _uiState.update {
+                    it.copy(
+                        message = result.message,
+                        sessionExpired = it.sessionExpired || result.isUnauthorized,
+                    )
+                }
+                Resource.Loading -> Unit
+            }
+        }
+    }
+
     fun save() {
         val state = _uiState.value
         if (!state.canSave) return
@@ -296,6 +386,13 @@ class HotelNewBookingViewModel(
                 billName = state.companyName.trim().takeIf { state.isCorporate },
                 stayKind = state.stayKind,
                 stayKindReason = state.stayKindReason,
+                // Money on the booking travels in the booking's own transaction:
+                // the booking and its advance stand or fall together. Absent
+                // when nothing is taken, which is every booking before this.
+                advanceAmount = state.advance.takeIf { it > 0 && state.canTakeAdvance },
+                advanceMethod = state.advanceMethod,
+                advanceTillId = state.advanceTill.takeIf { state.advance > 0 },
+                advanceReference = state.advanceReference,
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -321,6 +418,13 @@ class HotelNewBookingViewModel(
             initializer {
                 HotelNewBookingViewModel(
                     repository = ServiceLocator.provideHotelRepository(context.applicationContext),
+                    canTakeMoney = Permissions.has(
+                        ServiceLocator.provideSessionManager(context.applicationContext).permissions,
+                        "hotel.folio.bill",
+                    ),
+                    tillRepository = com.example.cashbookbd.data.repository.HotelFolioRepository.get(
+                        context.applicationContext,
+                    ),
                 )
             }
         }
@@ -600,6 +704,80 @@ fun HotelNewBookingScreen(
                                     label = "Why",
                                     modifier = Modifier.fillMaxWidth(),
                                     caption = "Who it is for, or on whose word. A free room is a discount, and a discount needs a reason.",
+                                )
+                            }
+                        }
+                    }
+                    if (state.canTakeAdvance) {
+                        item {
+                            Text(
+                                text = "Advance (optional)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = AppFontWeight.Bold,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                        item {
+                            AppTextField(
+                                value = state.advanceAmount,
+                                onValueChange = viewModel::onAdvanceAmount,
+                                label = "0.00",
+                                caption = "Advance amount",
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        if (state.advance > 0) {
+                            item {
+                                AppSelectDropdown(
+                                    label = "How",
+                                    options = ADVANCE_METHODS,
+                                    selected = ADVANCE_METHODS.firstOrNull {
+                                        it.id == state.advanceMethod
+                                    },
+                                    onSelected = { viewModel.onAdvanceMethod(it.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            item {
+                                val tillOptions = state.tillOptions.map {
+                                    SelectorOption(it.id.toString(), it.label)
+                                }
+                                AppSelectDropdown(
+                                    label = "Into which account",
+                                    options = tillOptions,
+                                    selected = state.advanceTill?.let { id ->
+                                        tillOptions.firstOrNull { it.id == id.toString() }
+                                    },
+                                    onSelected = viewModel::onAdvanceTill,
+                                    placeholder = if (tillOptions.isEmpty()) {
+                                        if (state.advanceSide == "cash") {
+                                            "No cash account set up"
+                                        } else {
+                                            "No bank account set up"
+                                        }
+                                    } else {
+                                        "Pick one"
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            item {
+                                AppTextField(
+                                    value = state.advanceReference,
+                                    onValueChange = viewModel::onAdvanceReference,
+                                    label = "bKash TrxID, cheque no…",
+                                    caption = "Reference",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            item {
+                                Text(
+                                    text = "Saved with the booking as an advance receipt " +
+                                        "(Cash/Bank Dr., Advance Against Booking Cr.) — money " +
+                                        "held, not income, until the nights are billed.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.appColors.textOnScreenMuted,
                                 )
                             }
                         }

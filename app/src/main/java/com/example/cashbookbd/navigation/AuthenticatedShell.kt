@@ -136,8 +136,14 @@ fun AuthenticatedShell(
     val inAppState by inAppMessages.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { inAppMessages.ensureLoaded() }
 
-    // The single "Reports" section is shown when the user has any report permission.
-    val canReports = ReportMenu.hasParentAccess(sessionState.permissions)
+    // The single "Reports" section: any report that is not a financial statement.
+    val canReports = ReportMenu.visible(sessionState.permissions)
+        .any { it.key !in com.example.cashbookbd.ui.reports.FINANCIAL_STATEMENT_KEYS }
+    // The web's separate Financial Statement menu.
+    val canFinancial = com.example.cashbookbd.session.Permissions.hasAny(
+        sessionState.permissions,
+        com.example.cashbookbd.ui.reports.FINANCIAL_PARENT_PERMISSIONS,
+    )
     // The "Transaction" section is shown when the user has any transaction permission.
     val canTransactions = TransactionMenu.hasParentAccess(sessionState.permissions)
     // The "Invoice" section is shown when the user has any invoice permission.
@@ -247,6 +253,7 @@ fun AuthenticatedShell(
             AppDrawerContent(
                 currentRoute = currentRoute,
                 canReports = canReports,
+                canFinancial = canFinancial,
                 canTransactions = canTransactions,
                 canInvoices = canInvoices,
                 canVrSettings = canVrSettings,
@@ -394,6 +401,7 @@ private fun openInAppAction(context: Context, action: String?) {
 private fun AppDrawerContent(
     currentRoute: String,
     canReports: Boolean,
+    canFinancial: Boolean,
     canTransactions: Boolean,
     canInvoices: Boolean,
     canVrSettings: Boolean,
@@ -443,7 +451,7 @@ private fun AppDrawerContent(
                 // the main page, on a branch that deducts stock on delivery.
                 if (canDeliveryDashboard) add(
                     DrawerEntry(
-                        "delivery_dashboard", "Delivery Dashboard", Icons.Filled.Share,
+                        "delivery_dashboard", "Delivery System", Icons.Filled.Share,
                         currentRoute == ParityRoutes.DELIVERY_DASHBOARD, ParityRoutes.DELIVERY_DASHBOARD,
                     )
                 )
@@ -459,6 +467,14 @@ private fun AppDrawerContent(
                             currentRoute == Routes.BANKBOOK ||
                             currentRoute == Routes.LEDGER,
                         Routes.REPORTS,
+                    )
+                )
+                // The web's own top-level statements menu, right after Reports.
+                if (canFinancial) add(
+                    DrawerEntry(
+                        "financial_statement", "Financial Statement", FinancialIcon,
+                        currentRoute == com.example.cashbookbd.navigation.ParityRoutes.FINANCIAL_STATEMENT,
+                        com.example.cashbookbd.navigation.ParityRoutes.FINANCIAL_STATEMENT,
                     )
                 )
                 // The web's Product Tracking group sits right after Reports.
@@ -488,14 +504,14 @@ private fun AppDrawerContent(
                 // entries (web 7895207): master data, set up once and opened
                 // rarely — the menus near the top are the ones reached daily.
                 if (canLabourItems) add(DrawerEntry("labour_items", "Labour Items", LabourItemsIcon, currentRoute == Routes.LABOUR_ITEMS, Routes.LABOUR_ITEMS))
-                // "Old Software" — an archived old ERP's own read-only records; nothing here posts to the books.
-                if (canLegacy) add(DrawerEntry("legacy", "Old Software", Icons.Filled.Info, currentRoute == Routes.LEGACY_HOME, Routes.LEGACY_HOME))
                 if (canAdmin) add(DrawerEntry("admin", "Admin", AdminIcon, currentRoute == Routes.ADMIN, Routes.ADMIN))
                 if (canVrSettings) add(DrawerEntry("vr_settings", "VR Settings", VrSettingsIcon, currentRoute == Routes.VR_SETTINGS, Routes.VR_SETTINGS))
                 if (canHrm) add(DrawerEntry("hrm", "HRM", HrmIcon, currentRoute == Routes.HRM, Routes.HRM))
                 if (canCustomers) add(DrawerEntry("customer-supplier", "Customers", Icons.Filled.Person, currentRoute == Routes.CUSTOMERS, Routes.CUSTOMERS))
                 // One screen, like the web's one-item Analytics group.
                 if (canAnalytics) add(DrawerEntry("al-charts", "Analytics", Icons.Filled.Info, currentRoute == Routes.ANALYTICS_COMPARISON, Routes.ANALYTICS_COMPARISON))
+                // "Old Software" — an archived old ERP's own read-only records; nothing here posts to the books.
+                if (canLegacy) add(DrawerEntry("legacy", "Old Software", Icons.Filled.Info, currentRoute == Routes.LEGACY_HOME, Routes.LEGACY_HOME))
                 // Mobile-only tail: the web keeps Subscription in the header menu.
                 if (canSubscription) add(DrawerEntry("subscription", "Subscription", SubscriptionIcon, currentRoute == Routes.SUBSCRIPTION, Routes.SUBSCRIPTION))
             }
@@ -583,10 +599,10 @@ private val TransactionIcon: ImageVector by lazy {
 }
 
 /**
- * The drawer's "Hotel" glyph: a reception desk with the receptionist behind it
- * and a guest's suitcase in front — the check-in idea, rather than the stock
- * AccountBox it used to carry. Drawn here because the core icon set ships no
- * such glyph; stroked and colourless, so the drawer tints it like every item.
+ * The drawer's "Hotel" glyph: a concierge service bell — the desk bell a guest
+ * rings for service. One dome, one base and a small button, so it stays legible
+ * at 24dp and does not repeat the building shape used elsewhere. Stroked and
+ * colourless, so the drawer tints it like every item.
  */
 private val HotelIcon: ImageVector by lazy {
     ImageVector.Builder(
@@ -602,35 +618,28 @@ private val HotelIcon: ImageVector by lazy {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            // The receptionist behind the desk: head, then shoulders.
-            moveTo(7f, 7.4f)
-            arcToRelative(2f, 2f, 0f, false, true, 4f, 0f)
-            arcToRelative(2f, 2f, 0f, false, true, -4f, 0f)
-            close()
-            moveTo(5.9f, 13.6f)
-            arcToRelative(3.1f, 3.1f, 0f, false, true, 6.2f, 0f)
-            // The guest's suitcase, in front of the desk.
-            moveTo(16.8f, 16.8f)
-            arcToRelative(1f, 1f, 0f, false, true, 2f, 0f)
-            moveTo(16f, 16.8f)
-            horizontalLineTo(19.6f)
-            quadTo(20.8f, 16.8f, 20.8f, 18f)
-            verticalLineTo(20f)
-            quadTo(20.8f, 21.2f, 19.6f, 21.2f)
-            horizontalLineTo(16f)
-            quadTo(14.8f, 21.2f, 14.8f, 20f)
-            verticalLineTo(18f)
-            quadTo(14.8f, 16.8f, 16f, 16.8f)
+            // The dome.
+            moveTo(5f, 16.2f)
+            quadTo(5f, 8.3f, 12f, 8.3f)
+            quadTo(19f, 8.3f, 19f, 16.2f)
+            // The bell's button, on its short stem.
+            moveTo(12f, 8.3f)
+            verticalLineTo(6.9f)
+            moveTo(10.9f, 5.9f)
+            arcToRelative(1.1f, 1.1f, 0f, true, true, 2.2f, 0f)
+            arcToRelative(1.1f, 1.1f, 0f, true, true, -2.2f, 0f)
             close()
         }
         path(
             stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2.2f,
+            strokeLineWidth = 1.8f,
             strokeLineCap = StrokeCap.Round,
         ) {
-            // The reception desk.
-            moveTo(3.4f, 14.2f)
-            horizontalLineTo(20.6f)
+            // Two stacked base plates.
+            moveTo(4.2f, 16.4f)
+            horizontalLineTo(19.8f)
+            moveTo(3f, 19.2f)
+            horizontalLineTo(21f)
         }
     }.build()
 }
@@ -721,14 +730,63 @@ private val VrSettingsIcon: ImageVector by lazy {
 }
 
 /**
- * The drawer's "Reports" glyph: a document carrying a bar chart with a
- * magnifying glass beside it — the "analyse the figures" idea, rather than the
- * stock list glyph it used to carry. Drawn here because the core icon set ships
- * no such glyph; stroked and colourless, so the drawer tints it like every item.
+ * The drawer's "Reports" glyph: a rounded sheet carrying three ascending bars
+ * over an axis — the plainest "figures to read" mark there is. The old drawing
+ * paired a document with a large magnifier, which at 24dp read as two unrelated
+ * shapes crowding each other. Stroked and colourless, so the drawer tints it.
  */
 private val ReportsIcon: ImageVector by lazy {
     ImageVector.Builder(
         name = "Reports",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        // The rounded report sheet.
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.7f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 3f)
+            horizontalLineTo(19f)
+            quadTo(21f, 3f, 21f, 5f)
+            verticalLineTo(19f)
+            quadTo(21f, 21f, 19f, 21f)
+            horizontalLineTo(5f)
+            quadTo(3f, 21f, 3f, 19f)
+            verticalLineTo(5f)
+            quadTo(3f, 3f, 5f, 3f)
+            close()
+        }
+        // Three bars, tallest last, sitting on one baseline.
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.8f,
+            strokeLineCap = StrokeCap.Round,
+        ) {
+            moveTo(6.9f, 17f)
+            horizontalLineTo(17.1f)
+            moveTo(8.1f, 17f)
+            verticalLineTo(13.2f)
+            moveTo(12f, 17f)
+            verticalLineTo(9.9f)
+            moveTo(15.9f, 17f)
+            verticalLineTo(7.1f)
+        }
+    }.build()
+}
+
+/**
+ * The drawer's "Financial Statement" glyph: a pie chart — the statements read
+ * the year's figures as shares of one whole. Stroked and colourless like the
+ * rest, so the drawer tints it.
+ */
+private val FinancialIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "FinancialStatement",
         defaultWidth = 24.dp,
         defaultHeight = 24.dp,
         viewportWidth = 24f,
@@ -740,43 +798,14 @@ private val ReportsIcon: ImageVector by lazy {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            // The report sheet.
-            moveTo(4.5f, 3f)
-            horizontalLineTo(10.5f)
-            quadTo(12.5f, 3f, 12.5f, 5f)
-            verticalLineTo(18.5f)
-            quadTo(12.5f, 20.5f, 10.5f, 20.5f)
-            horizontalLineTo(4.5f)
-            quadTo(2.5f, 20.5f, 2.5f, 18.5f)
-            verticalLineTo(5f)
-            quadTo(2.5f, 3f, 4.5f, 3f)
+            moveTo(3f, 12f)
+            arcToRelative(9f, 9f, 0f, true, true, 18f, 0f)
+            arcToRelative(9f, 9f, 0f, true, true, -18f, 0f)
             close()
-        }
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.6f,
-            strokeLineCap = StrokeCap.Round,
-        ) {
-            // The bar chart on the sheet.
-            moveTo(5.2f, 17.6f)
-            verticalLineTo(13.6f)
-            moveTo(7.5f, 17.6f)
-            verticalLineTo(10.6f)
-            moveTo(9.8f, 17.6f)
-            verticalLineTo(8.2f)
-        }
-        path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.7f,
-            strokeLineCap = StrokeCap.Round,
-        ) {
-            // The magnifying glass beside the sheet: lens, then handle.
-            moveTo(21.8f, 14.8f)
-            arcToRelative(4.6f, 4.6f, 0f, false, true, -9.2f, 0f)
-            arcToRelative(4.6f, 4.6f, 0f, false, true, 9.2f, 0f)
-            close()
-            moveTo(20.45f, 18.05f)
-            lineTo(22f, 19.6f)
+            moveTo(12f, 12f)
+            lineTo(12f, 4f)
+            moveTo(12f, 12f)
+            lineTo(19f, 15f)
         }
     }.build()
 }

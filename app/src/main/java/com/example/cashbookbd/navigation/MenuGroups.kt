@@ -33,7 +33,11 @@ object MenuGroups {
     private val REPORTS = listOf(
         Group(
             "Cash & Bank",
-            listOf("cashbook", "bankbook", "cashBankReceivedPayment", "bankInformation", "dateWiseTotal"),
+            listOf(
+                "cashbook", "cashBankBook", "dailyAccountBook", "bankbook",
+                "cashBankReceivedPayment", "bankInformation", "dateWiseTotal",
+                "voucherRegister",
+            ),
         ),
         Group(
             "Ledger & Due",
@@ -42,7 +46,13 @@ object MenuGroups {
                 "ageing", "connectedMember", "groupReport",
             ),
         ),
-        Group("Purchase & Sales", listOf("purchaseLedger", "salesLedger")),
+        Group(
+            "Purchase & Sales",
+            listOf(
+                "purchaseLedger", "salesLedger", "purchaseReturnLedger",
+                "salesReturnLedger", "customerSales", "deliveryReport", "salesReferrer",
+            ),
+        ),
         Group(
             "Stock",
             listOf(
@@ -55,15 +65,18 @@ object MenuGroups {
             listOf("dueInstallments", "employeeInstallments", "collectionSheet", "monthlyReport"),
         ),
         Group("Audit", listOf("auditTrail", "mitchMatch")),
+    )
+
+    /** The web's own top-level Financial Statement menu, in its drawn order. */
+    private val FINANCIAL_STATEMENT = listOf(
         Group(
-            "Financial Statements",
+            "Statements",
             listOf(
-                "profitLoss", "productProfitLoss", "invoiceWiseProfit", "balanceSheet",
-                "trialBalanceLevel3", "trialBalanceLevel4",
-                // The two statements the web puts directly below Trial Balance
-                // Details (react 08ca7cf4).
+                "productProfitLoss", "productProfitSummary", "invoiceWiseProfit",
+                "profitLossDateWise", "monthlyStatement",
+                "trialBalanceLevel4", "trialBalanceLevel3", "trialBalance",
+                "expenseReport", "profitLoss", "balanceSheet", "businessSummary",
                 "cashFlowStatement", "generalLedger",
-                "expenseReport",
             ),
         ),
     )
@@ -71,12 +84,12 @@ object MenuGroups {
     private val TRANSACTION = listOf(
         Group("Cash", listOf("cashReceived", "cashPayment")),
         Group("Bank", listOf("bankReceived", "bankPayment", "bankReconciliation", "chequeRegister")),
-        Group("Journal & Others", listOf("journal", "hotelAssetPurchase", "installments", "employeeLoan")),
+        Group("Journal & Others", listOf("journal", "installments", "employeeLoan")),
         Group("Period End", listOf("budget", "yearClosing")),
     )
 
     private val INVOICE = listOf(
-        Group("Sales", listOf("sales", "salesImport", "salesReturn")),
+        Group("Sales", listOf("sales", "salesImport", "delivery", "salesReturn")),
         Group("Purchase", listOf("purchase", "purchaseImport", "purchaseReturn")),
         Group("Other", listOf("tradingCombined", "labourInvoice")),
     )
@@ -85,15 +98,24 @@ object MenuGroups {
         Group("Transfer", listOf("branchIssue", "branchReceive")),
         Group(
             "Transfer Reports",
-            listOf("transferList", "branchTransferReport", "branchReceiveReport", "branchStockReport"),
+            listOf(
+                "transferList", "receiveList", "branchTransferReport",
+                "branchReceiveReport", "branchStockReport",
+            ),
         ),
+        Group("Product Out", listOf("productOut", "productOutRegister", "productOutReasons")),
+        Group("Product In", listOf("productIn", "productInRegister", "productInReasons")),
         Group("Material", listOf("materialIssue")),
     )
 
     private val PRODUCTS = listOf(
-        Group("Products", listOf("productList")),
-        Group("Classification", listOf("categoryList", "brandList", "productUnit")),
+        Group("Products", listOf("productList", "productOpeningImport")),
+        Group(
+            "Classification",
+            listOf("categoryList", "brandList", "productGroupList", "packSizeList", "productUnit"),
+        ),
         Group("Stock Alerts", listOf("lowStock", "negativeStock", "slowMoving", "warehouseDifference")),
+        Group("Reports", listOf("productStockStatement")),
     )
 
     private val ADMIN = listOf(
@@ -116,7 +138,7 @@ object MenuGroups {
             "Platform",
             listOf(
                 "resellers", "adminNotifications", "inAppMessages", "businessTypes",
-                "inventorySystems", "tutorialVideos",
+                "inventorySystems", "tutorialVideos", "websiteTemplates",
             ),
         ),
         Group("SMS", listOf("smsLogs", "smsTemplates")),
@@ -157,12 +179,11 @@ object MenuGroups {
     )
 
     private val HOTEL = listOf(
-        Group("Bookings", listOf("hotelBookings", "hotelHallBookings", "hotelCalendar")),
+        Group("Bookings", listOf("hotelBookings", "hotelCalendar")),
         Group(
             "Operations",
             listOf("hotelHousekeeping", "hotelAmenityIssue"),
         ),
-        Group("Accounts", listOf("hotelReceivedEntry", "hotelPaymentEntry")),
         Group("Reports & Setup", listOf("hotelReports", "hotelSetup")),
     )
 
@@ -179,11 +200,19 @@ object MenuGroups {
     /** Keyed by the drawer/menu id the section-home screens pass in. */
     /** Production (Manufacturing): the web puts all nine entries in one group. */
     private val PRODUCTION = listOf(
-        Group("Production", listOf("productionRegister")),
+        Group(
+            "Production",
+            listOf(
+                "productionEntry", "productionSales", "productionPurchase",
+                "productionSalesReturn", "productionScheme", "productionRecipe",
+                "productionRegister", "productionFreeGoods", "productionExpiry",
+            ),
+        ),
     )
 
     val menus: Map<String, List<Group>> = mapOf(
         "reports" to REPORTS,
+        "financial_statement" to FINANCIAL_STATEMENT,
         "production" to PRODUCTION,
         "transaction" to TRANSACTION,
         "invoice" to INVOICE,

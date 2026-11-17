@@ -215,7 +215,11 @@ data class ProjectProductOption(
     val id: Int,
     val name: String,
     val price: Double?,
-)
+    /** The product's own code; blank when it has none. */
+    val code: String = "",
+) {
+    val label: String get() = com.example.cashbookbd.core.ProductLabel.of(code, name)
+}
 
 /** Project Summary — one row per project, costless projects included with zeros. */
 data class ProjectSummaryRow(
@@ -379,6 +383,7 @@ class ProjectCostRepository(
                     id = id,
                     name = o.str("label") ?: id.toString(),
                     price = o.str("label_3")?.replace(",", "")?.toDoubleOrNull(),
+                    code = o.str("code").orEmpty(),
                 )
             }
         }

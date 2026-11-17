@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -328,7 +330,7 @@ fun DueInstallmentsScreen(
         modifier = modifier,
     ) {
         val onScreen = MaterialTheme.colorScheme.onBackground
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -397,7 +399,7 @@ fun DueInstallmentsScreen(
                 }
             }
 
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 when {
                     state.isLoading -> CenteredBox { CircularProgressIndicator(color = onScreen) }
 
@@ -428,6 +430,7 @@ fun DueInstallmentsScreen(
                     else -> ReportTable(
                         columns = dueInstallmentColumns(viewModel),
                         data = state.rows,
+                        scrollable = false,
                     )
                 }
             }
@@ -610,7 +613,7 @@ private fun StackedAmountCell(row: InstallmentRow, onScreen: androidx.compose.ui
 @Composable
 private fun CenteredBox(content: @Composable () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }

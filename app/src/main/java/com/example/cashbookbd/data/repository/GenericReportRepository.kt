@@ -188,7 +188,9 @@ class GenericReportRepository(
         val voucherKeys = config.voucherImages?.let {
             listOfNotNull(it.imageKey, it.branchIdKey, it.branchPadKey)
         }.orEmpty()
-        val hidden = (config.hiddenColumns + voucherKeys).map { it.lowercase(Locale.US) }.toSet()
+        val hidden = (config.hiddenColumns + voucherKeys + config.productCodeColumns.takeIf {
+            config.productLabelColumn != null
+        }.orEmpty()).map { it.lowercase(Locale.US) }.toSet()
         val zeroDash = config.zeroDashColumns.map { it.lowercase(Locale.US) }.toSet()
         val unitKey = config.unitColumn?.lowercase(Locale.US)
         val labels = config.columnLabels.mapKeys { it.key.lowercase(Locale.US) }
@@ -203,17 +205,17 @@ class GenericReportRepository(
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload)
                 .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
-                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
+                .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
                 .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
                 .let { rows ->
                     val key = config.groupByColumn
                     if (config.stockGroupSummary && key != null) rows.withStockGroupSummaries(key) else rows
                 }
-            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
+            ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
                 val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
-                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn) }
+                rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
             }
         }
         return built.withPhoneFormat(config).withVehicleFormat(config)
@@ -504,6 +506,10 @@ class GenericReportRepository(
         replace: Map<String, String> = emptyMap(),
         replaceValues: Map<String, String> = emptyMap(),
         invoiceAmountKey: String? = null,
+        /** The cell that reads "CODE - NAME" (product_name), already lowercase. */
+        productLabelKey: String? = null,
+        /** Where the code is read from, already lowercase. */
+        productCodeKeys: List<String> = emptyList(),
     ): ReportRow = when {
         isJsonObject -> {
             val obj = asJsonObject
@@ -514,6 +520,22 @@ class GenericReportRepository(
                 .orEmpty()
             val highlightText = extractHighlightText(this, highlightPaths)
             var highlightLabel: String? = null
+            // The product's code, read before the code cells are dropped: it
+            // rides in front of the name ("CODE - NAME") instead of a column.
+            val productCode = if (productLabelKey != null) {
+                // The configured names first; then any key that plainly is a
+                // code ("item_code", "product_code_no"), so a report whose
+                // payload words it differently still reads "CODE - NAME".
+                val exact = obj.entrySet().firstOrNull {
+                    it.key.lowercase(Locale.US) in productCodeKeys
+                }
+                val named = exact ?: obj.entrySet().firstOrNull {
+                    it.key.lowercase(Locale.US).contains("code")
+                }
+                named?.value?.let { rawText(it) }.orEmpty()
+            } else {
+                ""
+            }
             val cells = obj.entrySet()
                 .filterNot { it.key.lowercase(Locale.US) in hidden }
                 .map { entry ->
@@ -524,6 +546,9 @@ class GenericReportRepository(
                         keyLower in text -> rawText(entry.value)
                         keyLower in zeroDash -> formatAmount(entry.value, unit)
                         else -> formatValue(entry.value)
+                    }
+                    if (productLabelKey != null && keyLower == productLabelKey) {
+                        value = com.example.cashbookbd.core.ProductLabel.of(productCode, value)
                     }
                     val header = labels[keyLower] ?: humanize(entry.key)
                     if (keyLower == highlightKey) {

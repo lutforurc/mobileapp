@@ -252,7 +252,7 @@ fun CashBankScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -262,9 +262,7 @@ fun CashBankScreen(
                 onReset = viewModel::reset,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Box(modifier = Modifier.weight(1f)) {
-                Results(state = uiState, onRetry = viewModel::apply)
-            }
+            Results(state = uiState, onRetry = viewModel::apply)
         }
     }
 }
@@ -404,9 +402,7 @@ private fun ReportContent(report: CashBankReport, range: String?) {
     // Both tables scroll together: the bank-wise breakdown belongs under the
     // summary, not in a pane of its own, so each table gives up its own scroll.
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -595,8 +591,8 @@ private fun totalCell(value: Double): ReportFooterCell =
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }

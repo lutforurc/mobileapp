@@ -49,6 +49,15 @@ class GenericReportViewModel(
             title = config?.title ?: "Report",
             totalColumns = config?.totalColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
             totalRowLabel = config?.totalRowLabel ?: "Total",
+            ledgerFooter = config?.ledgerFooter == true,
+            showSearch = config?.searchFilter == true,
+            searchFilterHint = config?.searchFilterHint ?: "Search product name or code…",
+            wideColumns = config?.wideColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
+            narrowColumns = config?.narrowColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
+            columnWidths = config?.columnWidths.orEmpty()
+                .mapKeys { it.key.lowercase(java.util.Locale.US) },
+            leftAlignColumns = config?.leftAlignColumns.orEmpty()
+                .map { it.lowercase(java.util.Locale.US) },
             isSupported = config?.isGenericSupported == true,
             showStartDate = config?.startParam != null,
             showEndDate = config?.endParam != null,
@@ -218,20 +227,32 @@ class GenericReportViewModel(
         _uiState.update { it.copy(endDate = date) }
     }
 
+    fun onSearchChanged(value: String) {
+        _uiState.update { it.copy(searchQuery = value) }
+    }
+
     fun apply() {
         val cfg = config ?: return
         val state = _uiState.value
         val branch = state.selectedBranch ?: return
         if (state.isReportLoading) return
 
-        _uiState.update { it.copy(isReportLoading = true, reportError = null) }
+        // The box takes effect when the report is asked for, like the web's
+        // Apply — never per keystroke, which would move rows under the eye.
+        _uiState.update {
+            it.copy(isReportLoading = true, reportError = null, appliedSearch = it.searchQuery)
+        }
 
         // Selected dropdown values, keyed by the endpoint param (id, or label text
         // when the selector is configured to send its label, e.g. product_name).
         val selectorValues = state.selectors
             .mapNotNull { field ->
                 val chosen = field.selected ?: return@mapNotNull null
-                field.config.paramKey to if (field.config.sendLabel) chosen.label else chosen.id
+                field.config.paramKey to if (field.config.sendLabel) {
+                    chosen.sendValue ?: chosen.label
+                } else {
+                    chosen.id
+                }
             }
             .toMap()
 

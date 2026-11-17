@@ -143,7 +143,7 @@ class StockSlipRegisterViewModel(
 
     suspend fun searchProducts(q: String): Resource<List<SelectorOption>> =
         when (val r = requisition.searchItems(q)) {
-            is Resource.Success -> Resource.Success(r.data.map { SelectorOption(it.id, it.name, it.unit.ifBlank { null }) })
+            is Resource.Success -> Resource.Success(r.data.map { SelectorOption(it.id, it.label, it.unit.ifBlank { null }) })
             is Resource.Error -> r
             Resource.Loading -> Resource.Loading
         }

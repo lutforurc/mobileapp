@@ -427,6 +427,10 @@ class HotelRepository(
         billName: String? = null,
         stayKind: String = "paid",
         stayKindReason: String = "",
+        advanceAmount: Double? = null,
+        advanceMethod: String = "cash",
+        advanceTillId: Long? = null,
+        advanceReference: String = "",
     ): Resource<String> = withContext(ioDispatcher) {
         try {
             val body = JsonObject().apply {
@@ -449,6 +453,17 @@ class HotelRepository(
                 if (stayKind != "paid") {
                     addProperty("stay_kind", stayKind)
                     addProperty("stay_kind_reason", stayKindReason.trim())
+                }
+                // An advance taken while booking (web 2026-11-17). Written by the
+                // server in the booking's own transaction, as the same receipt
+                // Folio > Receive writes — money held, not income, until the
+                // nights are billed. Sent only when there is money on it.
+                if (advanceAmount != null && advanceAmount > 0) {
+                    addProperty("advance_amount", advanceAmount)
+                    addProperty("advance_method", advanceMethod.ifBlank { "cash" })
+                    advanceTillId?.let { addProperty("advance_coa4_id", it) }
+                    advanceReference.trim().takeIf { it.isNotEmpty() }
+                        ?.let { addProperty("advance_reference", it) }
                 }
             }
             postForMessage("hotel-setup/bookings/store", body, "Booking saved.")

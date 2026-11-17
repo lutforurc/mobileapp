@@ -40,6 +40,8 @@ class MenuGroupsTest {
         "customer-supplier" to CustomerMenu.all.map { it.key }.toSet(),
         "vr_settings" to VrSettingsMenu.all.map { it.key }.toSet(),
         "production" to com.example.cashbookbd.production.ProductionMenu.all.map { it.key }.toSet(),
+        // The financial statements are reports, but their own menu lists them.
+        "financial_statement" to com.example.cashbookbd.ui.reports.FINANCIAL_STATEMENT_KEYS.toSet(),
     )
 
     /** No menu may carry a group map the test does not know how to check. */

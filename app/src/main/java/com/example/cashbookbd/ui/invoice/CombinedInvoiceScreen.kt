@@ -376,7 +376,7 @@ class CombinedInvoiceViewModel(
         when (val result = invoiceRepository.searchProducts(query)) {
             is Resource.Success -> {
                 productCache = result.data.associateBy { it.id }
-                Resource.Success(result.data.map { SelectorOption(it.id, it.name, it.unit) })
+                Resource.Success(result.data.map { SelectorOption(it.id, it.dropdownLabel, it.unit, it.name) })
             }
             is Resource.Error -> result
             Resource.Loading -> Resource.Loading
@@ -691,7 +691,7 @@ fun CombinedInvoiceScreen(
 @Composable
 private fun ProductEntry(state: CombinedInvoiceUiState, viewModel: CombinedInvoiceViewModel) {
     SearchableSelectDropdown(
-        selected = state.selectedProduct?.let { SelectorOption(it.id, it.name, it.unit) },
+        selected = state.selectedProduct?.let { SelectorOption(it.id, it.dropdownLabel, it.unit, it.name) },
         onSelected = viewModel::onProductSelected,
         search = viewModel::searchProducts,
         label = "Select Product",

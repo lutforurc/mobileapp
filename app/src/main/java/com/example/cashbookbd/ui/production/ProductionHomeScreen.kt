@@ -71,8 +71,32 @@ fun ProductionHomeScreen(
                     item = item,
                     onClick = {
                         when (item.key) {
+                            ProductionMenu.ENTRY_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_ENTRY)
+
+                            ProductionMenu.SALES_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_SALES)
+
+                            ProductionMenu.PURCHASE_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_PURCHASE)
+
+                            ProductionMenu.SALES_RETURN_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_SALES_RETURN)
+
+                            ProductionMenu.SCHEME_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_SCHEME)
+
+                            ProductionMenu.RECIPE_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_RECIPE)
+
                             ProductionMenu.REGISTER_KEY ->
                                 navController.navigate(ProductionMenu.ROUTE_REGISTER)
+
+                            ProductionMenu.FREE_GOODS_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_FREE_GOODS)
+
+                            ProductionMenu.EXPIRY_KEY ->
+                                navController.navigate(ProductionMenu.ROUTE_EXPIRY)
                         }
                     },
                 )

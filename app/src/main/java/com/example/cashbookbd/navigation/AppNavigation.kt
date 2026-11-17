@@ -206,6 +206,9 @@ object Routes {
     /** The customer installment schedule (the web's Installments page), not the Due Installments report. */
     const val INSTALLMENTS = "transactions/installments"
 
+    /** Money handed to staff to buy goods with (web `/accounts/purchase-advance`). */
+    const val PURCHASE_ADVANCE = "transactions/purchase-advance"
+
     // Invoice section
     const val INVOICES = "invoices/home"
     const val INVOICE_VIEW = "invoices/view/{key}"
@@ -778,6 +781,15 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             // receive), gated like its menu entry.
             PermissionGate(anyOf = TransactionMenu.byKey("installments")?.anyOf ?: emptyList()) {
                 InstallmentsScreen(
+                    navController = navController,
+                    onLogout = backToLogin,
+                )
+            }
+        }
+
+        composable(Routes.PURCHASE_ADVANCE) {
+            PermissionGate(anyOf = listOf("purchase.advance.view")) {
+                com.example.cashbookbd.ui.purchaseadvance.PurchaseAdvanceScreen(
                     navController = navController,
                     onLogout = backToLogin,
                 )

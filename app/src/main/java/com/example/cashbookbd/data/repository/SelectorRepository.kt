@@ -48,6 +48,12 @@ class SelectorRepository(
         val labelKey: String,
         val sublabelKey: String?,
         val searchParam: String?,
+        /**
+         * The product's own code, shown before the name ("CODE - NAME") so two
+         * products sharing a name are told apart before one is picked. The
+         * report filter still sends the bare name ([SelectorOption.sendValue]).
+         */
+        val codeKey: String? = null,
     )
 
     private fun spec(source: ReportSelectorSource): SourceSpec = when (source) {
@@ -76,6 +82,7 @@ class SelectorRepository(
             objectKey = null,
             idKey = "value", labelKey = "label", sublabelKey = "label_2",
             searchParam = "q",
+            codeKey = "code",
         )
         ReportSelectorSource.LABOUR -> SourceSpec(
             path = "construction/ddl/labour-list",
@@ -163,11 +170,15 @@ class SelectorRepository(
         return array.mapNotNull { el ->
             val obj = el as? JsonObject ?: (el.takeIf { it.isJsonObject }?.asJsonObject) ?: return@mapNotNull null
             val id = obj.str(spec.idKey) ?: return@mapNotNull null
-            val label = obj.str(spec.labelKey) ?: id
+            val bareLabel = obj.str(spec.labelKey) ?: id
+            // "CODE - NAME": the code tells two same-named products apart while
+            // picking; the filter still posts the bare name.
+            val code = spec.codeKey?.let { obj.str(it) }.orEmpty()
             SelectorOption(
                 id = id,
-                label = label,
+                label = if (code.isNotBlank()) "$code - $bareLabel" else bareLabel,
                 sublabel = spec.sublabelKey?.let { obj.str(it) },
+                sendValue = bareLabel,
             )
         }
     }

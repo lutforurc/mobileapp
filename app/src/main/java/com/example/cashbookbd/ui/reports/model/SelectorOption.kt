@@ -10,4 +10,9 @@ data class SelectorOption(
     val id: String,
     val label: String,
     val sublabel: String? = null,
+    /**
+     * What a `sendLabel` report filter posts when the dropdown shows more than
+     * the bare name (a product's "CODE - NAME"). Null posts [label].
+     */
+    val sendValue: String? = null,
 )

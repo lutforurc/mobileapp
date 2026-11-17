@@ -90,7 +90,7 @@ fun DueListScreen(
         onLogout = onLogout,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             FilterCard(
                 state = uiState,
                 onBranchSelected = viewModel::onBranchSelected,
@@ -120,9 +120,7 @@ fun DueListScreen(
             if (uiState.report != null && !uiState.isEmptyResult) {
                 AgeingToggle(checked = uiState.showAgeing, onChecked = viewModel::onShowAgeing)
             }
-            Box(modifier = Modifier.weight(1f)) {
-                Results(state = uiState, onRetry = viewModel::apply)
-            }
+            Results(state = uiState, onRetry = viewModel::apply)
         }
     }
 }
@@ -334,6 +332,7 @@ private fun DueTable(report: com.example.cashbookbd.ui.reports.model.DueListRepo
         columns = columns,
         data = report.rows,
         footerRows = dueFooterRows(report, columns.size),
+        scrollable = false,
     )
 }
 
@@ -503,8 +502,8 @@ private fun PartyCell(row: DueRow) {
 private fun CenterBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
