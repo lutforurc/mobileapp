@@ -218,7 +218,7 @@ private fun EntryCard(state: PurchaseAdvanceUiState, viewModel: PurchaseAdvanceV
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Segment(
-                text = "Give Payment",
+                text = "Advance Payment",
                 selected = !state.isSettle,
                 onClick = { viewModel.onAction("give") },
                 modifier = Modifier.weight(1f),

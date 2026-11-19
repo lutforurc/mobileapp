@@ -23,6 +23,11 @@ data class AttendanceEntry(
     val approvalStatus: String,
     val remarks: String,
     val overtimeMinutes: Double,
+    /**
+     * A leave day carries no attendance to approve (web skips it): marked by the
+     * API's `is_leave_day`, absent on most rows.
+     */
+    val isLeaveDay: Boolean = false,
 ) {
     val isPendingApproval: Boolean get() = approvalStatus.equals("pending", ignoreCase = true)
 

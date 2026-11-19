@@ -492,6 +492,11 @@ fun TradeLedgerScreen(
                         onValueChange = viewModel::onSearchChange,
                         label = "Search (order no or exact rate)",
                         modifier = Modifier.fillMaxWidth(),
+                        // Enter runs the same Apply the button does (web e543ab32).
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSearch = { viewModel.apply() },
+                        ),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PickerField(
@@ -802,7 +807,12 @@ private fun TradeLedgerTable(
             }
         })
         add(ReportColumn<TradeLedgerRow>("TOTAL", ReportColWidth.Fixed(COL_TOTAL), TextAlign.End) { r, _ ->
-            if (!showLines) cellText(money(r.lines.sumOf { it.total })) else stackedCell(r) { line ->
+            // One summary line per invoice reads the bill's own total (charges
+            // included) for a purchase; the stacked per-line view stays the
+            // lines themselves (web b8321400).
+            if (!showLines) {
+                cellText(money(if (state.kind == TradeLedgerKind.PURCHASE) r.billTotal else r.lines.sumOf { it.total }))
+            } else stackedCell(r) { line ->
                 lineText(money(line.total), color = if (line.rate == 0.0 && line.total == 0.0) red else null)
             }
         })

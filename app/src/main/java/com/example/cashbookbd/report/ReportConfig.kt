@@ -273,6 +273,13 @@ data class ReportConfig(
     /** The Search box's hint; ignored when [searchFilter] is false. */
     val searchFilterHint: String = "Search product name or code…",
     /**
+     * When set, the Search box's text is ALSO sent to the endpoint under this
+     * key, so the server narrows — the web's Product Stock posts `product_name:
+     * search` (475c6ce5). Null keeps the box browsing-only, filtering the rows
+     * already in hand (Closing Stock / Stock Details).
+     */
+    val searchParam: String? = null,
+    /**
      * The cell that should read "CODE - NAME" (e.g. `product_name`). The code
      * columns below are folded into it and hidden, so no separate Code column
      * appears. Null leaves product cells as the server sends them.
@@ -343,6 +350,20 @@ data class ReportConfig(
      * "acc_transaction_master.0.acc_transaction_details.0.remarks".
      */
     val highlightPaths: List<String> = emptyList(),
+    /**
+     * Closure Stock / Stock Details / Product Stock: the report follows the
+     * login's own branch, so no Branch box is drawn (web 475c6ce5). The request
+     * still carries the branch id — it comes from the session, not a picker.
+     */
+    val hideBranchField: Boolean = false,
+    /**
+     * A picked Product is a STRICT narrowing, not a hint (web 475c6ce5): the
+     * answer is narrowed to that one product before grouping, so the band
+     * headings, group totals and Grand Total all follow it. The id decides
+     * whenever a row carries one; the picked label is the fallback for a
+     * payload that arrives without ids.
+     */
+    val strictProductNarrowing: Boolean = false,
     /**
      * Raw row key of the column that shows the matched text and receives the
      * coloured box. When a row lacks this key but a [highlightPaths] value
@@ -1415,14 +1436,21 @@ object ReportMenu {
             endParam = "end_date",
             altStartParam = "startdate",
             altEndParam = "enddate",
-            // The web's own filter row: Brand, Group, Category, Search (product
-            // name or code), then the dates. The search runs over the returned
-            // rows in the browser, so it is the same here.
+            // The web's own filter row: Brand, Group, Category, Product, Search
+            // (product name or code), then the dates (web 475c6ce5). The search
+            // runs over the returned rows in the browser, so it is the same
+            // here; the Product box narrows strictly.
             selectors = listOf(
                 ReportSelector("brand_id", "Select Brand (optional)", ReportSelectorSource.BRAND, required = false),
                 ReportSelector("group_id", "Select Group (optional)", ReportSelectorSource.PRODUCT_GROUP, required = false),
                 ReportSelector("category_id", "Select Category (optional)", ReportSelectorSource.CATEGORY, required = false),
+                // The one product the stocktake may be narrowed to; sent as
+                // product_id and enforced again over the answer.
+                ReportSelector("product_id", "Select Product (optional)", ReportSelectorSource.PRODUCT, required = false),
             ),
+            // The Branch box is gone: the stocktake follows the login's branch.
+            hideBranchField = true,
+            strictProductNarrowing = true,
             searchFilter = true,
             // The product cell reads "CODE - NAME"; the code has no column of
             // its own. Same wording as every product search in the app.
@@ -1458,7 +1486,10 @@ object ReportMenu {
                 ReportSelector("brand_id", "Select Brand (optional)", ReportSelectorSource.BRAND, required = false),
                 ReportSelector("group_id", "Select Group (optional)", ReportSelectorSource.PRODUCT_GROUP, required = false),
                 ReportSelector("category_id", "Select Category (optional)", ReportSelectorSource.CATEGORY, required = false),
+                ReportSelector("product_id", "Select Product (optional)", ReportSelectorSource.PRODUCT, required = false),
             ),
+            hideBranchField = true,
+            strictProductNarrowing = true,
             searchFilter = true,
             // The product cell reads "CODE - NAME"; the code has no column of
             // its own. Same wording as every product search in the app.
@@ -1514,6 +1545,14 @@ object ReportMenu {
             // The web's Grand Total row over the four stock amounts.
             totalColumns = listOf("opening", "stock_in", "stock_out", "balance"),
             totalRowLabel = "Grand Total",
+            // The Branch box is gone: the report follows the login's branch, and
+            // a picked Product narrows strictly (web 475c6ce5).
+            hideBranchField = true,
+            strictProductNarrowing = true,
+            // The web posts its Search box as product_name and lets the server
+            // narrow, then also narrows what came back.
+            searchFilter = true,
+            searchParam = "product_name",
             selectors = listOf(
                 ReportSelector(
                     paramKey = "brand_id",
@@ -1527,13 +1566,13 @@ object ReportMenu {
                     source = ReportSelectorSource.CATEGORY,
                     required = false,
                 ),
+                // The endpoint takes the product's id (web 475c6ce5 moved it off
+                // the name so a duplicate name cannot answer with another item).
                 ReportSelector(
-                    paramKey = "product_name",
+                    paramKey = "product_id",
                     label = "Select Product (optional)",
                     source = ReportSelectorSource.PRODUCT,
                     required = false,
-                    // The endpoint filters on the product name, not its id.
-                    sendLabel = true,
                 ),
             ),
         ),

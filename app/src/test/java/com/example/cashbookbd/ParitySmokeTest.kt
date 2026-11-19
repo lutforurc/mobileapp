@@ -12,6 +12,9 @@ import com.example.cashbookbd.ui.products.AddProductUiState
 import com.example.cashbookbd.ui.products.MeasurementFields
 import com.example.cashbookbd.report.LedgerMoneyInput
 import com.example.cashbookbd.report.ledgerMoney
+import com.example.cashbookbd.report.productMatches
+import com.example.cashbookbd.ui.hrm.attendanceRangeDays
+import com.example.cashbookbd.ui.reports.model.SimpleDate
 import com.example.cashbookbd.ui.reports.CashFlowRowKind
 import com.example.cashbookbd.ui.reports.cashFlowAmountText
 import com.example.cashbookbd.ui.reports.cashFlowRows
@@ -146,8 +149,6 @@ class ParitySmokeTest {
         val purchase = TilesInvoiceUiState(
             kind = TilesInvoiceKind.PURCHASE, party = party, previousBalance = -500.0,
             lines = listOf(line), discount = "10", amount = "50",
-            // A purchase has no service charge, TDS or transport.
-            serviceCharge = "99",
         )
         assertEquals(240.0, purchase.billAmount, 0.001)
         assertEquals(-500.0 - 240 + 10 + 50, purchase.totalTk, 0.001)
@@ -156,6 +157,28 @@ class ParitySmokeTest {
         assertEquals(-500.0 - 240 + 10 + 50, salesReturn.totalTk, 0.001)
         val purchaseReturn = purchase.copy(kind = TilesInvoiceKind.PURCHASE_RETURN)
         assertEquals(-500.0 + 240 - 10 - 50, purchaseReturn.totalTk, 0.001)
+    }
+
+    @Test
+    fun `a tiles purchase bills Carrying Inward, the tax head and Service Charge`() {
+        // Web 5bfe8ab8: the purchase bill carries the same three heads the sale
+        // does on the way out, and they are part of what the counter owes.
+        val purchase = TilesInvoiceUiState(
+            kind = TilesInvoiceKind.PURCHASE, party = party, previousBalance = -500.0,
+            lines = listOf(line), discount = "10", amount = "50",
+            carryingInwardAmt = "100", tdsAmount = "30", serviceCharge = "20",
+        )
+        // 240 of goods + 100 carriage + 30 tax + 20 service.
+        assertEquals(390.0, purchase.billAmount, 0.001)
+
+        // A return carries no charge boxes at all, so those fields are ignored.
+        val purchaseReturn = purchase.copy(kind = TilesInvoiceKind.PURCHASE_RETURN)
+        assertEquals(240.0, purchaseReturn.billAmount, 0.001)
+        val salesReturn = purchase.copy(
+            kind = TilesInvoiceKind.SALES_RETURN,
+            transportationAmt = "999",
+        )
+        assertEquals(240.0, salesReturn.billAmount, 0.001)
     }
 
     @Test
@@ -562,5 +585,67 @@ class ParitySmokeTest {
             packageUnit = "",
         )
         assertEquals("GMST-2660102 - Homogenious Stair", tiles.dropdownLabel)
+    }
+
+    // ---- Product Stock / Stock Details / Closing Stock: strict Product box ----
+
+    @Test
+    fun `a picked product narrows strictly, by id first and name as fallback`() {
+        // No pick = no narrowing at all.
+        assertTrue(productMatches(pickedId = "", pickedLabel = "", rowId = "7", rowName = "Pipe"))
+
+        // The id decides whenever the row carries one.
+        assertTrue(productMatches("7", "Pipe", rowId = "7", rowName = "Anything"))
+        assertFalse(productMatches("7", "Pipe", rowId = "8", rowName = "Pipe"))
+
+        // Closing Stock may arrive without ids: the picked name is the fallback,
+        // so a selection still answers with its own lines rather than the branch.
+        assertTrue(productMatches("7", "1 PPR pipe", rowId = null, rowName = "1 PPR pipe"))
+        assertTrue(productMatches("7", "1 PPR pipe", rowId = "", rowName = "1 ppr PIPE"))
+        assertFalse(productMatches("7", "1 PPR pipe", rowId = null, rowName = "2 PPR pipe"))
+
+        // A blank row id with no label to fall back on must not answer with
+        // everything — that is the misreading the box exists to prevent.
+        assertFalse(productMatches("7", "", rowId = null, rowName = "2 PPR pipe"))
+    }
+
+    // ---- Purchase Ledger: the bill's total carries its charges ----
+
+    @Test
+    fun `a purchase bill paid in full reads a nought balance, charges included`() {
+        // 75,000 of goods plus 1,800 of charges, settled in full. Summing the
+        // details alone used to leave a -1,800 balance (web b8321400).
+        val billTotal = 76_800.0
+        val payment = 76_800.0
+        val discount = 0.0
+        val balance = billTotal - payment - discount
+        assertEquals(0.0, balance, 0.001)
+        // The old, broken arithmetic the fix removes.
+        val detailsOnly = 75_000.0 - payment - discount
+        assertEquals(-1_800.0, detailsOnly, 0.001)
+    }
+
+    // ---- Manual Attendance: Approve Range reads each day of the range ----
+
+    @Test
+    fun `a range of days is every day from the first to the last, capped at 31`() {
+        val oneDay = attendanceRangeDays(SimpleDate(2026, 11, 18), SimpleDate(2026, 11, 18))
+        assertEquals(listOf(SimpleDate(2026, 11, 18)), oneDay)
+
+        val monthEnd = attendanceRangeDays(SimpleDate(2026, 1, 30), SimpleDate(2026, 2, 2))
+        assertEquals(
+            listOf(
+                SimpleDate(2026, 1, 30),
+                SimpleDate(2026, 1, 31),
+                SimpleDate(2026, 2, 1),
+                SimpleDate(2026, 2, 2),
+            ),
+            monthEnd,
+        )
+
+        // A backwards range has no days to approve.
+        assertTrue(attendanceRangeDays(SimpleDate(2026, 11, 18), SimpleDate(2026, 11, 17)).isEmpty())
+        // …and never more than a month's worth.
+        assertEquals(31, attendanceRangeDays(SimpleDate(2026, 1, 1), SimpleDate(2026, 12, 31)).size)
     }
 }

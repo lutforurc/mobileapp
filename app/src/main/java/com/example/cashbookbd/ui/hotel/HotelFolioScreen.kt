@@ -695,11 +695,7 @@ private fun FolioBody(
             ) {
                 if (canBill && !booking.isWalkIn) {
                     PrimaryButton(
-                        text = if (folio.unbilledNights > 0) {
-                            "Bill ${folio.unbilledNights} night${if (folio.unbilledNights == 1) "" else "s"}"
-                        } else {
-                            "Nights all billed"
-                        },
+                        text = if (folio.unbilledNights > 0) "Generate Bill" else "Bill Generated",
                         onClick = { onOpen(FolioDialog.BILL_NIGHTS) },
                         enabled = folio.unbilledNights > 0 && chartReady && !isWorking,
                         compact = true,
@@ -1015,7 +1011,7 @@ private fun FolioDialogs(state: HotelFolioUiState, viewModel: HotelFolioViewMode
     when (dialog) {
         FolioDialog.BILL_NIGHTS -> AlertDialog(
             onDismissRequest = viewModel::close,
-            title = { Text("Bill the nights") },
+            title = { Text("Generate Bill") },
             text = {
                 Text(
                     "Put ${folio.unbilledNights} night${if (folio.unbilledNights == 1) "" else "s"} on the bill, " +
@@ -1024,7 +1020,7 @@ private fun FolioDialogs(state: HotelFolioUiState, viewModel: HotelFolioViewMode
             },
             confirmButton = {
                 PrimaryButton(
-                    text = "Bill ${folio.unbilledNights} night${if (folio.unbilledNights == 1) "" else "s"}",
+                    text = "Generate Bill",
                     onClick = viewModel::billNights,
                     enabled = !working,
                     isLoading = working,
@@ -1048,7 +1044,7 @@ private fun FolioDialogs(state: HotelFolioUiState, viewModel: HotelFolioViewMode
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Room rent goes on through Bill the nights, never by hand — " +
+                            text = "Room rent goes on through Generate Bill, never by hand — " +
                                 "otherwise a night can be charged twice.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.appColors.textMuted,

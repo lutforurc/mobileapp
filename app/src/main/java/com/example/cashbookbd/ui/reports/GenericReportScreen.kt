@@ -181,15 +181,21 @@ private fun FilterCard(
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 24.dp),
     ) {
-        BranchDropdown(
-            branches = state.branches,
-            selected = state.selectedBranch,
-            isLoading = state.isBranchesLoading,
-            onSelected = onBranchSelected,
-        )
-        state.branchesError?.let {
-            Spacer(Modifier.height(6.dp))
-            Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
+        // The Branch box is drawn only when the report wants a picker. Closing
+        // Stock / Stock Details / Product Stock follow the login's own branch
+        // (web 475c6ce5), so the box is not drawn — those reports take their
+        // branch from the session.
+        if (!state.hideBranchField) {
+            BranchDropdown(
+                branches = state.branches,
+                selected = state.selectedBranch,
+                isLoading = state.isBranchesLoading,
+                onSelected = onBranchSelected,
+            )
+            state.branchesError?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
+            }
         }
 
         if (state.showChoice) {
@@ -593,7 +599,10 @@ private fun ReportRowList(
 ) {
     val result = state.result ?: return
     // The Search box narrows the rows in place — name or code, case-insensitive —
-    // the same way the web's Stock Details filters in the browser.
+    // the same way the web's Stock Details filters in the browser. The Product
+    // box narrows too, but strictly and BEFORE grouping: that happens in the
+    // repository, so the band headings, group totals and Grand Total all follow
+    // the picked product (web 475c6ce5).
     val shownRows = remember(result.rows, state.appliedSearch) {
         val needle = state.appliedSearch.trim()
         if (needle.isBlank()) {
@@ -1098,13 +1107,20 @@ private fun parseCellNumber(value: String): Double =
  * `getFooterTotals`): Opening, the two quantity and amount pairs when they are
  * not nothing, Inv. Amt, Debit, Credit, and
  * `Closing = Opening + Sal. Amt − Pur. Amt − Inv. Amt + Debit − Credit`.
- * The opening row takes no part in the sums.
+ *
+ * ⚠️ THE OPENING ROW IS A ROW OF THE TABLE, so it counts inside the Debit and
+ * Credit totals — the desk reads the footer as the column totals (web a45d4862).
+ * A statement filtered by product carries no opening row (the API only pushes
+ * one for an unfiltered statement), so there the opening is added by hand and
+ * the row is not counted a second time.
  */
 private fun ledgerFooterLine(result: ReportResult): String {
     val summary = result.summary.associate { it.key.lowercase(java.util.Locale.US) to it.value }
     fun summaryNum(vararg keys: String): Double? = keys.firstNotNullOfOrNull { key ->
         summary[key]?.let { parseCellNumber(it) }
     }
+    // The opening row is drawn inside the Debit (or Credit) column, so it is
+    // counted in those totals; the synthetic band summaries are still left out.
     fun rowSum(key: String): Double = result.rows
         .filterNot { it.isSummary }
         .sumOf { row ->
@@ -1112,7 +1128,15 @@ private fun ledgerFooterLine(result: ReportResult): String {
                 ?.value?.let { parseCellNumber(it) } ?: 0.0
         }
 
-    val opening = summaryNum("opening_balance", "opening") ?: 0.0
+    // The opening row, exactly as LedgerMoney.isOpeningRow reads it: the
+    // voucher number reads "opening", or the remarks name an opening balance.
+    val hasOpeningRow = result.rows.any { row ->
+        row.cells.firstOrNull { it.key == "vr_no" }?.value?.trim()
+            ?.equals("opening", ignoreCase = true) == true ||
+            row.cells.firstOrNull { it.key == "remarks" }?.value
+                ?.contains("opening balance", ignoreCase = true) == true
+    }
+    val opening = if (hasOpeningRow) 0.0 else summaryNum("opening_balance", "opening") ?: 0.0
     val purchaseQty = summaryNum("purchase_qty") ?: 0.0
     val salesQty = summaryNum("sales_qty") ?: 0.0
     val purchaseAmt = summaryNum("purchase_amt") ?: rowSum("purchase_total")
@@ -1123,9 +1147,12 @@ private fun ledgerFooterLine(result: ReportResult): String {
     val closing = Math.round(
         (opening + salesAmt - purchaseAmt - invAmt + debit - credit) * 100.0,
     ) / 100.0
+    // The footer's Opening figure is still the statement's own opening, whether
+    // or not the row counted towards the columns.
+    val openingShown = summaryNum("opening_balance", "opening") ?: 0.0
 
     return buildList {
-        add("Opening: " + if (opening == 0.0) "-" else AmountFormat.format(opening))
+        add("Opening: " + if (openingShown == 0.0) "-" else AmountFormat.format(openingShown))
         if (purchaseQty > 0) add("Pur. Qty: " + AmountFormat.format(purchaseQty))
         if (salesQty > 0) add("Sal. Qty: " + AmountFormat.format(salesQty))
         if (purchaseAmt > 0) add("Pur. Amt: " + AmountFormat.format(purchaseAmt))

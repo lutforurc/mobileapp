@@ -157,6 +157,8 @@ data class TilesInvoiceUiState(
     val serviceCharge: String = "",
     val tdsAmount: String = "",
     val transportationAmt: String = "",
+    /** A purchase's Carrying Inward (coa4 197/198, the mirror of Carrying Outward). */
+    val carryingInwardAmt: String = "",
     val serviceLabels: Map<Int, String> = emptyMap(),
     val manualVoucherNo: String = "",
     val manualVoucherDate: SimpleDate? = null,
@@ -196,9 +198,16 @@ data class TilesInvoiceUiState(
 
     private fun n(s: String) = s.toDoubleOrNull() ?: 0.0
 
-    /** Sales: the lines plus service charge, TDS and transport; purchase: the lines alone. */
+    /** Sales: the lines plus service charge, TDS and transport. Purchase: the
+     *  lines plus Carrying Inward, the TDS/VAT head and Service Charge — the
+     *  same three the tiles sale carries on the way out. A return carries no
+     *  charges, as on the web. */
     val billAmount: Double
-        get() = linesTotal + if (isSales) n(serviceCharge) + n(tdsAmount) + n(transportationAmt) else 0.0
+        get() = linesTotal + when (kind) {
+            TilesInvoiceKind.SALES -> n(serviceCharge) + n(tdsAmount) + n(transportationAmt)
+            TilesInvoiceKind.PURCHASE -> n(carryingInwardAmt) + n(tdsAmount) + n(serviceCharge)
+            else -> 0.0
+        }
 
     /** What a cash party settles: the bill net of discount, never below nought. */
     val payable: String get() = Math.max(0.0, billAmount - n(discount)).let { Math.round(it).toString() }
@@ -242,9 +251,10 @@ class TilesInvoiceViewModel(
             }
             VoucherEdit.take(target)?.let { loadForEdit(it) }
         }
-        if (kind == TilesInvoiceKind.SALES) {
+        if (kind == TilesInvoiceKind.SALES || kind == TilesInvoiceKind.PURCHASE) {
             viewModelScope.launch {
-                // The three extra-charge heads' own names (coa4 42 / 41 / 198).
+                // The charge heads' own names (coa4 42 / 41 / 197-198 / 198),
+                // named by the account each posts to rather than by a word here.
                 val body = (api.post("settings/service-list", JsonObject()) as? Resource.Success)?.data
                 val list = body?.get("data").jAsArr() ?: body?.get("data").jAsObj()?.get("data").jAsArr()
                 val labels = list?.jObjects().orEmpty().mapNotNull { o -> o.jStr("id").toIntOrNull()?.let { it to o.jStr("name") } }.toMap()
@@ -348,6 +358,7 @@ class TilesInvoiceViewModel(
                 serviceCharge = if (e.serviceCharge > 0) plain(e.serviceCharge) else "",
                 tdsAmount = if (e.tdsAmount > 0) plain(e.tdsAmount) else "",
                 transportationAmt = if (e.transportationAmt > 0) plain(e.transportationAmt) else "",
+                carryingInwardAmt = if (e.carryingInwardAmt > 0) plain(e.carryingInwardAmt) else "",
                 manualVoucherNo = e.manualVoucherNo,
                 manualVoucherDate = editDate(e.manualVoucherDate),
                 manualChallanNo = e.manualChallanNo,
@@ -440,6 +451,7 @@ class TilesInvoiceViewModel(
     fun onServiceCharge(v: String) { _uiState.update { it.copy(serviceCharge = v.decimalOnly()) }; syncCashAmount() }
     fun onTds(v: String) { _uiState.update { it.copy(tdsAmount = v.decimalOnly()) }; syncCashAmount() }
     fun onTransport(v: String) { _uiState.update { it.copy(transportationAmt = v.decimalOnly()) }; syncCashAmount() }
+    fun onCarryingInward(v: String) { _uiState.update { it.copy(carryingInwardAmt = v.decimalOnly()) }; syncCashAmount() }
     fun onManualVoucherNo(v: String) = _uiState.update { it.copy(manualVoucherNo = v) }
     fun onManualVoucherDate(d: SimpleDate) = _uiState.update { it.copy(manualVoucherDate = d) }
     fun onManualChallanNo(v: String) = _uiState.update { it.copy(manualChallanNo = v) }
@@ -624,6 +636,11 @@ class TilesInvoiceViewModel(
         } else {
             addProperty("paymentAmt", amount)
             addProperty("discountAmt", s.discount.toDoubleOrNull() ?: 0.0)
+            // The three charges a tiles purchase bill can carry, on the same
+            // heads the sale uses on the way out (web 5bfe8ab8).
+            addProperty("carryingInwardAmt", s.carryingInwardAmt.toDoubleOrNull() ?: 0.0)
+            addProperty("tdsAmount", s.tdsAmount.toDoubleOrNull() ?: 0.0)
+            addProperty("serviceCharge", s.serviceCharge.toDoubleOrNull() ?: 0.0)
             addProperty("purchaseOrderNumber", "")
             addProperty("purchaseOrderText", "")
             addProperty("invoice_no", "")
@@ -804,7 +821,17 @@ fun TilesInvoiceScreen(
                             Switch(checked = state.deductsStock == "0", onCheckedChange = viewModel::onDeductOnDelivery)
                         }
                     }
-                } else if (kind == TilesInvoiceKind.PURCHASE && !state.isCash && state.trackedProducts.isNotEmpty()) {
+                } else if (kind == TilesInvoiceKind.PURCHASE) {
+                    // The three charges a tiles purchase bill carries, the same
+                    // heads the sale uses on the way out (web 5bfe8ab8), each
+                    // named by the account it posts to.
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppTextField(state.carryingInwardAmt, viewModel::onCarryingInward, label = state.serviceLabels[197] ?: "Carrying Inward", keyboardType = KeyboardType.Decimal, modifier = Modifier.weight(1f))
+                        AppTextField(state.tdsAmount, viewModel::onTds, label = state.serviceLabels[41] ?: "TDS / VAT", keyboardType = KeyboardType.Decimal, modifier = Modifier.weight(1f))
+                    }
+                    AppTextField(state.serviceCharge, viewModel::onServiceCharge, label = state.serviceLabels[42] ?: "Service Charge", keyboardType = KeyboardType.Decimal, modifier = Modifier.fillMaxWidth())
+                }
+                if (!state.isSales && kind == TilesInvoiceKind.PURCHASE && !state.isCash && state.trackedProducts.isNotEmpty()) {
                     AppSelectDropdown(
                         "Product (optional)", listOf(SelectorOption("", "Not applicable")) + state.trackedProducts,
                         state.trackedProduct, viewModel::onTracked,

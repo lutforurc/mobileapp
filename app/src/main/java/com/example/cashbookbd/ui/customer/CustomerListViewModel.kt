@@ -40,9 +40,10 @@ class CustomerListViewModel(
     fun load(page: Int) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         val seq = ++requestSeq
+        val state = _uiState.value
         viewModelScope.launch {
             val result = repository.loadCustomers(
-                page, CUSTOMERS_PER_PAGE, _uiState.value.searchQuery, _uiState.value.partyType.id,
+                page, state.perPageValue, state.searchQuery, state.partyType.id,
             )
             if (seq != requestSeq) return@launch
             when (result) {
@@ -51,7 +52,8 @@ class CustomerListViewModel(
                         isLoading = false,
                         rows = result.data.rows,
                         currentPage = result.data.currentPage,
-                        lastPage = result.data.lastPage,
+                        // "All" answers one page — guard against a last_page of 0.
+                        lastPage = result.data.lastPage.coerceAtLeast(1),
                         total = result.data.total,
                     )
                 }
@@ -74,6 +76,13 @@ class CustomerListViewModel(
     fun onPartyType(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
         if (option.id == _uiState.value.partyType.id) return
         _uiState.update { it.copy(partyType = option) }
+        load(page = 1)
+    }
+
+    /** A new page size restarts on page one (the web's SelectOption choice). */
+    fun onPageSize(option: com.example.cashbookbd.ui.reports.model.SelectorOption) {
+        if (option.id == _uiState.value.pageSize.id) return
+        _uiState.update { it.copy(pageSize = option) }
         load(page = 1)
     }
 

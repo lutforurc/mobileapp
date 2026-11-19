@@ -8,13 +8,13 @@ place to resume.
 
 | | |
 |---|---|
-| **Web UI reviewed** | `cashbookbd_react` branch `Reseller-ui` @ `9698fc1b` (2026-11-17). Previous checkpoint was `47d24903` (2026-11-14) |
+| **Web UI reviewed** | `cashbookbd_react` branch `Reseller-ui` @ `475c6ce5` (2026-11-19). Previous checkpoint was `9698fc1b` (2026-11-17) |
 | **API reviewed** | `cashbook_api` branch `Reseller` @ `851b9686` (2026-11-10). Not re-read — that repo is not present on this machine |
-| **Android baseline** | `main` @ `5ba5663` (1.0.8) plus the 2026-11-17 pass: Production Entry/Sales/Purchase/Sales Return/Scheme/Recipe, Free Goods and Near Expiry; Advance for Purchase; Branch Dropdown + Hotel Setup steps and Booking SMS; Ledger Details footer; Monthly Report totals; Hotel New Booking advance |
-| **Pass date** | 2026-11-17 |
-| **Last verified on a device** | Nothing from the 2026-11-17 pass has been tapped through. The last device checks remain the 2026-11-14 rows 16–19 (Tiles labels, product search, account menu, My Devices dates) |
-| **Work in progress** | **None half-finished.** P2 Production is now implemented end to end (Entry, Sales, Purchase, Sales Return, Scheme, Recipe, Register, Costing, Free Goods, Near Expiry); what remains is layout adaptation (warehouse picker, package-unit entry) and print, both noted in P2 |
-| **Next step** | Device pass: sign in on a Production branch (`manufactur_control` on, `production.*` granted), open each Production screen, then Transaction → Advance for Purchase, then Branch Edit → Dropdown/Hotel Setup. Also close P16 (Branch Forms Setup) and the remaining report gaps in P1 |
+| **Android baseline** | working tree on `Lutfor-Rahman` (1.0.8) plus the 2026-11-19 pass: Tiles purchase charges, Product Stock/Stock Details/Closing Stock strict Product filter, Purchase Ledger bill total, Ledger Details footer opening row, Attendance Approve Range, Customer list page size + Enter-to-search, Hotel folio "Generate Bill", Advance Payment wording |
+| **Pass date** | 2026-11-19 |
+| **Last verified on a device** | Nothing from the 2026-11-19 or 2026-11-17 passes has been tapped through. The last device checks remain the 2026-11-14 rows 16–19 (Tiles labels, product search, account menu, My Devices dates) |
+| **Work in progress** | **None half-finished.** All 20 web commits in `9698fc1b..475c6ce5` that carry mobile behaviour are ported; the rest are print-designer or web-layout only (see rows 36–40) |
+| **Next step** | Device pass: Tiles **Purchase** invoice (the three charge boxes and the counter's auto payment), Product Stock / Stock Details / Closing Stock (no Branch box, Product narrows), Purchase Ledger (a charged bill reads a nought balance), Ledger Details footer, Manual Attendance → Approve Range, Customers → Rows: All |
 
 Both repos above are the **live demo branches and are to be treated as
 read-only**; no file in either was modified by the 2026-11-10 pass or by this
@@ -110,6 +110,21 @@ Hotel booking advance, Ledger footer, Monthly Report):
 .\gradlew.bat :app:assembleDebug        -> BUILD SUCCESSFUL
 ```
 
+```
+2026-11-19 (rows 31-40: Tiles purchase charges, strict Product filter on the
+three stock reports, Purchase Ledger bill total, Ledger Details footer opening
+row, Attendance Approve Range, Customer list page size, Enter-to-search,
+Generate Bill, Advance Payment):
+.\gradlew.bat :app:compileDebugKotlin   -> BUILD SUCCESSFUL
+.\gradlew.bat :app:testDebugUnitTest    -> BUILD SUCCESSFUL (52 tests, 0
+                                            failures, incl. 3 new cases: strict
+                                            product narrowing, purchase charges
+                                            on the bill, the attendance range's
+                                            day walk)
+.\gradlew.bat :app:lintDebug            -> BUILD SUCCESSFUL
+.\gradlew.bat :app:assembleDebug        -> BUILD SUCCESSFUL
+```
+
 Machine note: `local.properties` was pointing at a stale SDK path
 (`C:\Users\lutfo\AppData\Local\Android\Sdk`, missing on this machine). It now
 points at the installed SDK, `D:\Local\Android\Sdk`, so Gradle can build.
@@ -176,7 +191,22 @@ its history survives.
 | 29 | `ledgerWithProductUtils.ts` / `LedgerWithProduct.tsx` (footer) | Reports → Ledger Details footer | Complete | The footer is now one right-aligned line: Opening · Pur. Qty · Sal. Qty · Pur. Amt · Sal. Amt · Inv. Amt · Debit · Credit · Closing, with `Closing = Opening + Sal. Amt − Pur. Amt − Inv. Amt + Debit − Credit` and the opening row excluded. Files: `ReportConfig.ledgerFooter`, `GenericReportScreen.ledgerFooterLine`. |
 | 30 | `MonthlyReport.tsx` | Reports → Monthly Report | Complete | The five money columns now total in a **Grand Total** row (the web computes its tfoot from the same rows). File: `report/ReportConfig.kt`. |
 
-## Pending and partial (verified against React 9698fc1b)
+## Implemented 2026-11-19 (React `9698fc1b..475c6ce5`, 20 commits)
+
+| # | Web change | Screen / workflow | Status | Verification notes |
+|---|---|---|---|---|
+| 31 | `5bfe8ab8` + `05e57518` Purchase Invoice charges | Invoice → Purchase (Tiles) | Complete | A Tiles purchase bill now carries the same three heads the sale carries on the way out: **Carrying Inward** (coa4 197, or 198 on an older chart), the tax head the branch names **TDS/VAT** (41) and **Service Charge** (42). All three are folded into Current Invoice, into the cash counter's auto payment, and posted in the save body. Each box is named by the account it posts to — `settings/service-list` is now loaded for a purchase too, as the sale already did. Reopening a bill reads the three back off the voucher's own ledger legs, either side of the book (`findCoaAmount`: debit then credit, across every leg). Files: `ui/invoice/TilesInvoiceScreen.kt` (`carryingInwardAmt`, `onCarryingInward`, `billAmount`, `invoicePayload`), `data/repository/InvoiceEdit.kt` (`InvoiceEdit.carryingInwardAmt`, `amountOf`). Unit test added for the bill total and the return's exemption. |
+| 32 | `475c6ce5` Product Stock, Stock Details, Closing Stock: Branch out, Product in | Reports → Product Stock / Stock Details / Closing Stock | Complete | The Branch box is gone from all three — each follows the **login's own branch** (`GenericReportViewModel.ownBranchId`). A matching **Product** box sits beside Category and narrows **strictly**: the request carries `product_id`, and the answer is narrowed again **before grouping**, so the Brand/Group/Category headings, group totals and Grand Total all follow the picked product. The id decides whenever a row carries one; the picked name is the fallback for a closing-stock answer that arrives without ids (`report/ProductNarrowing.kt`, unit-tested). The narrowing reads the product the rows were **asked for**, so picking another without Apply leaves the table standing. Product Stock now also posts its Search box as `product_name` (`ReportConfig.searchParam`), as the web does. Files: `report/ReportConfig.kt` (`hideBranchField`, `strictProductNarrowing`, `searchParam`), `GenericReportUiState.kt`, `GenericReportViewModel.kt`, `GenericReportRepository.kt`, `GenericReportScreen.kt`. |
+| 33 | `b8321400` Purchase Ledger: the bill's total carries its charges | Reports → Purchase Ledger | Complete | The Total column and the footer now read `purchase_master.total` (which holds the bill's carriage, tax and service charge) instead of summing the goods lines, and the Balance is worked from it — so a bill paid in full reads a nought balance rather than −1,800. Falls back to the detail sum for a payload with no master total or a goods-only bill; Sales is untouched. Files: `data/repository/TradeLedgerRepository.kt` (`TradeLedgerRow.billTotal`, balance, `totals()`), `ui/reports/TradeLedgerScreen.kt`. |
+| 34 | `a45d4862` Ledger Details: the footer's Debit and Credit are the column totals | Reports → Customer Supplier Statement (Ledger Details) | Complete | The opening row is a row of the table, so its figure now counts inside the Debit (or Credit) column total, and the closing is worked from those same totals. A statement filtered by product carries no opening row, so there the opening is still added by hand — otherwise the closing would lose it. File: `ui/reports/GenericReportScreen.kt` (`ledgerFooterLine`). |
+| 35 | `d236bd59` Attendance list: Approve Range | HRM → Manual Attendance | Complete | An **Approve Range** button beside Load takes the Fill From/To days, reads each day one at a time (the path the daily list already uses), approves what came back still pending in ten-entry groups, and then **reads the touched days back** so the message reports what actually changed rather than what the server accepted. Leave days and already-approved rows are skipped; the range is capped at 31 days. Files: `ui/hrm/ManualAttendanceScreen.kt` (`approveRange`, `attendanceRangeDays` — unit-tested), `ui/hrm/model/HrmModels.kt` (`isLeaveDay`), `data/repository/HrmRepository.kt`. |
+| 36 | `ecc4602d` Customer list: All turns the page size into every row | Customers → list | Complete | A **Rows** selector with the web's choices (10/20/30/50/100/All). "All" is `per_page=0`, which the API answers with every matched row; it is a real choice, not the ten-row default, so the select shows it and the row numbering starts at 1. Files: `ui/customer/CustomerListUiState.kt` (`CUSTOMER_PAGE_SIZES`, `perPageValue`), `CustomerListViewModel.kt` (`onPageSize`), `CustomerListScreen.kt`. |
+| 37 | `e543ab32` Search runs on Enter | Customers → search box; Sales/Purchase Return Ledger → search box | Complete | Enter in the search box now runs that screen's own Search/Apply — the same handler, filters and page reset a button click uses. Files: `ui/customer/CustomerListScreen.kt`, `ui/reports/TradeLedgerScreen.kt` (`imeAction = Search`, `KeyboardActions`). The web's Add-Customer Ctrl+S has no equivalent on a touch device. |
+| 38 | `b57c609b` Hotel folio: the bill button says Generate Bill | Hotel → a booking's folio | Complete | The bill action, its confirmation dialog and the charge panel's hint now say **Generate Bill** / **Bill Generated**, as the web does. Files: `ui/hotel/HotelFolioScreen.kt`. |
+| 39 | `ec1d961c` Purchase Advance: "Advance Payment" | Transaction → Advance for Purchase | Complete | The first segment and its submit button now read **Advance Payment**, the web's wording. Files: `ui/purchaseadvance/PurchaseAdvanceScreen.kt`, `PurchaseAdvanceViewModel.kt` (`submitLabel`). |
+| 40 | `72f1cf52`, `c68be285`, `1cb2f321`, `cbe6651d`, `1e30e6bf`, `ca894d5b`, `837e27e5`, `58c46257`, `cbc35c43` | Print designer, report filter layout, sidebar icon | Web-only | The amount/due-in-words template fields, the branch Money Format wording in print, the Ledger Details print sheet and its totals band, the Business Summary / Product Profit Summary / Trial Balance filter-line layout, and the Hotel sidebar icon are all web surfaces this app does not have (print stays web-only by policy; the financial statements in those layout commits — Business Summary, Product Profit Summary — are still unported on Android, see P1). |
+
+## Pending and partial (verified against React 475c6ce5)
 
 | # | Web change | What is owed on Android | Status | Notes / next step |
 |---|---|---|---|---|
@@ -224,26 +254,59 @@ customer opening import, product catalogue download) were **not** re-opened;
 treat `WEB_PARITY_2026_08_01.md` as their record until a dedicated audit says
 otherwise.
 
+This pass (2026-11-19) read `cashbookbd_react` `9698fc1b..475c6ce5` (20 commits)
+against the working tree and ported every commit that carries behaviour a phone
+can show: the Tiles **purchase** charges (rows 31), the **strict Product** box
+and no Branch box on Product Stock / Stock Details / Closing Stock (row 32), the
+Purchase Ledger's bill total (row 33), the Ledger Details footer's opening row
+(row 34), **Approve Range** on Manual Attendance (row 35), the Customers page-
+size selector (row 36), Search-on-Enter (row 37), and the two wording changes
+(rows 38–39). The other nine commits are print-designer or web-layout only
+(row 40). P1–P19 were **not** re-opened; only the rows this pass touched were
+re-read. `cashbook_api` is still not present locally, so the API revision above
+is still the 2026-11-10 one — in particular `reports/product-stock` and
+`reports/closing-stock` now need to accept `product_id`, and
+`trading/purchase/api-store` / `api-update` need to accept `carryingInwardAmt`,
+`tdsAmount` and `serviceCharge`, before rows 31–32 can be device-verified.
+
+One unresolved question for the API: `475c6ce5` adds `product_id` to both
+`productStockData()` and `apiClosingStockItems()` in the web's `temp/` mirror of
+the controller, i.e. it assumes a matching `cashbook_api` change. If the
+deployed API does not yet read it, the Product box still narrows correctly on
+device — the narrowing happens over the answer before grouping — but the request
+would carry a parameter the server ignores.
+
+One thing to re-check when the API repo is available: `TradeLedgerRepository`
+now trusts `purchase_master.total` for a purchase bill (row 33). For a bill that
+stores goods only, that field should be the detail sum; if some older payload
+stores a stale or nought `total` while carrying goods, the fallback
+(`masterTotal == 0`) keeps the old reading.
+
 ## How to resume
 
 1. Read the Checkpoint table and the "Pending and partial" table above.
 2. For anything newer than this pass, run
-   `git -C F:\All_Database\cashbookbd_react log --oneline 9698fc1b..HEAD`
+   `git -C F:\All_Database\cashbookbd_react log --oneline 475c6ce5..HEAD`
    (branch `Reseller-ui`) and the same in `cashbook_api` (branch `Reseller`)
-   once that repo is available; add rows for whatever is new.
+   once that repo is available; add rows for whatever is new. **`cashbook_api`
+   is now the bigger unknown**: rows 31–32 depend on its acceptance of the new
+   fields noted above.
 3. Pick the first item to implement. **P2 Production is implemented** — the
    next work there is layout/print (warehouse picker, package-unit entry) and
    the device pass. The next screen-level gaps are **P16 Forms Setup**, the
    remaining **P1** statements, and **P13 Fixed Assets Setup** (the smallest
    unrelated item; P12 needs the API contract confirmed).
-4. To finish the P11 device pass, add `dev.login.password` to
-   `local.properties`, rebuild/reinstall and sign in; the emulator is already
-   running at the login screen.
-5. Build and test the touched code:
+4. Device pass for this session's rows: Tiles Purchase (three charge boxes),
+   the three stock reports (no Branch box, Product narrows), Purchase Ledger
+   (charged bill → nought balance), Ledger Details footer, Manual Attendance →
+   Approve Range, Customers → Rows: All.
+5. To finish the P11 device pass, add `dev.login.password` to
+   `local.properties`, rebuild/reinstall and sign in.
+6. Build and test the touched code:
    `.\gradlew.bat :app:compileDebugKotlin` then
    `.\gradlew.bat :app:testDebugUnitTest` (and `:app:lintDebug` for report or
    permission changes).
-6. Only change a row to **Verified** after tapping through the built app.
-7. Before stopping, update the Checkpoint's "Last verified on a device",
+7. Only change a row to **Verified** after tapping through the built app.
+8. Before stopping, update the Checkpoint's "Last verified on a device",
    "Work in progress" and "Next step", and move completed rows to the
    implemented table with the web revision that introduced them.

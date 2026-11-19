@@ -63,6 +63,16 @@ class GenericReportRepository(
         monthYear: String? = null,
         month: String? = null,
         year: String? = null,
+        /**
+         * A strictly-narrowing product filter (web 475c6ce5): the id the answer
+         * was asked for, plus the picked label for a payload that arrives without
+         * product ids (closing stock). Applied before grouping, so band headings,
+         * group totals and the Grand Total all follow the picked product.
+         */
+        narrowProductId: String = "",
+        narrowProductLabel: String = "",
+        /** The Search box's text, posted under [ReportConfig.searchParam]. */
+        searchText: String = "",
     ): Resource<ReportResult> = withContext(ioDispatcher) {
         val path = ReportEndpoints.path(config.endpointKey)
             ?: return@withContext Resource.Error("This report is not available.")
@@ -70,7 +80,11 @@ class GenericReportRepository(
         val params = buildParams(
             config, branchId, startDate, endDate, ledgerId, choiceValue, selectorValues,
             monthYear, month, year,
-        )
+        ).toMutableMap().apply {
+            config.searchParam?.let { key ->
+                searchText.trim().takeIf { it.isNotEmpty() }?.let { put(key, it) }
+            }
+        }
 
         try {
             val response = when (config.method) {
@@ -96,7 +110,7 @@ class GenericReportRepository(
                 )
             }
 
-            parseBody(response, config)
+            parseBody(response, config, narrowProductId, narrowProductLabel)
         } catch (e: IOException) {
             Resource.Error("No internet connection. Please check your network and try again.")
         } catch (e: HttpException) {
@@ -149,7 +163,12 @@ class GenericReportRepository(
         return params
     }
 
-    private fun parseBody(response: Response<JsonElement>, config: ReportConfig): Resource<ReportResult> {
+    private fun parseBody(
+        response: Response<JsonElement>,
+        config: ReportConfig,
+        narrowProductId: String = "",
+        narrowProductLabel: String = "",
+    ): Resource<ReportResult> {
         val root = response.body()
             ?: return Resource.Error("Invalid response from server.")
 
@@ -175,14 +194,41 @@ class GenericReportRepository(
         val payload = unwrap(root)
         return Resource.Success(
             ReportResult(
-                rows = buildRows(payload, config),
+                rows = buildRows(payload, config, narrowProductId, narrowProductLabel),
                 summary = extractSummary(payload),
             )
         )
     }
 
+    /**
+     * Does a raw row belong to the product the Product box picked? (web
+     * `matchesProduct`, 475c6ce5 — the rule itself lives in
+     * [com.example.cashbookbd.report.productMatches], so it can be tested.)
+     */
+    private fun matchesProduct(row: JsonElement, productId: String, productLabel: String): Boolean {
+        if (productId.isBlank()) return true
+        val obj = row.takeIf { it.isJsonObject }?.asJsonObject ?: return true
+        val id = listOf("product_id", "productId", "item_id").firstNotNullOfOrNull { key ->
+            obj.get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive }
+                ?.asString?.trim()?.takeIf { it.isNotEmpty() }
+        }
+        val name = obj.entrySet().firstOrNull { it.key.equals("product_name", ignoreCase = true) }
+            ?.value?.let { rawText(it) }
+        return com.example.cashbookbd.report.productMatches(
+            pickedId = productId,
+            pickedLabel = productLabel,
+            rowId = id,
+            rowName = name,
+        )
+    }
+
     /** Turns the payload into display rows, honouring the report's [ReportResponseShape]. */
-    private fun buildRows(payload: JsonElement, config: ReportConfig): List<ReportRow> {
+    private fun buildRows(
+        payload: JsonElement,
+        config: ReportConfig,
+        narrowProductId: String = "",
+        narrowProductLabel: String = "",
+    ): List<ReportRow> {
         // The attachment keys never render as text — the thumbnail column
         // (gated on the branch switch) replaces them.
         val voucherKeys = config.voucherImages?.let {
@@ -204,6 +250,10 @@ class GenericReportRepository(
         val built = when (config.responseShape) {
             ReportResponseShape.KEYED_SCALARS -> keyedScalarRows(payload, config.scalarLabel)
             ReportResponseShape.NESTED_GROUPS -> nestedGroupRows(payload)
+                // The Product box narrows BEFORE grouping, so the band headings,
+                // group totals and Grand Total all follow the picked product
+                // (web 475c6ce5).
+                .let { rows -> if (narrowProductId.isBlank()) rows else rows.filter { matchesProduct(it, narrowProductId, narrowProductLabel) } }
                 .let { rows -> config.groupByColumn?.let { applyGroupFallback(rows, it) } ?: rows }
                 .map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
                 .let { rows -> config.groupByColumn?.let { key -> rows.sortedBandedBy(key) } ?: rows }
@@ -214,7 +264,11 @@ class GenericReportRepository(
             ReportResponseShape.KEYED_OBJECTS -> keyedObjectRows(payload).map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
             ReportResponseShape.NORMAL -> {
                 val raw = extractRows(payload)
-                val rows = config.runningBalance?.let { applyRunningBalance(payload, raw, it) } ?: raw
+                // The Product box narrows strictly, before anything is summed
+                // (web 475c6ce5).
+                val narrowed = if (narrowProductId.isBlank()) raw
+                    else raw.filter { matchesProduct(it, narrowProductId, narrowProductLabel) }
+                val rows = config.runningBalance?.let { applyRunningBalance(payload, narrowed, it) } ?: narrowed
                 rows.map { it.toReportRow(hidden, zeroDash, unitKey, labels, text, months, dates, config.highlightPaths, highlightKey, voucherSpec, config.stackedColumns, order, config.replaceLabels, config.replaceValues, config.invoiceAmountColumn, config.productLabelColumn?.lowercase(Locale.US), config.productCodeColumns.map { it.lowercase(Locale.US) }) }
             }
         }

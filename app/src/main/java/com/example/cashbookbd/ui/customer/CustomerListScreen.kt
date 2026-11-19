@@ -38,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +54,7 @@ import com.example.cashbookbd.ui.components.TutorialScreens
 import com.example.cashbookbd.ui.components.TutorialVideoLink
 import com.example.cashbookbd.ui.components.AddButton
 import com.example.cashbookbd.ui.components.AppTextField
+import com.example.cashbookbd.ui.components.AppSelectDropdown
 import com.example.cashbookbd.ui.components.FormFieldHeight
 import com.example.cashbookbd.ui.components.LinkButton
 import com.example.cashbookbd.ui.components.PrimaryButton
@@ -142,6 +145,9 @@ fun CustomerListScreen(
                     onValueChange = viewModel::onSearchQuery,
                     label = "Search name, mobile, address…",
                     modifier = Modifier.weight(1f),
+                    // Enter runs the same Search the button does (web e543ab32).
+                    imeAction = ImeAction.Search,
+                    keyboardActions = KeyboardActions(onSearch = { viewModel.onSearch() }),
                     trailingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Search,
@@ -161,11 +167,21 @@ fun CustomerListScreen(
             }
             Spacer(Modifier.height(8.dp))
             // Client Type runs the list again server-side (web 48ae21bd).
-            com.example.cashbookbd.ui.components.AppSelectDropdown(
+            AppSelectDropdown(
                 label = "Client Type",
                 options = listOf(ALL_CLIENT_TYPES) + CLIENT_TYPES,
                 selected = state.partyType,
                 onSelected = viewModel::onPartyType,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            // Rows per page — "All" is per_page=0, which the API answers with
+            // every row it matched (web ecc4602d).
+            AppSelectDropdown(
+                label = "Rows",
+                options = CUSTOMER_PAGE_SIZES,
+                selected = state.pageSize,
+                onSelected = viewModel::onPageSize,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
@@ -202,6 +218,9 @@ fun CustomerListScreen(
                     else -> ReportTable(
                         columns = customerColumns(
                             currentPage = state.currentPage,
+                            // "All" answers one page, so the numbering starts at 1
+                            // and runs on; otherwise it offsets by the page size.
+                            perPage = state.perPageValue,
                             mobileFormat = sessionState.settings?.mobileNumberFormat.orEmpty(),
                             openingEnabled = openingEnabled,
                             canDeleteVoucher = canDeleteVoucher,
@@ -253,6 +272,8 @@ fun CustomerListScreen(
 @Composable
 private fun customerColumns(
     currentPage: Int,
+    /** The page's own size; 0 is "All", one page (so the offset stays 0). */
+    perPage: Int = CUSTOMERS_PER_PAGE,
     /** The branch's display grouping for numbers ("" = as stored) — dc17c5a. */
     mobileFormat: String,
     openingEnabled: Boolean,
@@ -265,7 +286,8 @@ private fun customerColumns(
     onHistory: (CustomerRow) -> Unit,
 ): List<ReportColumn<CustomerRow>> {
     val onScreen = MaterialTheme.colorScheme.onBackground
-    val offset = (currentPage - 1) * CUSTOMERS_PER_PAGE
+    // "All" answers one page, so there is no offset to add.
+    val offset = if (perPage > 0) (currentPage - 1) * perPage else 0
     return listOf<ReportColumn<CustomerRow>>(
         ReportColumn("#", ReportColWidth.Fixed(40.dp), TextAlign.Center) { _, index ->
             cellText((offset + index + 1).toString(), align = TextAlign.Center, color = onScreen)

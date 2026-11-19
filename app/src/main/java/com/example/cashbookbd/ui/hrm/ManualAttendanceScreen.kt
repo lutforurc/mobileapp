@@ -107,6 +107,24 @@ private val ATTENDANCE_TYPES = listOf(
     SelectorOption("shifting", "Shift Based Employee"),
 )
 
+/**
+ * Every day of a date range, one at a time — the web's `rangeDays` (d236bd59).
+ * A backwards range yields nothing, and the walk stops at 31 days so a typo in
+ * the year cannot turn a range approval into hundreds of requests.
+ *
+ * Pure, so the rule can be tested without a device.
+ */
+fun attendanceRangeDays(from: SimpleDate, to: SimpleDate): List<SimpleDate> {
+    if (to.toApi() < from.toApi()) return emptyList()
+    val days = mutableListOf<SimpleDate>()
+    var cursor = from
+    while (cursor.toApi() <= to.toApi() && days.size < 31) {
+        days += cursor
+        cursor = cursor.plusDays(1)
+    }
+    return days
+}
+
 data class ManualAttendanceUiState(
     val branches: List<BranchOption> = emptyList(),
     val selectedBranch: BranchOption? = null,
@@ -143,6 +161,9 @@ data class ManualAttendanceUiState(
     val isBulkApproving: Boolean = false,
     val showClearConfirm: Boolean = false,
     val isBulkClearing: Boolean = false,
+    /** The web's Approve Range: read every day, approve what is still pending. */
+    val showRangeApproveConfirm: Boolean = false,
+    val isRangeApproving: Boolean = false,
 
     val sessionExpired: Boolean = false,
 ) {
@@ -547,6 +568,127 @@ class ManualAttendanceViewModel(
     fun onClearClick() = _uiState.update { it.copy(showClearConfirm = true) }
     fun onClearDismiss() = _uiState.update { it.copy(showClearConfirm = false) }
 
+    fun onRangeApproveClick() = _uiState.update { it.copy(showRangeApproveConfirm = true) }
+    fun onRangeApproveDismiss() = _uiState.update { it.copy(showRangeApproveConfirm = false) }
+
+    /**
+     * The web's Approve Range (d236bd59): read every day of the Fill From/Fill
+     * To range one at a time — the path the daily list has always used — and
+     * approve what came back still pending. Skipping leave days and entries
+     * already approved; the approved days are then read back, so the message
+     * reports what actually changed rather than what the servers accepted.
+     */
+    fun approveRange() {
+        val state = _uiState.value
+        val branch = state.listBranch ?: state.selectedBranch ?: return
+        if (state.isRangeApproving) return
+        val from = state.listFrom
+        val to = state.listTo
+        if (to.toApi() < from.toApi()) {
+            _uiState.update { it.copy(showRangeApproveConfirm = false, saveError = "The last day cannot be before the first.") }
+            return
+        }
+        val days = rangeDays(from, to)
+        if (days.isEmpty()) {
+            _uiState.update { it.copy(showRangeApproveConfirm = false, saveError = "Select the first and the last day of the range.") }
+            return
+        }
+
+        _uiState.update {
+            it.copy(showRangeApproveConfirm = false, isRangeApproving = true, saveError = null, saveMessage = null)
+        }
+        viewModelScope.launch {
+            // Each day read on its own, like the daily list.
+            val approvableEntries = mutableListOf<AttendanceEntry>()
+            for (day in days) {
+                when (val result = hrmRepository.getAttendanceEntries(
+                    branchId = branch.id,
+                    dateFrom = day.toApi(),
+                    dateTo = day.toApi(),
+                )) {
+                    is Resource.Success -> approvableEntries += result.data.filter { entry ->
+                        entry.id.isNotBlank() && !entry.isLeaveDay && !entry.isApproved
+                    }
+                    is Resource.Error -> if (result.isUnauthorized) {
+                        _uiState.update { it.copy(isRangeApproving = false, sessionExpired = true) }
+                        return@launch
+                    }
+                    Resource.Loading -> Unit
+                }
+            }
+
+            if (approvableEntries.isEmpty()) {
+                _uiState.update {
+                    it.copy(isRangeApproving = false, saveMessage = "No pending attendance found in this range.")
+                }
+                return@launch
+            }
+
+            // Approve in ten-entry groups, the same per-entry endpoint the web
+            // paces (web: approveEntryRows).
+            var accepted = 0
+            var firstMessage = ""
+            for (chunk in approvableEntries.chunked(10)) {
+                for (entry in chunk) {
+                    when (val result = hrmRepository.approveAttendance(entry.id, approve = true, remarks = null)) {
+                        is Resource.Success -> {
+                            accepted++
+                            if (firstMessage.isBlank()) firstMessage = result.data
+                        }
+                        is Resource.Error -> {
+                            if (firstMessage.isBlank()) firstMessage = result.message
+                            if (result.isUnauthorized) {
+                                _uiState.update { it.copy(isRangeApproving = false, sessionExpired = true) }
+                                return@launch
+                            }
+                        }
+                        Resource.Loading -> Unit
+                    }
+                }
+            }
+
+            // The HTTP code only says the request arrived; read the days back to
+            // see what actually turned approved.
+            val touchedDays = approvableEntries
+                .map { it.date.take(10) }
+                .filter { it.isNotBlank() }
+                .distinct()
+            var stillPending = 0
+            for (day in touchedDays) {
+                when (val result = hrmRepository.getAttendanceEntries(
+                    branchId = branch.id,
+                    dateFrom = day,
+                    dateTo = day,
+                )) {
+                    is Resource.Success -> stillPending += result.data.count { entry ->
+                        entry.id.isNotBlank() && !entry.isLeaveDay && !entry.isApproved
+                    }
+                    else -> Unit
+                }
+            }
+            val approvedCount = (approvableEntries.size - stillPending).coerceAtLeast(0)
+
+            _uiState.update {
+                it.copy(
+                    isRangeApproving = false,
+                    saveMessage = if (approvedCount > 0) {
+                        "Range approval completed. Approved: $approvedCount" +
+                            (if (stillPending > 0) ", Still pending: $stillPending" else "")
+                    } else {
+                        firstMessage.ifBlank {
+                            "The server accepted $accepted requests but none of the entries turned approved."
+                        }
+                    },
+                )
+            }
+            loadEntries()
+        }
+    }
+
+    /** Every day of the range, one day at a time (web rangeDays). */
+    private fun rangeDays(from: SimpleDate, to: SimpleDate): List<SimpleDate> =
+        attendanceRangeDays(from, to)
+
     /** The web's Bulk Clear: removes the list's APPROVED entries. */
     fun bulkClear() {
         val approvedIds = _uiState.value.approvedIds
@@ -626,6 +768,23 @@ fun ManualAttendanceScreen(
             },
             confirmButton = { LinkButton(text = "Save All", onClick = viewModel::bulkSave) },
             dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::onBulkDismiss) },
+        )
+    }
+
+    if (state.showRangeApproveConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::onRangeApproveDismiss,
+            title = { Text("Confirm Range Approval") },
+            text = {
+                Text(
+                    "Approve every pending attendance entry from " +
+                        "${state.listFrom.toDisplay()} to ${state.listTo.toDisplay()}. " +
+                        "Entries already approved are left as they are; rejected entries " +
+                        "in the range will be approved too.",
+                )
+            },
+            confirmButton = { LinkButton(text = "Approve Range", onClick = viewModel::approveRange) },
+            dismissButton = { LinkButton(text = "Cancel", onClick = viewModel::onRangeApproveDismiss) },
         )
     }
 
@@ -847,6 +1006,20 @@ fun ManualAttendanceScreen(
                         onClick = viewModel::loadEntries,
                         enabled = !state.isEntriesLoading,
                         icon = Icons.Filled.Search,
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // The web's Approve Range sits beside the Load: it reads each
+                    // day of the Fill From/To range and approves what is still
+                    // pending (web d236bd59).
+                    PrimaryButton(
+                        text = "Approve Range",
+                        onClick = viewModel::onRangeApproveClick,
+                        enabled = !state.isRangeApproving && state.listTo.toApi() >= state.listFrom.toApi(),
+                        isLoading = state.isRangeApproving,
+                        icon = Icons.Filled.Check,
+                        modifier = Modifier.weight(1f),
                     )
                 }
                 Spacer(Modifier.height(10.dp))

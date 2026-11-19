@@ -40,6 +40,12 @@ class GenericReportViewModel(
     private val genericReportRepository: GenericReportRepository,
     private val ledgerRepository: LedgerRepository,
     private val selectorRepository: SelectorRepository,
+    /**
+     * The login's own branch. A report with no Branch box (Closing Stock,
+     * Stock Details, Product Stock — [ReportConfig.hideBranchField]) follows
+     * this one rather than the first in the list (web 475c6ce5).
+     */
+    private val ownBranchId: Long? = null,
 ) : ViewModel() {
 
     private val config: ReportConfig? = ReportMenu.byKey(reportKey)
@@ -52,6 +58,8 @@ class GenericReportViewModel(
             ledgerFooter = config?.ledgerFooter == true,
             showSearch = config?.searchFilter == true,
             searchFilterHint = config?.searchFilterHint ?: "Search product name or code…",
+            hideBranchField = config?.hideBranchField == true,
+            strictProductNarrowing = config?.strictProductNarrowing == true,
             wideColumns = config?.wideColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
             narrowColumns = config?.narrowColumns.orEmpty().map { it.lowercase(java.util.Locale.US) },
             columnWidths = config?.columnWidths.orEmpty()
@@ -113,7 +121,16 @@ class GenericReportViewModel(
                         it.copy(
                             isBranchesLoading = false,
                             branches = result.data.branches,
-                            selectedBranch = it.selectedBranch ?: result.data.branches.firstOrNull(),
+                            // A report with no Branch box runs on the login's own
+                            // branch (web 475c6ce5); the rest keep the first
+                            // branch until the picker says otherwise.
+                            selectedBranch = it.selectedBranch ?: config?.let { cfg ->
+                                if (cfg.hideBranchField) {
+                                    result.data.branches.firstOrNull { b -> b.id == ownBranchId }
+                                } else {
+                                    null
+                                }
+                            } ?: result.data.branches.firstOrNull(),
                             startDate = if (applyBranchDate) defaultStart(branchTrDate!!) else it.startDate,
                             endDate = if (applyBranchDate) branchTrDate!! else it.endDate,
                         )
@@ -239,8 +256,19 @@ class GenericReportViewModel(
 
         // The box takes effect when the report is asked for, like the web's
         // Apply — never per keystroke, which would move rows under the eye.
+        // The Product box is the same: the answer is narrowed by the product it
+        // was ASKED for, so picking another without Apply leaves the table alone.
+        val productFieldId = if (state.strictProductNarrowing) state.selectors
+            .firstOrNull { it.config.source == ReportSelectorSource.PRODUCT && it.config.paramKey == "product_id" }
+            ?.selected?.id.orEmpty() else ""
+        val productFieldLabel = if (state.strictProductNarrowing) state.selectors
+            .firstOrNull { it.config.source == ReportSelectorSource.PRODUCT && it.config.paramKey == "product_id" }
+            ?.selected?.let { it.sendValue ?: it.label }.orEmpty() else ""
         _uiState.update {
-            it.copy(isReportLoading = true, reportError = null, appliedSearch = it.searchQuery)
+            it.copy(
+                isReportLoading = true, reportError = null, appliedSearch = it.searchQuery,
+                appliedProductId = productFieldId, appliedProductLabel = productFieldLabel,
+            )
         }
 
         // Selected dropdown values, keyed by the endpoint param (id, or label text
@@ -268,6 +296,11 @@ class GenericReportViewModel(
                 monthYear = if (cfg.monthYearParam != null) state.monthYear.toParam() else null,
                 month = if (cfg.monthParam != null) state.monthYear.month.toString() else null,
                 year = if (cfg.yearParam != null) state.monthYear.year.toString() else null,
+                narrowProductId = productFieldId,
+                narrowProductLabel = productFieldLabel,
+                // Product Stock's Search box is posted too — the server narrows
+                // as the web does, and the answer is narrowed again here.
+                searchText = if (cfg.searchParam != null) state.searchQuery else "",
             )
             when (result) {
                 is Resource.Success -> _uiState.update {
@@ -302,6 +335,7 @@ class GenericReportViewModel(
                     genericReportRepository = ServiceLocator.provideGenericReportRepository(appContext),
                     ledgerRepository = ServiceLocator.provideLedgerRepository(appContext),
                     selectorRepository = ServiceLocator.provideSelectorRepository(appContext),
+                    ownBranchId = ServiceLocator.provideSessionManager(appContext).state.value.settings?.branchId,
                 )
             }
         }

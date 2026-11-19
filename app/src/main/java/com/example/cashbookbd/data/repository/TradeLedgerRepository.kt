@@ -57,6 +57,13 @@ data class TradeLedgerRow(
     /** Purchase: first coa4 17 credit. Sales: Σ coa4 17 debit. */
     val payment: Double,
     val balance: Double,
+    /**
+     * What the supplier billed for this voucher — `purchase_master.total`,
+     * which carries the bill's charges (carriage, the tax head, service
+     * charge) that the detail lines do not (web b8321400). Falls back to the
+     * detail sum for a payload without a master total or a goods-only bill.
+     */
+    val billTotal: Double = 0.0,
     val branchId: String,
     val voucherImage: String,
     val remarks: String,
@@ -371,13 +378,26 @@ class TradeLedgerRepository(
                 ?.obj("coa_l4")?.text("name")
             ?: ""
 
+        val detailTotal = lines.sumOf { it.total }
+        // The bill's own total, charges included — see purchaseInvoiceTotal on
+        // the web (b8321400). A master with no total, or a goods-only bill,
+        // reads exactly as the detail sum did.
+        val masterTotal = master?.dbl("total") ?: 0.0
+        val billTotal = if (masterTotal != 0.0 && !masterTotal.isNaN() && !masterTotal.isInfinite()) {
+            masterTotal
+        } else {
+            detailTotal
+        }
+
         val discount: Double?
         val payment: Double
         val balance: Double
         if (kind == TradeLedgerKind.PURCHASE) {
             discount = accDetails.firstOrNull { it.long("coa4_id") == COA_PURCHASE_DISCOUNT }?.dbl("credit")
             payment = accDetails.firstOrNull { it.long("coa4_id") == COA_CASH }?.dbl("credit") ?: 0.0
-            balance = lines.sumOf { it.total } -
+            // The bill paid in full must read a nought balance: the charges live
+            // in the master total, not in the details.
+            balance = billTotal -
                 accDetails.filter { it.long("coa4_id") == COA_CASH }.sumOf { it.dbl("credit") } -
                 accDetails.filter { it.long("coa4_id") == COA_PURCHASE_DISCOUNT }.sumOf { it.dbl("credit") }
         } else {
@@ -408,6 +428,7 @@ class TradeLedgerRepository(
             discount = discount,
             payment = payment,
             balance = balance,
+            billTotal = billTotal,
             branchId = text("branch_id"),
             voucherImage = text("voucher_image"),
             remarks = text("remarks"),
@@ -473,6 +494,7 @@ class TradeLedgerRepository(
             discount = discount,
             payment = cash,
             balance = total - discount - cash,
+            billTotal = total,
             branchId = text("branch_id"),
             voucherImage = text("voucher_image"),
             remarks = text("remarks"),
@@ -526,7 +548,13 @@ class TradeLedgerRepository(
     /** The web calculators: first-matching-account sums, per row. */
     private fun List<TradeLedgerRow>.totals(kind: TradeLedgerKind): TradeLedgerTotals {
         val quantity = sumOf { row -> row.lines.sumOf { it.quantity } }
-        val total = sumOf { row -> row.lines.sumOf { it.total } }
+        // Purchase's Total column reads the bill's own figure (charges
+        // included, web b8321400); Sales keeps the sum of its lines.
+        val total = if (kind == TradeLedgerKind.PURCHASE) {
+            sumOf { it.billTotal }
+        } else {
+            sumOf { row -> row.lines.sumOf { it.total } }
+        }
         val discount = sumOf { it.discount ?: 0.0 }
         val payment = sumOf { it.payment }
         val balance = if (kind == TradeLedgerKind.PURCHASE) {

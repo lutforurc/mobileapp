@@ -325,6 +325,7 @@ class HrmRepository(
                 approvalStatus = obj.text("approval_status").orEmpty(),
                 remarks = obj.text("remarks").orEmpty(),
                 overtimeMinutes = obj.number("overtime_minutes"),
+                isLeaveDay = obj.boolean("is_leave_day"),
             )
         }
 
@@ -1156,6 +1157,13 @@ class HrmRepository(
 
     private fun JsonObject.numberOrNull(key: String): Double? =
         text(key)?.replace(",", "")?.toDoubleOrNull()
+
+    /** A flag the API may send as true/false, 1/0 or "1"/"0". */
+    private fun JsonObject.boolean(key: String): Boolean {
+        val raw = get(key)?.takeUnless { it.isJsonNull }?.takeIf { it.isJsonPrimitive } ?: return false
+        return if (raw.asJsonPrimitive.isBoolean) raw.asBoolean
+        else raw.asString.trim().let { it == "1" || it.equals("true", ignoreCase = true) }
+    }
 
     private fun JsonObject.addNullable(key: String, value: String?) {
         if (value.isNullOrBlank()) add(key, com.google.gson.JsonNull.INSTANCE)

@@ -32,6 +32,20 @@ data class GenericReportUiState(
     /** The free-text Search box over the rows (Stock Details). */
     val showSearch: Boolean = false,
     val searchFilterHint: String = "Search product name or code…",
+    /**
+     * No Branch box: the report follows the login's own branch (web 475c6ce5).
+     * The request still carries a branch id — it comes from the session.
+     */
+    val hideBranchField: Boolean = false,
+    /**
+     * A picked Product narrows the answer strictly, before grouping (web
+     * 475c6ce5). The applied product id/label are held below, so changing the
+     * box without Apply leaves the table standing.
+     */
+    val strictProductNarrowing: Boolean = false,
+    /** The product the current answer was ASKED for (set on Apply). */
+    val appliedProductId: String = "",
+    val appliedProductLabel: String = "",
     val searchQuery: String = "",
     /** The query the report is drawn through — set when Apply is pressed. */
     val appliedSearch: String = "",

@@ -57,6 +57,11 @@ data class InvoiceEdit(
     val serviceCharge: Double,
     val tdsAmount: Double,
     val transportationAmt: Double,
+    /**
+     * Tiles purchase's Carrying Inward — coa4 197, or 198 where a tenant's chart
+     * is older (web: findCoaAmount(…, 197, 198)). Sits either side of the book.
+     */
+    val carryingInwardAmt: Double,
     /** Electronics sales' saved schedule, already in the update's shape. */
     val installments: JsonArray,
     val manualVoucherNo: String,
@@ -92,6 +97,18 @@ fun parseInvoiceEdit(body: JsonObject, sales: Boolean): Resource<InvoiceEdit> {
     // The extra charges sit on the first leg, as the web's findCoaCredit reads them.
     val firstLeg = legs.firstOrNull()?.get("acc_transaction_details").jAsArr()?.jObjects().orEmpty()
     fun creditOf(coa: String) = firstLeg.firstOrNull { it.jStr("coa4_id") == coa }?.jNum("credit") ?: 0.0
+
+    /**
+     * A purchase charge read the web's way (findCoaAmount): across every leg,
+     * and on EITHER side — the same chart heads the sale credits, a purchase bill
+     * may post debited. More than one id may be named, since carriage sits on 197
+     * in one deployment and 198 in another.
+     */
+    fun amountOf(vararg coas: String): Double = coas.firstNotNullOfOrNull { coa ->
+        details.firstOrNull { it.jStr("coa4_id") == coa }?.let { d ->
+            d.jNum("debit").takeIf { it != 0.0 } ?: d.jNum("credit")
+        }
+    } ?: 0.0
 
     val lines = master.get("details").jAsArr()?.jObjects().orEmpty().map { d ->
         val product = d.get("product").jAsObj()
@@ -149,9 +166,13 @@ fun parseInvoiceEdit(body: JsonObject, sales: Boolean): Resource<InvoiceEdit> {
             purchaseOrderId = order?.jStr("id").orEmpty(),
             purchaseOrderText = order?.jStr("order_number").orEmpty(),
             trackedProductId = data.jStr("trackedProductId"),
-            serviceCharge = creditOf("42"),
-            tdsAmount = creditOf("41"),
+            // A sale's pair is read the web's findCoaCredit way (first leg,
+            // credit side); a purchase bill's three charges either side of the
+            // book, across every leg (findCoaAmount).
+            serviceCharge = if (sales) creditOf("42") else amountOf("42"),
+            tdsAmount = if (sales) creditOf("41") else amountOf("41"),
             transportationAmt = creditOf("198"),
+            carryingInwardAmt = if (sales) 0.0 else amountOf("197", "198"),
             installments = installments,
             manualVoucherNo = trx.jStr("manual_voucher_no"),
             manualVoucherDate = trx.jStr("manual_voucher_date"),

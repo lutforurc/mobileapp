@@ -73,7 +73,7 @@ data class PurchaseAdvanceUiState(
 
     val submitLabel: String
         get() = when {
-            !isSettle -> "Give Payment"
+            !isSettle -> "Advance Payment"
             held < 0 -> "Pay the difference"
             else -> "Receive back"
         }
